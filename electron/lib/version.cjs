@@ -27,4 +27,22 @@ function versionFromTag(tag) {
   return parseVersion(normalized) ? normalized : null;
 }
 
-module.exports = { normalizeVersion, parseVersion, compareVersions, versionFromTag };
+function selectHighestRelease(releases) {
+  const valid = (Array.isArray(releases) ? releases : [])
+    .map((item) => ({ ...item, version: versionFromTag(item?.tagName) }))
+    .filter((item) => item.version);
+  valid.sort((a, b) => compareVersions(b.version, a.version));
+  return valid[0] || null;
+}
+
+function selectInstallerAsset(assets, version, arch) {
+  const names = new Set((Array.isArray(assets) ? assets : []).map((item) => typeof item === 'string' ? item : item?.name).filter(Boolean));
+  const primary = `AI-Engineering-Control-Plane-Setup-${version}.exe`;
+  const normalizedArch = arch === 'arm64' ? 'arm64' : 'x64';
+  const fallback = `AI-Engineering-Control-Plane-Setup-${normalizedArch}-${version}.exe`;
+  if (names.has(primary)) return primary;
+  if (names.has(fallback)) return fallback;
+  return null;
+}
+
+module.exports = { normalizeVersion, parseVersion, compareVersions, versionFromTag, selectHighestRelease, selectInstallerAsset };
