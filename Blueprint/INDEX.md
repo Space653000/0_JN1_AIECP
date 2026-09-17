@@ -11,14 +11,15 @@
 5. `04_SECURITY_AND_POLICY.md` — trust boundaries, risk classes, policy-as-code, secrets
 6. `05_GITHUB_MULTI_REPO.md` — multi-repo/worktree/concurrency model
 7. `06_DESKTOP_CHATGPT_INTEGRATION.md` — official ChatGPT isolation and safe handoff
-8. `07_INSTALL_RELEASE.md` — Windows x64/ARM64, installer, release, updates
+8. `07_INSTALL_RELEASE.md` — auto-detect Windows installer, x64/ARM64 fallbacks, release, updates
 9. `08_ROADMAP_ACCEPTANCE.md` — delivery phases and measurable gates
 10. `09_RESEARCH_NOTES.md` — external research and adopted patterns
 11. `10_CONVERSATION_DECISION_LOG.md` — concise founding requirements/decision history
 12. `11_TASK_PROTOCOL.md` — Command Card, Context Capsule, Result Capsule, trace schema
 13. `12_DATA_MODEL.md` — persistent entities, graph and local storage
 14. `13_TRIPLE_AUDIT.md` — three independent blueprint-vs-implementation audits
-15. `Conversation/2026-09-17_FOUNDING_CONVERSATION.md` — full project-specific founding conversation archive
+15. `14_GUIDED_UX_AND_GOAL_LOOP.md` — newcomer-first guided UX, Goal Loop, budgets, checkpoints, stop conditions and remote supervision direction
+16. `Conversation/2026-09-17_FOUNDING_CONVERSATION.md` — full project-specific founding conversation archive
 
 ## Product name
 
@@ -27,3 +28,13 @@
 ## Non-negotiable principle
 
 Official ChatGPT Web is an independent OpenAI surface. AECP must not inject into, scrape, intercept, modify, imitate, or reverse engineer ChatGPT. AECP controls the local computer through an explicit local harness and exchanges only user-authorized task/result payloads.
+
+## Default-user principle
+
+A first-time user should need to understand only:
+
+1. what outcome they want,
+2. which local Workspace AECP may use,
+3. what evidence means Done.
+
+Architecture, provider routing, local-tool discovery, repository discovery and execution evidence should be automatic or progressively disclosed whenever doing so does not weaken permission boundaries.
