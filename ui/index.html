@@ -52,10 +52,12 @@
 
       <section class="pane control-pane">
         <div class="control-header">
-          <div><span class="eyebrow">CONTROL PLANE</span><h2 id="controlTitle">Task Board</h2></div>
+          <div><span class="eyebrow">CONTROL PLANE</span><h2 id="controlTitle">Start</h2></div>
           <div class="segmented" role="tablist" aria-label="Control plane views">
-            <button class="view-tab active" data-view="board" type="button">Board</button>
+            <button class="view-tab active" data-view="start" type="button">Start</button>
+            <button class="view-tab" data-view="board" type="button">Board</button>
             <button class="view-tab" data-view="pipeline" type="button">Pipeline</button>
+            <button class="view-tab" data-view="loop" type="button">Goal Loop</button>
             <button class="view-tab" data-view="graph" type="button">Graph</button>
             <button class="view-tab engineering-only" data-view="trace" type="button">Trace</button>
             <button class="view-tab" data-view="evidence" type="button">Evidence</button>
@@ -77,13 +79,13 @@
         <section class="handoff-card">
           <div class="section-title"><h3>Safe Bridge</h3><span class="status safe">No API key</span></div>
           <ol class="handoff-steps">
-            <li><span>1</span><div>Discuss work in ChatGPT.<small>Ask it to output an AECP Command Card.</small></div></li>
-            <li><span>2</span><div>Copy the card.<small>AECP never reads the clipboard until you press Import.</small></div></li>
-            <li><span>3</span><div>Run locally.<small>Preview exposes read-only local capabilities.</small></div></li>
-            <li><span>4</span><div>Copy the verified result.<small>Paste the compact Result Capsule back into ChatGPT.</small></div></li>
+            <li><span>1</span><div>Describe your goal.<small>ChatGPT handles reasoning and discussion.</small></div></li>
+            <li><span>2</span><div>Hand off a Command Card.<small>AECP validates it before local execution.</small></div></li>
+            <li><span>3</span><div>Verify locally.<small>Trace and Evidence show what actually happened.</small></div></li>
+            <li><span>4</span><div>Continue or Loop.<small>Return the Result Capsule or advance a Goal Loop.</small></div></li>
           </ol>
           <button id="importClipboardButton" class="primary-button full" type="button">Import from Clipboard</button>
-          <button id="sampleButton" class="secondary-button full" type="button">Create sample task</button>
+          <button id="sampleButton" class="secondary-button full" type="button">Create safe sample task</button>
         </section>
 
         <section class="privacy-note"><strong>Local-first</strong><p>Repository details, tool status, traces, and evidence remain on this computer unless you explicitly copy/share them.</p></section>
@@ -94,15 +96,15 @@
   <div id="welcomeOverlay" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="welcomeTitle">
     <div class="modal welcome-modal">
       <div class="welcome-mark"><div class="brand-mark large"><span></span><span></span><span></span></div></div>
-      <span class="eyebrow">WELCOME</span>
-      <h1 id="welcomeTitle">Turn your computer into a governed AI engineering workspace.</h1>
-      <p>ChatGPT stays official and separate. AECP connects your chosen local Workspace to a safe task, evidence, and provider control plane.</p>
+      <span class="eyebrow">FIRST RUN</span>
+      <h1 id="welcomeTitle">One choice, then AECP configures the rest.</h1>
+      <p>Choose the one project folder AECP is allowed to use. AECP will detect your Windows architecture, local tools and repositories automatically. ChatGPT remains the normal official website.</p>
       <div class="welcome-points">
-        <div><strong>1</strong><span>Choose one local folder AECP may inspect.</span></div>
-        <div><strong>2</strong><span>Open your normal ChatGPT Web session.</span></div>
-        <div><strong>3</strong><span>Explicitly hand tasks/results across the Safe Bridge.</span></div>
+        <div><strong>1</strong><span>Choose one Workspace folder as the local permission boundary.</span></div>
+        <div><strong>2</strong><span>AECP automatically detects Git, PowerShell, Python, Node, GitHub CLI, Ollama and repositories.</span></div>
+        <div><strong>3</strong><span>Use Start for guided work or Goal Loop for longer research/build/verify cycles.</span></div>
       </div>
-      <button id="welcomeChooseButton" class="primary-button full" type="button">Choose my first Workspace</button>
+      <button id="welcomeChooseButton" class="primary-button full" type="button">Choose Workspace and continue</button>
       <small>No API key is needed for the default ChatGPT Web workflow.</small>
     </div>
   </div>
