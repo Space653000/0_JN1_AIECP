@@ -1,0 +1,16 @@
+{
+  "schema": "aecp.task/v1",
+  "title": "Inspect repository status",
+  "workspace": "current",
+  "goal": "Read the current Git repository branch and working-tree status without modifying anything.",
+  "action": {
+    "type": "git-status"
+  },
+  "permissions": [
+    "workspace:read"
+  ],
+  "verification": {
+    "type": "operation-success",
+    "expected": true
+  }
+}
