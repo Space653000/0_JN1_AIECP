@@ -1,5 +1,7 @@
 'use strict';
 
+const systemPrefersLight = window.matchMedia?.('(prefers-color-scheme: light)').matches;
+
 const state = {
   app: null,
   data: null,
@@ -7,9 +9,10 @@ const state = {
   tasks: [],
   providers: [],
   selectedTaskId: null,
-  view: 'board',
+  view: 'start',
   engineering: false,
-  theme: localStorage.getItem('aecp-theme') || 'dark'
+  theme: localStorage.getItem('aecp-theme') || (systemPrefersLight ? 'light' : 'dark'),
+  chatgptOpened: localStorage.getItem('aecp-chatgpt-opened') === '1'
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -123,7 +126,7 @@ function renderTools() {
 
 function renderTabs() {
   $$('.view-tab').forEach((button) => button.classList.toggle('active', button.dataset.view === state.view));
-  const names = { board: 'Task Board', pipeline: 'Task Pipeline', graph: 'Workspace Graph', trace: 'Execution Trace', evidence: 'Evidence' };
+  const names = { start: 'Start', board: 'Task Board', pipeline: 'Task Pipeline', loop: 'Goal Loop', graph: 'Workspace Graph', trace: 'Execution Trace', evidence: 'Evidence' };
   $('#controlTitle').textContent = names[state.view] || 'Control Plane';
 }
 
@@ -133,11 +136,76 @@ function renderControl() {
     host.innerHTML = `<div class="empty-state"><div><h3>Choose a Workspace</h3><p>AECP needs one explicit local folder boundary before it can create tasks or collect evidence.</p><button class="primary-button" data-action="choose-workspace">Choose folder</button></div></div>`;
     return;
   }
-  if (state.view === 'board') renderBoard(host);
+  if (state.view === 'start') renderStart(host);
+  else if (state.view === 'board') renderBoard(host);
   else if (state.view === 'pipeline') renderPipeline(host);
+  else if (state.view === 'loop') renderLoop(host);
   else if (state.view === 'graph') renderGraph(host);
   else if (state.view === 'trace') renderTrace(host);
   else if (state.view === 'evidence') renderEvidence(host);
+}
+
+function renderStart(host) {
+  const workspace = state.data.currentWorkspace;
+  const available = state.tools.filter((tool) => tool.available).length;
+  const repos = workspace.repositories?.length || 0;
+  const latest = state.tasks[0];
+  const nextTaskText = latest ? `${latest.title} · ${latest.state}` : 'No local task yet';
+  host.innerHTML = `<section class="task-detail">
+    <div class="card-title-row"><div><span class="eyebrow">GUIDED START</span><h3>What do you want to accomplish?</h3></div><span class="status ready">Ready</span></div>
+    <p class="muted">Beginner mode hides the plumbing. AECP detects the environment, keeps the Workspace boundary, and shows the next useful action.</p>
+    <div class="detail-grid">
+      <div class="detail-cell"><small>Workspace</small><strong>${esc(workspace.name)}</strong><span>${repos} repo(s) detected</span></div>
+      <div class="detail-cell"><small>Environment</small><strong>${available}/${state.tools.length || 0} tools detected</strong><span>Architecture: ${esc(state.app?.arch || 'detecting')}</span></div>
+      <div class="detail-cell"><small>ChatGPT Web</small><strong>${state.chatgptOpened ? 'Opened before' : 'Ready to open'}</strong><span>Official browser session</span></div>
+      <div class="detail-cell"><small>Latest work</small><strong>${esc(nextTaskText)}</strong><span>${state.tasks.length} task(s) stored locally</span></div>
+    </div>
+    <h3>Choose one path</h3>
+    <div class="task-actions">
+      <button class="primary-button" data-action="open-chatgpt">1 · Open ChatGPT</button>
+      <button class="secondary-button" data-action="sample-task">2 · Run safe local check</button>
+      <button class="secondary-button" data-action="show-loop">Goal Loop · Longer work</button>
+    </div>
+    <div class="privacy-note"><strong>Automatic where safe</strong><p>Architecture, tools, repositories and Git state are detected automatically. AECP asks only for choices that affect data access, permissions, or high-risk actions.</p></div>
+  </section>`;
+}
+
+function loadLoopConfig() {
+  try {
+    return JSON.parse(localStorage.getItem('aecp-goal-loop') || '{}');
+  } catch {
+    return {};
+  }
+}
+
+function renderLoop(host) {
+  const config = loadLoopConfig();
+  host.innerHTML = `<section class="task-detail">
+    <div class="card-title-row"><div><span class="eyebrow">GOAL LOOP</span><h3>Research → Plan → Act → Verify → Improve</h3></div><span class="status safe">Governed</span></div>
+    <p class="muted">Define the outcome once. The Loop contract carries Done criteria, iteration budget and checkpoints across repeated ChatGPT ↔ AECP cycles. In v0.1.0 ChatGPT Web remains an explicit Safe Bridge; future API/local/MCP providers can automate the same contract without changing the project model.</p>
+    <form id="goalLoopForm" class="provider-form">
+      <div class="form-grid">
+        <label class="wide">Goal<textarea id="loopGoal" rows="3" placeholder="Example: Make the application install and complete its first safe task with no technical setup required.">${esc(config.goal || '')}</textarea></label>
+        <label class="wide">Definition of Done<textarea id="loopDone" rows="3" placeholder="Use measurable acceptance criteria, not 'looks good'.">${esc(config.done || '')}</textarea></label>
+        <label>Maximum iterations<input id="loopIterations" type="number" min="1" max="50" value="${esc(config.maxIterations || 10)}"></label>
+        <label>Checkpoint every N iterations<input id="loopCheckpoint" type="number" min="1" max="10" value="${esc(config.checkpointEvery || 2)}"></label>
+      </div>
+      <div class="task-actions">
+        <button class="primary-button" type="button" data-action="copy-loop-prompt">Copy Goal Loop prompt</button>
+        <button class="secondary-button" type="button" data-action="open-chatgpt">Open ChatGPT</button>
+      </div>
+    </form>
+    <div class="pipeline">
+      ${[
+        ['RESEARCH', 'Collect only the information needed for the current uncertainty.'],
+        ['PLAN', 'Choose the smallest high-value next action and state why.'],
+        ['ACT', 'Use a governed capability/provider; Web mode uses an explicit Command Card.'],
+        ['VERIFY', 'Use tests, evidence, diff or measurable acceptance criteria.'],
+        ['REFLECT', 'Decide DONE, BLOCKED, NEEDS_APPROVAL, or NEXT_ITERATION.']
+      ].map(([name, text], index) => `<div class="pipeline-step ${index === 0 ? 'active' : ''}"><div class="step-node">${index + 1}</div><div class="step-body"><strong>${name}</strong><small>${text}</small></div></div>`).join('')}
+    </div>
+    <div class="privacy-note"><strong>Stop conditions are part of the feature</strong><p>The loop must stop when Done is proven, iteration budget is exhausted, a required permission is missing, a high-risk action needs approval, or repeated attempts stop producing progress.</p></div>
+  </section>`;
 }
 
 function taskColumn(task) {
@@ -262,6 +330,7 @@ function renderProviders() {
 async function chooseWorkspace() {
   const workspace = await safe(() => window.aecp.selectWorkspace());
   if (!workspace) return;
+  state.view = 'start';
   $('#welcomeOverlay').classList.add('hidden');
   toast(`Workspace connected: ${workspace.name}`);
   await loadAll();
@@ -271,6 +340,16 @@ async function refreshWorkspace() {
   await safe(() => window.aecp.refreshWorkspace());
   await loadAll();
   toast('Local Workspace refreshed.');
+}
+
+async function openChatGPT() {
+  const ok = await safe(() => window.aecp.openChatGPT());
+  if (ok) {
+    state.chatgptOpened = true;
+    localStorage.setItem('aecp-chatgpt-opened', '1');
+    toast('Official ChatGPT opened in your browser.');
+    if (state.view === 'start') renderControl();
+  }
 }
 
 async function importFromClipboard() {
@@ -311,6 +390,22 @@ async function copyResult(taskId) {
   if (ok) toast('Result Capsule copied. Paste it into your ChatGPT conversation.');
 }
 
+async function copyGoalLoopPrompt() {
+  const goal = $('#loopGoal')?.value.trim() || '';
+  const done = $('#loopDone')?.value.trim() || '';
+  const maxIterations = Math.max(1, Math.min(50, Number($('#loopIterations')?.value || 10)));
+  const checkpointEvery = Math.max(1, Math.min(10, Number($('#loopCheckpoint')?.value || 2)));
+  if (!goal || !done) {
+    toast('Goal and Definition of Done are both required.', 'error');
+    return;
+  }
+  const config = { goal, done, maxIterations, checkpointEvery };
+  localStorage.setItem('aecp-goal-loop', JSON.stringify(config));
+  const prompt = `AECP_GOAL_LOOP_V1\n\nYou are the reasoning supervisor for an AI Engineering Control Plane Goal Loop.\n\nGOAL\n${goal}\n\nDEFINITION OF DONE\n${done}\n\nLOOP BUDGET\nMaximum iterations: ${maxIterations}\nCheckpoint every: ${checkpointEvery} iteration(s)\n\nOPERATING CONTRACT\n1. Work in this cycle: RESEARCH -> PLAN -> ACT -> VERIFY -> REFLECT.\n2. Do not declare completion from confidence alone. Completion requires evidence against the Definition of Done.\n3. Choose the smallest high-value next action; avoid repeating an action that produced no progress.\n4. At each checkpoint summarize: progress, evidence, unresolved risks, and whether direction should change.\n5. Stop with one state only: DONE, BLOCKED, NEEDS_APPROVAL, or NEXT_ITERATION.\n6. For AECP v0.1 Web Safe Bridge, when local inspection is needed output exactly one aecp.task/v1 Command Card using only supported read-only actions (inspect-workspace or git-status). Do not invent shell/file-write privileges. Wait for the AECP Result Capsule before claiming that local action succeeded.\n7. If the goal requires a capability not available in this preview, design the next governed adapter or implementation step instead of pretending it executed.\n\nStart at iteration 1. First determine the highest-value uncertainty or action needed to move toward Done.`;
+  const ok = await safe(() => window.aecp.writeClipboard(prompt));
+  if (ok) toast('Goal Loop prompt copied. Paste it into ChatGPT and keep returning verified Result Capsules.');
+}
+
 function setView(view) {
   state.view = view;
   renderTabs();
@@ -324,10 +419,10 @@ function bindEvents() {
   $('#refreshButton').addEventListener('click', refreshWorkspace);
   $('#openWorkspaceButton').addEventListener('click', () => safe(() => window.aecp.openWorkspace()));
   $('#terminalButton').addEventListener('click', () => safe(() => window.aecp.openTerminal()));
-  $('#openChatGPTButton').addEventListener('click', () => safe(() => window.aecp.openChatGPT()));
+  $('#openChatGPTButton').addEventListener('click', openChatGPT);
   $('#importClipboardButton').addEventListener('click', importFromClipboard);
   $('#sampleButton').addEventListener('click', createSampleTask);
-  $('#modeButton').addEventListener('click', () => { state.engineering = !state.engineering; if (!state.engineering && state.view === 'trace') state.view = 'board'; render(); });
+  $('#modeButton').addEventListener('click', () => { state.engineering = !state.engineering; if (!state.engineering && state.view === 'trace') state.view = 'start'; render(); });
   $('#themeButton').addEventListener('click', () => { state.theme = state.theme === 'dark' ? 'light' : 'dark'; localStorage.setItem('aecp-theme', state.theme); render(); });
   $('#settingsButton').addEventListener('click', () => $('#providerOverlay').classList.remove('hidden'));
   $('#closeProviderButton').addEventListener('click', () => $('#providerOverlay').classList.add('hidden'));
@@ -362,6 +457,10 @@ function bindEvents() {
       const action = actionNode.dataset.action;
       const taskId = actionNode.dataset.taskId;
       if (action === 'choose-workspace') await chooseWorkspace();
+      if (action === 'open-chatgpt') await openChatGPT();
+      if (action === 'sample-task') await createSampleTask();
+      if (action === 'show-loop') setView('loop');
+      if (action === 'copy-loop-prompt') await copyGoalLoopPrompt();
       if (action === 'run-task') await runTask(taskId);
       if (action === 'copy-result') await copyResult(taskId);
       if (action === 'show-evidence') { state.selectedTaskId = taskId; setView('evidence'); }
