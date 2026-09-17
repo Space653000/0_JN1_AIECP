@@ -35,13 +35,38 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Verify again on Windows
         run: npm run verify
-      - name: Build installer
+      - name: Build architecture-specific fallback installer
         shell: pwsh
         run: npx electron-builder --win nsis --${{ matrix.arch }} --publish never
-      - name: Upload installer artifact
+      - name: Upload fallback installer artifact
         uses: actions/upload-artifact@v4
         with:
           name: aecp-windows-${{ matrix.arch }}
+          path: |
+            release/*.exe
+            release/*.blockmap
+          if-no-files-found: error
+          retention-days: 14
+
+  package-windows-auto:
+    name: Package Windows Auto Detect (x64 + ARM64)
+    needs: verify
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install build dependencies
+        run: npm install --no-audit --no-fund
+      - name: Verify again on Windows
+        run: npm run verify
+      - name: Build single auto-detect installer
+        run: npm run dist:auto
+      - name: Upload primary installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: aecp-windows-auto
           path: |
             release/*.exe
             release/*.blockmap
