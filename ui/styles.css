@@ -209,3 +209,18 @@ body:not(.engineering-mode) .engineering-only { display: none !important; }
   .board { grid-template-columns: repeat(2, 1fr); }
   .segmented .view-tab { padding: 0 6px; }
 }
+
+
+/* Agent switcher + update channel */
+.agent-list { display: grid; gap: 8px; margin-top: 10px; }
+.agent-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; border: 1px solid var(--line); background: var(--panel); border-radius: 10px; padding: 10px; }
+.agent-item > div { min-width: 0; }
+.agent-item strong { display: block; font-size: 12px; }
+.agent-item small { display: block; color: var(--faint); font-size: 9px; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agent-item button { flex: none; }
+.handoff-card + .handoff-card { margin-top: 12px; }
+.handoff-card .button-row { margin-top: 10px; }
+.handoff-card .full { margin-top: 8px; }
+.detail-cell span { display: block; color: var(--faint); font-size: 10px; margin-top: 5px; }
+textarea { width: 100%; resize: vertical; min-height: 76px; border: 1px solid var(--line); background: var(--panel); color: var(--text); border-radius: 9px; padding: 10px; font: inherit; }
+textarea:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
