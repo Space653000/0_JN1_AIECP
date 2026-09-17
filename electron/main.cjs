@@ -8,8 +8,16 @@ const crypto = require('node:crypto');
 const os = require('node:os');
 
 const { parseCommandCard, makeTaskId, makeResultCapsule, hashJson } = require('./lib/protocol.cjs');
+const { compareVersions, versionFromTag } = require('./lib/version.cjs');
 
 const STATE_SCHEMA = 1;
+const UPDATE_REPO = 'Space653000/AI-Engineering-Control-Plane';
+const AGENT_SPECS = Object.freeze([
+  { id: 'codex-cli', name: 'Codex CLI', command: 'codex', args: ['--version'], role: 'coding' },
+  { id: 'claude-code', name: 'Claude Code', command: 'claude', args: ['--version'], role: 'coding' },
+  { id: 'gemini-cli', name: 'Gemini CLI', command: 'gemini', args: ['--version'], role: 'research-coding' },
+  { id: 'ollama', name: 'Local Ollama', command: 'ollama', args: ['--version'], role: 'local-models' }
+]);
 let mainWindow = null;
 
 function dataPath(...parts) {
@@ -113,6 +121,182 @@ async function detectTools() {
   ]);
   const names = { git: 'Git', pwsh: 'PowerShell 7', powershell: 'Windows PowerShell', python: 'Python', node: 'Node.js', gh: 'GitHub CLI', ollama: 'Ollama' };
   return tools.map((tool) => ({ ...tool, name: names[tool.id] || tool.id }));
+}
+
+async function detectAgents() {
+  const agents = [{
+    id: 'chatgpt-web',
+    name: 'ChatGPT Web',
+    role: 'supervisor',
+    available: true,
+    version: 'Official web',
+    kind: 'web'
+  }];
+  for (const spec of AGENT_SPECS) {
+    const status = await probe(spec.command, spec.args);
+    agents.push({
+      id: spec.id,
+      name: spec.name,
+      role: spec.role,
+      available: status.available,
+      version: status.version,
+      kind: spec.id === 'ollama' ? 'local' : 'cli'
+    });
+  }
+  return agents;
+}
+
+async function preferredPowerShell() {
+  return (await probe('pwsh', ['--version'])).available ? 'pwsh' : 'powershell';
+}
+
+async function launchAgent(agentId) {
+  if (agentId === 'chatgpt-web') {
+    await shell.openExternal('https://chatgpt.com/');
+    return { ok: true, id: agentId };
+  }
+  const spec = AGENT_SPECS.find((item) => item.id === agentId);
+  if (!spec) throw new Error('Unsupported agent.');
+  const status = await probe(spec.command, spec.args);
+  if (!status.available) throw new Error(`${spec.name} is not installed or not on PATH.`);
+  const state = await loadState();
+  const workspace = getCurrentWorkspace(state);
+  if (!workspace) throw new Error('Choose a Workspace first.');
+  const safePath = workspace.rootPath.replace(/'/g, "''");
+  const terminal = await preferredPowerShell();
+  const action = agentId === 'ollama' ? 'ollama list' : `& ${spec.command}`;
+  const child = spawn(terminal, ['-NoExit', '-Command', `Set-Location -LiteralPath '${safePath}'; ${action}`], {
+    detached: true,
+    stdio: 'ignore',
+    windowsHide: false
+  });
+  child.unref();
+  return { ok: true, id: agentId };
+}
+
+async function githubConnection() {
+  const gh = await probe('gh', ['--version']);
+  if (!gh.available) return { connected: false, ghInstalled: false, message: 'GitHub CLI is not installed.' };
+  try {
+    await execFixed('gh', ['auth', 'status', '--hostname', 'github.com'], undefined, 8000);
+    return { connected: true, ghInstalled: true, message: 'GitHub CLI is authenticated.' };
+  } catch (error) {
+    return {
+      connected: false,
+      ghInstalled: true,
+      message: String(error.stderr || error.stdout || 'GitHub CLI is not authenticated.').split(/\r?\n/)[0]
+    };
+  }
+}
+
+async function connectGitHub() {
+  const connection = await githubConnection();
+  if (!connection.ghInstalled) {
+    await shell.openExternal('https://cli.github.com/');
+    return { ok: false, reason: 'GH_NOT_INSTALLED' };
+  }
+  if (connection.connected) return { ok: true, alreadyConnected: true };
+  const terminal = await preferredPowerShell();
+  const child = spawn(terminal, ['-NoExit', '-Command', 'gh auth login --hostname github.com --web'], {
+    detached: true,
+    stdio: 'ignore',
+    windowsHide: false
+  });
+  child.unref();
+  return { ok: true, alreadyConnected: false };
+}
+
+async function latestRelease() {
+  const connection = await githubConnection();
+  if (!connection.connected) return { connection, release: null };
+  const listed = await execFixed('gh', [
+    'release', 'list', '--repo', UPDATE_REPO, '--limit', '20',
+    '--json', 'tagName,name,isPrerelease,publishedAt'
+  ], undefined, 15000);
+  const releases = JSON.parse(listed.stdout || '[]')
+    .map((item) => ({ ...item, version: versionFromTag(item.tagName) }))
+    .filter((item) => item.version);
+  if (!releases.length) return { connection, release: null };
+  releases.sort((a, b) => compareVersions(b.version, a.version));
+  const tag = releases[0].tagName;
+  const viewed = await execFixed('gh', [
+    'release', 'view', tag, '--repo', UPDATE_REPO,
+    '--json', 'tagName,name,isPrerelease,publishedAt,url,assets'
+  ], undefined, 15000);
+  return { connection, release: JSON.parse(viewed.stdout) };
+}
+
+function installerAssetFor(release, version) {
+  const assets = Array.isArray(release?.assets) ? release.assets : [];
+  const primary = `AI-Engineering-Control-Plane-Setup-${version}.exe`;
+  const fallback = `AI-Engineering-Control-Plane-Setup-${process.arch === 'arm64' ? 'arm64' : 'x64'}-${version}.exe`;
+  const names = new Set(assets.map((item) => item.name));
+  if (names.has(primary)) return primary;
+  if (names.has(fallback)) return fallback;
+  return null;
+}
+
+async function checkForUpdate() {
+  const currentVersion = app.getVersion();
+  const { connection, release } = await latestRelease();
+  if (!connection.connected) {
+    return {
+      connected: false,
+      ghInstalled: connection.ghInstalled,
+      currentVersion,
+      available: false,
+      message: connection.message
+    };
+  }
+  if (!release) {
+    return { connected: true, ghInstalled: true, currentVersion, available: false, message: 'No GitHub Release found.' };
+  }
+  const latestVersion = versionFromTag(release.tagName);
+  if (!latestVersion) throw new Error('Latest Release tag is not a semantic version.');
+  const assetName = installerAssetFor(release, latestVersion);
+  const available = compareVersions(latestVersion, currentVersion) > 0;
+  return {
+    connected: true,
+    ghInstalled: true,
+    currentVersion,
+    latestVersion,
+    tagName: release.tagName,
+    releaseName: release.name,
+    releaseUrl: release.url,
+    prerelease: Boolean(release.isPrerelease),
+    publishedAt: release.publishedAt,
+    assetName,
+    available,
+    message: available ? 'A newer AECP Release is available.' : 'AECP is up to date.'
+  };
+}
+
+async function applyUpdate() {
+  const update = await checkForUpdate();
+  if (!update.connected) throw new Error('Connect GitHub before applying a private update.');
+  if (!update.available) throw new Error('No newer AECP Release is available.');
+  if (!update.assetName) throw new Error('The Release does not contain a compatible AECP installer.');
+  const dir = dataPath('updates', update.tagName);
+  await fsp.rm(dir, { recursive: true, force: true });
+  await fsp.mkdir(dir, { recursive: true });
+  await execFixed('gh', [
+    'release', 'download', update.tagName, '--repo', UPDATE_REPO,
+    '--pattern', update.assetName, '--pattern', 'SHA256SUMS.txt',
+    '--dir', dir, '--clobber'
+  ], undefined, 120000);
+
+  const manifest = await fsp.readFile(path.join(dir, 'SHA256SUMS.txt'), 'utf8');
+  const line = manifest.split(/\r?\n/).find((item) => item.trim().endsWith(update.assetName));
+  if (!line) throw new Error('SHA256SUMS.txt does not contain the selected installer.');
+  const expected = line.trim().split(/\s+/)[0].toLowerCase();
+  const installer = path.join(dir, update.assetName);
+  const actual = crypto.createHash('sha256').update(await fsp.readFile(installer)).digest('hex').toLowerCase();
+  if (expected !== actual) throw new Error('Downloaded installer failed SHA-256 verification.');
+
+  const child = spawn(installer, ['/S'], { detached: true, stdio: 'ignore', windowsHide: false });
+  child.unref();
+  setTimeout(() => app.quit(), 700);
+  return { ok: true, tagName: update.tagName, assetName: update.assetName };
 }
 
 function redactRemote(remote) {
@@ -400,6 +584,17 @@ function registerIpc() {
 
   ipcMain.handle('chatgpt:open', async () => {
     await shell.openExternal('https://chatgpt.com/');
+    return true;
+  });
+
+  ipcMain.handle('agents:list', detectAgents);
+  ipcMain.handle('agents:launch', async (_event, payload) => launchAgent(payload?.agentId));
+  ipcMain.handle('github:connection', githubConnection);
+  ipcMain.handle('github:connect', connectGitHub);
+  ipcMain.handle('update:check', checkForUpdate);
+  ipcMain.handle('update:apply', applyUpdate);
+  ipcMain.handle('update:open-release', async () => {
+    await shell.openExternal(`https://github.com/${UPDATE_REPO}/releases`);
     return true;
   });
 
