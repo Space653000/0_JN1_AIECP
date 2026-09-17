@@ -1,14 +1,13 @@
 # 13 — Triple Blueprint Audit
 
-Audit date: 2026-09-17
+Audit date: 2026-09-18
 
 Audited branch: `feat/initial-blueprint-and-mvp`
 
-Evidence commit: `555e2c535ef13d2d3a13ba9896c1878631f04306`
+Evidence commit: `428240c926e317ab77777e7241535360e8ba0b58`
 
-Primary CI evidence: GitHub Actions run `35241267216`
+Primary CI evidence: GitHub Actions run `35286851787`
 
-Previous identical-code packaging evidence: run `35240992283`
 
 ## Scope statement
 
@@ -58,8 +57,12 @@ Does every founding requirement either (a) exist in the current v0.1.0 implement
 | GitHub/provider extensibility | local remote display + Provider Registry architecture | PASS for architecture/metadata; live API/GitHub mutation DEFERRED |
 | External API keys can be attached later | Provider Registry + encrypted `safeStorage` credential payload | PASS for secure registration; invocation DEFERRED |
 | Local CPU/GPU/tool awareness | tool discovery includes Git/PowerShell/Python/Node/gh/Ollama | PASS for discovery; GPU worker routing DEFERRED |
-| Beginner can obtain Windows EXE | x64 + ARM64 NSIS artifacts successfully packaged | PASS for packaging |
-| README suitable for beginner | architecture choice, install, first run, sample task, Safe Bridge, UI, limitations | PASS |
+| Beginner can obtain Windows EXE | single Auto-Detect x64+ARM64 NSIS artifact plus x64/ARM64 fallbacks successfully packaged | PASS for packaging |
+| README suitable for beginner | one primary installer, install, auto-detection, first Workspace, Guided Start, Safe Bridge, Agent Switcher, private update, limitations | PASS |
+| Guided long-horizon work | Goal Loop planner + Done criteria + iteration/checkpoint/stop contract | PASS for planner; automated provider loop execution DEFERRED |
+| Multi-agent switching | fixed detection/launch adapters for ChatGPT Web, Codex CLI, Claude Code, Gemini CLI and Ollama | PASS |
+| Conversation-driven evolution | authorized ChatGPT → GitHub → CI → Release → installed-app path documented | PASS for delivery architecture |
+| Private GitHub self-update | allowlisted repo + `gh` auth + semver Release selection + SHA-256 verified installer | PASS for preview update path; rollback/signing remain stable gates |
 | Future Codex-like remote supervision path | authenticated Remote Gateway specified | DEFERRED PER BLUEPRINT |
 | Full desktop/local autonomous construction | security/policy/Harness adapter roadmap specified | DEFERRED PER BLUEPRINT |
 
@@ -73,7 +76,7 @@ The earliest implementation attempt considered accepting an arbitrary shell stri
 
 **PASS — v0.1.0 requirement/Blueprint coverage is internally consistent.**
 
-Full autonomous engineering construction is **not yet complete** and is correctly represented as future governed phases rather than hidden/unfinished v0.1 behavior.
+Full autonomous engineering construction is **not yet complete** and is correctly represented as future governed phases rather than hidden/unfinished v0.1 behavior. Guided Start, Goal Loop planning, multi-agent launchers and the trusted private Release update path are now implemented preview capabilities.
 
 ---
 
@@ -91,7 +94,7 @@ Does the implementation preserve the trust boundaries and safety invariants defi
 - `electron/lib/path-safety.cjs`
 - `ui/index.html`
 - `tests/*.test.cjs`
-- CI static/unit-test result in run `35241267216`
+- CI static/unit-test result in run `35286851787`
 
 ## Checks
 
@@ -112,7 +115,11 @@ Does the implementation preserve the trust boundaries and safety invariants defi
 | Provider secrets not stored plaintext | `safeStorage.encryptString` + opaque credential reference | PASS |
 | No telemetry/analytics SDK | none present | PASS |
 | Evidence local by default | stored under Electron userData/evidence | PASS |
-| Unit/static checks | 9 tests passed; syntax checks passed | PASS |
+| Unit/static checks | 13 tests passed; syntax checks passed | PASS |
+| Trusted update origin | update repository is a fixed constant; chat/task payloads cannot override it | PASS |
+| Private GitHub token boundary | authentication stays in official `gh`; AECP invokes CLI without extracting token | PASS |
+| Update integrity | installer must match `SHA256SUMS.txt` before launch | PASS |
+| Agent launch surface | only fixed built-in agent IDs/commands are launchable; no chat-supplied executable | PASS |
 
 ## Findings
 
@@ -148,26 +155,28 @@ Can the repository actually produce the Windows installers and documented beginn
 
 ## CI evidence
 
-Run: `35241267216`
+Run: `35286851787`
 
-Commit: `555e2c535ef13d2d3a13ba9896c1878631f04306`
+Commit: `428240c926e317ab77777e7241535360e8ba0b58`
 
 Jobs:
 
 - `Static checks and tests` — **SUCCESS**
 - `Package Windows x64` — **SUCCESS**
 - `Package Windows arm64` — **SUCCESS**
+- `Package Windows Auto Detect (x64 + ARM64)` — **SUCCESS**
 
 Test evidence:
 
-- total tests: 9
-- passed: 9
+- total tests: 13
+- passed: 13
 - failed: 0
 
 Artifacts:
 
 - `aecp-windows-x64` — uploaded successfully
 - `aecp-windows-arm64` — uploaded successfully
+- `aecp-windows-auto` — uploaded successfully (~234.9 MB)
 
 Previous build artifact contents were independently inspected:
 
@@ -191,7 +200,7 @@ This proves an ARM64 Electron payload was packaged; it is not merely an ARM64 fi
 
 README contains:
 
-1. x64 vs ARM64 selection table;
+1. one primary Auto-Detect installer; architecture-specific files are fallback only;
 2. installation steps;
 3. SmartScreen/unsigned preview explanation;
 4. first Workspace selection;
@@ -201,8 +210,11 @@ README contains:
 8. Command Card example;
 9. Import → Run → Copy Result → paste back flow;
 10. Provider Registry explanation;
-11. explicit unsupported/roadmap list;
-12. developer build instructions separated from ordinary-user instructions.
+11. Agent Switcher and fixed local/CLI launch behavior;
+12. private GitHub Connect / Check Update / Apply Update flow;
+13. Goal Loop usage and safety boundaries;
+14. explicit unsupported/roadmap list;
+15. developer build instructions separated from ordinary-user instructions.
 
 ## Limitation C1 — no physical Windows-on-ARM launch test performed by this audit
 
@@ -212,7 +224,7 @@ GitHub's x64 Windows runner cross-packaged the ARM64 Electron payload successful
 
 ## Limitation C2 — stable release gates remain open
 
-v0.1.0 is a Preview. Authenticode signing, auto-update/rollback, broad write adapters, full accessibility/localization validation and physical-device test coverage remain P7 gates.
+v0.1.0 is a Preview. Authenticode signing, post-update health-check/rollback, broad write adapters, full accessibility/localization validation and physical-device test coverage remain stable-release gates.
 
 ## Result
 
