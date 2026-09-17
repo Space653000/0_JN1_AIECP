@@ -11,6 +11,7 @@
     "check": "node --check electron/main.cjs && node --check electron/preload.cjs && node --check electron/lib/protocol.cjs && node --check electron/lib/path-safety.cjs && node --check ui/app.js",
     "test": "node --test tests/*.test.cjs",
     "verify": "npm run check && npm test",
+    "dist:auto": "electron-builder --win nsis --x64 --arm64 --publish never -c.win.artifactName=AI-Engineering-Control-Plane-Setup-${version}.${ext}",
     "dist:x64": "electron-builder --win nsis --x64 --publish never",
     "dist:arm64": "electron-builder --win nsis --arm64 --publish never"
   },
