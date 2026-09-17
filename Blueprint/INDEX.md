@@ -1,3 +1,28 @@
 # AI Engineering Control Plane — Blueprint Index
 
-This directory is the product source of truth. The complete blueprint is being built here before implementation is declared compliant.
+`Blueprint/` is the product source of truth. Product intent, UX, runtime behavior, security, release gates, and acceptance criteria live here. Implementation is incomplete whenever code and this blueprint diverge.
+
+## Documents
+
+1. `00_MASTER_BLUEPRINT.md` — vision, invariants, system architecture, data/control planes
+2. `01_UX_UI_SPEC.md` — three-pane UX, beginner mode, board/pipeline/graph/trace views
+3. `02_LOCAL_AGENT_HARNESS.md` — task runtime, state machine, verification, recovery
+4. `03_PROVIDER_ROUTER.md` — ChatGPT Web first; optional official MCP, APIs, local models
+5. `04_SECURITY_AND_POLICY.md` — trust boundaries, risk classes, policy-as-code, secrets
+6. `05_GITHUB_MULTI_REPO.md` — multi-repo/worktree/concurrency model
+7. `06_DESKTOP_CHATGPT_INTEGRATION.md` — official ChatGPT isolation and safe handoff
+8. `07_INSTALL_RELEASE.md` — Windows x64/ARM64, installer, release, updates
+9. `08_ROADMAP_ACCEPTANCE.md` — delivery phases and measurable gates
+10. `09_RESEARCH_NOTES.md` — external research and adopted patterns
+11. `10_CONVERSATION_DECISION_LOG.md` — founding conversation and decisions
+12. `11_TASK_PROTOCOL.md` — Command Card, Context Capsule, Result Capsule, trace schema
+13. `12_DATA_MODEL.md` — persistent entities, graph and local storage
+14. `13_TRIPLE_AUDIT.md` — three independent blueprint-vs-implementation audits
+
+## Product name
+
+**AI Engineering Control Plane (AECP)**
+
+## Non-negotiable principle
+
+Official ChatGPT Web is an independent OpenAI surface. AECP must not inject into, scrape, intercept, modify, imitate, or reverse engineer ChatGPT. AECP controls the local computer through an explicit local harness and exchanges only user-authorized task/result payloads.
