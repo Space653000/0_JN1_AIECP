@@ -17,6 +17,14 @@ Architecture-specific installers remain attached only as troubleshooting fallbac
 
 ## What works
 
+- single Auto-Detect Windows installer containing x64 + ARM64 payloads
+- Guided Start for first-time users
+- Goal Loop planner with Goal, Definition of Done, iteration budget and checkpoints
+- Agent Switcher for ChatGPT Web, Codex CLI, Claude Code, Gemini CLI and Ollama
+- private GitHub update channel using authenticated `gh`
+- one-click update check/apply from the allowlisted repository
+- SHA-256 verification before the downloaded installer is launched
+
 - one primary auto-detect Windows x64 + ARM64 installer
 - Windows x64 and Windows ARM64 fallback installers
 - native Workspace folder selection
@@ -41,7 +49,7 @@ AECP automatically detects what is safe to detect. The one intentional first-run
 ## Important preview limitations
 
 - This build deliberately does **not** execute arbitrary AI-provided shell commands or modify project files.
-- Desktop UI automation, worktree-per-task, official MCP, API-provider invocation, local-model workers and remote/mobile supervision are roadmap capabilities.
+- Desktop UI automation, worktree-per-task, official MCP, direct API-provider invocation, automatic cross-agent context transfer and remote/mobile supervision remain roadmap capabilities.
 - Installers are unsigned unless the repository owner adds an Authenticode signing process. Windows SmartScreen may therefore warn.
 - No telemetry is included.
 
