@@ -68,12 +68,29 @@
       </section>
 
       <aside class="pane chat-pane">
-        <div class="pane-heading"><div><span class="eyebrow">OFFICIAL PROVIDER</span><h2>ChatGPT Web</h2></div><span class="status ready">Ready</span></div>
+        <div class="pane-heading"><div><span class="eyebrow">AI AGENTS</span><h2>Supervisor & Workers</h2></div><span class="status ready">Local Fabric</span></div>
 
         <section class="chat-provider-card">
           <div class="provider-symbol" aria-hidden="true">AI</div>
           <div><h3>Official ChatGPT</h3><p>Opens in your normal browser. AECP does not inject, scrape, or modify chatgpt.com.</p></div>
           <button id="openChatGPTButton" class="primary-button full" type="button">Open official ChatGPT</button>
+        </section>
+
+        <section class="handoff-card">
+          <div class="section-title"><h3>Agent Switcher</h3><span class="status safe">Provider-neutral</span></div>
+          <p class="muted">Use ChatGPT Web as the normal supervisor, or launch detected local/CLI agents in the same Workspace. AECP never gives one agent hidden access to another agent's session.</p>
+          <div id="agentList" class="agent-list"></div>
+        </section>
+
+        <section class="handoff-card">
+          <div class="section-title"><h3>Private GitHub Update</h3><span id="updateBadge" class="status neutral">Not checked</span></div>
+          <p id="updateText" class="muted">AECP can update itself only from the allowlisted private GitHub Release channel. Downloads must pass SHA-256 verification.</p>
+          <div class="button-row">
+            <button id="checkUpdateButton" class="secondary-button" type="button">Check update</button>
+            <button id="applyUpdateButton" class="primary-button" type="button" disabled>Apply update</button>
+            <button id="connectGitHubButton" class="secondary-button" type="button">Connect GitHub</button>
+          </div>
+          <button id="openReleasesButton" class="secondary-button full" type="button">Open Releases</button>
         </section>
 
         <section class="handoff-card">
