@@ -22,6 +22,90 @@ AECP does **not** replace ChatGPT, scrape ChatGPT, inject JavaScript into ChatGP
 
 ---
 
+# New here? Follow only these steps first
+
+You do **not** need Git, Node.js, PowerShell knowledge, an OpenAI API key, or programming experience just to try AECP.
+
+## 10-minute first-use path
+
+1. Open this repository's **Releases** page.
+2. Download **one** installer that matches your PC:
+   - Windows on ARM / Snapdragon / ARM64 → `AI-Engineering-Control-Plane-Setup-arm64-0.1.0.exe`
+   - Intel / AMD x64 → `AI-Engineering-Control-Plane-Setup-x64-0.1.0.exe`
+3. Double-click the installer and use the default per-user installation.
+4. Open **AI Engineering Control Plane** from the Desktop or Start menu.
+5. Click **Choose my first Workspace** and select a normal project folder on your PC.
+6. Click **Open official ChatGPT**. Your normal browser opens `chatgpt.com`.
+7. Return to AECP and click **Create sample task**.
+8. Select the task and click **Run locally**.
+9. Open **Evidence** and confirm that AECP produced a verified local result.
+10. Click **Copy Result Capsule** and paste it into ChatGPT if you want ChatGPT to continue from the verified result.
+
+If all ten steps work, your basic AECP installation is healthy.
+
+### If Windows asks which installer architecture you need
+
+Open:
+
+**Windows Settings → System → About → System type**
+
+Then use:
+
+| System type | Installer |
+|---|---|
+| ARM64-based PC | `...Setup-arm64-0.1.0.exe` |
+| 64-bit operating system, x64-based processor | `...Setup-x64-0.1.0.exe` |
+
+### If SmartScreen appears
+
+v0.1.0 Preview is currently unsigned, so Windows may show a SmartScreen warning even when the file was built by this repository's GitHub Actions workflow.
+
+Do **not** disable Windows Security globally.
+
+Use this checklist instead:
+
+1. Confirm the file came from this repository's official **Release**.
+2. Confirm the filename matches the expected ARM64 or x64 installer.
+3. If you want an additional check, compare the installer's SHA-256 against `SHA256SUMS.txt` in the same Release.
+
+---
+
+# Complete feature map
+
+The table below separates **what v0.1.0 actually does now** from capabilities that are deliberately reserved for later governed adapters.
+
+| Area | v0.1.0 Preview status | What it means |
+|---|---|---|
+| Official ChatGPT Web companion | ✅ Available | Opens normal `chatgpt.com` in your normal browser; AECP does not own the login session |
+| Windows Workspace selection | ✅ Available | Native folder picker and local Workspace boundary |
+| Git repository discovery | ✅ Available | Detects Workspace-root and direct-child repositories |
+| Git status / branch inspection | ✅ Available | Read-only Git state and evidence |
+| Local tool discovery | ✅ Available | Detects Git, PowerShell, Python, Node.js, GitHub CLI and Ollama when installed |
+| Task Board | ✅ Available | One canonical task model grouped by state |
+| Pipeline view | ✅ Available | Understand → Prepare → Execute → Verify → Package Result |
+| Workspace Graph | ✅ Available | Visual relationship among Workspace, repositories, providers and tools |
+| Execution Trace | ✅ Available | Local event history for each task |
+| Evidence view | ✅ Available | Verifiable local result/evidence instead of only AI claims |
+| `aecp.task/v1` Command Card | ✅ Available | Structured task handoff from ChatGPT to AECP |
+| `aecp.result/v1` Result Capsule | ✅ Available | Compact verified handoff back to ChatGPT |
+| Clipboard Safe Bridge | ✅ Available | Clipboard is read only when you explicitly click **Import from Clipboard** |
+| Provider Registry | ✅ Foundation available | Stores provider metadata for future API/local/MCP adapters |
+| Protected API-key storage | ✅ Available | Optional future provider secrets are protected with OS-backed Electron `safeStorage` |
+| Dark / Light theme | ✅ Available | User-selectable appearance |
+| Beginner / Engineering mode | ✅ Available | Beginner mode hides lower-level engineering detail |
+| Windows x64 installer | ✅ Built by CI | NSIS installer produced by GitHub Actions |
+| Windows ARM64 installer | ✅ Built by CI | Native Electron ARM64 payload produced by GitHub Actions |
+| Arbitrary AI shell execution | ❌ Intentionally disabled | Not accepted from copied AI text in v0.1.0 |
+| Autonomous file modification | ❌ Not yet enabled | Requires a governed write adapter and stronger verification |
+| Autonomous Git commit/push | ❌ Not yet enabled | Requires explicit policy, approval and evidence gates |
+| Arbitrary Windows GUI control | ❌ Not yet enabled | Planned behind a dedicated desktop-control adapter |
+| Automatic ChatGPT DOM automation | ❌ Not a product goal | AECP does not scrape or inject into ChatGPT Web |
+| External API model execution | ❌ Registry only in v0.1.0 | Provider architecture exists; invocation adapter is later work |
+| Public Remote MCP exposure | ❌ Not enabled | No automatic public exposure of local MCP endpoints |
+| Mobile remote local execution | ❌ Not yet enabled | Future roadmap capability, not part of v0.1.0 |
+
+---
+
 # For beginners: download and use the EXE
 
 ## 1. Choose the correct installer
@@ -222,6 +306,8 @@ Important files:
 - `12_DATA_MODEL.md`
 - `13_TRIPLE_AUDIT.md`
 
+The founding requirement conversation and the resulting engineering decisions are archived under `Blueprint/Conversation/`.
+
 ---
 
 # Developer setup
@@ -264,7 +350,7 @@ The official ChatGPT website is never loaded with a privileged AECP preload scri
 
 ---
 
-# Automated builds
+# Automated builds and releases
 
 Pull requests run:
 
@@ -273,7 +359,13 @@ Pull requests run:
 3. Windows x64 package build
 4. Windows ARM64 package build
 
-A merge/push to `main` builds both Windows installers and creates the version's GitHub pre-release when that version does not already exist.
+A merge/push to `main` builds both Windows installers. If that package version does not already have a GitHub Release, the release workflow publishes a GitHub **pre-release** containing:
+
+- x64 installer
+- ARM64 installer
+- installer blockmaps
+- `SHA256SUMS.txt`
+- release notes
 
 ---
 
