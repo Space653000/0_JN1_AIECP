@@ -7,27 +7,34 @@
 - validation before execution
 - compact context/results
 - versioned protocol
+- imported conversation text cannot grant itself new local capabilities
 
 Protocol identifier: `aecp.task/v1`.
 
-## 2. Command Card
+## 2. Command Card — v1 preview
 
-Minimal example:
+Supported action capabilities in v0.1.0:
+
+- `inspect-workspace`
+- `git-status`
+
+Both are read-only. There is intentionally **no arbitrary `shell` action in v1 preview**.
+
+Example:
 
 ```json
 {
   "schema": "aecp.task/v1",
-  "title": "Run project tests",
+  "title": "Inspect repository status",
   "workspace": "current",
-  "goal": "Run the existing test suite and report failures. Do not modify files.",
+  "goal": "Read the current repository branch and working-tree status without modifying anything.",
   "action": {
-    "type": "shell",
-    "command": "npm test"
+    "type": "git-status"
   },
-  "permissions": ["workspace:read", "shell:execute"],
+  "permissions": ["workspace:read"],
   "verification": {
-    "type": "exit-code",
-    "expected": 0
+    "type": "operation-success",
+    "expected": true
   }
 }
 ```
@@ -35,12 +42,25 @@ Minimal example:
 Rules:
 - unknown schema version is rejected;
 - `title` and `goal` required;
-- Workspace from card is advisory; user-selected AECP Workspace is authoritative;
-- requested permissions never grant themselves — Policy Engine decides;
-- arbitrary command is classified at least YELLOW unless allowlisted/read-only;
-- delete/admin/publish/credentials are RED.
+- Workspace value from the card is advisory; user-selected AECP Workspace is authoritative;
+- requested permissions never grant themselves;
+- unsupported action type is rejected before Task creation;
+- v0.1.0 imported capabilities are GREEN/read-only;
+- future YELLOW/RED schemas/adapters require explicit Policy Engine rules and approval gates.
 
-## 3. Context Capsule
+## 3. Future capability evolution
+
+Do not silently reinterpret v1 cards as arbitrary commands. Mutating capabilities must be added explicitly through a backward-compatible protocol extension or a new schema version, for example structured actions such as:
+
+- `write-file`
+- `apply-patch`
+- `run-project-task`
+- `git-commit`
+- `desktop-action`
+
+Each action must have an implementation-specific schema, bounded inputs, risk classification and verifier. A generic free-form shell string is not the preferred public contract.
+
+## 4. Context Capsule
 
 A context summary intended for a provider/user, not an execution command:
 
@@ -48,40 +68,41 @@ A context summary intended for a provider/user, not an execution command:
 {
   "schema": "aecp.context/v1",
   "workspace": "Alpha",
-  "objective": "Fix test failure",
-  "git": {"branch":"task-142","dirty":true},
-  "relevantFiles": ["src/auth.ts", "tests/auth.test.ts"],
-  "facts": ["142 tests; 1 failure"],
-  "constraints": ["Do not change public API"],
-  "decisionsNeeded": ["Increase timeout or change retry policy?"]
+  "objective": "Review repository state",
+  "git": {"branch":"main","dirty":false},
+  "relevantFiles": [],
+  "facts": ["working tree clean"],
+  "constraints": ["read only"],
+  "decisionsNeeded": []
 }
 ```
 
-## 4. Result Capsule
+## 5. Result Capsule
 
 ```json
 {
   "schema": "aecp.result/v1",
   "taskId": "TASK-0142",
   "status": "PASS",
-  "summary": "Test command completed successfully.",
+  "summary": "Read-only local execution completed and verification passed.",
   "execution": {
-    "exitCode": 0,
-    "durationMs": 18420
+    "durationMs": 184
   },
   "verification": {
     "status": "PASS",
-    "method": "exit-code"
+    "method": "operation-success",
+    "expected": true,
+    "actual": true
   },
-  "changes": [],
+  "facts": ["Branch: main", "Working tree: clean"],
   "evidenceRef": "local://evidence/TASK-0142",
   "nextDecision": null
 }
 ```
 
-Result Capsule must not include secrets or huge raw logs. It may include a bounded failure excerpt and local evidence reference.
+Result Capsule must not include secrets or huge raw logs. Large artifacts are referenced locally rather than pasted into ChatGPT automatically.
 
-## 5. Execution Trace event
+## 6. Execution Trace event
 
 ```json
 {
@@ -91,25 +112,29 @@ Result Capsule must not include secrets or huge raw logs. It may include a bound
   "at": "2026-09-17T22:33:18+08:00",
   "type": "verification.completed",
   "severity": "info",
-  "data": {"status":"PASS","method":"exit-code"}
+  "data": {"status":"PASS","method":"operation-success"}
 }
 ```
 
 Events are append-only within a task trace.
 
-## 6. Clipboard framing
+## 7. Clipboard framing
 
-AECP should detect JSON directly and optionally fenced payloads beginning with:
+AECP accepts plain JSON and optionally framed payloads beginning with:
 
 `AECP_COMMAND_CARD_V1`
 
-It must display parsed fields before execution. Clipboard contents unrelated to the protocol are not persisted merely because Import was pressed; invalid content results in a local validation message.
+Result copy uses:
 
-## 7. Size limits
+`AECP_RESULT_CAPSULE_V1`
+
+Clipboard is read only after the user explicitly presses Import. Invalid content is not persisted as a Task.
+
+## 8. Size limits
 
 Bootstrap defaults:
 - Command Card: 64 KiB maximum
-- single stdout/stderr capture persisted: bounded/truncated at configurable limit
-- Result Capsule: target < 32 KiB
+- Result clipboard write: 128 KiB maximum
+- Result Capsule target: substantially below that limit
 
-Large artifacts are referenced locally rather than pasted into ChatGPT automatically.
+Large local evidence stays local unless the user explicitly chooses to share it.

@@ -10,8 +10,8 @@ The Local Agent Harness is the permanent runtime. Models/providers are replaceab
 - `ContextBuilder` — selects local facts and produces compact capsules
 - `PolicyEngine` — calculates capability/risk and denies forbidden actions
 - `ToolRouter` — resolves capability to adapter
-- `ExecutionEngine` — runs bounded commands/steps with timeout/cancel
-- `WorkspaceLockManager` — prevents conflicting tasks
+- `ExecutionEngine` — runs bounded capability steps with timeout/cancel semantics
+- `WorkspaceLockManager` — prevents conflicting future write tasks
 - `Verifier` — deterministic completion checks
 - `EvidenceStore` — trace + artifacts + hashes
 - `RecoveryManager` — retry, cancel, rollback hints and crash recovery
@@ -25,7 +25,7 @@ INBOX
 READY
   ↓ dispatch
 DISPATCHED
-  ↓ lock + prepare
+  ↓ prepare
 RUNNING ───────────→ WAITING_USER
   │                    │
   │ error              └──── approve/deny ────┐
@@ -41,19 +41,23 @@ PASS → READY_TO_COMMIT → DONE
 
 Other terminal/interruption states: `CANCELLED`, `ROLLED_BACK`, `BLOCKED`.
 
+The v0.1.0 preview implements the simplified safe path `READY → RUNNING → DONE/FAILED` for read-only capabilities while preserving the same canonical Task model.
+
 ## 4. Pipeline model
 
 Borrow the mature software-delivery concepts of stage, step, conditional execution, timeout and failure strategy.
 
-Default stages:
+Default logical stages:
 
 1. `UNDERSTAND` — schema/resource validation
-2. `PREPARE` — context, lock, Git cleanliness, optional worktree
-3. `EXECUTE` — one or more bounded steps
-4. `VERIFY` — deterministic assertions/tests
+2. `PREPARE` — context and Workspace binding
+3. `EXECUTE` — one or more bounded capability steps
+4. `VERIFY` — deterministic assertions
 5. `PACKAGE_RESULT` — evidence + Result Capsule
 
-Each step has:
+Future mutating adapters add locks/worktrees/approval/rollback stages without replacing the task model.
+
+Each future step can carry:
 - `id`
 - `type`
 - `inputs`
@@ -64,22 +68,37 @@ Each step has:
 - `maxRetries`
 - expected evidence
 
-## 5. Execution rules
+## 5. Capability execution rules
 
-- Commands always run with an explicit working directory.
-- Working directory must resolve inside the bound Workspace unless policy explicitly permits otherwise.
-- Shell uses argument-safe process spawning where feasible; arbitrary shell text is treated as high risk.
-- Every process has timeout and cancel handling.
-- stdout/stderr and exit code are captured with output-size limits and truncation metadata.
-- Environment variables are allowlisted; secrets are injected only at execution time and never copied into traces.
-- Network access is a declared capability.
-- Admin/elevation is not available in the bootstrap release.
+### v0.1.0
+
+Only two Command Card capabilities are executable from imported conversation text:
+
+- `inspect-workspace`
+- `git-status`
+
+Both are read-only and GREEN. AECP itself invokes fixed local operations; the conversation does not provide a shell string.
+
+### Future write/command adapters
+
+Before exposing file mutation or project command execution, the implementation must add:
+- explicit Workspace-scoped capability declaration;
+- path canonicalization;
+- risk preview/approval;
+- timeout/cancel;
+- bounded stdout/stderr;
+- secret redaction;
+- deterministic verifier or manual verification gate;
+- evidence and rollback/recovery metadata;
+- repository locks/worktrees when relevant.
+
+Raw AI text must never grant its own permission.
 
 ## 6. Workspace locks and concurrency
 
-Default: one write task per repository/workspace resource. Multiple read-only tasks may coexist.
+v0.1.0 read-only tasks do not require write locks.
 
-Future coding tasks should prefer one Git worktree per task to isolate branches and reduce cross-agent collisions.
+Future default: one write task per repository/workspace resource. Multiple read-only tasks may coexist. Coding tasks should prefer one Git worktree per task to isolate branches and reduce cross-agent collisions.
 
 Lock record:
 - task ID
@@ -95,41 +114,39 @@ A stale write lock never disappears silently; recovery records why it was releas
 
 Verification is independent of the provider.
 
-Examples:
-- shell exit code == 0
+v0.1.0 uses `operation-success` verification for the two fixed read-only adapters.
+
+Future examples:
+- process exit code == expected
 - expected file exists
 - JSON/YAML parses
 - Git working tree has expected changes
 - unit tests pass
 - build artifact exists and hash is recorded
-- user-specified string/output matches
+- user-specified output matches
 
-A write task cannot reach `DONE` without at least one configured verifier or an explicit `MANUAL_VERIFICATION_REQUIRED` terminal gate.
+A future write task cannot reach `DONE` without at least one configured verifier or an explicit `MANUAL_VERIFICATION_REQUIRED` terminal gate.
 
 ## 8. Evidence
 
 Every execution records:
 - task/card input hash
-- policy decision
-- workspace/repo identities
-- step start/end
-- exact adapter used
-- command metadata (redacted)
-- exit status
-- bounded stdout/stderr summary
-- verifier result
-- file-change summary
+- Workspace identity
+- capability adapter used
+- step start/end events
+- verification result
+- evidence payload
 - Result Capsule hash
 
 Trace is append-only at the task level. Sensitive values are redacted before persistence.
 
 ## 9. Context strategy
 
-Do not upload entire repositories by default. Local ContextBuilder performs:
+Do not upload entire repositories by default. Local ContextBuilder direction:
 
 `source → index/search → select → reduce → capsule`.
 
-Context Capsule contains only:
+Context Capsule contains only the minimum needed for reasoning:
 - current objective
 - architecture constraints
 - relevant file paths/snippets selected by user/local retrieval
@@ -140,24 +157,36 @@ Context Capsule contains only:
 
 ## 10. Crash/restart behavior
 
-On startup:
-1. load tasks in non-terminal states;
-2. mark orphaned running processes as `BLOCKED_RECOVERY`;
-3. verify workspace locks;
-4. show a recovery card;
-5. never blindly re-run a mutating step.
+On startup, future mutating runtime must:
+1. load non-terminal tasks;
+2. identify orphaned executions;
+3. verify Workspace locks;
+4. show recovery state;
+5. never blindly replay a mutating operation.
 
-## 11. Bootstrap implementation scope
+Read-only v0.1.0 operations are short-lived and persist Task/Evidence state after completion.
 
-The first executable implements:
-- task import
-- workspace binding
-- risk classification
-- read-only tool detection
-- bounded PowerShell execution after explicit user initiation/approval
-- Git status/branch/remote inspection
+## 11. v0.1.0 executable scope
+
+Implemented:
+- explicit Command Card import
+- Workspace binding
+- read-only capability allowlist
+- local tool detection
+- Git repository/status inspection
+- Task Board/Pipeline/Graph/Trace/Evidence
 - trace/evidence recording
-- Result Capsule creation
-- cancel/timeout
+- Result Capsule generation
+- official ChatGPT browser launcher and explicit copy-back
+- Provider Registry metadata and encrypted secret storage
 
-Desktop GUI automation, remote mobile gateway, official MCP, and autonomous multi-step planning remain adapter extensions and must not delay a safe usable baseline.
+Deliberately not exposed yet:
+- arbitrary shell execution from conversation text
+- autonomous file mutation/deletion
+- Git commit/push
+- desktop GUI automation
+- remote mobile gateway
+- official MCP write path
+- external API invocation
+
+Those are governed roadmap adapters, not hidden v0.1.0 behavior.
