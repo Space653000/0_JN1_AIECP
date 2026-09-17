@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>AI Engineering Control Plane</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div id="app" class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></div>
+        <div><strong>AI Engineering Control Plane</strong><small id="versionText">Preview</small></div>
+      </div>
+      <div class="topbar-center">
+        <button id="workspaceButton" class="workspace-pill" type="button"><span class="dot idle"></span><span id="workspaceName">Choose Workspace</span></button>
+        <span id="healthBadge" class="health-badge">Local</span>
+      </div>
+      <div class="top-actions">
+        <button id="modeButton" class="ghost-button" type="button">Beginner</button>
+        <button id="themeButton" class="icon-button" type="button" aria-label="Toggle theme">◐</button>
+        <button id="settingsButton" class="ghost-button" type="button">Providers</button>
+      </div>
+    </header>
+
+    <main class="workspace-grid">
+      <aside class="pane local-pane">
+        <div class="pane-heading"><div><span class="eyebrow">LOCAL</span><h2>Computer</h2></div><button id="refreshButton" class="icon-button" type="button" aria-label="Refresh">↻</button></div>
+
+        <section class="card workspace-card">
+          <div class="card-title-row"><h3>Workspace</h3><span id="workspaceState" class="status neutral">Not set</span></div>
+          <p id="workspacePath" class="path-text">Choose the folder AECP is allowed to inspect.</p>
+          <div class="button-row">
+            <button id="chooseWorkspaceButton" class="secondary-button" type="button">Choose folder</button>
+            <button id="openWorkspaceButton" class="secondary-button" type="button" disabled>Open</button>
+            <button id="terminalButton" class="secondary-button engineering-only" type="button" disabled>Terminal</button>
+          </div>
+        </section>
+
+        <section class="section-block">
+          <div class="section-title"><h3>Repositories</h3><span id="repoCount" class="count-badge">0</span></div>
+          <div id="repoList" class="stack-list empty-list">No repositories detected.</div>
+        </section>
+
+        <section class="section-block">
+          <div class="section-title"><h3>Local tools</h3><span id="toolCount" class="count-badge">0</span></div>
+          <div id="toolList" class="tool-grid"></div>
+        </section>
+      </aside>
+
+      <section class="pane control-pane">
+        <div class="control-header">
+          <div><span class="eyebrow">CONTROL PLANE</span><h2 id="controlTitle">Start</h2></div>
+          <div class="segmented" role="tablist" aria-label="Control plane views">
+            <button class="view-tab active" data-view="start" type="button">Start</button>
+            <button class="view-tab" data-view="board" type="button">Board</button>
+            <button class="view-tab" data-view="pipeline" type="button">Pipeline</button>
+            <button class="view-tab" data-view="loop" type="button">Goal Loop</button>
+            <button class="view-tab" data-view="graph" type="button">Graph</button>
+            <button class="view-tab engineering-only" data-view="trace" type="button">Trace</button>
+            <button class="view-tab" data-view="evidence" type="button">Evidence</button>
+          </div>
+        </div>
+
+        <div id="controlContent" class="control-content"></div>
+      </section>
+
+      <aside class="pane chat-pane">
+        <div class="pane-heading"><div><span class="eyebrow">AI AGENTS</span><h2>Supervisor & Workers</h2></div><span class="status ready">Local Fabric</span></div>
+
+        <section class="chat-provider-card">
+          <div class="provider-symbol" aria-hidden="true">AI</div>
+          <div><h3>Official ChatGPT</h3><p>Opens in your normal browser. AECP does not inject, scrape, or modify chatgpt.com.</p></div>
+          <button id="openChatGPTButton" class="primary-button full" type="button">Open official ChatGPT</button>
+        </section>
+
+        <section class="handoff-card">
+          <div class="section-title"><h3>Agent Switcher</h3><span class="status safe">Provider-neutral</span></div>
+          <p class="muted">Use ChatGPT Web as the normal supervisor, or launch detected local/CLI agents in the same Workspace. AECP never gives one agent hidden access to another agent's session.</p>
+          <div id="agentList" class="agent-list"></div>
+        </section>
+
+        <section class="handoff-card">
+          <div class="section-title"><h3>Private GitHub Update</h3><span id="updateBadge" class="status neutral">Not checked</span></div>
+          <p id="updateText" class="muted">AECP can update itself only from the allowlisted private GitHub Release channel. Downloads must pass SHA-256 verification.</p>
+          <div class="button-row">
+            <button id="checkUpdateButton" class="secondary-button" type="button">Check update</button>
+            <button id="applyUpdateButton" class="primary-button" type="button" disabled>Apply update</button>
+            <button id="connectGitHubButton" class="secondary-button" type="button">Connect GitHub</button>
+          </div>
+          <button id="openReleasesButton" class="secondary-button full" type="button">Open Releases</button>
+        </section>
+
+        <section class="handoff-card">
+          <div class="section-title"><h3>Safe Bridge</h3><span class="status safe">No API key</span></div>
+          <ol class="handoff-steps">
+            <li><span>1</span><div>Describe your goal.<small>ChatGPT handles reasoning and discussion.</small></div></li>
+            <li><span>2</span><div>Hand off a Command Card.<small>AECP validates it before local execution.</small></div></li>
+            <li><span>3</span><div>Verify locally.<small>Trace and Evidence show what actually happened.</small></div></li>
+            <li><span>4</span><div>Continue or Loop.<small>Return the Result Capsule or advance a Goal Loop.</small></div></li>
+          </ol>
+          <button id="importClipboardButton" class="primary-button full" type="button">Import from Clipboard</button>
+          <button id="sampleButton" class="secondary-button full" type="button">Create safe sample task</button>
+        </section>
+
+        <section class="privacy-note"><strong>Local-first</strong><p>Repository details, tool status, traces, and evidence remain on this computer unless you explicitly copy/share them.</p></section>
+      </aside>
+    </main>
+  </div>
+
+  <div id="welcomeOverlay" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="welcomeTitle">
+    <div class="modal welcome-modal">
+      <div class="welcome-mark"><div class="brand-mark large"><span></span><span></span><span></span></div></div>
+      <span class="eyebrow">FIRST RUN</span>
+      <h1 id="welcomeTitle">One choice, then AECP configures the rest.</h1>
+      <p>Choose the one project folder AECP is allowed to use. AECP will detect your Windows architecture, local tools and repositories automatically. ChatGPT remains the normal official website.</p>
+      <div class="welcome-points">
+        <div><strong>1</strong><span>Choose one Workspace folder as the local permission boundary.</span></div>
+        <div><strong>2</strong><span>AECP automatically detects Git, PowerShell, Python, Node, GitHub CLI, Ollama and repositories.</span></div>
+        <div><strong>3</strong><span>Use Start for guided work or Goal Loop for longer research/build/verify cycles.</span></div>
+      </div>
+      <button id="welcomeChooseButton" class="primary-button full" type="button">Choose Workspace and continue</button>
+      <small>No API key is needed for the default ChatGPT Web workflow.</small>
+    </div>
+  </div>
+
+  <div id="providerOverlay" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="providerTitle">
+    <div class="modal provider-modal">
+      <div class="modal-header"><div><span class="eyebrow">PROVIDER REGISTRY</span><h2 id="providerTitle">Intelligence providers</h2></div><button class="icon-button" id="closeProviderButton" type="button">×</button></div>
+      <p class="muted">ChatGPT Web is built in. Optional API/local/MCP providers can be registered without changing the Local Harness. Preview stores API secrets using OS-protected Electron safeStorage, but does not invoke external APIs yet.</p>
+      <div id="providerList" class="provider-list"></div>
+      <form id="providerForm" class="provider-form">
+        <h3>Add optional provider</h3>
+        <div class="form-grid">
+          <label>Name<input id="providerNameInput" maxlength="80" placeholder="Example: Company API" required></label>
+          <label>Kind<select id="providerKindInput"><option value="api">API</option><option value="local">Local</option><option value="remote-mcp">Remote MCP</option></select></label>
+          <label class="wide">Base URL<input id="providerUrlInput" placeholder="https://api.example.com or http://localhost:11434"></label>
+          <label class="wide">API key (optional)<input id="providerKeyInput" type="password" autocomplete="new-password" placeholder="Stored encrypted by Windows/Electron safeStorage"></label>
+        </div>
+        <div class="modal-actions"><button type="button" id="cancelProviderButton" class="secondary-button">Cancel</button><button type="submit" class="primary-button">Save provider</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div id="toastRegion" class="toast-region" aria-live="polite"></div>
+  <script src="./app.js"></script>
+</body>
+</html>
