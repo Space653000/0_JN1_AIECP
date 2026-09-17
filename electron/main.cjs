@@ -8,7 +8,7 @@ const crypto = require('node:crypto');
 const os = require('node:os');
 
 const { parseCommandCard, makeTaskId, makeResultCapsule, hashJson } = require('./lib/protocol.cjs');
-const { compareVersions, versionFromTag } = require('./lib/version.cjs');
+const { compareVersions, versionFromTag, selectHighestRelease, selectInstallerAsset } = require('./lib/version.cjs');
 
 const STATE_SCHEMA = 1;
 const UPDATE_REPO = 'Space653000/AI-Engineering-Control-Plane';
@@ -213,27 +213,14 @@ async function latestRelease() {
     'release', 'list', '--repo', UPDATE_REPO, '--limit', '20',
     '--json', 'tagName,name,isPrerelease,publishedAt'
   ], undefined, 15000);
-  const releases = JSON.parse(listed.stdout || '[]')
-    .map((item) => ({ ...item, version: versionFromTag(item.tagName) }))
-    .filter((item) => item.version);
-  if (!releases.length) return { connection, release: null };
-  releases.sort((a, b) => compareVersions(b.version, a.version));
-  const tag = releases[0].tagName;
+  const selected = selectHighestRelease(JSON.parse(listed.stdout || '[]'));
+  if (!selected) return { connection, release: null };
+  const tag = selected.tagName;
   const viewed = await execFixed('gh', [
     'release', 'view', tag, '--repo', UPDATE_REPO,
     '--json', 'tagName,name,isPrerelease,publishedAt,url,assets'
   ], undefined, 15000);
   return { connection, release: JSON.parse(viewed.stdout) };
-}
-
-function installerAssetFor(release, version) {
-  const assets = Array.isArray(release?.assets) ? release.assets : [];
-  const primary = `AI-Engineering-Control-Plane-Setup-${version}.exe`;
-  const fallback = `AI-Engineering-Control-Plane-Setup-${process.arch === 'arm64' ? 'arm64' : 'x64'}-${version}.exe`;
-  const names = new Set(assets.map((item) => item.name));
-  if (names.has(primary)) return primary;
-  if (names.has(fallback)) return fallback;
-  return null;
 }
 
 async function checkForUpdate() {
@@ -253,7 +240,7 @@ async function checkForUpdate() {
   }
   const latestVersion = versionFromTag(release.tagName);
   if (!latestVersion) throw new Error('Latest Release tag is not a semantic version.');
-  const assetName = installerAssetFor(release, latestVersion);
+  const assetName = selectInstallerAsset(release.assets, latestVersion, process.arch);
   const available = compareVersions(latestVersion, currentVersion) > 0;
   return {
     connected: true,
