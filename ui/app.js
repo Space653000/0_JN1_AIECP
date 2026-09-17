@@ -8,6 +8,9 @@ const state = {
   tools: [],
   tasks: [],
   providers: [],
+  agents: [],
+  githubConnection: null,
+  update: null,
   selectedTaskId: null,
   view: 'start',
   engineering: false,
@@ -58,18 +61,22 @@ function statusClass(value) {
 }
 
 async function loadAll() {
-  const [app, data, tools, tasks, providers] = await Promise.all([
+  const [app, data, tools, tasks, providers, agents, githubConnection] = await Promise.all([
     safe(() => window.aecp.getAppInfo()),
     safe(() => window.aecp.getState()),
     safe(() => window.aecp.detectTools(), []),
     safe(() => window.aecp.listTasks(), []),
-    safe(() => window.aecp.listProviders(), [])
+    safe(() => window.aecp.listProviders(), []),
+    safe(() => window.aecp.listAgents(), []),
+    safe(() => window.aecp.getGitHubConnection(), null)
   ]);
   state.app = app;
   state.data = data;
   state.tools = tools || [];
   state.tasks = tasks || [];
   state.providers = providers || [];
+  state.agents = agents || [];
+  state.githubConnection = githubConnection;
   if (!state.selectedTaskId && state.tasks[0]) state.selectedTaskId = state.tasks[0].id;
   if (state.selectedTaskId && !state.tasks.some((task) => task.id === state.selectedTaskId)) state.selectedTaskId = state.tasks[0]?.id || null;
   render();
@@ -83,6 +90,8 @@ function render() {
   renderWorkspace();
   renderTools();
   renderProviders();
+  renderAgents();
+  renderUpdate();
   renderTabs();
   renderControl();
   $('#welcomeOverlay').classList.toggle('hidden', Boolean(state.data?.currentWorkspace));
@@ -327,6 +336,84 @@ function renderProviders() {
   host.innerHTML = state.providers.map((provider) => `<div class="provider-item"><div><strong>${esc(provider.name)}</strong><small>${esc(provider.kind)} · ${esc(provider.status)}${provider.hasCredential ? ' · credential stored' : ''}${provider.baseUrl ? ` · ${esc(provider.baseUrl)}` : ''}</small></div>${provider.builtIn ? '<span class="status ready">Built in</span>' : `<button class="secondary-button" data-delete-provider="${esc(provider.id)}" type="button">Remove</button>`}</div>`).join('');
 }
 
+function renderAgents() {
+  const host = $('#agentList');
+  if (!host) return;
+  host.innerHTML = state.agents.map((agent) => `
+    <div class="agent-item">
+      <div>
+        <strong>${esc(agent.name)}</strong>
+        <small>${esc(agent.role)} · ${esc(agent.available ? agent.version : 'Not detected')}</small>
+      </div>
+      <button class="${agent.id === 'chatgpt-web' ? 'primary-button' : 'secondary-button'}" data-agent-id="${esc(agent.id)}" type="button" ${agent.available ? '' : 'disabled'}>${agent.id === 'chatgpt-web' ? 'Open' : 'Launch'}</button>
+    </div>`).join('') || '<div class="empty-list">No agents detected.</div>';
+}
+
+function renderUpdate() {
+  const badge = $('#updateBadge');
+  const text = $('#updateText');
+  const apply = $('#applyUpdateButton');
+  const connect = $('#connectGitHubButton');
+  if (!badge || !text || !apply || !connect) return;
+
+  if (state.update) {
+    badge.textContent = state.update.available ? 'Update available' : (state.update.connected ? 'Up to date' : 'GitHub needed');
+    badge.className = `status ${state.update.available ? 'warn' : (state.update.connected ? 'ready' : 'neutral')}`;
+    text.textContent = state.update.message || 'Release status checked.';
+    if (state.update.latestVersion) text.textContent += ` Current v${state.update.currentVersion}; latest v${state.update.latestVersion}.`;
+    apply.disabled = !state.update.available;
+  } else {
+    const connected = Boolean(state.githubConnection?.connected);
+    badge.textContent = connected ? 'GitHub connected' : 'Not checked';
+    badge.className = `status ${connected ? 'ready' : 'neutral'}`;
+    text.textContent = connected
+      ? 'Private GitHub is authenticated. Check Release status when you want to update.'
+      : 'Connect GitHub once, then AECP can securely read private Releases and self-update from the allowlisted repository.';
+    apply.disabled = true;
+  }
+  connect.textContent = state.githubConnection?.connected ? 'GitHub connected' : 'Connect GitHub';
+  connect.disabled = Boolean(state.githubConnection?.connected);
+}
+
+async function launchAgent(agentId) {
+  const result = await safe(() => window.aecp.launchAgent(agentId));
+  if (result?.ok) toast(`${state.agents.find((item) => item.id === agentId)?.name || 'Agent'} launched.`);
+}
+
+async function checkUpdate() {
+  toast('Checking the private GitHub Release channel…');
+  const result = await safe(() => window.aecp.checkUpdate());
+  if (!result) return;
+  state.update = result;
+  state.githubConnection = { connected: result.connected, ghInstalled: result.ghInstalled, message: result.message };
+  renderUpdate();
+  toast(result.message || 'Update check completed.', result.available ? 'info' : 'info');
+}
+
+async function connectGitHub() {
+  const result = await safe(() => window.aecp.connectGitHub());
+  if (!result) return;
+  if (result.reason === 'GH_NOT_INSTALLED') {
+    toast('GitHub CLI download page opened. Install it, then press Connect GitHub again.');
+    return;
+  }
+  if (result.alreadyConnected) {
+    toast('GitHub is already connected.');
+  } else {
+    toast('GitHub login opened in PowerShell. Finish the browser login, then press Check update.');
+  }
+  state.githubConnection = await safe(() => window.aecp.getGitHubConnection(), state.githubConnection);
+  renderUpdate();
+}
+
+async function applyUpdate() {
+  if (!state.update?.available) return;
+  if (!confirm(`Install AECP v${state.update.latestVersion}? The installer is downloaded from the allowlisted private GitHub Release and SHA-256 verified before launch.`)) return;
+  toast('Downloading and verifying the update…');
+  const result = await safe(() => window.aecp.applyUpdate());
+  if (result?.ok) toast('Update verified. AECP will close and install the new version.');
+}
+
 async function chooseWorkspace() {
   const workspace = await safe(() => window.aecp.selectWorkspace());
   if (!workspace) return;
@@ -420,6 +507,10 @@ function bindEvents() {
   $('#openWorkspaceButton').addEventListener('click', () => safe(() => window.aecp.openWorkspace()));
   $('#terminalButton').addEventListener('click', () => safe(() => window.aecp.openTerminal()));
   $('#openChatGPTButton').addEventListener('click', openChatGPT);
+  $('#checkUpdateButton').addEventListener('click', checkUpdate);
+  $('#applyUpdateButton').addEventListener('click', applyUpdate);
+  $('#connectGitHubButton').addEventListener('click', connectGitHub);
+  $('#openReleasesButton').addEventListener('click', () => safe(() => window.aecp.openReleases()));
   $('#importClipboardButton').addEventListener('click', importFromClipboard);
   $('#sampleButton').addEventListener('click', createSampleTask);
   $('#modeButton').addEventListener('click', () => { state.engineering = !state.engineering; if (!state.engineering && state.view === 'trace') state.view = 'start'; render(); });
@@ -464,6 +555,11 @@ function bindEvents() {
       if (action === 'run-task') await runTask(taskId);
       if (action === 'copy-result') await copyResult(taskId);
       if (action === 'show-evidence') { state.selectedTaskId = taskId; setView('evidence'); }
+      return;
+    }
+    const agentNode = event.target.closest('[data-agent-id]');
+    if (agentNode) {
+      await launchAgent(agentNode.dataset.agentId);
       return;
     }
     const deleteNode = event.target.closest('[data-delete-provider]');
