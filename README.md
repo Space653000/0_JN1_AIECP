@@ -2,7 +2,7 @@
 
 **AI Engineering Control Plane (AECP)** is a Windows-first local control plane that lets you keep using **official ChatGPT Web** as your conversational AI while AECP manages the local engineering side: Workspace boundaries, repositories, task state, local tools, evidence, and future provider adapters.
 
-> **Current release: v0.1.0 Preview.** The default path uses ChatGPT Web and does **not** require an OpenAI API key. The preview intentionally exposes read-only local task capabilities first; it does not yet allow arbitrary AI-generated shell commands or autonomous file modification.
+> **Current release: v0.1.0 Preview.** The normal path uses ChatGPT Web and does **not** require an OpenAI API key. The preview intentionally exposes read-only local task capabilities first; it does not yet allow arbitrary AI-generated shell commands or autonomous file modification.
 
 ## The idea in one picture
 
@@ -22,165 +22,102 @@ AECP does **not** replace ChatGPT, scrape ChatGPT, inject JavaScript into ChatGP
 
 ---
 
-# New here? Follow only these steps first
+# 第一次使用：新人只要照這裡做
 
-You do **not** need Git, Node.js, PowerShell knowledge, an OpenAI API key, or programming experience just to try AECP.
+一般使用者**不需要**先安裝 Node.js、Python、本地模型，也不需要 OpenAI API Key。
 
-## 10-minute first-use path
+## 1. 只下載一個主安裝檔
 
-1. Open this repository's **Releases** page.
-2. Download **one** installer that matches your PC:
-   - Windows on ARM / Snapdragon / ARM64 → `AI-Engineering-Control-Plane-Setup-arm64-0.1.0.exe`
-   - Intel / AMD x64 → `AI-Engineering-Control-Plane-Setup-x64-0.1.0.exe`
-3. Double-click the installer and use the default per-user installation.
-4. Open **AI Engineering Control Plane** from the Desktop or Start menu.
-5. Click **Choose my first Workspace** and select a normal project folder on your PC.
-6. Click **Open official ChatGPT**. Your normal browser opens `chatgpt.com`.
-7. Return to AECP and click **Create sample task**.
-8. Select the task and click **Run locally**.
-9. Open **Evidence** and confirm that AECP produced a verified local result.
-10. Click **Copy Result Capsule** and paste it into ChatGPT if you want ChatGPT to continue from the verified result.
+到這個 repository 的 **Releases** 頁面，優先下載：
 
-If all ten steps work, your basic AECP installation is healthy.
+`AI-Engineering-Control-Plane-Setup-0.1.0.exe`
 
-### If Windows asks which installer architecture you need
+這是 **Auto-Detect 安裝版**，內含 Windows x64 與 ARM64 payload。安裝時會自動判斷你的 Windows 架構並選擇正確版本，所以一般使用者不用知道自己是 Intel / AMD / Snapdragon，也不用自己選 ARM64 或 x64。
 
-Open:
+Release 仍會保留下面兩個故障排除用 fallback：
 
-**Windows Settings → System → About → System type**
+- `AI-Engineering-Control-Plane-Setup-x64-0.1.0.exe`
+- `AI-Engineering-Control-Plane-Setup-arm64-0.1.0.exe`
 
-Then use:
+只有主 Auto-Detect 安裝檔真的無法使用時才需要碰 fallback。
 
-| System type | Installer |
-|---|---|
-| ARM64-based PC | `...Setup-arm64-0.1.0.exe` |
-| 64-bit operating system, x64-based processor | `...Setup-x64-0.1.0.exe` |
+## 2. 安裝
 
-### If SmartScreen appears
+1. 雙擊 `AI-Engineering-Control-Plane-Setup-0.1.0.exe`。
+2. 使用預設的 **per-user** 安裝即可，不需要管理員權限。
+3. 想要桌面捷徑就保留 **Desktop shortcut**。
+4. 完成後開啟 **AI Engineering Control Plane**。
 
-v0.1.0 Preview is currently unsigned, so Windows may show a SmartScreen warning even when the file was built by this repository's GitHub Actions workflow.
+### Windows SmartScreen 如果跳出來
 
-Do **not** disable Windows Security globally.
+v0.1.0 Preview 目前尚未做 Authenticode 簽章，因此 Windows 可能顯示 SmartScreen 警告。
 
-Use this checklist instead:
+不要為此關閉整個 Windows Security。請確認：
 
-1. Confirm the file came from this repository's official **Release**.
-2. Confirm the filename matches the expected ARM64 or x64 installer.
-3. If you want an additional check, compare the installer's SHA-256 against `SHA256SUMS.txt` in the same Release.
+1. 安裝檔確實來自本 repository 的官方 Release。
+2. 檔名正確。
+3. 如果要再驗證一次，可用同一個 Release 的 `SHA256SUMS.txt` 比對 SHA-256。
 
----
+## 3. 第一次開啟：AECP 會自動做什麼
 
-# Complete feature map
+啟動後 AECP 會自動判別：
 
-The table below separates **what v0.1.0 actually does now** from capabilities that are deliberately reserved for later governed adapters.
+- Windows / App 架構（x64 或 ARM64）
+- Git
+- PowerShell / PowerShell 7
+- Python
+- Node.js
+- GitHub CLI
+- Ollama
+- 之後 Workspace 裡的 Git repositories
+- branch
+- dirty / clean 狀態
 
-| Area | v0.1.0 Preview status | What it means |
-|---|---|---|
-| Official ChatGPT Web companion | ✅ Available | Opens normal `chatgpt.com` in your normal browser; AECP does not own the login session |
-| Windows Workspace selection | ✅ Available | Native folder picker and local Workspace boundary |
-| Git repository discovery | ✅ Available | Detects Workspace-root and direct-child repositories |
-| Git status / branch inspection | ✅ Available | Read-only Git state and evidence |
-| Local tool discovery | ✅ Available | Detects Git, PowerShell, Python, Node.js, GitHub CLI and Ollama when installed |
-| Task Board | ✅ Available | One canonical task model grouped by state |
-| Pipeline view | ✅ Available | Understand → Prepare → Execute → Verify → Package Result |
-| Workspace Graph | ✅ Available | Visual relationship among Workspace, repositories, providers and tools |
-| Execution Trace | ✅ Available | Local event history for each task |
-| Evidence view | ✅ Available | Verifiable local result/evidence instead of only AI claims |
-| `aecp.task/v1` Command Card | ✅ Available | Structured task handoff from ChatGPT to AECP |
-| `aecp.result/v1` Result Capsule | ✅ Available | Compact verified handoff back to ChatGPT |
-| Clipboard Safe Bridge | ✅ Available | Clipboard is read only when you explicitly click **Import from Clipboard** |
-| Provider Registry | ✅ Foundation available | Stores provider metadata for future API/local/MCP adapters |
-| Protected API-key storage | ✅ Available | Optional future provider secrets are protected with OS-backed Electron `safeStorage` |
-| Dark / Light theme | ✅ Available | User-selectable appearance |
-| Beginner / Engineering mode | ✅ Available | Beginner mode hides lower-level engineering detail |
-| Windows x64 installer | ✅ Built by CI | NSIS installer produced by GitHub Actions |
-| Windows ARM64 installer | ✅ Built by CI | Native Electron ARM64 payload produced by GitHub Actions |
-| Arbitrary AI shell execution | ❌ Intentionally disabled | Not accepted from copied AI text in v0.1.0 |
-| Autonomous file modification | ❌ Not yet enabled | Requires a governed write adapter and stronger verification |
-| Autonomous Git commit/push | ❌ Not yet enabled | Requires explicit policy, approval and evidence gates |
-| Arbitrary Windows GUI control | ❌ Not yet enabled | Planned behind a dedicated desktop-control adapter |
-| Automatic ChatGPT DOM automation | ❌ Not a product goal | AECP does not scrape or inject into ChatGPT Web |
-| External API model execution | ❌ Registry only in v0.1.0 | Provider architecture exists; invocation adapter is later work |
-| Public Remote MCP exposure | ❌ Not enabled | No automatic public exposure of local MCP endpoints |
-| Mobile remote local execution | ❌ Not yet enabled | Future roadmap capability, not part of v0.1.0 |
+這些工具**不是全部必裝**。沒有偵測到時，AECP 顯示未安裝或 unavailable，不應因為少一個選配工具就整個不能開。
 
----
+## 4. 唯一需要你自己選的：Workspace
 
-# For beginners: download and use the EXE
+第一次按：
 
-## 1. Choose the correct installer
+**Choose my first Workspace**
 
-Open the repository's **Releases** page and download one file:
+然後選擇你希望 AECP 可以讀取的本機專案資料夾。
 
-| Your Windows PC | Download |
-|---|---|
-| Windows on ARM / Snapdragon / ARM64 | `AI-Engineering-Control-Plane-Setup-arm64-0.1.0.exe` |
-| Intel or AMD 64-bit Windows | `AI-Engineering-Control-Plane-Setup-x64-0.1.0.exe` |
+這一步刻意不做「全硬碟自動猜測」。原因是 Workspace 本身就是安全邊界；AECP 不應該為了省一次點擊，自動掃描你的桌面、文件或其他私人資料夾。
 
-If you are unsure: Windows **Settings → System → About → System type** shows whether the machine is ARM64 or x64.
+選過一次後會存在本機，下次開 AECP 不需要重新設定。
 
-## 2. Install
+## 5. 開官方 ChatGPT
 
-1. Double-click the downloaded `.exe`.
-2. Use the default **per-user** installation unless you have a reason to change it.
-3. Leave **Desktop shortcut** enabled if you want a desktop icon.
-4. Finish the installer and open **AI Engineering Control Plane**.
-
-### Windows SmartScreen note
-
-The preview build may be unsigned. Windows can therefore show a SmartScreen warning even when the file came from this repository. Verify that you downloaded it from this repository's official Release and, if desired, compare its SHA-256 hash against `SHA256SUMS.txt` in the same Release. Do **not** globally disable Windows security.
-
-## 3. First start
-
-AECP shows one short welcome screen.
-
-1. Click **Choose my first Workspace**.
-2. Pick the local folder you want AECP to work with.
-3. AECP automatically detects Git repositories at the Workspace root and its direct child folders.
-4. AECP detects common local tools such as Git, PowerShell, Python, Node.js, GitHub CLI, and Ollama.
-
-Choosing a Workspace does **not** upload the folder anywhere.
-
-## 4. Open official ChatGPT
-
-In the right-hand **Official ChatGPT Web** pane, click:
+右側 **Official ChatGPT Web** 按：
 
 **Open official ChatGPT**
 
-Your normal browser opens `chatgpt.com`. Sign in normally if needed. AECP does not receive your ChatGPT password, cookies, or session token.
+AECP 會用你的正常預設瀏覽器開 `chatgpt.com`。你照平常方式登入即可。
 
-## 5. Try the safe sample first
+AECP 不取得你的 ChatGPT 密碼、Cookie 或 Session Token。
 
-Back in AECP, click:
+## 6. 第一次先跑安全範例
 
-**Create sample task**
+回到 AECP：
 
-The task appears on the Board. Select it and press:
+1. 按 **Create sample task**。
+2. Task 會進入 Board。
+3. 選取 Task。
+4. 按 **Run locally**。
+5. 打開 **Evidence**。
+6. 確認有成功的 verified local result。
 
-**Run locally**
+v0.1.0 的安全範例只會做 read-only：
 
-The preview performs only a read-only operation:
+- `inspect-workspace`
+- 或 Workspace root 是 Git repository 時執行 `git-status`
 
-- `inspect-workspace`, or
-- `git-status` when the Workspace root itself is a Git repository.
+不會修改你的檔案。
 
-After verification, the task moves to **Done**.
+## 7. 第一次 ChatGPT → AECP → ChatGPT
 
-Open these views to understand what happened:
-
-- **Board** — all tasks by state
-- **Pipeline** — Understand → Prepare → Execute → Verify → Package Result
-- **Graph** — Workspace ↔ repositories ↔ providers ↔ local tools
-- **Trace** — exact local execution events (Engineering mode)
-- **Evidence** — result and local evidence
-
-## 6. Use ChatGPT → AECP → ChatGPT
-
-The preview uses an explicit **Safe Bridge**.
-
-### Ask ChatGPT for a Command Card
-
-You can tell ChatGPT:
+在 ChatGPT 要求：
 
 ```text
 Please output an AECP Command Card using schema aecp.task/v1.
@@ -190,7 +127,7 @@ Use only one of these preview actions:
 Do not include any shell command.
 ```
 
-Example:
+ChatGPT 可以回傳例如：
 
 ```json
 {
@@ -204,92 +141,153 @@ Example:
 }
 ```
 
-Then:
+接著：
 
-1. Copy the JSON in ChatGPT.
-2. In AECP click **Import from Clipboard**.
-3. AECP validates the schema before creating a Task.
-4. Select the Task and click **Run locally**.
-5. Open **Evidence**.
-6. Click **Copy Result Capsule**.
-7. Paste it back into the same ChatGPT conversation.
+1. 在 ChatGPT 按 Copy。
+2. 回 AECP 按 **Import from Clipboard**。
+3. AECP 驗證 schema。
+4. 選 Task → **Run locally**。
+5. 看 **Evidence**。
+6. 按 **Copy Result Capsule**。
+7. 貼回同一個 ChatGPT 對話。
 
-AECP reads the clipboard only when you explicitly press **Import from Clipboard**.
+AECP 只在你明確按 **Import from Clipboard** 時讀 Clipboard，不會在背景偷讀 ChatGPT。
+
+如果上述流程完成，你的 AECP 基本安裝與 Safe Bridge 就正常。
 
 ---
 
-# Interface guide
+# 自動偵測原則
+
+AECP 採用：
+
+> **能安全判斷的就自動判斷；涉及資料授權或高風險操作才詢問使用者。**
+
+| 項目 | 行為 |
+|---|---|
+| Windows x64 / ARM64 | Auto-Detect installer 自動選擇 |
+| AECP runtime architecture | 自動顯示 |
+| Git / PowerShell / Python / Node / gh / Ollama | 啟動時自動偵測 |
+| Workspace repositories | 選定 Workspace 後自動偵測 |
+| branch / dirty-clean | 自動偵測 |
+| 已保存 Workspace | 下次啟動自動恢復 |
+| 第一個 Workspace | **使用者自己選一次**，避免未授權掃描 |
+| ChatGPT login | 由官方 ChatGPT / Browser 自己處理 |
+| 高風險寫入、刪除、push | 不應靠自動猜測授權 |
+
+---
+
+# 完整功能地圖
+
+下面刻意區分「v0.1.0 現在真的有」與「Blueprint 已規劃但尚未開放」，避免把 roadmap 誤認為完成品。
+
+| Area | v0.1.0 Preview | What it means |
+|---|---|---|
+| Official ChatGPT Web companion | ✅ | 開官方 `chatgpt.com`；AECP 不接管登入 |
+| Auto-Detect Windows installer | ✅ | 單一 installer 自動選 x64 / ARM64 payload |
+| Architecture-specific fallback installers | ✅ | x64、ARM64 個別安裝檔供故障排除 |
+| Windows Workspace selection | ✅ | 原生資料夾選擇器與本地安全邊界 |
+| Saved Workspace restore | ✅ | 選過後下次自動恢復 |
+| Git repository discovery | ✅ | 掃描 Workspace root / direct child repos |
+| Git branch/status | ✅ | Read-only Git state / evidence |
+| Local tool discovery | ✅ | Git、PowerShell、Python、Node.js、gh、Ollama |
+| Task Board | ✅ | 按狀態管理任務 |
+| Pipeline view | ✅ | Understand → Prepare → Execute → Verify → Package Result |
+| Workspace Graph | ✅ | Workspace / repo / provider / tool 關係 |
+| Execution Trace | ✅ | 任務的本機事件紀錄 |
+| Evidence view | ✅ | 顯示可驗證本機結果 |
+| `aecp.task/v1` Command Card | ✅ | ChatGPT → AECP 結構化交接 |
+| `aecp.result/v1` Result Capsule | ✅ | AECP → ChatGPT 驗證結果交接 |
+| Clipboard Safe Bridge | ✅ | 只有使用者按 Import 才讀 clipboard |
+| Provider Registry | ✅ foundation | 為未來 API / Local / MCP provider 預留 |
+| Protected provider secret storage | ✅ | 使用 OS-backed Electron `safeStorage` |
+| Dark / Light theme | ✅ | 使用者可切換 |
+| Beginner / Engineering mode | ✅ | 新人預設簡化，高階使用者可展開 |
+| Arbitrary AI shell execution | ❌ | v0.1.0 刻意禁止 |
+| Autonomous file modification | ❌ | 等 governed write adapter |
+| Autonomous Git commit/push | ❌ | 等 policy / approval / evidence gate |
+| Arbitrary Windows GUI control | ❌ | 後續 desktop-control adapter |
+| ChatGPT DOM scraping/injection | ❌ | 不是產品方向 |
+| External API provider execution | ❌ | v0.1.0 只有 Registry foundation |
+| Public Remote MCP exposure | ❌ | 不自動把本機暴露到公網 |
+| Mobile remote local execution | ❌ | Roadmap，不是 v0.1.0 功能 |
+
+---
+
+# 介面說明
 
 ## Left — Local Computer
 
-Shows only local information:
+顯示：
 
 - active Workspace
 - detected repositories
-- Git branch / dirty-clean status
-- local tools and versions
+- Git branch / dirty-clean
+- local tools / versions
 - Open Workspace
-- Open Terminal (Engineering mode; user-initiated)
+- Open Terminal（Engineering mode、使用者主動觸發）
 
 ## Center — Control Plane
 
-One canonical task model is shown in multiple professional engineering views:
+同一份 canonical task data 可以切不同工程視圖：
 
-- Board
-- Pipeline
-- Graph
-- Trace
-- Evidence
-
-This design borrows mature concepts from software delivery pipelines and project control systems: explicit states, stage/step thinking, verification, failure visibility, and evidence.
+- **Board** — 任務狀態
+- **Pipeline** — stage / step
+- **Graph** — Workspace / repo / provider / tools 關係
+- **Trace** — 執行歷程
+- **Evidence** — 驗證結果
 
 ## Right — Official ChatGPT Web
 
-This is intentionally a companion pane, not a cloned ChatGPT UI. The button opens official ChatGPT in your normal browser. This keeps OpenAI authentication and UI independent from AECP.
+這是 companion pane，不是假 ChatGPT clone。
+
+按鈕開啟官方 ChatGPT，OpenAI authentication 與官方網頁維持獨立。
 
 ---
 
-# Providers and future model expansion
+# Providers / 未來擴充
 
-Click **Providers** in the top-right.
+右上角 **Providers** 可管理 Provider metadata。
 
-Built in:
+內建：
 
-- **ChatGPT Web** — no API key; explicit Safe Bridge
+- **ChatGPT Web** — 不需 API key，使用 Safe Bridge
 
-You can already register metadata for future:
+架構已預留：
 
-- API provider
-- Local provider
-- Remote MCP provider
+- API Provider
+- Local Provider
+- Remote MCP Provider
 
-If you enter an API key, AECP stores it using Electron/Windows OS-protected `safeStorage`; plaintext is not written into the project repository. **v0.1.0 does not invoke those external APIs yet.** This is intentional: the Provider Registry exists now so future models can plug into the same Local Harness rather than forcing an architectural rewrite.
+如果未來輸入 API key，AECP 使用 Electron/Windows OS-backed `safeStorage` 保存；plaintext 不寫進 project repository。
+
+**v0.1.0 尚未呼叫這些外部 API。** Provider Registry 先建立是為了未來換模型時不用重寫 Local Harness。
 
 ---
 
-# What v0.1.0 deliberately does NOT do
+# v0.1.0 刻意不做的事
 
-To keep the first downloadable EXE safe and verifiable, it does not yet:
+第一個可下載 EXE 先以安全、可驗證為優先，因此目前不會：
 
-- execute arbitrary commands copied from an AI conversation
-- modify/delete project files autonomously
-- push Git commits to GitHub
-- control arbitrary Windows GUI applications
-- scrape or automate ChatGPT's DOM
-- bypass ChatGPT usage limits
-- invoke saved external API providers
-- expose a local MCP server to the public internet
-- offer remote/mobile execution
+- 執行 AI 對話複製來的任意 shell command
+- 自主修改 / 刪除專案檔案
+- 自主 Git commit / push
+- 任意控制 Windows GUI
+- scrape / automate ChatGPT DOM
+- 規避 ChatGPT usage limit
+- 實際呼叫已保存的外部 API provider
+- 自動把本地 MCP server 暴露到 Internet
+- 提供手機遠端本地施工
 
-Those capabilities are specified as governed adapters/stages in `Blueprint/` and must be added behind explicit permissions, verification and evidence.
+這些能力如果後續加入，必須經過 Blueprint 定義的 permission、policy、verification、evidence gate。
 
 ---
 
 # Architecture / Blueprint
 
-The full product source of truth is in [`Blueprint/`](Blueprint/INDEX.md).
+完整 Source of Truth：[`Blueprint/`](Blueprint/INDEX.md)
 
-Important files:
+核心文件：
 
 - `00_MASTER_BLUEPRINT.md`
 - `01_UX_UI_SPEC.md`
@@ -306,19 +304,19 @@ Important files:
 - `12_DATA_MODEL.md`
 - `13_TRIPLE_AUDIT.md`
 
-The founding requirement conversation and the resulting engineering decisions are archived under `Blueprint/Conversation/`.
+創始需求與工程決策另外封存於 `Blueprint/Conversation/`。
 
 ---
 
 # Developer setup
 
-Ordinary users do **not** need this section.
+一般使用者完全不需要這一節。
 
-Requirements:
+需求：
 
 - Node.js 24
 - npm
-- Windows for packaging Windows installers
+- Windows（建 Windows installer 時）
 
 ```powershell
 git clone https://github.com/Space653000/AI-Engineering-Control-Plane.git
@@ -328,42 +326,48 @@ npm run verify
 npm start
 ```
 
-Build installers:
+Build：
 
 ```powershell
+# 新人主要 Release：單一自動判斷 x64 / ARM64
+npm run dist:auto
+
+# 故障排除 / 工程驗證
 npm run dist:x64
 npm run dist:arm64
 ```
 
-Output is written to `release/`.
+輸出在 `release/`。
 
-## Security model for contributors
+## Renderer security
 
-Renderer pages run with:
+Renderer：
 
 - context isolation enabled
 - Node integration disabled
 - sandbox enabled
-- a narrow preload API
+- narrow preload API
 
-The official ChatGPT website is never loaded with a privileged AECP preload script.
+官方 ChatGPT 網頁不會載入 AECP privileged preload script。
 
 ---
 
-# Automated builds and releases
+# Automated CI / Release
 
-Pull requests run:
+Pull Request 會驗證：
 
 1. syntax checks
-2. Node unit tests
-3. Windows x64 package build
-4. Windows ARM64 package build
+2. unit tests
+3. Windows x64 fallback installer
+4. Windows ARM64 fallback installer
+5. Windows x64+ARM64 Auto-Detect installer
 
-A merge/push to `main` builds both Windows installers. If that package version does not already have a GitHub Release, the release workflow publishes a GitHub **pre-release** containing:
+Merge / push 到 `main` 後，Release workflow 會重新 build 並建立該版本的 GitHub **pre-release**，內容包含：
 
-- x64 installer
-- ARM64 installer
-- installer blockmaps
+- `AI-Engineering-Control-Plane-Setup-0.1.0.exe` — **一般使用者下載這個**
+- x64 fallback installer
+- ARM64 fallback installer
+- blockmaps
 - `SHA256SUMS.txt`
 - release notes
 
@@ -371,15 +375,15 @@ A merge/push to `main` builds both Windows installers. If that package version d
 
 # Privacy
 
-v0.1.0 has:
+v0.1.0：
 
 - no analytics SDK
 - no telemetry
 - no automatic source upload
-- local task/evidence storage only
+- local task/evidence storage
 - explicit clipboard handoff
 
-Local AECP application data is stored in the Electron per-user application-data directory shown by the app runtime.
+Local AECP application data 存在 Electron per-user application-data directory；實際路徑由 App runtime 顯示。
 
 ---
 
