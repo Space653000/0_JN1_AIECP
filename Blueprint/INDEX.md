@@ -14,10 +14,11 @@
 8. `07_INSTALL_RELEASE.md` — Windows x64/ARM64, installer, release, updates
 9. `08_ROADMAP_ACCEPTANCE.md` — delivery phases and measurable gates
 10. `09_RESEARCH_NOTES.md` — external research and adopted patterns
-11. `10_CONVERSATION_DECISION_LOG.md` — founding conversation and decisions
+11. `10_CONVERSATION_DECISION_LOG.md` — concise founding requirements/decision history
 12. `11_TASK_PROTOCOL.md` — Command Card, Context Capsule, Result Capsule, trace schema
 13. `12_DATA_MODEL.md` — persistent entities, graph and local storage
 14. `13_TRIPLE_AUDIT.md` — three independent blueprint-vs-implementation audits
+15. `Conversation/2026-09-17_FOUNDING_CONVERSATION.md` — full project-specific founding conversation archive
 
 ## Product name
 
