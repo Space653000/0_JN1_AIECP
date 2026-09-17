@@ -177,6 +177,88 @@ AECP 採用：
 
 ---
 
+# 多 AI 切換與私人 GitHub 一鍵更新
+
+AECP 現在把「AI 是誰」和「本機工程環境」分開。
+
+右側 **Agent Switcher** 會自動偵測：
+
+- ChatGPT Web
+- Codex CLI
+- Claude Code
+- Gemini CLI
+- Ollama
+
+可用的 Agent 會顯示版本與 **Open / Launch**；沒有安裝的會顯示 **Not detected**，不會假裝可用。
+
+CLI 類 Agent 只會在你已經授權的 Workspace 中開啟，而且命令是 AECP 固定允許的 launcher，不接受聊天內容自行指定任意 executable。
+
+## 這個 ChatGPT 對話如何持續升級 AECP
+
+未來你可以直接在這個對話提出：
+
+- 新功能
+- UX / UI 修改
+- 新 Provider
+- Claude Code / Gemini / Codex 整合
+- MCP
+- 工程軟體 Adapter
+- 外掛
+- 安全策略
+- 新的 Goal Loop preset
+- 安裝 / 更新改善
+
+在你已授權 GitHub 連接的前提下，開發流程可以是：
+
+```text
+你在 ChatGPT 提需求
+        ↓
+更新 private GitHub
+        ↓
+CI / Build / Audit
+        ↓
+Merge main
+        ↓
+GitHub Release
+        ↓
+AECP → Check update
+        ↓
+AECP → Apply update
+```
+
+**聊天內容不會直接覆蓋本機 EXE。** 必須先經 GitHub、CI、Release，再由 AECP 的 trusted update channel 安裝。
+
+## Private GitHub Update
+
+如果 repository 改成 Private，AECP 仍能更新。
+
+第一次只需要把本機 GitHub CLI 登入自己的 GitHub：
+
+1. AECP 右側按 **Connect GitHub**。
+2. 如果本機已有 `gh`，AECP 會開官方 `gh auth login --web` 流程。
+3. 完成 GitHub 網頁授權。
+4. 回 AECP 按 **Check update**。
+5. 有新 Release 時按 **Apply update**。
+
+AECP 不會把 GitHub Token 抽出來交給 ChatGPT，也不會把 Token 存進專案。
+
+更新時 AECP 只接受固定 repository：
+
+`Space653000/AI-Engineering-Control-Plane`
+
+並且只會：
+
+1. 讀取 GitHub Release。
+2. 比較 Semantic Version。
+3. 優先選 Auto-Detect installer。
+4. 下載 installer + `SHA256SUMS.txt`。
+5. 驗證 SHA-256。
+6. 驗證成功才啟動安裝。
+
+所以即使聊天內容說「去別的網址下載 EXE」，AECP 更新器也不會照做。
+
+---
+
 # 完整功能地圖
 
 下面刻意區分「v0.1.0 現在真的有」與「Blueprint 已規劃但尚未開放」，避免把 roadmap 誤認為完成品。
@@ -184,6 +266,8 @@ AECP 採用：
 | Area | v0.1.0 Preview | What it means |
 |---|---|---|
 | Official ChatGPT Web companion | ✅ | 開官方 `chatgpt.com`；AECP 不接管登入 |
+| Agent Switcher | ✅ | 偵測/啟動 ChatGPT Web、Codex CLI、Claude Code、Gemini CLI、Ollama |
+| Private GitHub update channel | ✅ | `gh` 私有 Release 檢查、固定 repo、SHA-256 驗證、Apply Update |
 | Auto-Detect Windows installer | ✅ | 單一 installer 自動選 x64 / ARM64 payload |
 | Architecture-specific fallback installers | ✅ | x64、ARM64 個別安裝檔供故障排除 |
 | Windows Workspace selection | ✅ | 原生資料夾選擇器與本地安全邊界 |
@@ -303,6 +387,8 @@ AECP 採用：
 - `11_TASK_PROTOCOL.md`
 - `12_DATA_MODEL.md`
 - `13_TRIPLE_AUDIT.md`
+- `14_GUIDED_UX_AND_GOAL_LOOP.md`
+- `15_SELF_EVOLUTION_PRIVATE_UPDATE_AGENT_INTEROP.md`
 
 創始需求與工程決策另外封存於 `Blueprint/Conversation/`。
 
