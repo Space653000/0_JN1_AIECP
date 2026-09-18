@@ -16,7 +16,8 @@ const {
   validateAutonomySpec,
   makeRunId,
   runBoundedAutonomy,
-  applyVerifiedPatch
+  applyVerifiedPatch,
+  samePhysicalPath
 } = require('./lib/autonomy.cjs');
 
 const STATE_SCHEMA = 1;
@@ -263,7 +264,13 @@ async function startAutonomy(payload) {
   const workspace = getCurrentWorkspace(state);
   if (!workspace) throw new Error('Choose a Workspace first.');
 
-  const rootRepo = workspace.repositories.find((repo) => path.resolve(repo.path) === path.resolve(workspace.rootPath));
+  let rootRepo = null;
+  for (const repo of workspace.repositories) {
+    if (await samePhysicalPath(repo.path, workspace.rootPath)) {
+      rootRepo = repo;
+      break;
+    }
+  }
   if (!rootRepo) throw new Error('Bounded autonomous execution currently requires the Workspace itself to be a Git repository root.');
 
   const spec = validateAutonomySpec(payload || {});
@@ -350,7 +357,7 @@ async function applyAutonomy() {
   const workspace = getCurrentWorkspace(state);
   const record = await latestAutonomyRecord();
   if (!workspace || !record) throw new Error('No autonomous result is available.');
-  if (path.resolve(workspace.rootPath) !== path.resolve(record.sourceRoot)) {
+  if (!(await samePhysicalPath(workspace.rootPath, record.sourceRoot))) {
     throw new Error('The active Workspace is different from the run source. Refusing to apply.');
   }
   const result = await applyVerifiedPatch({ sourceRoot: workspace.rootPath, runRecord: record });
