@@ -31,6 +31,21 @@ function cleanText(value, max) {
   return String(value ?? '').trim().slice(0, max);
 }
 
+function normalizePathForCompare(value) {
+  const normalized = path.normalize(path.resolve(String(value || '')));
+  return process.platform === 'win32' ? normalized.toLowerCase() : normalized;
+}
+
+async function canonicalPathForCompare(value) {
+  const resolved = path.resolve(String(value || ''));
+  const real = await fs.realpath(resolved).catch(() => resolved);
+  return normalizePathForCompare(real);
+}
+
+async function samePhysicalPath(left, right) {
+  return (await canonicalPathForCompare(left)) === (await canonicalPathForCompare(right));
+}
+
 function validateAutonomySpec(input = {}) {
   const goal = cleanText(input.goal, 6000);
   const done = cleanText(input.done, 6000);
@@ -266,7 +281,7 @@ async function git(root, args, options = {}) {
 
 async function assertCleanGitRoot(sourceRoot, signal) {
   const top = await git(sourceRoot, ['rev-parse', '--show-toplevel'], { signal });
-  if (path.resolve(top) !== path.resolve(sourceRoot)) throw new Error('Bounded autonomous execution currently requires the Workspace itself to be a Git repository root.');
+  if (!(await samePhysicalPath(top, sourceRoot))) throw new Error('Bounded autonomous execution currently requires the Workspace itself to be a Git repository root.');
   const status = await git(sourceRoot, ['status', '--porcelain'], { signal });
   if (status.trim()) throw new Error('Workspace repository must be clean before starting autonomous execution. Commit/stash/discard existing changes first.');
   const head = await git(sourceRoot, ['rev-parse', 'HEAD'], { signal });
@@ -532,6 +547,9 @@ module.exports = {
   AUTONOMOUS_WORKERS,
   VERIFICATION_PROFILES,
   validateAutonomySpec,
+  normalizePathForCompare,
+  canonicalPathForCompare,
+  samePhysicalPath,
   parseMajor,
   openCodeV1Config,
   openCodeV2Config,
