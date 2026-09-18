@@ -17,6 +17,7 @@ const AGENT_SPECS = Object.freeze([
   { id: 'codex-cli', name: 'Codex CLI', command: 'codex', args: ['--version'], role: 'coding' },
   { id: 'claude-code', name: 'Claude Code', command: 'claude', args: ['--version'], role: 'coding' },
   { id: 'gemini-cli', name: 'Gemini CLI', command: 'gemini', args: ['--version'], role: 'research-coding' },
+  { id: 'opencode', name: 'OpenCode', command: 'opencode', args: ['--version'], role: 'local-agent' },
   { id: 'ollama', name: 'Local Ollama', command: 'ollama', args: ['--version'], role: 'local-models' }
 ]);
 let mainWindow = null;
