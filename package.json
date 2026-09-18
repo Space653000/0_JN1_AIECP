@@ -1,6 +1,6 @@
 {
   "name": "ai-engineering-control-plane",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Windows-first local AI engineering control plane for official ChatGPT Web safe handoff and governed local execution.",
   "main": "electron/main.cjs",
   "author": "Space653000",
