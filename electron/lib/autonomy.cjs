@@ -276,9 +276,10 @@ async function assertCleanGitRoot(sourceRoot, signal) {
 async function maybeLinkNodeModules(sourceRoot, worktree) {
   const source = path.join(sourceRoot, 'node_modules');
   const target = path.join(worktree, 'node_modules');
+  let stat;
+  try { stat = await fs.stat(source); } catch { return false; }
+  if (!stat.isDirectory()) return false;
   try {
-    const stat = await fs.stat(source);
-    if (!stat.isDirectory()) return false;
     await fs.lstat(target);
     return false;
   } catch {}
