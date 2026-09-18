@@ -1,75 +1,96 @@
-# AI Engineering Control Plane v0.2.0 — Preview
+# AI Engineering Control Plane v0.3.0 — Preview
 
-v0.2 focuses on resolving the two biggest v0.1 limitations without compromising the original product goal.
+v0.3 turns **Local Autonomous** into a real bounded execution path.
 
 ## Recommended download
 
-Ordinary Windows users should download only:
+Download only:
 
-`AI-Engineering-Control-Plane-Setup-0.2.0.exe`
+`AI-Engineering-Control-Plane-Setup-0.3.0.exe`
 
-The Auto-Detect installer contains both x64 and ARM64 payloads. Architecture-specific installers remain troubleshooting fallbacks.
+It auto-selects x64 or ARM64. Architecture-specific installers remain fallbacks.
 
-## New in v0.2
+## New: Bounded Autonomous Execution
 
-### Three execution modes
-- **Web Safe Bridge** — works with normal ChatGPT Web and remains the universal fallback.
-- **Local Autonomous** — recommends a detected local/CLI worker when available.
-- **Official Full MCP** — architecture for supported ChatGPT workspaces using an approved MCP/tunnel path.
+Normal flow:
 
-### Local MCP foundation
-- authenticated loopback MCP server
-- binds only to `127.0.0.1`
-- OS-encrypted persistent bearer token
-- explicit Start / Stop / Copy connection UI
-- read-only tools:
-  - `aecp_status`
-  - `inspect_workspace`
-  - `git_status`
-  - `read_text_file`
-- rejects absolute/traversal paths outside the active Workspace
-- 256 KiB text-file limit
-- no raw shell, write, delete or push tools
+```text
+Goal + Definition of Done
+        ↓
+AECP checks clean Git-root Workspace
+        ↓
+isolated detached worktree
+        ↓
+OpenCode or Codex CLI worker
+        ↓
+fixed AECP verifier
+        ↓
+FAIL → retry within budget
+PASS → verified.patch
+        ↓
+explicit Apply
+        ↓
+real Workspace receives uncommitted changes
+```
 
-### Agent/worker expansion
-AECP now detects and can launch:
-- ChatGPT Web
-- Codex CLI
-- Claude Code
-- Gemini CLI
-- OpenCode
-- Ollama
+### Supported autonomous workers
 
-The presence of a worker does not grant it extra filesystem or policy permissions.
+**OpenCode**
+- default recommendation when detected
+- v1/v2 permission schema handling
+- worktree-local read/edit/glob/grep
+- arbitrary shell denied
+- external directories denied
+- web fetch/search and subagents denied
+- only read-only `git status` / `git diff` shell exceptions
 
-### Constraint-resolution architecture
-- Microsoft Store Private Audience is the preferred future path for removing SmartScreen friction without making the repository public.
-- GitHub Preview distribution remains independent.
-- Goal/Done/Evidence stays canonical across Web Safe Bridge, Local Autonomous and Official Full MCP modes.
+**Codex CLI**
+- `codex exec`
+- `--sandbox workspace-write`
+- `--ignore-user-config`
+- `--ignore-rules`
+- ephemeral JSON execution
+- sandbox network disabled
 
-## Verification added
-CI includes a Local MCP integration test that:
-1. starts the server on loopback;
-2. verifies `/healthz`;
-3. confirms an unauthenticated MCP request returns HTTP 401;
-4. shuts the server down.
+Claude Code / Gemini CLI remain launchable agents but are not enabled as autonomous writers in this preview.
 
-PR CI must also continue to build:
-- Auto-Detect x64 + ARM64 installer
-- x64 fallback
-- ARM64 fallback
+### Verification profiles
+- `npm run verify`
+- `npm test`
+- `python -m pytest -q`
+- `python -m unittest`
 
-## Preview limitations
+AECP recommends a verifier from the current repository.
 
-This release still deliberately does **not** claim:
-- autonomous arbitrary file modification;
-- unrestricted shell execution;
-- unattended Git push/release;
-- arbitrary Windows GUI control;
-- end-to-end Secure MCP Tunnel against the user's real ChatGPT workspace;
-- Microsoft Store certification;
-- Authenticode signing.
+### Safety gates
+- source Workspace must be clean
+- source Workspace must itself be the Git root
+- Worker edits isolated worktree only
+- max 12 iterations
+- per-iteration timeout
+- bounded output capture
+- cancellation
+- PASS required before patch generation
+- patch capped at 8 MiB
+- original source HEAD + clean state rechecked before Apply
+- `git apply --check` before mutation
+- no auto commit/push/publish
 
-Those are governed acceptance gates, not hidden features.
+## Existing v0.2 foundations retained
+- official ChatGPT Web Safe Bridge
+- three execution modes
+- Local MCP read-only server
+- Agent Switcher
+- private GitHub self-update
+- x64/ARM64 Auto-Detect installer
+
+## Verification
+
+CI now additionally tests:
+- autonomy spec validation
+- OpenCode deny-first invocation policy
+- Codex workspace-write invocation
+- iteration prompt contract
+- real temporary Git repo → isolated worktree write → original remains unchanged → explicit verified patch apply
 
 No telemetry is included.
