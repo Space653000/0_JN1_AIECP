@@ -216,8 +216,36 @@ async function autonomyOptions() {
       version: status.version
     });
   }
+
+  let recommendedVerification = 'npm-test';
+  const state = await loadState();
+  const workspace = getCurrentWorkspace(state);
+  if (workspace) {
+    try {
+      const pkg = JSON.parse(await fsp.readFile(path.join(workspace.rootPath, 'package.json'), 'utf8'));
+      if (pkg?.scripts?.verify) recommendedVerification = 'npm-verify';
+      else if (pkg?.scripts?.test) recommendedVerification = 'npm-test';
+    } catch {
+      try {
+        await fsp.access(path.join(workspace.rootPath, 'pytest.ini'));
+        recommendedVerification = 'pytest';
+      } catch {
+        try {
+          await fsp.access(path.join(workspace.rootPath, 'pyproject.toml'));
+          recommendedVerification = 'pytest';
+        } catch {}
+      }
+    }
+  }
+
+  const recommendedWorker = workers.find((item) => item.id === 'opencode' && item.available)?.id
+    || workers.find((item) => item.id === 'codex-cli' && item.available)?.id
+    || null;
+
   return {
     workers,
+    recommendedWorker,
+    recommendedVerification,
     verificationProfiles: Object.values(VERIFICATION_PROFILES).map((item) => ({
       id: item.id,
       label: item.label
