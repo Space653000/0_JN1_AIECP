@@ -114,7 +114,7 @@ test('bounded runner isolates writes in worktree then applies only after explici
     })
   });
 
-  assert.equal(record.state, 'DONE');
+  assert.equal(record.state, 'DONE', record.error || JSON.stringify(record, null, 2));
   assert.equal(await fs.readFile(path.join(repo, 'value.txt'), 'utf8'), 'original\n');
   assert.equal(await fs.readFile(path.join(record.worktree, 'value.txt'), 'utf8'), 'changed\n');
 
