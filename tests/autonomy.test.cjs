@@ -9,6 +9,10 @@ const { execFile } = require('node:child_process');
 const { promisify } = require('node:util');
 const exec = promisify(execFile);
 
+function normalizeEol(value) {
+  return String(value).replace(/\r\n/g, '\n');
+}
+
 const {
   validateAutonomySpec,
   buildWorkerInvocation,
@@ -115,10 +119,10 @@ test('bounded runner isolates writes in worktree then applies only after explici
   });
 
   assert.equal(record.state, 'DONE', record.error || JSON.stringify(record, null, 2));
-  assert.equal(await fs.readFile(path.join(repo, 'value.txt'), 'utf8'), 'original\n');
-  assert.equal(await fs.readFile(path.join(record.worktree, 'value.txt'), 'utf8'), 'changed\n');
+  assert.equal(normalizeEol(await fs.readFile(path.join(repo, 'value.txt'), 'utf8')), 'original\n');
+  assert.equal(normalizeEol(await fs.readFile(path.join(record.worktree, 'value.txt'), 'utf8')), 'changed\n');
 
   const applied = await applyVerifiedPatch({ sourceRoot: repo, runRecord: record });
   assert.equal(applied.applied, true);
-  assert.equal(await fs.readFile(path.join(repo, 'value.txt'), 'utf8'), 'changed\n');
+  assert.equal(normalizeEol(await fs.readFile(path.join(repo, 'value.txt'), 'utf8')), 'changed\n');
 });
