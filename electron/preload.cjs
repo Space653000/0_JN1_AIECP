@@ -11,6 +11,12 @@ contextBridge.exposeInMainWorld('aecp', Object.freeze({
   openWorkspace: () => call('workspace:open'),
   openTerminal: () => call('workspace:terminal'),
   openChatGPT: () => call('chatgpt:open'),
+  getAutonomyOptions: () => call('autonomy:options'),
+  getAutonomyStatus: () => call('autonomy:status'),
+  startAutonomy: (payload) => call('autonomy:start', payload),
+  cancelAutonomy: () => call('autonomy:cancel'),
+  openAutonomyWorktree: () => call('autonomy:open-worktree'),
+  applyAutonomy: () => call('autonomy:apply'),
   getMcpStatus: () => call('mcp:status'),
   startMcp: () => call('mcp:start'),
   stopMcp: () => call('mcp:stop'),
@@ -34,6 +40,12 @@ contextBridge.exposeInMainWorld('aecp', Object.freeze({
   listProviders: () => call('provider:list'),
   saveProvider: (provider) => call('provider:save', provider),
   deleteProvider: (providerId) => call('provider:delete', { providerId }),
+  onAutonomyEvent: (callback) => {
+    if (typeof callback !== 'function') return () => {};
+    const handler = (_event, payload) => callback(payload);
+    ipcRenderer.on('autonomy:event', handler);
+    return () => ipcRenderer.removeListener('autonomy:event', handler);
+  },
   onTaskEvent: (callback) => {
     if (typeof callback !== 'function') return () => {};
     const handler = (_event, payload) => callback(payload);
