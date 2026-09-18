@@ -6,6 +6,7 @@ const fsp = require('node:fs/promises');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const os = require('node:os');
+const { pathToFileURL } = require('node:url');
 
 const { parseCommandCard, makeTaskId, makeResultCapsule, hashJson } = require('./lib/protocol.cjs');
 const { compareVersions, versionFromTag, selectHighestRelease, selectInstallerAsset } = require('./lib/version.cjs');
@@ -19,6 +20,7 @@ const AGENT_SPECS = Object.freeze([
   { id: 'ollama', name: 'Local Ollama', command: 'ollama', args: ['--version'], role: 'local-models' }
 ]);
 let mainWindow = null;
+let mcpRuntime = null;
 
 function dataPath(...parts) {
   return path.join(app.getPath('userData'), ...parts);
@@ -453,6 +455,70 @@ async function loadSecrets() {
   return readJson(dataPath('credentials.json'), { schemaVersion: 1, values: {} });
 }
 
+async function getOrCreateLocalMcpToken() {
+  if (!safeStorage.isEncryptionAvailable()) throw new Error('OS credential encryption is unavailable; Local MCP cannot start safely.');
+  const secrets = await loadSecrets();
+  const key = '__aecp_local_mcp_token';
+  if (secrets.values[key]) {
+    return safeStorage.decryptString(Buffer.from(secrets.values[key], 'base64'));
+  }
+  const token = crypto.randomBytes(32).toString('base64url');
+  secrets.values[key] = safeStorage.encryptString(token).toString('base64');
+  await writeJsonAtomic(dataPath('credentials.json'), secrets);
+  return token;
+}
+
+function publicMcpStatus() {
+  if (!mcpRuntime) {
+    return { running: false, mode: 'read-only', url: null, workspaceId: null };
+  }
+  return {
+    running: true,
+    mode: mcpRuntime.mode,
+    url: mcpRuntime.url,
+    healthUrl: mcpRuntime.healthUrl,
+    workspaceId: mcpRuntime.workspaceId
+  };
+}
+
+async function stopLocalMcp() {
+  if (!mcpRuntime) return publicMcpStatus();
+  const current = mcpRuntime;
+  mcpRuntime = null;
+  await current.stop();
+  return publicMcpStatus();
+}
+
+async function startLocalMcp() {
+  const state = await loadState();
+  const workspace = getCurrentWorkspace(state);
+  if (!workspace) throw new Error('Choose a Workspace before starting Local MCP.');
+
+  if (mcpRuntime?.workspaceId === workspace.id) return publicMcpStatus();
+  if (mcpRuntime) await stopLocalMcp();
+
+  const token = await getOrCreateLocalMcpToken();
+  const moduleUrl = pathToFileURL(path.join(__dirname, 'mcp-server.mjs')).href;
+  const { startLocalMcpServer } = await import(moduleUrl);
+  const runtime = await startLocalMcpServer({ workspaceRoot: workspace.rootPath, token, port: 39177 });
+  mcpRuntime = { ...runtime, workspaceId: workspace.id };
+  return publicMcpStatus();
+}
+
+async function copyLocalMcpConnection() {
+  if (!mcpRuntime) throw new Error('Start Local MCP first.');
+  const token = await getOrCreateLocalMcpToken();
+  const text = [
+    'AECP Local MCP',
+    `URL=${mcpRuntime.url}`,
+    `Authorization=Bearer ${token}`,
+    'Mode=read-only',
+    'Treat the Authorization value as a secret.'
+  ].join('\n');
+  clipboard.writeText(text);
+  return true;
+}
+
 async function publicProviders(state) {
   const secrets = await loadSecrets();
   return [{
@@ -573,6 +639,11 @@ function registerIpc() {
     await shell.openExternal('https://chatgpt.com/');
     return true;
   });
+
+  ipcMain.handle('mcp:status', async () => publicMcpStatus());
+  ipcMain.handle('mcp:start', startLocalMcp);
+  ipcMain.handle('mcp:stop', stopLocalMcp);
+  ipcMain.handle('mcp:copy-connection', copyLocalMcpConnection);
 
   ipcMain.handle('agents:list', detectAgents);
   ipcMain.handle('agents:launch', async (_event, payload) => launchAgent(payload?.agentId));
@@ -704,6 +775,14 @@ app.whenReady().then(async () => {
   console.error(error);
   dialog.showErrorBox('AI Engineering Control Plane', error.stack || error.message);
   app.quit();
+});
+
+app.on('before-quit', () => {
+  if (mcpRuntime) {
+    const current = mcpRuntime;
+    mcpRuntime = null;
+    current.stop().catch(() => {});
+  }
 });
 
 app.on('window-all-closed', () => {
