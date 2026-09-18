@@ -161,7 +161,7 @@ function renderControl() {
 
 function executionModeStatus() {
   const localWorkers = state.agents.filter((agent) =>
-    ['codex-cli', 'claude-code', 'gemini-cli', 'ollama'].includes(agent.id) && agent.available
+    ['codex-cli', 'claude-code', 'gemini-cli', 'opencode', 'ollama'].includes(agent.id) && agent.available
   );
   const remoteMcp = state.providers.find((provider) =>
     provider.kind === 'remote-mcp' && ['CONFIGURED', 'READY'].includes(provider.status)
@@ -186,7 +186,7 @@ function executionModeCards() {
       ready: status.localWorkers.length > 0,
       detail: status.localWorkers.length
         ? `Detected workers: ${status.localWorkers.map((item) => item.name).join(', ')}. v0.2 loop runtime will use bounded local execution.`
-        : 'Install or connect a governed local/CLI worker such as Ollama, Gemini CLI, Claude Code or Codex CLI.'
+        : 'Install or connect a governed local/CLI worker such as OpenCode, Ollama, Gemini CLI, Claude Code or Codex CLI.'
     },
     {
       id: 'official-mcp',
