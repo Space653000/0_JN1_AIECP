@@ -380,3 +380,25 @@ The product strategy is:
 - **solve unattended work on current subscription constraints** with a Local Autonomous Loop;
 - **solve direct official ChatGPT-to-local execution** with Full MCP when the user's ChatGPT workspace supports it;
 - keep all three behind one canonical task/evidence model.
+
+
+# 9. v0.2 implementation status
+
+Implemented on the v0.2 feature branch:
+- three Execution Mode readiness cards and recommendation logic;
+- OpenCode detection/launcher in the local worker pool;
+- authenticated loopback Local MCP runtime;
+- encrypted persistent local MCP bearer;
+- explicit Start / Stop / Copy connection controls;
+- read-only semantic MCP tools: `aecp_status`, `inspect_workspace`, `git_status`, `read_text_file`;
+- workspace traversal rejection and 256 KiB text-read limit;
+- CI integration test that starts the MCP server, checks health, verifies missing bearer returns 401, and shuts it down.
+
+Not yet claimed complete:
+- Local Autonomous write-capable loop;
+- Secure MCP Tunnel provisioning against a real supported ChatGPT workspace;
+- Full MCP write tools;
+- Microsoft Partner Center / Store certification;
+- signed/stable public distribution.
+
+These remain acceptance-gated rather than simulated.
