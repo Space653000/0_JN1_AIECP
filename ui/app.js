@@ -11,6 +11,7 @@ const state = {
   agents: [],
   githubConnection: null,
   update: null,
+  mcpStatus: null,
   selectedTaskId: null,
   view: 'start',
   engineering: false,
@@ -61,14 +62,15 @@ function statusClass(value) {
 }
 
 async function loadAll() {
-  const [app, data, tools, tasks, providers, agents, githubConnection] = await Promise.all([
+  const [app, data, tools, tasks, providers, agents, githubConnection, mcpStatus] = await Promise.all([
     safe(() => window.aecp.getAppInfo()),
     safe(() => window.aecp.getState()),
     safe(() => window.aecp.detectTools(), []),
     safe(() => window.aecp.listTasks(), []),
     safe(() => window.aecp.listProviders(), []),
     safe(() => window.aecp.listAgents(), []),
-    safe(() => window.aecp.getGitHubConnection(), null)
+    safe(() => window.aecp.getGitHubConnection(), null),
+    safe(() => window.aecp.getMcpStatus(), null)
   ]);
   state.app = app;
   state.data = data;
@@ -77,6 +79,7 @@ async function loadAll() {
   state.providers = providers || [];
   state.agents = agents || [];
   state.githubConnection = githubConnection;
+  state.mcpStatus = mcpStatus;
   if (!state.selectedTaskId && state.tasks[0]) state.selectedTaskId = state.tasks[0].id;
   if (state.selectedTaskId && !state.tasks.some((task) => task.id === state.selectedTaskId)) state.selectedTaskId = state.tasks[0]?.id || null;
   render();
@@ -92,6 +95,7 @@ function render() {
   renderProviders();
   renderAgents();
   renderUpdate();
+  renderMcp();
   renderTabs();
   renderControl();
   $('#welcomeOverlay').classList.toggle('hidden', Boolean(state.data?.currentWorkspace));
@@ -154,6 +158,58 @@ function renderControl() {
   else if (state.view === 'evidence') renderEvidence(host);
 }
 
+
+function executionModeStatus() {
+  const localWorkers = state.agents.filter((agent) =>
+    ['codex-cli', 'claude-code', 'gemini-cli', 'opencode', 'ollama'].includes(agent.id) && agent.available
+  );
+  const remoteMcp = state.providers.find((provider) =>
+    provider.kind === 'remote-mcp' && ['CONFIGURED', 'READY'].includes(provider.status)
+  );
+  const localMcpRunning = Boolean(state.mcpStatus?.running);
+  const recommended = remoteMcp ? 'official-mcp' : (localWorkers.length ? 'local-autonomous' : 'web-safe');
+  return { localWorkers, remoteMcp, localMcpRunning, recommended };
+}
+
+function executionModeCards() {
+  const status = executionModeStatus();
+  const modes = [
+    {
+      id: 'web-safe',
+      name: 'Web Safe Bridge',
+      ready: true,
+      detail: 'Works with the current ChatGPT Web subscription. Explicit handoff; no DOM automation.'
+    },
+    {
+      id: 'local-autonomous',
+      name: 'Local Autonomous',
+      ready: status.localWorkers.length > 0,
+      detail: status.localWorkers.length
+        ? `Detected workers: ${status.localWorkers.map((item) => item.name).join(', ')}. v0.2 loop runtime will use bounded local execution.`
+        : 'Install or connect a governed local/CLI worker such as OpenCode, Ollama, Gemini CLI, Claude Code or Codex CLI.'
+    },
+    {
+      id: 'official-mcp',
+      name: 'Official Full MCP',
+      ready: Boolean(status.remoteMcp),
+      detail: status.remoteMcp
+        ? 'Remote MCP provider configured. End-to-end tunnel/app health must still pass before write mode is enabled.'
+        : (status.localMcpRunning
+          ? 'Local MCP is running read-only. Add a supported ChatGPT app/tunnel to complete the official path.'
+          : 'Requires a supported ChatGPT workspace plus a configured MCP app/tunnel. No ChatGPT DOM scraping.')
+    }
+  ];
+  return `<div class="execution-mode-grid">${modes.map((mode) => `
+    <article class="execution-mode-card ${mode.id === status.recommended ? 'recommended' : ''}">
+      <div class="card-title-row">
+        <strong>${esc(mode.name)}</strong>
+        <span class="status ${mode.ready ? 'ready' : 'neutral'}">${mode.ready ? 'Ready' : 'Not ready'}</span>
+      </div>
+      <p>${esc(mode.detail)}</p>
+      ${mode.id === status.recommended ? '<small class="mode-recommendation">Recommended on this machine</small>' : ''}
+    </article>`).join('')}</div>`;
+}
+
 function renderStart(host) {
   const workspace = state.data.currentWorkspace;
   const available = state.tools.filter((tool) => tool.available).length;
@@ -169,6 +225,8 @@ function renderStart(host) {
       <div class="detail-cell"><small>ChatGPT Web</small><strong>${state.chatgptOpened ? 'Opened before' : 'Ready to open'}</strong><span>Official browser session</span></div>
       <div class="detail-cell"><small>Latest work</small><strong>${esc(nextTaskText)}</strong><span>${state.tasks.length} task(s) stored locally</span></div>
     </div>
+    <h3>Execution mode</h3>
+    ${executionModeCards()}
     <h3>Choose one path</h3>
     <div class="task-actions">
       <button class="primary-button" data-action="open-chatgpt">1 · Open ChatGPT</button>
@@ -191,7 +249,8 @@ function renderLoop(host) {
   const config = loadLoopConfig();
   host.innerHTML = `<section class="task-detail">
     <div class="card-title-row"><div><span class="eyebrow">GOAL LOOP</span><h3>Research → Plan → Act → Verify → Improve</h3></div><span class="status safe">Governed</span></div>
-    <p class="muted">Define the outcome once. The Loop contract carries Done criteria, iteration budget and checkpoints across repeated ChatGPT ↔ AECP cycles. In v0.1.0 ChatGPT Web remains an explicit Safe Bridge; future API/local/MCP providers can automate the same contract without changing the project model.</p>
+    <p class="muted">Define the outcome once. AECP keeps the same Goal/Done/Evidence contract while the transport can evolve from Web Safe Bridge to a governed Local Autonomous worker or an official Full MCP connection.</p>
+    ${executionModeCards()}
     <form id="goalLoopForm" class="provider-form">
       <div class="form-grid">
         <label class="wide">Goal<textarea id="loopGoal" rows="3" placeholder="Example: Make the application install and complete its first safe task with no technical setup required.">${esc(config.goal || '')}</textarea></label>
@@ -375,6 +434,48 @@ function renderUpdate() {
   connect.disabled = Boolean(state.githubConnection?.connected);
 }
 
+function renderMcp() {
+  const badge = $('#mcpBadge');
+  const text = $('#mcpText');
+  const start = $('#startMcpButton');
+  const stop = $('#stopMcpButton');
+  const copy = $('#copyMcpButton');
+  if (!badge || !text || !start || !stop || !copy) return;
+  const running = Boolean(state.mcpStatus?.running);
+  badge.textContent = running ? 'Read-only running' : 'Stopped';
+  badge.className = `status ${running ? 'ready' : 'neutral'}`;
+  text.textContent = running
+    ? `Loopback endpoint: ${state.mcpStatus.url}. Workspace-bound, bearer-protected, read-only.`
+    : 'Read-only loopback MCP for supported official integrations. It binds only to 127.0.0.1 and requires a bearer token.';
+  start.disabled = running || !state.data?.currentWorkspace;
+  stop.disabled = !running;
+  copy.disabled = !running;
+}
+
+async function startMcp() {
+  toast('Starting read-only Local MCP…');
+  const result = await safe(() => window.aecp.startMcp());
+  if (!result) return;
+  state.mcpStatus = result;
+  renderMcp();
+  renderControl();
+  toast('Local MCP is running on loopback only.');
+}
+
+async function stopMcp() {
+  const result = await safe(() => window.aecp.stopMcp());
+  if (!result) return;
+  state.mcpStatus = result;
+  renderMcp();
+  renderControl();
+  toast('Local MCP stopped.');
+}
+
+async function copyMcpConnection() {
+  const ok = await safe(() => window.aecp.copyMcpConnection());
+  if (ok) toast('MCP connection details copied. The bearer value is a secret; paste it only into trusted tunnel/client configuration.');
+}
+
 async function launchAgent(agentId) {
   const result = await safe(() => window.aecp.launchAgent(agentId));
   if (result?.ok) toast(`${state.agents.find((item) => item.id === agentId)?.name || 'Agent'} launched.`);
@@ -507,6 +608,9 @@ function bindEvents() {
   $('#openWorkspaceButton').addEventListener('click', () => safe(() => window.aecp.openWorkspace()));
   $('#terminalButton').addEventListener('click', () => safe(() => window.aecp.openTerminal()));
   $('#openChatGPTButton').addEventListener('click', openChatGPT);
+  $('#startMcpButton').addEventListener('click', startMcp);
+  $('#stopMcpButton').addEventListener('click', stopMcp);
+  $('#copyMcpButton').addEventListener('click', copyMcpConnection);
   $('#checkUpdateButton').addEventListener('click', checkUpdate);
   $('#applyUpdateButton').addEventListener('click', applyUpdate);
   $('#connectGitHubButton').addEventListener('click', connectGitHub);

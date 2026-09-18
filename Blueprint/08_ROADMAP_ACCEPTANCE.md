@@ -72,6 +72,22 @@ Acceptance:
 - Safe Bridge remains usable with every optional provider disabled
 - switching provider never changes local security policy implicitly
 
+## P4.5 — Execution-mode resolution
+
+Deliverables:
+- Web Safe Bridge mode remains the universal fallback
+- Local Autonomous Loop adapter contract
+- Official Full MCP adapter contract
+- automatic readiness/recommendation UI
+- common Goal/Done/Evidence model across modes
+
+Acceptance:
+- unavailable modes are never shown as ready
+- local worker detection is factual
+- changing execution mode never changes Workspace permissions implicitly
+- Full MCP mode requires end-to-end connector/tunnel health before write capability is enabled
+- Local Autonomous mode must enforce iteration/time/permission limits outside the model
+
 ## P5 — Desktop/engineering adapters
 
 Deliverables:
@@ -98,10 +114,28 @@ Acceptance:
 - remote cannot exceed local Workspace policy
 - lost device/session can be revoked
 
+## P6.5 — Private Store distribution
+
+Deliverables:
+- Partner Center identity mapping
+- Store-compatible Windows package
+- x64 + ARM64 submission path
+- Private audience instructions
+- Store-managed update path
+- GitHub Preview channel retained independently
+
+Acceptance:
+- clean Windows device acquires AECP from the private Store listing
+- Microsoft publisher trust is shown
+- no SmartScreen download warning on Store acquisition
+- repository can remain private
+- Store release does not break GitHub Preview updates
+
 ## P7 — Stable 1.0
 
 Required:
-- signed x64 and ARM64 installers
+- trusted Windows distribution: Microsoft Store Private/Public audience **or** consistently signed x64/ARM64 installers
+- Store lane preferred when the goal is zero SmartScreen download friction
 - backup/migration strategy
 - upgrade/uninstall tests
 - accessibility pass

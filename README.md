@@ -2,7 +2,7 @@
 
 **AI Engineering Control Plane (AECP)** is a Windows-first local control plane that lets you keep using **official ChatGPT Web** as your conversational AI while AECP manages the local engineering side: Workspace boundaries, repositories, task state, local tools, evidence, and future provider adapters.
 
-> **Current release: v0.1.0 Preview.** The normal path uses ChatGPT Web and does **not** require an OpenAI API key. The preview intentionally exposes read-only local task capabilities first; it does not yet allow arbitrary AI-generated shell commands or autonomous file modification.
+> **Target release: v0.2.0 Preview.** The default path still works with official ChatGPT Web and no OpenAI model API key. v0.2 adds execution-mode recommendation, OpenCode worker detection and a secure read-only Local MCP foundation; autonomous write execution remains approval/policy gated.
 
 ## The idea in one picture
 
@@ -30,27 +30,27 @@ AECP does **not** replace ChatGPT, scrape ChatGPT, inject JavaScript into ChatGP
 
 到這個 repository 的 **Releases** 頁面，優先下載：
 
-`AI-Engineering-Control-Plane-Setup-0.1.0.exe`
+`AI-Engineering-Control-Plane-Setup-0.2.0.exe`
 
 這是 **Auto-Detect 安裝版**，內含 Windows x64 與 ARM64 payload。安裝時會自動判斷你的 Windows 架構並選擇正確版本，所以一般使用者不用知道自己是 Intel / AMD / Snapdragon，也不用自己選 ARM64 或 x64。
 
 Release 仍會保留下面兩個故障排除用 fallback：
 
-- `AI-Engineering-Control-Plane-Setup-x64-0.1.0.exe`
-- `AI-Engineering-Control-Plane-Setup-arm64-0.1.0.exe`
+- `AI-Engineering-Control-Plane-Setup-x64-0.2.0.exe`
+- `AI-Engineering-Control-Plane-Setup-arm64-0.2.0.exe`
 
 只有主 Auto-Detect 安裝檔真的無法使用時才需要碰 fallback。
 
 ## 2. 安裝
 
-1. 雙擊 `AI-Engineering-Control-Plane-Setup-0.1.0.exe`。
+1. 雙擊 `AI-Engineering-Control-Plane-Setup-0.2.0.exe`。
 2. 使用預設的 **per-user** 安裝即可，不需要管理員權限。
 3. 想要桌面捷徑就保留 **Desktop shortcut**。
 4. 完成後開啟 **AI Engineering Control Plane**。
 
 ### Windows SmartScreen 如果跳出來
 
-v0.1.0 Preview 目前尚未做 Authenticode 簽章，因此 Windows 可能顯示 SmartScreen 警告。
+v0.2.0 Preview 目前尚未做 Authenticode 簽章，因此 Windows 可能顯示 SmartScreen 警告。
 
 不要為此關閉整個 Windows Security。請確認：
 
@@ -69,6 +69,7 @@ v0.1.0 Preview 目前尚未做 Authenticode 簽章，因此 Windows 可能顯示
 - Node.js
 - GitHub CLI
 - Ollama
+- OpenCode
 - 之後 Workspace 裡的 Git repositories
 - branch
 - dirty / clean 狀態
@@ -108,7 +109,7 @@ AECP 不取得你的 ChatGPT 密碼、Cookie 或 Session Token。
 5. 打開 **Evidence**。
 6. 確認有成功的 verified local result。
 
-v0.1.0 的安全範例只會做 read-only：
+v0.2.0 的安全範例只會做 read-only：
 
 - `inspect-workspace`
 - 或 Workspace root 是 Git repository 時執行 `git-status`
@@ -259,11 +260,114 @@ AECP 不會把 GitHub Token 抽出來交給 ChatGPT，也不會把 Token 存進�
 
 ---
 
+# 兩個 Preview 限制的正式解法
+
+AECP v0.2 不再把下面兩件事當成永久限制：
+
+## A. SmartScreen / 未簽章安裝
+
+**建議的正式解法：Microsoft Store Private Audience。**
+
+這條路可以：
+- Repository 繼續 Private
+- Store 只對指定 Microsoft 帳號開放
+- Microsoft 代簽 Store package
+- Store 安裝不會遇到一般下載 EXE 的 SmartScreen download warning
+- 更新改由 Store 管理
+
+GitHub Release 仍保留作為 Preview / Developer channel。
+
+目前穩定的 electron-builder v26 仍以 NSIS/AppX 為主；MSIX target 位於 v27 prerelease。AECP 不會為了搶先使用 prerelease packager 而破壞現有 NSIS release。Store identity/asset 準備會先做，等 v27 stable 後再決定是否正式切 MSIX。
+
+## B. ChatGPT Web 無人值守
+
+AECP 採三種 Execution Mode：
+
+| Mode | 何時使用 | ChatGPT Web | 自動化 |
+|---|---|---:|---:|
+| Web Safe Bridge | 所有方案通用 | 主主管 | 半自動 |
+| Local Autonomous | 本機/CLI worker 可用 | 定義 Goal / Review | 高 |
+| Official Full MCP | 支援 full MCP write 的 ChatGPT workspace | 直接主管與工具呼叫 | 最高 |
+
+### Web Safe Bridge
+目前可用。保留官方 ChatGPT Web，不碰 DOM。
+
+### Local Autonomous
+v0.2 目標。ChatGPT Web 先定義：
+- Goal
+- Definition of Done
+- constraints
+- risk policy
+
+之後 AECP 本機 Goal Loop Runtime 讓受治理的 Local/CLI worker 反覆：
+
+`RESEARCH → PLAN → ACT → VERIFY → REFLECT`
+
+ChatGPT 只在 checkpoint / review / approval 介入。
+
+### Official Full MCP
+這是最接近原始願景的官方路徑：
+
+```text
+ChatGPT Web
+  ↓ custom MCP app
+Secure MCP Tunnel
+  ↓
+AECP Local MCP Server
+  ↓
+Policy / Local Harness
+```
+
+它不需要把 ChatGPT Web 變成 browser bot，也不依賴 DOM scraping。
+
+目前 full MCP write/modify 取決於 ChatGPT workspace plan；AECP 會把它當成可插拔 transport，而不是把整個產品綁死。
+
+---
+
+## Local MCP：本機端已開始實作
+
+v0.2 branch 已加入 **read-only Local MCP Server**，讓未來 Official Full MCP / Secure MCP Tunnel 不需要重寫本機核心。
+
+目前工具：
+- `aecp_status`
+- `inspect_workspace`
+- `git_status`
+- `read_text_file`
+
+安全邊界：
+- 只監聽 `127.0.0.1`
+- Bearer token 必須驗證
+- token 使用 OS `safeStorage` 加密保存
+- 只有按 **Copy connection** 才會放進剪貼簿
+- 只讀
+- 禁止絕對路徑與 Workspace traversal
+- 文字檔讀取上限 256 KiB
+- **沒有 raw shell / write / delete / push**
+
+右側會提供：
+
+```text
+Local MCP
+[Start Local MCP] [Stop] [Copy connection]
+```
+
+**Copy connection 內含 bearer secret，只能貼進你信任的 MCP Tunnel / Client 設定。**
+
+注意：本機 MCP 啟動成功，**不代表你的 ChatGPT 方案已具有 Full MCP write**。它只是把 AECP 的本機端準備好。
+
+## Local Autonomous 的優先 Worker
+
+除了 Codex CLI、Claude Code、Gemini CLI、Ollama，v0.2 也偵測 **OpenCode**。
+
+OpenCode 特別適合作為 Local Autonomous worker，因為它可以作為本地 agent runtime，再搭配本地模型。AECP 仍會由自己的 Goal Loop / Policy / Evidence 控制外層停止條件，不會把「是否一直跑」交給 Worker 自己決定。
+
+---
+
 # 完整功能地圖
 
-下面刻意區分「v0.1.0 現在真的有」與「Blueprint 已規劃但尚未開放」，避免把 roadmap 誤認為完成品。
+下面刻意區分「v0.2.0 現在真的有」與「Blueprint 已規劃但尚未開放」，避免把 roadmap 誤認為完成品。
 
-| Area | v0.1.0 Preview | What it means |
+| Area | v0.2.0 Preview | What it means |
 |---|---|---|
 | Official ChatGPT Web companion | ✅ | 開官方 `chatgpt.com`；AECP 不接管登入 |
 | Agent Switcher | ✅ | 偵測/啟動 ChatGPT Web、Codex CLI、Claude Code、Gemini CLI、Ollama |
@@ -287,14 +391,14 @@ AECP 不會把 GitHub Token 抽出來交給 ChatGPT，也不會把 Token 存進�
 | Protected provider secret storage | ✅ | 使用 OS-backed Electron `safeStorage` |
 | Dark / Light theme | ✅ | 使用者可切換 |
 | Beginner / Engineering mode | ✅ | 新人預設簡化，高階使用者可展開 |
-| Arbitrary AI shell execution | ❌ | v0.1.0 刻意禁止 |
+| Arbitrary AI shell execution | ❌ | v0.2.0 刻意禁止 |
 | Autonomous file modification | ❌ | 等 governed write adapter |
 | Autonomous Git commit/push | ❌ | 等 policy / approval / evidence gate |
 | Arbitrary Windows GUI control | ❌ | 後續 desktop-control adapter |
 | ChatGPT DOM scraping/injection | ❌ | 不是產品方向 |
-| External API provider execution | ❌ | v0.1.0 只有 Registry foundation |
+| External API provider execution | ❌ | v0.2.0 只有 Registry foundation |
 | Public Remote MCP exposure | ❌ | 不自動把本機暴露到公網 |
-| Mobile remote local execution | ❌ | Roadmap，不是 v0.1.0 功能 |
+| Mobile remote local execution | ❌ | Roadmap，不是 v0.2.0 功能 |
 
 ---
 
@@ -345,11 +449,11 @@ AECP 不會把 GitHub Token 抽出來交給 ChatGPT，也不會把 Token 存進�
 
 如果未來輸入 API key，AECP 使用 Electron/Windows OS-backed `safeStorage` 保存；plaintext 不寫進 project repository。
 
-**v0.1.0 尚未呼叫這些外部 API。** Provider Registry 先建立是為了未來換模型時不用重寫 Local Harness。
+**v0.2.0 尚未呼叫這些外部 API。** Provider Registry 先建立是為了未來換模型時不用重寫 Local Harness。
 
 ---
 
-# v0.1.0 刻意不做的事
+# v0.2.0 刻意不做的事
 
 第一個可下載 EXE 先以安全、可驗證為優先，因此目前不會：
 
@@ -389,6 +493,7 @@ AECP 不會把 GitHub Token 抽出來交給 ChatGPT，也不會把 Token 存進�
 - `13_TRIPLE_AUDIT.md`
 - `14_GUIDED_UX_AND_GOAL_LOOP.md`
 - `15_SELF_EVOLUTION_PRIVATE_UPDATE_AGENT_INTEROP.md`
+- `16_CONSTRAINT_RESOLUTION_DISTRIBUTION_EXECUTION_MODES.md`
 
 創始需求與工程決策另外封存於 `Blueprint/Conversation/`。
 
@@ -450,7 +555,7 @@ Pull Request 會驗證：
 
 Merge / push 到 `main` 後，Release workflow 會重新 build 並建立該版本的 GitHub **pre-release**，內容包含：
 
-- `AI-Engineering-Control-Plane-Setup-0.1.0.exe` — **一般使用者下載這個**
+- `AI-Engineering-Control-Plane-Setup-0.2.0.exe` — **一般使用者下載這個**
 - x64 fallback installer
 - ARM64 fallback installer
 - blockmaps
@@ -461,7 +566,7 @@ Merge / push 到 `main` 後，Release workflow 會重新 build 並建立該版�
 
 # Privacy
 
-v0.1.0：
+v0.2.0：
 
 - no analytics SDK
 - no telemetry

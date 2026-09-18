@@ -83,6 +83,16 @@
         </section>
 
         <section class="handoff-card">
+          <div class="section-title"><h3>Local MCP</h3><span id="mcpBadge" class="status neutral">Stopped</span></div>
+          <p id="mcpText" class="muted">Read-only loopback MCP for supported official integrations. It binds only to 127.0.0.1 and requires a bearer token.</p>
+          <div class="button-row">
+            <button id="startMcpButton" class="primary-button" type="button">Start Local MCP</button>
+            <button id="stopMcpButton" class="secondary-button" type="button" disabled>Stop</button>
+            <button id="copyMcpButton" class="secondary-button" type="button" disabled>Copy connection</button>
+          </div>
+        </section>
+
+        <section class="handoff-card">
           <div class="section-title"><h3>Private GitHub Update</h3><span id="updateBadge" class="status neutral">Not checked</span></div>
           <p id="updateText" class="muted">AECP can update itself only from the allowlisted private GitHub Release channel. Downloads must pass SHA-256 verification.</p>
           <div class="button-row">
