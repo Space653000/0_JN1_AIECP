@@ -57,9 +57,9 @@ function formatTime(iso) {
 }
 
 function statusClass(value) {
-  if (['DONE', 'PASS', 'READY'].includes(value)) return 'ready';
-  if (['FAILED', 'BLOCKED'].includes(value)) return 'bad';
-  if (['RUNNING', 'VERIFYING', 'WAITING_USER'].includes(value)) return 'warn';
+  if (['DONE', 'PASS', 'READY', 'APPLIED'].includes(value)) return 'ready';
+  if (['FAILED', 'BLOCKED', 'BUDGET_EXHAUSTED', 'CANCELLED', 'INTERRUPTED'].includes(value)) return 'bad';
+  if (['PREPARING', 'RUNNING', 'VERIFYING', 'WAITING_USER', 'CANCELLING'].includes(value)) return 'warn';
   return 'neutral';
 }
 
@@ -191,7 +191,7 @@ function executionModeCards() {
       name: 'Local Autonomous',
       ready: status.localWorkers.length > 0,
       detail: status.localWorkers.length
-        ? `Detected workers: ${status.localWorkers.map((item) => item.name).join(', ')}. v0.2 loop runtime will use bounded local execution.`
+        ? `Detected workers: ${status.localWorkers.map((item) => item.name).join(', ')}. v0.3 can run a bounded isolated worktree loop with supported workers.`
         : 'Install or connect a governed local/CLI worker such as OpenCode, Ollama, Gemini CLI, Claude Code or Codex CLI.'
     },
     {
@@ -284,8 +284,8 @@ function renderLoop(host) {
       <div class="card-title-row"><div><span class="eyebrow">BOUNDED AUTONOMOUS</span><h3>Let a worker build in an isolated worktree</h3></div><span class="status ${statusClass(state.autonomyStatus?.state)}">${esc(state.autonomyStatus?.state || 'IDLE')}</span></div>
       <p class="muted">AECP requires a clean Git-root Workspace, creates a detached worktree, lets the worker edit only that isolated copy, runs a fixed verifier, retries on failure, and generates a verified patch. Your real Workspace changes only after you press Apply.</p>
       <div class="form-grid">
-        <label>Worker<select id="autoWorker">${(state.autonomyOptions?.workers || []).map((w) => `<option value="${esc(w.id)}" ${w.available ? '' : 'disabled'}>${esc(w.label)} · ${w.available ? esc(w.version) : 'Not detected'}</option>`).join('')}</select></label>
-        <label>Verifier<select id="autoVerifier">${(state.autonomyOptions?.verificationProfiles || []).map((v) => `<option value="${esc(v.id)}">${esc(v.label)}</option>`).join('')}</select></label>
+        <label>Worker<select id="autoWorker">${(state.autonomyOptions?.workers || []).map((w) => `<option value="${esc(w.id)}" ${w.available ? '' : 'disabled'} ${w.id === state.autonomyOptions?.recommendedWorker ? 'selected' : ''}>${esc(w.label)} · ${w.available ? esc(w.version) : 'Not detected'}</option>`).join('')}</select></label>
+        <label>Verifier<select id="autoVerifier">${(state.autonomyOptions?.verificationProfiles || []).map((v) => `<option value="${esc(v.id)}" ${v.id === state.autonomyOptions?.recommendedVerification ? 'selected' : ''}>${esc(v.label)}</option>`).join('')}</select></label>
         <label>Max iterations<input id="autoIterations" type="number" min="1" max="12" value="4"></label>
         <label>Timeout / iteration (sec)<input id="autoTimeout" type="number" min="30" max="1800" value="300"></label>
       </div>
