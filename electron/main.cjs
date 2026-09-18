@@ -10,6 +10,15 @@ const { pathToFileURL } = require('node:url');
 
 const { parseCommandCard, makeTaskId, makeResultCapsule, hashJson } = require('./lib/protocol.cjs');
 const { compareVersions, versionFromTag, selectHighestRelease, selectInstallerAsset } = require('./lib/version.cjs');
+const {
+  AUTONOMOUS_WORKERS,
+  VERIFICATION_PROFILES,
+  validateAutonomySpec,
+  makeRunId,
+  runBoundedAutonomy,
+  applyVerifiedPatch,
+  samePhysicalPath
+} = require('./lib/autonomy.cjs');
 
 const STATE_SCHEMA = 1;
 const UPDATE_REPO = 'Space653000/AI-Engineering-Control-Plane';
@@ -22,6 +31,8 @@ const AGENT_SPECS = Object.freeze([
 ]);
 let mainWindow = null;
 let mcpRuntime = null;
+let autonomyController = null;
+let autonomyRecord = null;
 
 function dataPath(...parts) {
   return path.join(app.getPath('userData'), ...parts);
@@ -175,6 +186,187 @@ async function launchAgent(agentId) {
   });
   child.unref();
   return { ok: true, id: agentId };
+}
+
+async function latestAutonomyRecord() {
+  if (autonomyRecord) return autonomyRecord;
+  const root = dataPath('autonomy', 'runs');
+  let entries = [];
+  try { entries = await fsp.readdir(root, { withFileTypes: true }); } catch { return null; }
+  const dirs = entries.filter((item) => item.isDirectory()).map((item) => item.name).sort().reverse();
+  for (const name of dirs) {
+    const record = await readJson(path.join(root, name, 'run.json'), null);
+    if (record) {
+      if (['PREPARING', 'RUNNING', 'VERIFYING'].includes(record.state) && !autonomyController) {
+        record.state = 'INTERRUPTED';
+      }
+      autonomyRecord = record;
+      return record;
+    }
+  }
+  return null;
+}
+
+async function autonomyOptions() {
+  const workers = [];
+  for (const worker of Object.values(AUTONOMOUS_WORKERS)) {
+    const status = await probe(worker.command, ['--version']);
+    workers.push({
+      ...worker,
+      available: status.available,
+      version: status.version
+    });
+  }
+
+  let recommendedVerification = 'npm-test';
+  const state = await loadState();
+  const workspace = getCurrentWorkspace(state);
+  if (workspace) {
+    try {
+      const pkg = JSON.parse(await fsp.readFile(path.join(workspace.rootPath, 'package.json'), 'utf8'));
+      if (pkg?.scripts?.verify) recommendedVerification = 'npm-verify';
+      else if (pkg?.scripts?.test) recommendedVerification = 'npm-test';
+    } catch {
+      try {
+        await fsp.access(path.join(workspace.rootPath, 'pytest.ini'));
+        recommendedVerification = 'pytest';
+      } catch {
+        try {
+          await fsp.access(path.join(workspace.rootPath, 'pyproject.toml'));
+          recommendedVerification = 'pytest';
+        } catch {}
+      }
+    }
+  }
+
+  const recommendedWorker = workers.find((item) => item.id === 'opencode' && item.available)?.id
+    || workers.find((item) => item.id === 'codex-cli' && item.available)?.id
+    || null;
+
+  return {
+    workers,
+    recommendedWorker,
+    recommendedVerification,
+    verificationProfiles: Object.values(VERIFICATION_PROFILES).map((item) => ({
+      id: item.id,
+      label: item.label
+    }))
+  };
+}
+
+function sendAutonomyEvent(event) {
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('autonomy:event', event);
+}
+
+async function startAutonomy(payload) {
+  if (autonomyController) throw new Error('An autonomous run is already active.');
+  const state = await loadState();
+  const workspace = getCurrentWorkspace(state);
+  if (!workspace) throw new Error('Choose a Workspace first.');
+
+  let rootRepo = null;
+  for (const repo of workspace.repositories) {
+    if (await samePhysicalPath(repo.path, workspace.rootPath)) {
+      rootRepo = repo;
+      break;
+    }
+  }
+  if (!rootRepo) throw new Error('Bounded autonomous execution currently requires the Workspace itself to be a Git repository root.');
+
+  const spec = validateAutonomySpec(payload || {});
+  const worker = AUTONOMOUS_WORKERS[spec.workerId];
+  const workerStatus = await probe(worker.command, ['--version']);
+  if (!workerStatus.available) throw new Error(`${worker.label} is not installed or not on PATH.`);
+
+  const runId = makeRunId();
+  const runRoot = dataPath('autonomy', 'runs', runId);
+  const controller = new AbortController();
+  autonomyController = controller;
+  autonomyRecord = {
+    schema: 'aecp.autonomous/v1',
+    id: runId,
+    state: 'PREPARING',
+    sourceRoot: workspace.rootPath,
+    runRoot,
+    workerId: spec.workerId,
+    verificationProfile: spec.verificationProfile,
+    goal: spec.goal,
+    done: spec.done,
+    maxIterations: spec.maxIterations,
+    currentIteration: 0,
+    startedAt: new Date().toISOString()
+  };
+  await fsp.mkdir(runRoot, { recursive: true });
+  await writeJsonAtomic(path.join(runRoot, 'run.json'), autonomyRecord);
+
+  void runBoundedAutonomy({
+    runId,
+    sourceRoot: workspace.rootPath,
+    runRoot,
+    spec,
+    signal: controller.signal,
+    onEvent: async (event) => {
+      const current = await readJson(path.join(runRoot, 'run.json'), autonomyRecord);
+      autonomyRecord = current || autonomyRecord;
+      sendAutonomyEvent(event);
+    }
+  }).then((record) => {
+    autonomyRecord = record;
+    sendAutonomyEvent({
+      schema: 'aecp.autonomy.event/v1',
+      runId,
+      at: new Date().toISOString(),
+      type: 'run.final',
+      state: record.state,
+      data: { worktree: record.worktree || null, patchFile: record.patchFile || null }
+    });
+  }).catch((error) => {
+    autonomyRecord = { ...autonomyRecord, state: 'FAILED', error: String(error?.message || error) };
+    sendAutonomyEvent({
+      schema: 'aecp.autonomy.event/v1',
+      runId,
+      at: new Date().toISOString(),
+      type: 'run.failed',
+      state: 'FAILED',
+      data: { error: String(error?.message || error) }
+    });
+  }).finally(() => {
+    if (autonomyController === controller) autonomyController = null;
+  });
+
+  return autonomyRecord;
+}
+
+async function cancelAutonomy() {
+  if (!autonomyController) return latestAutonomyRecord();
+  autonomyController.abort();
+  return { ...(await latestAutonomyRecord()), state: 'CANCELLING' };
+}
+
+async function openAutonomyWorktree() {
+  const record = await latestAutonomyRecord();
+  if (!record?.worktree) throw new Error('No autonomous worktree is available.');
+  const error = await shell.openPath(record.worktree);
+  if (error) throw new Error(error);
+  return true;
+}
+
+async function applyAutonomy() {
+  if (autonomyController) throw new Error('Wait for the autonomous run to stop before applying changes.');
+  const state = await loadState();
+  const workspace = getCurrentWorkspace(state);
+  const record = await latestAutonomyRecord();
+  if (!workspace || !record) throw new Error('No autonomous result is available.');
+  if (!(await samePhysicalPath(workspace.rootPath, record.sourceRoot))) {
+    throw new Error('The active Workspace is different from the run source. Refusing to apply.');
+  }
+  const result = await applyVerifiedPatch({ sourceRoot: workspace.rootPath, runRecord: record });
+  record.state = result.applied ? 'APPLIED' : 'DONE';
+  record.appliedAt = result.applied ? new Date().toISOString() : null;
+  record.applyResult = result;
+  autonomyRecord = record;
+  await writeJsonAtomic(path.join(record.runRoot, 'run.json'), record);
+  return record;
 }
 
 async function githubConnection() {
@@ -640,6 +832,13 @@ function registerIpc() {
     await shell.openExternal('https://chatgpt.com/');
     return true;
   });
+
+  ipcMain.handle('autonomy:options', autonomyOptions);
+  ipcMain.handle('autonomy:status', latestAutonomyRecord);
+  ipcMain.handle('autonomy:start', async (_event, payload) => startAutonomy(payload));
+  ipcMain.handle('autonomy:cancel', cancelAutonomy);
+  ipcMain.handle('autonomy:open-worktree', openAutonomyWorktree);
+  ipcMain.handle('autonomy:apply', applyAutonomy);
 
   ipcMain.handle('mcp:status', async () => publicMcpStatus());
   ipcMain.handle('mcp:start', startLocalMcp);

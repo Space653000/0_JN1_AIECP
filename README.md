@@ -2,7 +2,7 @@
 
 **AI Engineering Control Plane (AECP)** is a Windows-first local control plane that lets you keep using **official ChatGPT Web** as your conversational AI while AECP manages the local engineering side: Workspace boundaries, repositories, task state, local tools, evidence, and future provider adapters.
 
-> **Target release: v0.2.0 Preview.** The default path still works with official ChatGPT Web and no OpenAI model API key. v0.2 adds execution-mode recommendation, OpenCode worker detection and a secure read-only Local MCP foundation; autonomous write execution remains approval/policy gated.
+> **Target release: v0.3.0 Preview.** Official ChatGPT Web remains the normal supervisor. v0.3 adds real bounded autonomous execution: AECP builds in an isolated Git worktree, verifies each iteration, and only applies a verified patch to your real Workspace after your explicit approval.
 
 ## The idea in one picture
 
@@ -30,27 +30,27 @@ AECP does **not** replace ChatGPT, scrape ChatGPT, inject JavaScript into ChatGP
 
 到這個 repository 的 **Releases** 頁面，優先下載：
 
-`AI-Engineering-Control-Plane-Setup-0.2.0.exe`
+`AI-Engineering-Control-Plane-Setup-0.3.0.exe`
 
 這是 **Auto-Detect 安裝版**，內含 Windows x64 與 ARM64 payload。安裝時會自動判斷你的 Windows 架構並選擇正確版本，所以一般使用者不用知道自己是 Intel / AMD / Snapdragon，也不用自己選 ARM64 或 x64。
 
 Release 仍會保留下面兩個故障排除用 fallback：
 
-- `AI-Engineering-Control-Plane-Setup-x64-0.2.0.exe`
-- `AI-Engineering-Control-Plane-Setup-arm64-0.2.0.exe`
+- `AI-Engineering-Control-Plane-Setup-x64-0.3.0.exe`
+- `AI-Engineering-Control-Plane-Setup-arm64-0.3.0.exe`
 
 只有主 Auto-Detect 安裝檔真的無法使用時才需要碰 fallback。
 
 ## 2. 安裝
 
-1. 雙擊 `AI-Engineering-Control-Plane-Setup-0.2.0.exe`。
+1. 雙擊 `AI-Engineering-Control-Plane-Setup-0.3.0.exe`。
 2. 使用預設的 **per-user** 安裝即可，不需要管理員權限。
 3. 想要桌面捷徑就保留 **Desktop shortcut**。
 4. 完成後開啟 **AI Engineering Control Plane**。
 
 ### Windows SmartScreen 如果跳出來
 
-v0.2.0 Preview 目前尚未做 Authenticode 簽章，因此 Windows 可能顯示 SmartScreen 警告。
+v0.3.0 Preview 目前尚未做 Authenticode 簽章，因此 Windows 可能顯示 SmartScreen 警告。
 
 不要為此關閉整個 Windows Security。請確認：
 
@@ -109,7 +109,7 @@ AECP 不取得你的 ChatGPT 密碼、Cookie 或 Session Token。
 5. 打開 **Evidence**。
 6. 確認有成功的 verified local result。
 
-v0.2.0 的安全範例只會做 read-only：
+v0.3.0 的安全範例只會做 read-only：
 
 - `inspect-workspace`
 - 或 Workspace root 是 Git repository 時執行 `git-status`
@@ -155,6 +155,51 @@ ChatGPT 可以回傳例如：
 AECP 只在你明確按 **Import from Clipboard** 時讀 Clipboard，不會在背景偷讀 ChatGPT。
 
 如果上述流程完成，你的 AECP 基本安裝與 Safe Bridge 就正常。
+
+---
+
+# 第一次跑「自動施工」：新人只做 5 件事
+
+v0.3 的 Local Autonomous 不需要你理解 Git worktree。
+
+前提：
+- Workspace 本身是 Git repository 根目錄
+- Workspace 目前是 Clean
+- OpenCode 或 Codex CLI 至少一個可用
+- 專案有 AECP 支援的 verifier（例如 `npm run verify` / `npm test` / pytest）
+
+操作：
+
+1. 到 **Goal Loop**。
+2. 填 **Goal**：你要完成什麼。
+3. 填 **Definition of Done**：什麼證據才算完成。
+4. AECP 自動推薦 Worker 和 Verifier，按 **Start autonomous run**。
+5. 等狀態變 **DONE**，可先按 **Open worktree** 看結果；確認後按 **Apply verified changes**。
+
+實際底層是：
+
+```text
+你的乾淨 Workspace
+        ↓ 不直接修改
+AECP 建立隔離 worktree
+        ↓
+OpenCode / Codex Worker
+        ↓
+AECP verifier
+   ├─ FAIL → 自動下一輪
+   └─ PASS → verified.patch
+                  ↓
+         你按 Apply
+                  ↓
+真正 Workspace 才產生未 commit 的變更
+```
+
+重要安全規則：
+- 原 Workspace 在執行期間不會被 Worker 直接修改。
+- OpenCode autonomous 模式拒絕 external directory 與任意 shell；只開放 worktree 內的讀寫與少量 read-only Git。
+- Codex autonomous 模式使用 `workspace-write` sandbox 並關閉 sandbox network。
+- AECP 不會自動 commit / push / release。
+- 原 Workspace 如果在執行期間被你改過、HEAD 變了、或變 Dirty，**Apply 會拒絕**。
 
 ---
 
@@ -365,9 +410,9 @@ OpenCode 特別適合作為 Local Autonomous worker，因為它可以作為本�
 
 # 完整功能地圖
 
-下面刻意區分「v0.2.0 現在真的有」與「Blueprint 已規劃但尚未開放」，避免把 roadmap 誤認為完成品。
+下面刻意區分「v0.3.0 現在真的有」與「Blueprint 已規劃但尚未開放」，避免把 roadmap 誤認為完成品。
 
-| Area | v0.2.0 Preview | What it means |
+| Area | v0.3.0 Preview | What it means |
 |---|---|---|
 | Official ChatGPT Web companion | ✅ | 開官方 `chatgpt.com`；AECP 不接管登入 |
 | Agent Switcher | ✅ | 偵測/啟動 ChatGPT Web、Codex CLI、Claude Code、Gemini CLI、Ollama |
@@ -391,14 +436,14 @@ OpenCode 特別適合作為 Local Autonomous worker，因為它可以作為本�
 | Protected provider secret storage | ✅ | 使用 OS-backed Electron `safeStorage` |
 | Dark / Light theme | ✅ | 使用者可切換 |
 | Beginner / Engineering mode | ✅ | 新人預設簡化，高階使用者可展開 |
-| Arbitrary AI shell execution | ❌ | v0.2.0 刻意禁止 |
-| Autonomous file modification | ❌ | 等 governed write adapter |
-| Autonomous Git commit/push | ❌ | 等 policy / approval / evidence gate |
+| Arbitrary AI shell execution | ❌ | v0.3.0 刻意禁止 |
+| Bounded autonomous file modification | ✅ | 只在 isolated Git worktree 施工；PASS 後產生 verified patch，按 Apply 才套回 Workspace |
+| Autonomous Git commit/push | ❌ | v0.3 刻意保持未 commit；push/publish 仍需後續高風險 gate |
 | Arbitrary Windows GUI control | ❌ | 後續 desktop-control adapter |
 | ChatGPT DOM scraping/injection | ❌ | 不是產品方向 |
-| External API provider execution | ❌ | v0.2.0 只有 Registry foundation |
+| External API provider execution | ❌ | v0.3.0 只有 Registry foundation |
 | Public Remote MCP exposure | ❌ | 不自動把本機暴露到公網 |
-| Mobile remote local execution | ❌ | Roadmap，不是 v0.2.0 功能 |
+| Mobile remote local execution | ❌ | Roadmap，不是 v0.3.0 功能 |
 
 ---
 
@@ -449,16 +494,16 @@ OpenCode 特別適合作為 Local Autonomous worker，因為它可以作為本�
 
 如果未來輸入 API key，AECP 使用 Electron/Windows OS-backed `safeStorage` 保存；plaintext 不寫進 project repository。
 
-**v0.2.0 尚未呼叫這些外部 API。** Provider Registry 先建立是為了未來換模型時不用重寫 Local Harness。
+**v0.3.0 尚未呼叫這些外部 API。** Provider Registry 先建立是為了未來換模型時不用重寫 Local Harness。
 
 ---
 
-# v0.2.0 刻意不做的事
+# v0.3.0 刻意不做的事
 
 第一個可下載 EXE 先以安全、可驗證為優先，因此目前不會：
 
 - 執行 AI 對話複製來的任意 shell command
-- 自主修改 / 刪除專案檔案
+- 直接在 active Workspace 自主修改（v0.3 改為 isolated worktree + verified patch）
 - 自主 Git commit / push
 - 任意控制 Windows GUI
 - scrape / automate ChatGPT DOM
@@ -494,6 +539,8 @@ OpenCode 特別適合作為 Local Autonomous worker，因為它可以作為本�
 - `14_GUIDED_UX_AND_GOAL_LOOP.md`
 - `15_SELF_EVOLUTION_PRIVATE_UPDATE_AGENT_INTEROP.md`
 - `16_CONSTRAINT_RESOLUTION_DISTRIBUTION_EXECUTION_MODES.md`
+- `17_V0_2_TRIPLE_AUDIT.md`
+- `18_BOUNDED_AUTONOMOUS_EXECUTION.md`
 
 創始需求與工程決策另外封存於 `Blueprint/Conversation/`。
 
@@ -555,7 +602,7 @@ Pull Request 會驗證：
 
 Merge / push 到 `main` 後，Release workflow 會重新 build 並建立該版本的 GitHub **pre-release**，內容包含：
 
-- `AI-Engineering-Control-Plane-Setup-0.2.0.exe` — **一般使用者下載這個**
+- `AI-Engineering-Control-Plane-Setup-0.3.0.exe` — **一般使用者下載這個**
 - x64 fallback installer
 - ARM64 fallback installer
 - blockmaps
@@ -566,7 +613,7 @@ Merge / push 到 `main` 後，Release workflow 會重新 build 並建立該版�
 
 # Privacy
 
-v0.2.0：
+v0.3.0：
 
 - no analytics SDK
 - no telemetry

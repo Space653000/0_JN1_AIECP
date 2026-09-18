@@ -234,3 +234,10 @@ textarea:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 .execution-mode-card p { color: var(--muted); font-size: 10px; line-height: 1.5; margin: 8px 0 0; }
 .mode-recommendation { display: block; color: var(--blue); font-size: 9px; margin-top: 8px; font-weight: 700; }
 @media (max-width: 1240px) { .execution-mode-grid { grid-template-columns: 1fr; } }
+
+
+/* v0.3 bounded autonomous execution */
+.autonomy-card { margin-top: 16px; border: 1px solid var(--line); background: var(--panel-2); border-radius: var(--radius); padding: 14px; }
+.autonomy-card .form-grid { margin-top: 12px; }
+.autonomy-card .task-actions { margin-top: 12px; }
+.autonomy-card .detail-grid { margin-top: 12px; }

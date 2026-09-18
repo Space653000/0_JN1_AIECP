@@ -21,7 +21,9 @@
 15. `14_GUIDED_UX_AND_GOAL_LOOP.md` — newcomer-first guided UX, Goal Loop, budgets, checkpoints, stop conditions and remote supervision direction
 16. `16_CONSTRAINT_RESOLUTION_DISTRIBUTION_EXECUTION_MODES.md` — Microsoft Store private distribution and Web/Local/Official-MCP execution modes
 17. `17_V0_2_TRIPLE_AUDIT.md` — v0.2 constraint-resolution, MCP security and release conformance audit
-18. `Conversation/2026-09-17_FOUNDING_CONVERSATION.md` — full project-specific founding conversation archive
+18. `18_BOUNDED_AUTONOMOUS_EXECUTION.md` — isolated worktree execution, bounded workers, deterministic verification and explicit verified-patch apply
+19. `19_V0_3_TRIPLE_AUDIT.md` — v0.3 isolation, security, cross-platform and release audit
+20. `Conversation/2026-09-17_FOUNDING_CONVERSATION.md` — full project-specific founding conversation archive
 
 ## Product name
 
