@@ -259,6 +259,70 @@ AECP 不會把 GitHub Token 抽出來交給 ChatGPT，也不會把 Token 存進�
 
 ---
 
+# 兩個 Preview 限制的正式解法
+
+AECP v0.2 不再把下面兩件事當成永久限制：
+
+## A. SmartScreen / 未簽章安裝
+
+**建議的正式解法：Microsoft Store Private Audience。**
+
+這條路可以：
+- Repository 繼續 Private
+- Store 只對指定 Microsoft 帳號開放
+- Microsoft 代簽 Store package
+- Store 安裝不會遇到一般下載 EXE 的 SmartScreen download warning
+- 更新改由 Store 管理
+
+GitHub Release 仍保留作為 Preview / Developer channel。
+
+目前穩定的 electron-builder v26 仍以 NSIS/AppX 為主；MSIX target 位於 v27 prerelease。AECP 不會為了搶先使用 prerelease packager 而破壞現有 NSIS release。Store identity/asset 準備會先做，等 v27 stable 後再決定是否正式切 MSIX。
+
+## B. ChatGPT Web 無人值守
+
+AECP 採三種 Execution Mode：
+
+| Mode | 何時使用 | ChatGPT Web | 自動化 |
+|---|---|---:|---:|
+| Web Safe Bridge | 所有方案通用 | 主主管 | 半自動 |
+| Local Autonomous | 本機/CLI worker 可用 | 定義 Goal / Review | 高 |
+| Official Full MCP | 支援 full MCP write 的 ChatGPT workspace | 直接主管與工具呼叫 | 最高 |
+
+### Web Safe Bridge
+目前可用。保留官方 ChatGPT Web，不碰 DOM。
+
+### Local Autonomous
+v0.2 目標。ChatGPT Web 先定義：
+- Goal
+- Definition of Done
+- constraints
+- risk policy
+
+之後 AECP 本機 Goal Loop Runtime 讓受治理的 Local/CLI worker 反覆：
+
+`RESEARCH → PLAN → ACT → VERIFY → REFLECT`
+
+ChatGPT 只在 checkpoint / review / approval 介入。
+
+### Official Full MCP
+這是最接近原始願景的官方路徑：
+
+```text
+ChatGPT Web
+  ↓ custom MCP app
+Secure MCP Tunnel
+  ↓
+AECP Local MCP Server
+  ↓
+Policy / Local Harness
+```
+
+它不需要把 ChatGPT Web 變成 browser bot，也不依賴 DOM scraping。
+
+目前 full MCP write/modify 取決於 ChatGPT workspace plan；AECP 會把它當成可插拔 transport，而不是把整個產品綁死。
+
+---
+
 # 完整功能地圖
 
 下面刻意區分「v0.1.0 現在真的有」與「Blueprint 已規劃但尚未開放」，避免把 roadmap 誤認為完成品。
@@ -389,6 +453,7 @@ AECP 不會把 GitHub Token 抽出來交給 ChatGPT，也不會把 Token 存進�
 - `13_TRIPLE_AUDIT.md`
 - `14_GUIDED_UX_AND_GOAL_LOOP.md`
 - `15_SELF_EVOLUTION_PRIVATE_UPDATE_AGENT_INTEROP.md`
+- `16_CONSTRAINT_RESOLUTION_DISTRIBUTION_EXECUTION_MODES.md`
 
 創始需求與工程決策另外封存於 `Blueprint/Conversation/`。
 
