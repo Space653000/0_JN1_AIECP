@@ -19,7 +19,8 @@
 13. `12_DATA_MODEL.md` — persistent entities, graph and local storage
 14. `13_TRIPLE_AUDIT.md` — three independent blueprint-vs-implementation audits
 15. `14_GUIDED_UX_AND_GOAL_LOOP.md` — newcomer-first guided UX, Goal Loop, budgets, checkpoints, stop conditions and remote supervision direction
-16. `Conversation/2026-09-17_FOUNDING_CONVERSATION.md` — full project-specific founding conversation archive
+16. `16_CONSTRAINT_RESOLUTION_DISTRIBUTION_EXECUTION_MODES.md` — Microsoft Store private distribution and Web/Local/Official-MCP execution modes
+17. `Conversation/2026-09-17_FOUNDING_CONVERSATION.md` — full project-specific founding conversation archive
 
 ## Product name
 
