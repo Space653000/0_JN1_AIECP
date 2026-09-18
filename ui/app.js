@@ -12,6 +12,8 @@ const state = {
   githubConnection: null,
   update: null,
   mcpStatus: null,
+  autonomyOptions: null,
+  autonomyStatus: null,
   selectedTaskId: null,
   view: 'start',
   engineering: false,
@@ -62,7 +64,7 @@ function statusClass(value) {
 }
 
 async function loadAll() {
-  const [app, data, tools, tasks, providers, agents, githubConnection, mcpStatus] = await Promise.all([
+  const [app, data, tools, tasks, providers, agents, githubConnection, mcpStatus, autonomyOptions, autonomyStatus] = await Promise.all([
     safe(() => window.aecp.getAppInfo()),
     safe(() => window.aecp.getState()),
     safe(() => window.aecp.detectTools(), []),
@@ -70,7 +72,9 @@ async function loadAll() {
     safe(() => window.aecp.listProviders(), []),
     safe(() => window.aecp.listAgents(), []),
     safe(() => window.aecp.getGitHubConnection(), null),
-    safe(() => window.aecp.getMcpStatus(), null)
+    safe(() => window.aecp.getMcpStatus(), null),
+    safe(() => window.aecp.getAutonomyOptions(), null),
+    safe(() => window.aecp.getAutonomyStatus(), null)
   ]);
   state.app = app;
   state.data = data;
@@ -80,6 +84,8 @@ async function loadAll() {
   state.agents = agents || [];
   state.githubConnection = githubConnection;
   state.mcpStatus = mcpStatus;
+  state.autonomyOptions = autonomyOptions;
+  state.autonomyStatus = autonomyStatus;
   if (!state.selectedTaskId && state.tasks[0]) state.selectedTaskId = state.tasks[0].id;
   if (state.selectedTaskId && !state.tasks.some((task) => task.id === state.selectedTaskId)) state.selectedTaskId = state.tasks[0]?.id || null;
   render();
@@ -273,6 +279,29 @@ function renderLoop(host) {
       ].map(([name, text], index) => `<div class="pipeline-step ${index === 0 ? 'active' : ''}"><div class="step-node">${index + 1}</div><div class="step-body"><strong>${name}</strong><small>${text}</small></div></div>`).join('')}
     </div>
     <div class="privacy-note"><strong>Stop conditions are part of the feature</strong><p>The loop must stop when Done is proven, iteration budget is exhausted, a required permission is missing, a high-risk action needs approval, or repeated attempts stop producing progress.</p></div>
+
+    <section class="autonomy-card">
+      <div class="card-title-row"><div><span class="eyebrow">BOUNDED AUTONOMOUS</span><h3>Let a worker build in an isolated worktree</h3></div><span class="status ${statusClass(state.autonomyStatus?.state)}">${esc(state.autonomyStatus?.state || 'IDLE')}</span></div>
+      <p class="muted">AECP requires a clean Git-root Workspace, creates a detached worktree, lets the worker edit only that isolated copy, runs a fixed verifier, retries on failure, and generates a verified patch. Your real Workspace changes only after you press Apply.</p>
+      <div class="form-grid">
+        <label>Worker<select id="autoWorker">${(state.autonomyOptions?.workers || []).map((w) => `<option value="${esc(w.id)}" ${w.available ? '' : 'disabled'}>${esc(w.label)} · ${w.available ? esc(w.version) : 'Not detected'}</option>`).join('')}</select></label>
+        <label>Verifier<select id="autoVerifier">${(state.autonomyOptions?.verificationProfiles || []).map((v) => `<option value="${esc(v.id)}">${esc(v.label)}</option>`).join('')}</select></label>
+        <label>Max iterations<input id="autoIterations" type="number" min="1" max="12" value="4"></label>
+        <label>Timeout / iteration (sec)<input id="autoTimeout" type="number" min="30" max="1800" value="300"></label>
+      </div>
+      <div class="task-actions">
+        <button class="primary-button" data-action="start-autonomy" type="button" ${['PREPARING','RUNNING','VERIFYING','CANCELLING'].includes(state.autonomyStatus?.state) ? 'disabled' : ''}>Start autonomous run</button>
+        <button class="secondary-button" data-action="cancel-autonomy" type="button" ${['PREPARING','RUNNING','VERIFYING'].includes(state.autonomyStatus?.state) ? '' : 'disabled'}>Cancel</button>
+        <button class="secondary-button" data-action="open-autonomy-worktree" type="button" ${state.autonomyStatus?.worktree ? '' : 'disabled'}>Open worktree</button>
+        <button class="primary-button" data-action="apply-autonomy" type="button" ${state.autonomyStatus?.state === 'DONE' ? '' : 'disabled'}>Apply verified changes</button>
+      </div>
+      ${state.autonomyStatus ? `<div class="detail-grid">
+        <div class="detail-cell"><small>Run</small><strong>${esc(state.autonomyStatus.id || '—')}</strong></div>
+        <div class="detail-cell"><small>Iteration</small><strong>${esc(state.autonomyStatus.currentIteration || 0)} / ${esc(state.autonomyStatus.maxIterations || 0)}</strong></div>
+        <div class="detail-cell"><small>Worker</small><strong>${esc(state.autonomyStatus.workerId || '—')}</strong></div>
+        <div class="detail-cell"><small>Verifier</small><strong>${esc(state.autonomyStatus.verificationProfile || '—')}</strong></div>
+      </div>` : ''}
+    </section>
   </section>`;
 }
 
@@ -594,6 +623,43 @@ async function copyGoalLoopPrompt() {
   if (ok) toast('Goal Loop prompt copied. Paste it into ChatGPT and keep returning verified Result Capsules.');
 }
 
+async function startAutonomy() {
+  const goal = $('#loopGoal')?.value.trim() || '';
+  const done = $('#loopDone')?.value.trim() || '';
+  const workerId = $('#autoWorker')?.value || 'opencode';
+  const verificationProfile = $('#autoVerifier')?.value || 'npm-test';
+  const maxIterations = Number($('#autoIterations')?.value || 4);
+  const iterationTimeoutSeconds = Number($('#autoTimeout')?.value || 300);
+  if (!goal || !done) { toast('Goal and Definition of Done are required.', 'error'); return; }
+  const repo = state.data?.currentWorkspace?.repositories?.find((item) => item.path === state.data.currentWorkspace.rootPath);
+  if (!repo) { toast('Autonomous mode currently requires the Workspace itself to be a Git repository root.', 'error'); return; }
+  if (repo.dirty) { toast('Commit/stash/discard current changes first. Autonomous mode requires a clean Workspace.', 'error'); return; }
+  const result = await safe(() => window.aecp.startAutonomy({ goal, done, workerId, verificationProfile, maxIterations, iterationTimeoutSeconds, checkpointEvery: 1 }));
+  if (!result) return;
+  state.autonomyStatus = result;
+  renderControl();
+  toast('Bounded autonomous run started in an isolated worktree.');
+}
+
+async function cancelAutonomy() {
+  const result = await safe(() => window.aecp.cancelAutonomy());
+  if (result) { state.autonomyStatus = result; renderControl(); toast('Cancellation requested.'); }
+}
+
+async function openAutonomyWorktree() {
+  await safe(() => window.aecp.openAutonomyWorktree());
+}
+
+async function applyAutonomy() {
+  if (!confirm('Apply the verified autonomous patch to your real Workspace? AECP will first require the Workspace to still be clean and at the same Git HEAD.')) return;
+  const result = await safe(() => window.aecp.applyAutonomy());
+  if (!result) return;
+  state.autonomyStatus = result;
+  await safe(() => window.aecp.refreshWorkspace());
+  await loadAll();
+  toast(result.state === 'APPLIED' ? 'Verified changes applied to the Workspace. They remain uncommitted for your review.' : 'No patch changes needed.');
+}
+
 function setView(view) {
   state.view = view;
   renderTabs();
@@ -656,6 +722,10 @@ function bindEvents() {
       if (action === 'sample-task') await createSampleTask();
       if (action === 'show-loop') setView('loop');
       if (action === 'copy-loop-prompt') await copyGoalLoopPrompt();
+      if (action === 'start-autonomy') await startAutonomy();
+      if (action === 'cancel-autonomy') await cancelAutonomy();
+      if (action === 'open-autonomy-worktree') await openAutonomyWorktree();
+      if (action === 'apply-autonomy') await applyAutonomy();
       if (action === 'run-task') await runTask(taskId);
       if (action === 'copy-result') await copyResult(taskId);
       if (action === 'show-evidence') { state.selectedTaskId = taskId; setView('evidence'); }
