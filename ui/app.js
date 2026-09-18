@@ -154,6 +154,55 @@ function renderControl() {
   else if (state.view === 'evidence') renderEvidence(host);
 }
 
+
+function executionModeStatus() {
+  const localWorkers = state.agents.filter((agent) =>
+    ['codex-cli', 'claude-code', 'gemini-cli', 'ollama'].includes(agent.id) && agent.available
+  );
+  const remoteMcp = state.providers.find((provider) =>
+    provider.kind === 'remote-mcp' && ['CONFIGURED', 'READY'].includes(provider.status)
+  );
+  const recommended = remoteMcp ? 'official-mcp' : (localWorkers.length ? 'local-autonomous' : 'web-safe');
+  return { localWorkers, remoteMcp, recommended };
+}
+
+function executionModeCards() {
+  const status = executionModeStatus();
+  const modes = [
+    {
+      id: 'web-safe',
+      name: 'Web Safe Bridge',
+      ready: true,
+      detail: 'Works with the current ChatGPT Web subscription. Explicit handoff; no DOM automation.'
+    },
+    {
+      id: 'local-autonomous',
+      name: 'Local Autonomous',
+      ready: status.localWorkers.length > 0,
+      detail: status.localWorkers.length
+        ? `Detected workers: ${status.localWorkers.map((item) => item.name).join(', ')}. v0.2 loop runtime will use bounded local execution.`
+        : 'Install or connect a governed local/CLI worker such as Ollama, Gemini CLI, Claude Code or Codex CLI.'
+    },
+    {
+      id: 'official-mcp',
+      name: 'Official Full MCP',
+      ready: Boolean(status.remoteMcp),
+      detail: status.remoteMcp
+        ? 'Remote MCP provider configured. End-to-end tunnel/app health must still pass before write mode is enabled.'
+        : 'Requires a supported ChatGPT workspace plus a configured MCP app/tunnel. No ChatGPT DOM scraping.'
+    }
+  ];
+  return `<div class="execution-mode-grid">${modes.map((mode) => `
+    <article class="execution-mode-card ${mode.id === status.recommended ? 'recommended' : ''}">
+      <div class="card-title-row">
+        <strong>${esc(mode.name)}</strong>
+        <span class="status ${mode.ready ? 'ready' : 'neutral'}">${mode.ready ? 'Ready' : 'Not ready'}</span>
+      </div>
+      <p>${esc(mode.detail)}</p>
+      ${mode.id === status.recommended ? '<small class="mode-recommendation">Recommended on this machine</small>' : ''}
+    </article>`).join('')}</div>`;
+}
+
 function renderStart(host) {
   const workspace = state.data.currentWorkspace;
   const available = state.tools.filter((tool) => tool.available).length;
@@ -169,6 +218,8 @@ function renderStart(host) {
       <div class="detail-cell"><small>ChatGPT Web</small><strong>${state.chatgptOpened ? 'Opened before' : 'Ready to open'}</strong><span>Official browser session</span></div>
       <div class="detail-cell"><small>Latest work</small><strong>${esc(nextTaskText)}</strong><span>${state.tasks.length} task(s) stored locally</span></div>
     </div>
+    <h3>Execution mode</h3>
+    ${executionModeCards()}
     <h3>Choose one path</h3>
     <div class="task-actions">
       <button class="primary-button" data-action="open-chatgpt">1 · Open ChatGPT</button>
@@ -191,7 +242,8 @@ function renderLoop(host) {
   const config = loadLoopConfig();
   host.innerHTML = `<section class="task-detail">
     <div class="card-title-row"><div><span class="eyebrow">GOAL LOOP</span><h3>Research → Plan → Act → Verify → Improve</h3></div><span class="status safe">Governed</span></div>
-    <p class="muted">Define the outcome once. The Loop contract carries Done criteria, iteration budget and checkpoints across repeated ChatGPT ↔ AECP cycles. In v0.1.0 ChatGPT Web remains an explicit Safe Bridge; future API/local/MCP providers can automate the same contract without changing the project model.</p>
+    <p class="muted">Define the outcome once. AECP keeps the same Goal/Done/Evidence contract while the transport can evolve from Web Safe Bridge to a governed Local Autonomous worker or an official Full MCP connection.</p>
+    ${executionModeCards()}
     <form id="goalLoopForm" class="provider-form">
       <div class="form-grid">
         <label class="wide">Goal<textarea id="loopGoal" rows="3" placeholder="Example: Make the application install and complete its first safe task with no technical setup required.">${esc(config.goal || '')}</textarea></label>
