@@ -88,6 +88,26 @@ Acceptance:
 - Full MCP mode requires end-to-end connector/tunnel health before write capability is enabled
 - Local Autonomous mode must enforce iteration/time/permission limits outside the model
 
+## P4.6 — Bounded autonomous execution
+
+Deliverables:
+- clean Git-root preflight
+- isolated detached worktree per autonomous run
+- OpenCode bounded write adapter
+- Codex workspace-write sandbox adapter
+- deterministic verifier profiles
+- iteration/timeout/cancel budgets
+- persisted run evidence
+- verified binary patch
+- explicit Apply gate with base-HEAD/clean-state revalidation
+
+Acceptance:
+- active Workspace is unchanged while Worker runs
+- failed verification can iterate only within configured budget
+- source changes cannot be applied if source HEAD/state drifted
+- no automatic commit/push/publish
+- CI proves isolation and explicit apply on a real temporary Git repository
+
 ## P5 — Desktop/engineering adapters
 
 Deliverables:
