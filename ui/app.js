@@ -11,6 +11,7 @@ const state = {
   agents: [],
   githubConnection: null,
   update: null,
+  mcpStatus: null,
   selectedTaskId: null,
   view: 'start',
   engineering: false,
@@ -61,14 +62,15 @@ function statusClass(value) {
 }
 
 async function loadAll() {
-  const [app, data, tools, tasks, providers, agents, githubConnection] = await Promise.all([
+  const [app, data, tools, tasks, providers, agents, githubConnection, mcpStatus] = await Promise.all([
     safe(() => window.aecp.getAppInfo()),
     safe(() => window.aecp.getState()),
     safe(() => window.aecp.detectTools(), []),
     safe(() => window.aecp.listTasks(), []),
     safe(() => window.aecp.listProviders(), []),
     safe(() => window.aecp.listAgents(), []),
-    safe(() => window.aecp.getGitHubConnection(), null)
+    safe(() => window.aecp.getGitHubConnection(), null),
+    safe(() => window.aecp.getMcpStatus(), null)
   ]);
   state.app = app;
   state.data = data;
@@ -77,6 +79,7 @@ async function loadAll() {
   state.providers = providers || [];
   state.agents = agents || [];
   state.githubConnection = githubConnection;
+  state.mcpStatus = mcpStatus;
   if (!state.selectedTaskId && state.tasks[0]) state.selectedTaskId = state.tasks[0].id;
   if (state.selectedTaskId && !state.tasks.some((task) => task.id === state.selectedTaskId)) state.selectedTaskId = state.tasks[0]?.id || null;
   render();
@@ -92,6 +95,7 @@ function render() {
   renderProviders();
   renderAgents();
   renderUpdate();
+  renderMcp();
   renderTabs();
   renderControl();
   $('#welcomeOverlay').classList.toggle('hidden', Boolean(state.data?.currentWorkspace));
@@ -162,8 +166,9 @@ function executionModeStatus() {
   const remoteMcp = state.providers.find((provider) =>
     provider.kind === 'remote-mcp' && ['CONFIGURED', 'READY'].includes(provider.status)
   );
+  const localMcpRunning = Boolean(state.mcpStatus?.running);
   const recommended = remoteMcp ? 'official-mcp' : (localWorkers.length ? 'local-autonomous' : 'web-safe');
-  return { localWorkers, remoteMcp, recommended };
+  return { localWorkers, remoteMcp, localMcpRunning, recommended };
 }
 
 function executionModeCards() {
@@ -189,7 +194,9 @@ function executionModeCards() {
       ready: Boolean(status.remoteMcp),
       detail: status.remoteMcp
         ? 'Remote MCP provider configured. End-to-end tunnel/app health must still pass before write mode is enabled.'
-        : 'Requires a supported ChatGPT workspace plus a configured MCP app/tunnel. No ChatGPT DOM scraping.'
+        : (status.localMcpRunning
+          ? 'Local MCP is running read-only. Add a supported ChatGPT app/tunnel to complete the official path.'
+          : 'Requires a supported ChatGPT workspace plus a configured MCP app/tunnel. No ChatGPT DOM scraping.')
     }
   ];
   return `<div class="execution-mode-grid">${modes.map((mode) => `
@@ -427,6 +434,48 @@ function renderUpdate() {
   connect.disabled = Boolean(state.githubConnection?.connected);
 }
 
+function renderMcp() {
+  const badge = $('#mcpBadge');
+  const text = $('#mcpText');
+  const start = $('#startMcpButton');
+  const stop = $('#stopMcpButton');
+  const copy = $('#copyMcpButton');
+  if (!badge || !text || !start || !stop || !copy) return;
+  const running = Boolean(state.mcpStatus?.running);
+  badge.textContent = running ? 'Read-only running' : 'Stopped';
+  badge.className = `status ${running ? 'ready' : 'neutral'}`;
+  text.textContent = running
+    ? `Loopback endpoint: ${state.mcpStatus.url}. Workspace-bound, bearer-protected, read-only.`
+    : 'Read-only loopback MCP for supported official integrations. It binds only to 127.0.0.1 and requires a bearer token.';
+  start.disabled = running || !state.data?.currentWorkspace;
+  stop.disabled = !running;
+  copy.disabled = !running;
+}
+
+async function startMcp() {
+  toast('Starting read-only Local MCP…');
+  const result = await safe(() => window.aecp.startMcp());
+  if (!result) return;
+  state.mcpStatus = result;
+  renderMcp();
+  renderControl();
+  toast('Local MCP is running on loopback only.');
+}
+
+async function stopMcp() {
+  const result = await safe(() => window.aecp.stopMcp());
+  if (!result) return;
+  state.mcpStatus = result;
+  renderMcp();
+  renderControl();
+  toast('Local MCP stopped.');
+}
+
+async function copyMcpConnection() {
+  const ok = await safe(() => window.aecp.copyMcpConnection());
+  if (ok) toast('MCP connection details copied. The bearer value is a secret; paste it only into trusted tunnel/client configuration.');
+}
+
 async function launchAgent(agentId) {
   const result = await safe(() => window.aecp.launchAgent(agentId));
   if (result?.ok) toast(`${state.agents.find((item) => item.id === agentId)?.name || 'Agent'} launched.`);
@@ -559,6 +608,9 @@ function bindEvents() {
   $('#openWorkspaceButton').addEventListener('click', () => safe(() => window.aecp.openWorkspace()));
   $('#terminalButton').addEventListener('click', () => safe(() => window.aecp.openTerminal()));
   $('#openChatGPTButton').addEventListener('click', openChatGPT);
+  $('#startMcpButton').addEventListener('click', startMcp);
+  $('#stopMcpButton').addEventListener('click', stopMcp);
+  $('#copyMcpButton').addEventListener('click', copyMcpConnection);
   $('#checkUpdateButton').addEventListener('click', checkUpdate);
   $('#applyUpdateButton').addEventListener('click', applyUpdate);
   $('#connectGitHubButton').addEventListener('click', connectGitHub);
