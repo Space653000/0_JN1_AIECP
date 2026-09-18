@@ -69,6 +69,7 @@ v0.1.0 Preview 目前尚未做 Authenticode 簽章，因此 Windows 可能顯示
 - Node.js
 - GitHub CLI
 - Ollama
+- OpenCode
 - 之後 Workspace 裡的 Git repositories
 - branch
 - dirty / clean 狀態
@@ -320,6 +321,45 @@ Policy / Local Harness
 它不需要把 ChatGPT Web 變成 browser bot，也不依賴 DOM scraping。
 
 目前 full MCP write/modify 取決於 ChatGPT workspace plan；AECP 會把它當成可插拔 transport，而不是把整個產品綁死。
+
+---
+
+## Local MCP：本機端已開始實作
+
+v0.2 branch 已加入 **read-only Local MCP Server**，讓未來 Official Full MCP / Secure MCP Tunnel 不需要重寫本機核心。
+
+目前工具：
+- `aecp_status`
+- `inspect_workspace`
+- `git_status`
+- `read_text_file`
+
+安全邊界：
+- 只監聽 `127.0.0.1`
+- Bearer token 必須驗證
+- token 使用 OS `safeStorage` 加密保存
+- 只有按 **Copy connection** 才會放進剪貼簿
+- 只讀
+- 禁止絕對路徑與 Workspace traversal
+- 文字檔讀取上限 256 KiB
+- **沒有 raw shell / write / delete / push**
+
+右側會提供：
+
+```text
+Local MCP
+[Start Local MCP] [Stop] [Copy connection]
+```
+
+**Copy connection 內含 bearer secret，只能貼進你信任的 MCP Tunnel / Client 設定。**
+
+注意：本機 MCP 啟動成功，**不代表你的 ChatGPT 方案已具有 Full MCP write**。它只是把 AECP 的本機端準備好。
+
+## Local Autonomous 的優先 Worker
+
+除了 Codex CLI、Claude Code、Gemini CLI、Ollama，v0.2 也偵測 **OpenCode**。
+
+OpenCode 特別適合作為 Local Autonomous worker，因為它可以作為本地 agent runtime，再搭配本地模型。AECP 仍會由自己的 Goal Loop / Policy / Evidence 控制外層停止條件，不會把「是否一直跑」交給 Worker 自己決定。
 
 ---
 
