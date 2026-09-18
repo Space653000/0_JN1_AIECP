@@ -159,10 +159,13 @@ export async function startLocalMcpServer({ workspaceRoot, token, port = 39177 }
     httpServer.listen(port, '127.0.0.1', resolve);
   });
 
+  const address = httpServer.address();
+  const actualPort = typeof address === 'object' && address ? address.port : port;
+
   return {
-    port,
-    url: `http://127.0.0.1:${port}/mcp`,
-    healthUrl: `http://127.0.0.1:${port}/healthz`,
+    port: actualPort,
+    url: `http://127.0.0.1:${actualPort}/mcp`,
+    healthUrl: `http://127.0.0.1:${actualPort}/healthz`,
     mode: 'read-only',
     async stop() {
       await handler.close();
