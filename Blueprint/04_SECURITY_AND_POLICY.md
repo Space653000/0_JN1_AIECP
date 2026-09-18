@@ -164,3 +164,38 @@ Safe Bridge is an explicit clipboard/user-gesture protocol. Clipboard is read on
 - evidence stored locally
 - no automatic upload of source/evidence
 - settings expose all network-capable adapters
+
+
+## 12. Local MCP boundary
+
+Local MCP is a trusted-transport adapter, not a permission bypass.
+
+Mandatory controls:
+- bind only to `127.0.0.1` by default;
+- validate localhost Host and Origin;
+- require a cryptographically random bearer token;
+- store the bearer token encrypted with OS-backed `safeStorage`;
+- reveal/copy the bearer only on an explicit user gesture;
+- never log the bearer or include it in Result Capsules;
+- keep MCP tools semantic and capability-scoped;
+- keep preview MCP tools read-only;
+- canonicalize every file path and reject traversal outside the active Workspace;
+- enforce file-size/output limits;
+- no raw-shell MCP tool in the preview;
+- changing Workspace must not silently expand an already-running server's scope.
+
+The local MCP bearer and a future OpenAI Secure MCP Tunnel runtime credential are separate secrets. Neither one authorizes broader local permissions by itself.
+
+## 13. Agent worker boundary
+
+Detected CLI/local agents (Codex CLI, Claude Code, Gemini CLI, OpenCode, Ollama) are execution providers, not security principals.
+
+AECP must:
+- launch only fixed built-in/installed adapter commands;
+- show factual availability/version state;
+- never accept an executable path supplied by a chat task;
+- bind autonomous work to the active Workspace;
+- enforce iteration/time/permission budgets outside the worker model;
+- require verification/evidence before task completion;
+- preserve approval gates for YELLOW/RED capabilities;
+- surface provider-specific quota/authentication limits rather than implying unlimited use.
