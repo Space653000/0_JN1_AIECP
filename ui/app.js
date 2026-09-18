@@ -618,7 +618,7 @@ async function copyGoalLoopPrompt() {
   }
   const config = { goal, done, maxIterations, checkpointEvery };
   localStorage.setItem('aecp-goal-loop', JSON.stringify(config));
-  const prompt = `AECP_GOAL_LOOP_V1\n\nYou are the reasoning supervisor for an AI Engineering Control Plane Goal Loop.\n\nGOAL\n${goal}\n\nDEFINITION OF DONE\n${done}\n\nLOOP BUDGET\nMaximum iterations: ${maxIterations}\nCheckpoint every: ${checkpointEvery} iteration(s)\n\nOPERATING CONTRACT\n1. Work in this cycle: RESEARCH -> PLAN -> ACT -> VERIFY -> REFLECT.\n2. Do not declare completion from confidence alone. Completion requires evidence against the Definition of Done.\n3. Choose the smallest high-value next action; avoid repeating an action that produced no progress.\n4. At each checkpoint summarize: progress, evidence, unresolved risks, and whether direction should change.\n5. Stop with one state only: DONE, BLOCKED, NEEDS_APPROVAL, or NEXT_ITERATION.\n6. For AECP v0.1 Web Safe Bridge, when local inspection is needed output exactly one aecp.task/v1 Command Card using only supported read-only actions (inspect-workspace or git-status). Do not invent shell/file-write privileges. Wait for the AECP Result Capsule before claiming that local action succeeded.\n7. If the goal requires a capability not available in this preview, design the next governed adapter or implementation step instead of pretending it executed.\n\nStart at iteration 1. First determine the highest-value uncertainty or action needed to move toward Done.`;
+  const prompt = `AECP_GOAL_LOOP_V1\n\nYou are the reasoning supervisor for an AI Engineering Control Plane Goal Loop.\n\nGOAL\n${goal}\n\nDEFINITION OF DONE\n${done}\n\nLOOP BUDGET\nMaximum iterations: ${maxIterations}\nCheckpoint every: ${checkpointEvery} iteration(s)\n\nOPERATING CONTRACT\n1. Work in this cycle: RESEARCH -> PLAN -> ACT -> VERIFY -> REFLECT.\n2. Do not declare completion from confidence alone. Completion requires evidence against the Definition of Done.\n3. Choose the smallest high-value next action; avoid repeating an action that produced no progress.\n4. At each checkpoint summarize: progress, evidence, unresolved risks, and whether direction should change.\n5. Stop with one state only: DONE, BLOCKED, NEEDS_APPROVAL, or NEXT_ITERATION.\n6. For AECP v0.3 Web Safe Bridge, when local inspection is needed output exactly one aecp.task/v1 Command Card using only supported read-only actions (inspect-workspace or git-status). Do not invent shell/file-write privileges. Wait for the AECP Result Capsule before claiming that local action succeeded.\n7. If the goal requires a capability not available in this preview, design the next governed adapter or implementation step instead of pretending it executed.\n\nStart at iteration 1. First determine the highest-value uncertainty or action needed to move toward Done.`;
   const ok = await safe(() => window.aecp.writeClipboard(prompt));
   if (ok) toast('Goal Loop prompt copied. Paste it into ChatGPT and keep returning verified Result Capsules.');
 }
@@ -752,6 +752,15 @@ function bindEvents() {
 
   window.aecp.onTaskEvent((event) => {
     if (state.view === 'trace' && event.taskId === state.selectedTaskId) renderControl();
+  });
+
+  window.aecp.onAutonomyEvent(async (event) => {
+    state.autonomyStatus = await safe(() => window.aecp.getAutonomyStatus(), state.autonomyStatus);
+    if (state.view === 'loop') renderControl();
+    if (event?.type === 'run.done') toast('Autonomous verification passed. Review the worktree or Apply verified changes.');
+    if (event?.type === 'run.budget_exhausted') toast('Iteration budget exhausted. Nothing was applied to the real Workspace.', 'error');
+    if (event?.type === 'run.failed') toast(event?.data?.error || 'Autonomous run failed.', 'error');
+    if (event?.type === 'run.cancelled') toast('Autonomous run cancelled. Nothing was applied.');
   });
 }
 
