@@ -91,12 +91,13 @@ async function assertCleanRepo(root, signal) {
   return { head: await git(root, ['rev-parse', 'HEAD'], signal) };
 }
 
-async function makeWorktree(root, runRoot, signal) {
+async function makeWorktree(root, runRoot, signal, baseRef = null) {
   const base = await assertCleanRepo(root, signal);
   const worktree = path.join(runRoot, 'worktree');
   await fs.rm(worktree, { recursive: true, force: true });
   await fs.mkdir(runRoot, { recursive: true });
-  await git(root, ['worktree', 'add', '--detach', worktree, base.head], signal);
+  const ref = baseRef || base.head;
+  await git(root, ['worktree', 'add', '--detach', worktree, ref], signal);
   return { worktree, baseHead: base.head };
 }
 
@@ -206,7 +207,7 @@ async function runHarness(options) {
     const plan = normalizePlan(safeJson(p.stdout), goal, done, maxTasks);
     record.plan = plan; record.tasks = plan.tasks.map(t => ({ ...t, state: 'READY', iterations: 0 }));
     await transition('READY', { taskCount: record.tasks.length });
-    const wt = await makeWorktree(root, runRoot, signal); record.worktree = wt.worktree; record.baseHead = wt.baseHead;
+    const wt = await makeWorktree(root, runRoot, signal, options.baseRef || null); record.worktree = wt.worktree; record.baseHead = wt.baseHead;
     for (const task of record.tasks) {
       if (signal?.aborted) throw Object.assign(new Error('Harness cancelled.'), { name: 'AbortError' });
       if (task.dependencies.some(d => !record.tasks.find(x => x.id === d && x.state === 'DONE'))) {
