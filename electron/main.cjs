@@ -8,6 +8,7 @@ const crypto = require('node:crypto');
 const os = require('node:os');
 const { pathToFileURL } = require('node:url');
 const { runHarness } = require('./lib/harness.cjs');
+const { ControlPlane } = require('./lib/control-plane.cjs');
 
 const { parseCommandCard, makeTaskId, makeResultCapsule, hashJson } = require('./lib/protocol.cjs');
 const { compareVersions, versionFromTag, selectHighestRelease, selectInstallerAsset } = require('./lib/version.cjs');
@@ -36,6 +37,7 @@ let autonomyController = null;
 let autonomyRecord = null;
 let harnessController = null;
 let harnessRecord = null;
+let controlPlane = null;
 
 function dataPath(...parts) {
   return path.join(app.getPath('userData'), ...parts);
@@ -189,6 +191,18 @@ async function launchAgent(agentId) {
   });
   child.unref();
   return { ok: true, id: agentId };
+}
+
+async function initControlPlane() {
+  if (controlPlane) return controlPlane;
+  controlPlane = new ControlPlane({
+    rootDir: dataPath('runtime'),
+    emit: async (event) => {
+      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('control-plane:event', event);
+    }
+  });
+  await controlPlane.init();
+  return controlPlane;
 }
 
 async function startHarness(payload) {
@@ -867,6 +881,24 @@ function registerIpc() {
   });
 
   ipcMain.handle('harness:start', async (_event, payload) => startHarness(payload));
+  ipcMain.handle('control-plane:status', async () => (await initControlPlane()).status());
+  ipcMain.handle('control-plane:events', async (_event, payload) => (await initControlPlane()).listEvents(payload?.limit || 500));
+  ipcMain.handle('control-plane:create-mission', async (_event, payload) => {
+    const state = await loadState();
+    const workspace = getCurrentWorkspace(state);
+    if (!workspace) throw new Error('Choose a Workspace first.');
+    return (await initControlPlane()).createMission({
+      ...payload,
+      sourceRoot: workspace.rootPath,
+      autoStart: payload?.autoStart !== false
+    });
+  });
+  ipcMain.handle('control-plane:start', async (_event, payload) => (await initControlPlane()).startMission(payload?.runId));
+  ipcMain.handle('control-plane:pause', async (_event, payload) => (await initControlPlane()).pauseMission(payload?.runId));
+  ipcMain.handle('control-plane:cancel', async (_event, payload) => (await initControlPlane()).cancelMission(payload?.runId));
+  ipcMain.handle('control-plane:approve', async (_event, payload) => (await initControlPlane()).approve(payload?.approvalId, { by: 'human', note: payload?.note || '' }));
+  ipcMain.handle('control-plane:reject', async (_event, payload) => (await initControlPlane()).reject(payload?.approvalId, { by: 'human', note: payload?.note || 'Rejected by operator.' }));
+
   ipcMain.handle('harness:status', harnessStatus);
   ipcMain.handle('harness:cancel', cancelHarness);
   ipcMain.handle('autonomy:options', autonomyOptions);
@@ -1002,6 +1034,7 @@ async function createMainWindow() {
 
 app.whenReady().then(async () => {
   await ensureDataDirs();
+  await initControlPlane();
   registerIpc();
   await createMainWindow();
   app.on('activate', async () => {
@@ -1014,6 +1047,7 @@ app.whenReady().then(async () => {
 });
 
 app.on('before-quit', () => {
+  controlPlane?.shutdown().catch(() => {});
   if (mcpRuntime) {
     const current = mcpRuntime;
     mcpRuntime = null;
