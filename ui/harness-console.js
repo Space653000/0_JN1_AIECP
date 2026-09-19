@@ -32,4 +32,4 @@ function deactivate(){document.body.dataset.aecpCommand='0';}
 document.addEventListener('click',e=>{const tab=e.target.closest('.view-tab');if(tab?.dataset.view==='command')setTimeout(activate,0);else if(tab&&tab.dataset.view!=='command')deactivate();},true);
 window.aecp.onControlPlaneEvent(refresh);refresh();setInterval(refresh,3000);
 })();
-const HARDENING_GATES = ['Failure Recovery Assistant','Adapter Security Audit','Clean E2E Matrix','Windows Release Gate','Authenticated Remote Pairing','Drift Scans'];
+const HARDENING_GATES = ['Failure Recovery Assistant — bounded classifier implemented','Adapter Security Audit','Clean E2E Matrix','Windows Release Gate','Authenticated Remote Pairing','Drift Scans'];
