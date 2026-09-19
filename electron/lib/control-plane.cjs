@@ -201,6 +201,8 @@ class ControlPlane {
     await this.persist();await this.event('task.claimed',{runId:run.id,taskId:task.id,lease:task.lease});
     const controller=new AbortController();this.controllers.set(task.id,controller);
     try{
+      const policyCheck=this.policy.check({action:'WRITE',path:subRoot});
+      if(!policyCheck.allowed) throw Object.assign(new Error(policyCheck.reason),{code:policyCheck.requiresApproval?'APPROVAL_REQUIRED':'POLICY_DENIED'});
       const result=await runHarness({goal:run.goal+'\nTask: '+task.title,done:task.acceptance||run.done,context:run.context+'\nOBJECTIVE: '+task.objective,sourceRoot:run.sourceRoot,runRoot:subRoot,maxTasks:1,maxIterations:run.maxIterations,signal:controller.signal,onEvent:async e=>{task.lastEvent=e;task.updatedAt=now();await this.persist();await this.emit({schema:'aecp.event/v1',type:'task.event',at:now(),runId:run.id,taskId:task.id,data:e});}});
       task.result=result;task.state=result.state==='DONE'?'DONE':result.state;task.lease=null;task.finishedAt=now();
       if(task.state==='DONE' && run.delivery){
