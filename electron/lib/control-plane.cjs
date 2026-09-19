@@ -17,6 +17,7 @@ const { ResourceManager } = require('./resource-manager.cjs');
 const { MaintenanceManager } = require('./maintenance.cjs');
 const { RemoteGateway } = require('./remote-gateway.cjs');
 const { GitHubWebhookReceiver } = require('./github-webhook.cjs');
+const { recommend: recommendRecovery } = require('./failure-recovery.cjs');
 
 const SCHEMA='aecp.control-plane/v1';
 const STATES=Object.freeze(['PLANNING','QUEUED','RUNNING','VERIFYING','REVIEWING','REWORK','DONE','BLOCKED','HUMAN_REQUIRED','FAILED','CANCELLED','PAUSED']);
@@ -259,7 +260,7 @@ class ControlPlane {
       if(task.state==='HUMAN_REQUIRED') await this.requestApproval(run,task,'Harness requested human approval.');
       await this.event('task.finished',{runId:run.id,taskId:task.id,state:task.state});
     }catch(e){
-      task.state=controller.signal.aborted?'CANCELLED':'FAILED';task.error=String(e.message||e);task.lease=null;await this.event('task.failed',{runId:run.id,taskId:task.id,error:task.error});
+      task.state=controller.signal.aborted?'CANCELLED':'FAILED';task.error=String(e.message||e);task.lease=null;task.recovery=recommendRecovery({error:task.error,phase:task.phase});await this.event('task.failed',{runId:run.id,taskId:task.id,error:task.error,recovery:task.recovery});if(task.recovery.autoEligible && task.attempts < run.maxIterations){task.state='REWORK';task.reworkReason=task.recovery.reason;task.reworkAt=now();await this.persist();await this.event('task.recovery_rework',{runId:run.id,taskId:task.id,attempt:task.attempts,recovery:task.recovery});task.state='QUEUED';}
     }finally{
       this.controllers.delete(task.id); for(const x of locks){try{await this.locks.release(x.key,String(process.pid),x.token);}catch{}} await this.persist();this.finalizeRun(run).catch(()=>{});this.schedule();
     }
