@@ -69,9 +69,9 @@ test('maintenance manager can recover locks and garbage collect expired capsules
  const {MaintenanceManager}=require('../electron/lib/maintenance.cjs');
  const root=await tmp(), locks=new LockManager(path.join(root,'locks'),{leaseMs:1}); await locks.init();
  const l=await locks.acquire('x','owner'); await new Promise(r=>setTimeout(r,5));
- const bus=new ContextBus(root,{ttlMs:1}); await bus.init(); const cap=await bus.write('maintenance',{ok:true}); await new Promise(r=>setTimeout(r,5));
+ const bus=new ContextBus(root); await bus.init(); const cap=await bus.write('maintenance',{ok:true},{ttlMs:1}); await new Promise(r=>setTimeout(r,5));
  const evidence=new EvidenceManager(path.join(root,'evidence')); await evidence.init();
  const m=new MaintenanceManager({locks,evidence,contextBus:bus}); const result=await m.run({evidenceRetentionDays:0,maxEvidenceRuns:0});
  assert.equal(result.locksRecovered,1); assert.equal(result.capsulesRemoved>=1,true);
- assert.equal(await bus.read(cap.id),null);
+ await assert.rejects(()=>bus.read(cap.id));
 });
