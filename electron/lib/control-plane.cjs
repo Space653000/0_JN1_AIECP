@@ -76,6 +76,7 @@ class ControlPlane {
       if(run.state==='RUNNING' && !this.controllers.has(run.id)){
         run.state='PAUSED'; run.recovery={reason:'process-restart',at:now()};
       }
+      if(run.state==='PAUSED' && run.recovery?.reason==='process-restart' && run.autoResume){ run.state='QUEUED'; run.recovery.resumedAt=now(); }
       for(const taskId of run.taskIds||[]){
         const task=this.state.tasks[taskId];
         if(task?.lease && new Date(task.lease.expiresAt).getTime()<Date.now() && !TERMINAL.has(task.state)){
@@ -111,10 +112,10 @@ class ControlPlane {
     return tasks;
   }
 
-  async createMission({goal,done,sourceRoot,context='',maxTasks=8,maxIterations=5,maxConcurrency=2,autoStart=true,delivery=false,githubRepo=null}){
+  async createMission({goal,done,sourceRoot,context='',maxTasks=8,maxIterations=5,maxConcurrency=2,autoStart=true,autoResume=true,delivery=false,githubRepo=null}){
     if(!goal||!done) throw new Error('Goal and Definition of Done are required.');
     const id=uid('mission');
-    const run={id,schema:'aecp.mission/v1',goal,done,sourceRoot:path.resolve(sourceRoot),context,maxTasks:clamp(maxTasks,1,8,8),maxIterations:clamp(maxIterations,1,5,5),maxConcurrency:clamp(maxConcurrency,1,8,2),delivery:Boolean(delivery),githubRepo:githubRepo||null,state:'QUEUED',createdAt:now(),updatedAt:now(),taskIds:[],events:[]};
+    const run={id,schema:'aecp.mission/v1',goal,done,sourceRoot:path.resolve(sourceRoot),context,maxTasks:clamp(maxTasks,1,8,8),maxIterations:clamp(maxIterations,1,5,5),maxConcurrency:clamp(maxConcurrency,1,8,2),autoResume:Boolean(autoResume),delivery:Boolean(delivery),githubRepo:githubRepo||null,state:'QUEUED',createdAt:now(),updatedAt:now(),taskIds:[],events:[]};
     this.state.runs[id]=run;
     await this.persist();
     await this.event('mission.created',{runId:id,state:run.state,goal});
@@ -163,6 +164,8 @@ class ControlPlane {
     return a;
   }
 
+  async heartbeat(){for(const run of Object.values(this.state.runs||{})){for(const taskId of run.taskIds||[]){const t=this.state.tasks[taskId];if(t?.state==='RUNNING'&&t.lease){t.lease.expiresAt=new Date(Date.now()+15*60*1000).toISOString();t.heartbeatAt=now();}}}await this.persist();}
+
   async schedulerTick(){
     for(const run of Object.values(this.state.runs)){
       if(!['QUEUED','RUNNING'].includes(run.state)) continue;
@@ -177,7 +180,7 @@ class ControlPlane {
 
   schedule(){
     if(this.scheduler) return;
-    this.scheduler=setInterval(()=>this.schedulerTick().catch(()=>{}),1000);
+    this.scheduler=setInterval(()=>{this.schedulerTick().catch(()=>{});this.heartbeat().catch(()=>{});},1000);
     this.scheduler.unref?.();
     this.schedulerTick().catch(()=>{});
   }
