@@ -18,6 +18,7 @@ const { MaintenanceManager } = require('./maintenance.cjs');
 const { RemoteGateway } = require('./remote-gateway.cjs');
 const { GitHubWebhookReceiver } = require('./github-webhook.cjs');
 const { recommend: recommendRecovery } = require('./failure-recovery.cjs');
+const { audit: auditAdapters } = require('./adapter-security-audit.cjs');
 
 const SCHEMA='aecp.control-plane/v1';
 const STATES=Object.freeze(['PLANNING','QUEUED','RUNNING','VERIFYING','REVIEWING','REWORK','DONE','BLOCKED','HUMAN_REQUIRED','FAILED','CANCELLED','PAUSED']);
@@ -54,6 +55,7 @@ class ControlPlane {
     await fs.mkdir(this.rootDir,{recursive:true});
     await this.locks.init(); await this.evidence.init(); await this.contextBus.init(); await this.ledger.init(); await this.resources.init();
     this.maintenance=new MaintenanceManager({locks:this.locks,evidence:this.evidence,contextBus:this.contextBus});
+    this.adapterSecurity=auditAdapters();
     await this.remote.start();
     if(process.env.AECP_GITHUB_WEBHOOK_SECRET) await this.webhook.start();
     try{this.state=JSON.parse(await fs.readFile(this.file,'utf8'));}catch(e){
@@ -198,7 +200,7 @@ class ControlPlane {
       for(const task of queued) this.executeTask(run,task).catch(()=>{});
     }
     await this.persist();
-    if(!this.lastMaintenanceAt || Date.now()-this.lastMaintenanceAt>60000){this.lastMaintenanceAt=Date.now();const worktrees=[]; for(const run of Object.values(this.state.runs||{})){ if(!TERMINAL.has(run.state)) continue; for(const taskId of run.taskIds||[]){const t=this.state.tasks[taskId]; if(t?.result?.worktree) worktrees.push({worktree:t.result.worktree,repoRoot:t.delivery?.taskRoot||run.sourceRoot});}} this.maintenance?.run({worktrees,driftRoot:this.rootDir}).then(r=>this.event('maintenance.completed',{data:r,idempotencyKey:'maintenance:'+Math.floor(Date.now()/60000)})).catch(e=>this.event('maintenance.failed',{error:String(e.message||e)}));}
+    if(!this.lastMaintenanceAt || Date.now()-this.lastMaintenanceAt>60000){this.lastMaintenanceAt=Date.now();const worktrees=[]; for(const run of Object.values(this.state.runs||{})){ if(!TERMINAL.has(run.state)) continue; for(const taskId of run.taskIds||[]){const t=this.state.tasks[taskId]; if(t?.result?.worktree) worktrees.push({worktree:t.result.worktree,repoRoot:t.delivery?.taskRoot||run.sourceRoot});}} this.maintenance?.run({worktrees,driftRoots:[...new Set(Object.values(this.state.runs||{}).map(r=>r.sourceRoot).filter(Boolean))]}).then(r=>this.event('maintenance.completed',{data:r,idempotencyKey:'maintenance:'+Math.floor(Date.now()/60000)})).catch(e=>this.event('maintenance.failed',{error:String(e.message||e)}));}
   }
 
   schedule(){
@@ -233,6 +235,7 @@ class ControlPlane {
     try{
       const policyCheck=this.policy.check({action:'WRITE',path:subRoot});
       if(!policyCheck.allowed) throw Object.assign(new Error(policyCheck.reason),{code:policyCheck.requiresApproval?'APPROVAL_REQUIRED':'POLICY_DENIED'});
+      if(!this.adapterSecurity.ok) throw new Error('Adapter security audit failed; autonomous execution is blocked.');
       task.phase='EXECUTING'; await this.persist();
       let baseRef=null;
       if(task.delivery?.branch){await this.gitLocal(taskRoot,['fetch','origin',task.delivery.branch]);baseRef='origin/'+task.delivery.branch;}
@@ -283,8 +286,10 @@ class ControlPlane {
       await this.requestApproval(run,task,'GitHub CI passed. Human approval is required before PR merge.');
     }else{
       task.ciFailure=result.runs; task.ciEvidence=await this.evidence.write(run.id,task.id+'-ci-failure.json',{sha:task.delivery.sha,runs:result.runs});
-      if(task.attempts < run.maxIterations){
-        task.state='REWORK'; task.reworkReason='GitHub CI failed'; task.reworkAt=now();
+      task.recovery=recommendRecovery({phase:'CI',ciFailure:result.runs,evidence:{sha:task.delivery.sha}});
+      await this.evidence.write(run.id,task.id+'-recovery.json',{recovery:task.recovery});
+      if(task.recovery.autoEligible && task.attempts < run.maxIterations){
+        task.state='REWORK'; task.reworkReason=task.recovery.reason; task.reworkAt=now();
         await this.event('ci.failed_rework',{runId:run.id,taskId:task.id,attempt:task.attempts,runs:result.runs});
         task.state='QUEUED';
         this.schedule();
@@ -328,7 +333,7 @@ class ControlPlane {
 
   async gitLocal(cwd,args){return await new Promise((resolve,reject)=>{const p=spawn('git',args,{cwd,windowsHide:true,stdio:['ignore','pipe','pipe']});let o='',e='';p.stdout.on('data',b=>o+=b);p.stderr.on('data',b=>e+=b);p.on('error',reject);p.on('close',code=>code===0?resolve(o.trim()):reject(new Error((e||o).slice(-3000))));});}
   async detectRepo(cwd){try{const out=await new Promise((resolve,reject)=>{const p=spawn('gh',['repo','view','--json','nameWithOwner','-q','.nameWithOwner'],{cwd,windowsHide:true,stdio:['ignore','pipe','pipe']});let o='',e='';p.stdout.on('data',b=>o+=b);p.stderr.on('data',b=>e+=b);p.on('error',reject);p.on('close',code=>code===0?resolve(o.trim()):reject(new Error(e||'gh repo view failed')));});return out||null;}catch{return null;}}
-  async status(){const s=this.snapshot();s.remote=this.remote?.info()||{enabled:false};s.webhook=this.webhook?.info()||{enabled:false};s.resources=this.resources.state;return s;}
+  async status(){const s=this.snapshot();s.remote=this.remote?.info()||{enabled:false};s.webhook=this.webhook?.info()||{enabled:false};s.resources=this.resources.state;s.adapterSecurity=this.adapterSecurity||auditAdapters();return s;}
   async scanResources(root){return this.resources.scan(root)}
   async ingestExternalEvent(event){const key=event?.idempotencyKey||event?.externalId;if(!key)throw new Error('External event requires idempotencyKey or externalId.');const r=await this.ledger.append({type:'external.received',...event,idempotencyKey:key});if(r.duplicate)return{duplicate:true};await this.event('external.correlated',{externalId:event.externalId||null,correlationId:event.correlationId||null,idempotencyKey:key});return{duplicate:false};}
   async gc(){const removed=await this.contextBus.gc();await this.locks.recover();await this.event('maintenance.gc',{removedCapsules:removed});return{removedCapsules:removed};}
