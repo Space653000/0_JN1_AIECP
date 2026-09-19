@@ -223,3 +223,8 @@ AECP now treats adapter security as a first-class control-plane invariant. Every
 Failure recovery is evidence-driven and bounded: transient/deterministic failures may return to the existing task loop within the configured iteration budget, while credential, permission, policy, production and unknown failures stop at HUMAN_REQUIRED. Recovery plans explicitly declare that they grant no new permissions and record the evidence required to justify the transition.
 
 Maintenance drift scans operate on the actual mission repository roots rather than only the AECP runtime-data directory.
+
+
+## Remote supervision security foundation — 2026-09-19
+
+The local supervision gateway now has an explicit device-pairing foundation: a short-lived one-time pairing code creates a short-lived READ_ONLY device credential; credentials can be revoked and enumerated. The gateway remains bound to loopback by default. Pairing never grants task execution, write, merge, credential or system authority. LAN/Internet transport is still a separate deployment gate and must inherit the same policy model.
