@@ -14,6 +14,14 @@ contextBridge.exposeInMainWorld('aecp', Object.freeze({
   startHarness: (payload) => call('harness:start', payload),
   getHarnessStatus: () => call('harness:status'),
   cancelHarness: () => call('harness:cancel'),
+  getControlPlaneStatus: () => call('control-plane:status'),
+  getControlPlaneEvents: (limit) => call('control-plane:events', { limit }),
+  createMission: (payload) => call('control-plane:create-mission', payload),
+  startMission: (runId) => call('control-plane:start', { runId }),
+  pauseMission: (runId) => call('control-plane:pause', { runId }),
+  cancelMission: (runId) => call('control-plane:cancel', { runId }),
+  approveMissionAction: (approvalId, note) => call('control-plane:approve', { approvalId, note }),
+  rejectMissionAction: (approvalId, note) => call('control-plane:reject', { approvalId, note }),
   getAutonomyOptions: () => call('autonomy:options'),
   getAutonomyStatus: () => call('autonomy:status'),
   startAutonomy: (payload) => call('autonomy:start', payload),
@@ -43,6 +51,12 @@ contextBridge.exposeInMainWorld('aecp', Object.freeze({
   listProviders: () => call('provider:list'),
   saveProvider: (provider) => call('provider:save', provider),
   deleteProvider: (providerId) => call('provider:delete', { providerId }),
+  onControlPlaneEvent: (callback) => {
+    if (typeof callback !== 'function') return () => {};
+    const handler = (_event, payload) => callback(payload);
+    ipcRenderer.on('control-plane:event', handler);
+    return () => ipcRenderer.removeListener('control-plane:event', handler);
+  },
   onHarnessEvent: (callback) => {
     if (typeof callback !== 'function') return () => {};
     const handler = (_event, payload) => callback(payload);
