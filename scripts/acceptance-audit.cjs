@@ -31,6 +31,8 @@ const checks=[
  ['remote-gateway','electron/lib/remote-gateway.cjs'],
  ['device-pairing','electron/lib/pairing.cjs'],
  ['release-workflow','.github/workflows/release.yml'],
+ ['universal-bootstrap-source','release/universal-bootstrap/Program.cs'],
+ ['universal-bootstrap-project','release/universal-bootstrap/UniversalBootstrap.csproj'],
  ['e2e-canonical','tests/canonical-loop.e2e.test.cjs'],
  ['e2e-security-recovery','tests/security-recovery-matrix.test.cjs'],
  ['e2e-pairing','tests/remote-pairing.test.cjs']
