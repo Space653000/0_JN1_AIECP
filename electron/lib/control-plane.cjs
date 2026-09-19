@@ -84,8 +84,8 @@ class ControlPlane {
     const out=await new Promise((resolve,reject)=>{
       const child=spawn('claude',['-p',prompt,'--output-format','json'],{cwd:run.sourceRoot,windowsHide:true,stdio:['ignore','pipe','pipe']});
       let stdout='',stderr='';const timer=setTimeout(()=>{try{child.kill()}catch{};reject(new Error('Mission planner timed out.'));},180000);
-      child.stdout.on('data,b=>{stdout+=b.toString()});
-      child.stderr.on('data,b=>{stderr+=b.toString()});
+      child.stdout.on('data',b=>{stdout+=b.toString()});
+      child.stderr.on('data',b=>{stderr+=b.toString()});
       child.on('error',e=>{clearTimeout(timer);reject(e)});
       child.on('close',code=>{clearTimeout(timer);if(code!==0)reject(new Error((stderr||stdout).slice(-3000)));else resolve(stdout)});
     });
