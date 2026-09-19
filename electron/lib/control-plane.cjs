@@ -197,7 +197,7 @@ class ControlPlane {
       for(const task of queued) this.executeTask(run,task).catch(()=>{});
     }
     await this.persist();
-    if(!this.lastMaintenanceAt || Date.now()-this.lastMaintenanceAt>60000){this.lastMaintenanceAt=Date.now();this.maintenance?.run().then(r=>this.event('maintenance.completed',{data:r,idempotencyKey:'maintenance:'+Math.floor(Date.now()/60000)})).catch(e=>this.event('maintenance.failed',{error:String(e.message||e)}));}
+    if(!this.lastMaintenanceAt || Date.now()-this.lastMaintenanceAt>60000){this.lastMaintenanceAt=Date.now();const worktrees=[]; for(const run of Object.values(this.state.runs||{})){ if(!TERMINAL.has(run.state)) continue; for(const taskId of run.taskIds||[]){const t=this.state.tasks[taskId]; if(t?.result?.worktree) worktrees.push({worktree:t.result.worktree,repoRoot:t.delivery?.taskRoot||run.sourceRoot});}} this.maintenance?.run({worktrees}).then(r=>this.event('maintenance.completed',{data:r,idempotencyKey:'maintenance:'+Math.floor(Date.now()/60000)})).catch(e=>this.event('maintenance.failed',{error:String(e.message||e)}));}
   }
 
   schedule(){
