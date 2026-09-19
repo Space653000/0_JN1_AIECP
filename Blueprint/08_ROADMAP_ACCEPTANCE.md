@@ -190,3 +190,12 @@ Required:
 ## MVP definition used for first executable
 
 The first executable is **not** claimed to be P7. It is considered a usable preview only if P0 + P1 + the safe subset of P2 are working and independently audited against this Blueprint.
+
+
+## Current gate status — 2026-09-19
+
+P4.7 Harness Engineering Control Plane is **substantially implemented as a governed prototype**. Durable queue/scheduler, task isolation, bounded rework, event journal, evidence, policy/locks, GitHub delivery, CI monitoring and human-gated merge are now present.
+
+P4.7 is **not yet accepted as production-complete**. Remaining acceptance work includes crash-safe substep resume, authenticated/idempotent external GitHub events, full multi-repository routing, complete security enforcement across every adapter, and comprehensive integration/E2E verification.
+
+See `23_IMPLEMENTATION_STATUS.md` for the exact current maturity matrix and ordered completion list.
