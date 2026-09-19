@@ -104,13 +104,15 @@ class ControlPlane {
   }
 
   async planMission(run){
+    const repositories=await this.resources.scan(run.sourceRoot);
     const prompt=[
       'You are the AECP Mission Planner.',
       'Return ONLY JSON: {"tasks":[{"title":"...","objective":"...","acceptance":"...","dependencies":[],"risk":"GREEN|YELLOW|RED"}]}',
       'Create small independent engineering tasks. Do not invent permissions or credentials.',
       'GOAL:\n'+run.goal,
       'DEFINITION OF DONE:\n'+run.done,
-      'CONTEXT:\n'+run.context
+      'CONTEXT:\n'+run.context,
+      'AVAILABLE REPOSITORIES:\n'+repositories.map(r=>r.path+' | '+r.remote+' | '+r.branch).join('\n')
     ].join('\n\n');
     const out=await new Promise((resolve,reject)=>{
       const child=spawn('claude',['-p',prompt,'--output-format','json'],{cwd:run.sourceRoot,windowsHide:true,stdio:['ignore','pipe','pipe']});
