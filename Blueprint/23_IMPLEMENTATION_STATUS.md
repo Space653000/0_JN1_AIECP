@@ -184,7 +184,7 @@ Git / GitHub
 - Expired lease cleanup — completed.
 - Evidence/artifact retention policy — completed.
 - Orphan worktree cleanup — completed.
-- Failed-run recovery assistant — remaining.
+- Failed-run recovery assistant — bounded classifier + safe auto-rework implemented; deeper diagnostic assistant remains.
 - Dependency/security/documentation drift scans — remaining.
 - Scheduled maintenance tasks with bounded budgets — completed.
 
@@ -252,7 +252,7 @@ The only major capabilities that cannot be made genuinely production-complete by
 ## Next autonomous hardening tranche — 2026-09-19
 
 ### Engineering work to execute next
-1. **Failure Recovery Assistant** — classify failed task/CI evidence, build a bounded recovery recommendation, and route only low-risk recoveries automatically.
+1. **Failure Recovery Assistant** — bounded classifier + low-risk auto-rework is implemented; next step is richer evidence-driven diagnosis without expanding autonomous authority.
 2. **Adapter Security Audit Matrix** — enumerate every external/local adapter and require an explicit SecurityPolicy decision for READ/WRITE/EXECUTE/NETWORK/CREDENTIAL actions.
 3. **Clean E2E Matrix** — exercise Mission → Plan → Queue → Build → Verify → Git → PR → CI → Review → Rework → Human Gate on temporary repositories.
 4. **Release Gate** — clean Windows x64/ARM64 install, update, rollback, provenance and checksum verification.
@@ -261,3 +261,7 @@ The only major capabilities that cannot be made genuinely production-complete by
 
 ### Definition of done
 The product is not called Production Ready until all six gates have evidence artifacts and GitHub CI reports success on the exact release commit.
+
+
+### Latest implementation update
+The bounded Failure Recovery Assistant is now in the runtime path: transient/deterministic failures receive a constrained rework recommendation; credential, permission, policy, production and unknown failures remain HUMAN_REQUIRED. It never executes arbitrary remediation.
