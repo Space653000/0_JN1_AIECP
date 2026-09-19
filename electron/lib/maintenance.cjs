@@ -4,14 +4,15 @@ const path=require('node:path');
 const {spawn}=require('node:child_process');
 const {scan:scanDrift}=require('./drift-scanner.cjs');
 const {audit:auditAdapters}=require('./adapter-security-audit.cjs');
+const {scan:scanDependencies}=require('./dependency-drift-scanner.cjs');
 
 function git(args,cwd){return new Promise((resolve,reject)=>{const p=spawn('git',args,{cwd,windowsHide:true,stdio:['ignore','pipe','pipe']});let o='',e='';p.stdout.on('data',b=>o+=b);p.stderr.on('data',b=>e+=b);p.on('error',reject);p.on('close',code=>code===0?resolve(o.trim()):reject(new Error((e||o).trim()||'git failed')));});}
 
 class MaintenanceManager{
  constructor({locks,evidence,contextBus}={}){this.locks=locks;this.evidence=evidence;this.contextBus=contextBus}
- async run({evidenceRetentionDays=30,maxEvidenceRuns=100,worktrees=[],driftRoot=null,driftRoots=[]}={}){
+ async run({evidenceRetentionDays=30,maxEvidenceRuns=100,worktrees=[],driftRoot=null,driftRoots=[],dependencyRoots=[],dependencyScan=false}={}){
   const roots=[...new Set([...(driftRoots||[]),...(driftRoot?[driftRoot]:[])].filter(Boolean).map(x=>path.resolve(x)))];
-  const result={startedAt:new Date().toISOString(),locksRecovered:0,capsulesRemoved:0,evidenceRemoved:0,worktreesRemoved:0,drift:[],adapterSecurity:auditAdapters()};
+  const result={startedAt:new Date().toISOString(),locksRecovered:0,capsulesRemoved:0,evidenceRemoved:0,worktreesRemoved:0,drift:[],adapterSecurity:auditAdapters(),dependencyDrift:[]};
   const before=this.locks.list().length;
   await this.locks.recover();
   result.locksRecovered=Math.max(0,before-this.locks.list().length);
@@ -38,6 +39,7 @@ class MaintenanceManager{
    try{result.drift.push({root,...await scanDrift(root)})}
    catch(e){result.drift.push({root,ok:false,findings:[{severity:'ERROR',type:'SCAN_FAILED',message:String(e.message||e)}]})}
   }
+  if(dependencyScan){for(const root of [...new Set((dependencyRoots||[]).filter(Boolean).map(x=>path.resolve(x)))]){try{result.dependencyDrift.push(await scanDependencies(root,{security:true,outdated:false}))}catch(e){result.dependencyDrift.push({root,ok:false,findings:[{severity:'ERROR',type:'DEPENDENCY_SCAN_FAILED',message:String(e.message||e)}]})}}}
   result.finishedAt=new Date().toISOString();
   return result
  }
