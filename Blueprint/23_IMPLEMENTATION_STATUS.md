@@ -265,3 +265,8 @@ The product is not called Production Ready until all six gates have evidence art
 
 ### Latest implementation update
 The bounded Failure Recovery Assistant is now in the runtime path: transient/deterministic failures receive a constrained rework recommendation; credential, permission, policy, production and unknown failures remain HUMAN_REQUIRED. It never executes arbitrary remediation.
+
+
+### Autonomous maintenance hardening — 2026-09-19
+
+The maintenance loop now includes a bounded, non-mutating Blueprint/documentation drift scanner. It checks the authoritative Blueprint/README/status files and emits findings into maintenance results; it does not silently rewrite project documentation. This is a diagnostic gate, not a claim of production readiness.
