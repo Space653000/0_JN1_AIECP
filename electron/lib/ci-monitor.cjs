@@ -4,6 +4,7 @@ function gh(args,{cwd,timeoutMs=30000}={}){return new Promise((resolve,reject)=>
 class CIMonitor{
  constructor({repo,cwd,pollMs=10000}={}){this.repo=repo;this.cwd=cwd;this.pollMs=pollMs;this.timer=null;this.running=false;}
  async runs(sha){const raw=await gh(['run','list','--repo',this.repo,'--commit',sha,'--limit','20','--json','databaseId,status,conclusion,name,url,headSha'],{cwd:this.cwd});return raw?JSON.parse(raw):[];}
- async wait(sha,{timeoutMs=1800000,onUpdate=async()=>{}}={}){const started=Date.now();this.running=true;try{for(;;){const runs=await this.runs(sha);await onUpdate({sha,runs});const relevant=runs.filter(x=>x.headSha===sha);if(relevant.length&&relevant.every(x=>x.status==='completed'))return{passed:relevant.every(x=>x.conclusion==='success'),runs:relevant};if(Date.now()-started>timeoutMs)throw new Error('CI monitor timed out.');await new Promise(r=>setTimeout(r,this.pollMs));}}finally{this.running=false;}}
+ async wait(sha,{timeoutMs=1800000,onUpdate=async()=>{}}={}){const started=Date.now();this.running=true;try{for(;;){const runs=await this.runs(sha);await onUpdate({sha,runs});const relevant=runs.filter(x=>x.headSha===sha && !/codeql|dependabot/i.test(x.name));
+      if(relevant.length&&relevant.every(x=>x.status==='completed'))return{passed:relevant.every(x=>x.conclusion==='success'),runs:relevant};if(Date.now()-started>timeoutMs)throw new Error('CI monitor timed out.');await new Promise(r=>setTimeout(r,this.pollMs));}}finally{this.running=false;}}
 }
 module.exports={CIMonitor};
