@@ -186,3 +186,8 @@ This is the primary observability contract for beginners.
 The role contracts are now backed by a Provider Router foundation and the Control Plane uses Planner/Builder/Reviewer roles without making vendor identity part of Task state. Worker reports and evidence are persisted; reviewer outcomes drive bounded state transitions.
 
 A provider may be substituted without changing the task contract, but production acceptance still requires broader adapter-level policy enforcement and integration testing.
+
+
+## Runtime closure update — 2026-09-19
+
+The current implementation also includes: signed GitHub webhook ingestion (opt-in), external-event idempotency, CI failed-log evidence, crash/restart recovery, repository-per-task routing, maintenance/worktree garbage collection, and an authenticated local read-only supervision gateway. GitHub commit-SHA polling remains the fallback when no webhook transport is configured. These capabilities are governed by the same Control Plane policy and are reflected in the Harness Command Center.
