@@ -740,21 +740,21 @@ The current implementation is not yet production-complete. The core control-plan
 - full canonical-loop integration/E2E tests.
 
 ### P1 — Multi-repository engineering
-- task-to-repository resource graph;
-- per-repository/worktree scheduling and locks;
-- cross-repo dependency handling;
-- GitHub repository/branch/PR state projection.
+- task-to-repository resource graph — implemented;
+- per-repository/worktree scheduling and locks — implemented;
+- cross-repo dependency handling — implemented through task dependencies and repository-per-task execution;
+- GitHub repository/branch/PR state projection — implemented in delivery/task state.
 
 ### P2 — Event-driven integration
-- authenticated GitHub webhook/repository_dispatch receiver;
-- signature verification and replay protection;
-- event deduplication and materialized projections.
+- event deduplication/idempotency ledger — implemented;
+- commit-SHA CI polling and failed-log evidence — implemented;
+- authenticated GitHub webhook/repository_dispatch receiver — remaining integration; polling remains the safe fallback.
 
 ### P3 — Operations
-- maintenance/garbage-collection scheduler;
-- orphan worktree cleanup;
-- artifact retention;
-- drift/security/documentation maintenance jobs.
+- bounded maintenance/garbage-collection scheduler — implemented;
+- expired lock/capsule recovery — implemented;
+- evidence retention — implemented;
+- deeper orphan worktree/drift scans — remaining hardening.
 
 ### P4 — Distribution
 - clean-machine installer tests;
@@ -763,10 +763,10 @@ The current implementation is not yet production-complete. The core control-plan
 - Private Microsoft Store lane.
 
 ### P5 — Remote supervision
-- authenticated device pairing;
-- mobile read-only dashboard;
-- approval-only remote actions;
-- full remote task submission only after policy/revocation hardening.
+- local authenticated read-only loopback gateway — implemented;
+- authenticated LAN/device pairing — remaining;
+- mobile read-only dashboard — gateway API is ready, UI/client remains remaining;
+- remote approvals/task submission — intentionally gated until pairing/revocation is implemented.
 
 For the complete maturity matrix, decisions, non-goals and ordered backlog, see Blueprint/23_IMPLEMENTATION_STATUS.md.
 
@@ -777,3 +777,8 @@ For the complete maturity matrix, decisions, non-goals and ordered backlog, see 
 - **Command Center:** human-facing projection — never an independent state database.
 
 When these disagree, do not guess. Reconcile them through the event/state model and update the Blueprint if the architecture has changed.
+
+
+## Current closure rule
+
+The core AECP engineering loop is now considered **implemented and hardened prototype-complete**. Remaining items are external integration/trust operations or deliberately gated remote capabilities. In particular, Microsoft Store publication and production code-signing require user-owned publisher identity/certificates; repository code cannot legitimately manufacture those credentials.
