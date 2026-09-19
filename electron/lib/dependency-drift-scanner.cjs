@@ -6,7 +6,7 @@ const path=require('node:path');
 
 function runNpm(args,cwd,timeoutMs=120000){
  return new Promise((resolve,reject)=>{
-  const p=spawn(process.platform==='win32'?'npm.cmd':'npm',['--no-audit','--no-fund',...args],{cwd,windowsHide:true,stdio:['ignore','pipe','pipe']});
+  const p=spawn(process.platform==='win32'?'npm.cmd':'npm',['--no-fund',...args],{cwd,windowsHide:true,stdio:['ignore','pipe','pipe']});
   let out='',err='';const timer=setTimeout(()=>{try{p.kill()}catch{};reject(new Error('npm drift scan timed out.'))},timeoutMs);
   p.stdout.on('data',b=>out+=b);p.stderr.on('data',b=>err+=b);
   p.on('error',e=>{clearTimeout(timer);reject(e)});
