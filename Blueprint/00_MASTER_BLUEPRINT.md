@@ -209,3 +209,8 @@ Windows packages are produced for x64 and ARM64. Native modules are deliberately
 The current implementation has crossed from architecture definition into a durable governed Control Plane prototype. The runtime now includes mission planning, durable task state, bounded scheduling, leases/heartbeat, recovery, policy checks, locks, evidence, context capsules, provider routing, GitHub delivery, CI monitoring, bounded CI-driven rework, human-gated PR merge and a live Harness Command Center.
 
 The authoritative detailed status and remaining backlog is `23_IMPLEMENTATION_STATUS.md`. Code, Blueprint and Dashboard must be kept aligned; roadmap items are never considered implemented merely because they are documented.
+
+
+## Runtime closure update — 2026-09-19
+
+The current implementation also includes: signed GitHub webhook ingestion (opt-in), external-event idempotency, CI failed-log evidence, crash/restart recovery, repository-per-task routing, maintenance/worktree garbage collection, and an authenticated local read-only supervision gateway. GitHub commit-SHA polling remains the fallback when no webhook transport is configured. These capabilities are governed by the same Control Plane policy and are reflected in the Harness Command Center.
