@@ -7,6 +7,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const os = require('node:os');
 const { pathToFileURL } = require('node:url');
+const { runHarness } = require('./lib/harness.cjs');
 
 const { parseCommandCard, makeTaskId, makeResultCapsule, hashJson } = require('./lib/protocol.cjs');
 const { compareVersions, versionFromTag, selectHighestRelease, selectInstallerAsset } = require('./lib/version.cjs');
@@ -33,6 +34,8 @@ let mainWindow = null;
 let mcpRuntime = null;
 let autonomyController = null;
 let autonomyRecord = null;
+let harnessController = null;
+let harnessRecord = null;
 
 function dataPath(...parts) {
   return path.join(app.getPath('userData'), ...parts);
@@ -186,6 +189,36 @@ async function launchAgent(agentId) {
   });
   child.unref();
   return { ok: true, id: agentId };
+}
+
+async function startHarness(payload) {
+  if (harnessController) throw new Error('A Harness run is already active.');
+  const state = await loadState();
+  const workspace = getCurrentWorkspace(state);
+  if (!workspace) throw new Error('Choose a Workspace first.');
+  const controller = new AbortController();
+  harnessController = controller;
+  const runRoot = dataPath('harness', 'runs', `run-${Date.now()}`);
+  const initial = { schema: 'aecp.harness/v1', state: 'PLANNING', runRoot, goal: payload?.goal || '', done: payload?.done || '', startedAt: new Date().toISOString() };
+  harnessRecord = initial;
+  void runHarness({
+    ...payload, sourceRoot: workspace.rootPath, runRoot, signal: controller.signal,
+    onEvent: async (event) => {
+      harnessRecord = { ...harnessRecord, state: event.state, events: [...(harnessRecord.events || []), event] };
+      sendAutonomyEvent({ schema: 'aecp.harness.event/v1', ...event });
+    }
+  }).then((record) => {
+    harnessRecord = record;
+    sendAutonomyEvent({ schema: 'aecp.harness.event/v1', runId: record.id, type: 'harness.final', state: record.state, data: { patch: record.patch || null } });
+  }).catch((error) => {
+    harnessRecord = { ...harnessRecord, state: 'FAILED', error: String(error?.message || error) };
+  }).finally(() => { harnessController = null; });
+  return initial;
+}
+async function harnessStatus() { return harnessRecord; }
+async function cancelHarness() {
+  if (harnessController) harnessController.abort();
+  return harnessRecord;
 }
 
 async function latestAutonomyRecord() {
@@ -833,6 +866,9 @@ function registerIpc() {
     return true;
   });
 
+  ipcMain.handle('harness:start', async (_event, payload) => startHarness(payload));
+  ipcMain.handle('harness:status', harnessStatus);
+  ipcMain.handle('harness:cancel', cancelHarness);
   ipcMain.handle('autonomy:options', autonomyOptions);
   ipcMain.handle('autonomy:status', latestAutonomyRecord);
   ipcMain.handle('autonomy:start', async (_event, payload) => startAutonomy(payload));
