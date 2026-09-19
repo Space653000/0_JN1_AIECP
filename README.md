@@ -823,3 +823,8 @@ The current implementation also includes: signed GitHub webhook ingestion (opt-i
 7. Microsoft Store submission requires the publisher account/certificate owned by the operator.
 
 **Important:** GitHub Actions is the verification authority for the current branch. Documentation is not used to mark a build as passed; only an actual successful run does that.
+
+
+## Next hardening tranche
+
+The next engineering cycle is explicitly bounded to six production gates: Failure Recovery Assistant, complete Adapter Security Audit Matrix, clean temporary-repository E2E matrix, Windows x64/ARM64 release/install/rollback verification, authenticated remote pairing, and scheduled dependency/security/Blueprint/documentation drift scans. Production readiness requires evidence for all six gates and successful GitHub Actions on the exact release commit.
