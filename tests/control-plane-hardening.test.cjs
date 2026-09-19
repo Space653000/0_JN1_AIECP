@@ -75,3 +75,12 @@ test('maintenance manager can recover locks and garbage collect expired capsules
  assert.equal(result.locksRecovered,1); assert.equal(result.capsulesRemoved>=1,true);
  await assert.rejects(()=>bus.read(cap.id));
 });
+
+
+test('failure recovery assistant only auto-eligible bounded low-risk classes',()=>{
+ const {classifyFailure,recommend}=require('../electron/lib/failure-recovery.cjs');
+ assert.equal(classifyFailure({error:'ECONNRESET while fetching'}),'TRANSIENT');
+ assert.equal(recommend({error:'ECONNRESET while fetching'}).autoEligible,true);
+ assert.equal(recommend({error:'permission denied for credential'}).action,'HUMAN_REQUIRED');
+ assert.equal(recommend({error:'unknown compiler anomaly'}).autoEligible,false);
+});
