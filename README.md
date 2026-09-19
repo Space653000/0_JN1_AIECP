@@ -439,12 +439,12 @@ OpenCode 特別適合作為 Local Autonomous worker，因為它可以作為本�
 | Arbitrary AI shell execution | ❌ | v0.3.0 刻意禁止 |
 | Bounded autonomous file modification | ✅ | isolated Git worktree + deterministic verification + verified patch/apply |
 | Harness Planner → Builder → Verify → Reviewer | ✅ | bounded multi-task orchestration with rework and HUMAN_REQUIRED stop states |
-| Durable multi-process scheduler / parallel workers | ⏳ | architecture documented; runtime hardening remains |
-| Automated GitHub PR / CI event feedback loop | ⏳ | GitHub integration is present, full Harness callback loop remains |
+| Durable scheduler / bounded parallel workers | ✅ | persisted queue, leases, recovery, concurrency and locks |
+| GitHub delivery gateway / CI foundation | ✅ foundation | governed GitHub primitives + CI/security workflows; full event callback/auto-merge remains gated |
 | Autonomous Git commit/push | ❌ | v0.3 刻意保持未 commit；push/publish 仍需後續高風險 gate |
 | Arbitrary Windows GUI control | ❌ | 後續 desktop-control adapter |
 | ChatGPT DOM scraping/injection | ❌ | 不是產品方向 |
-| External API provider execution | ❌ | v0.3.0 只有 Registry foundation |
+| Role-based provider router | ✅ foundation | Claude/Codex/Gemini/OpenCode/Ollama adapters behind stable roles |
 | Public Remote MCP exposure | ❌ | 不自動把本機暴露到公網 |
 | Mobile remote local execution | ❌ | Roadmap，不是 v0.3.0 功能 |
 
@@ -680,3 +680,20 @@ The Harness owns state, permissions, budgets, retries, timeouts, evidence and re
 
 Do not treat Blueprint roadmap items as installed features. The **Complete Feature Map** below is the authoritative v0.3.0 Preview status table. Future features must pass the Blueprint acceptance gates before being marked implemented.
 
+
+## Control Plane Hardening (current branch)
+
+The current hardening stage adds the runtime infrastructure required for a governed engineering operating system:
+
+- **SecurityPolicy** — GREEN/YELLOW/RED action classification and approval gates.
+- **LockManager** — durable workspace/repository leases with recovery after expiry.
+- **EvidenceManager** — hashed evidence files and manifests.
+- **ContextBus** — bounded, expiring Context/Result Capsules so large repositories and logs do not flow through model prompts.
+- **ProviderRouter** — role-based provider selection for Claude, Codex, Gemini, OpenCode and Ollama without making the control plane vendor-dependent.
+- **GitHubGateway** — authenticated branch/commit/push/PR/check/workflow primitives for the future governed delivery loop.
+- **CI/security workflows** — deterministic verification and dependency/security checks.
+- **Mission activation** — automatic planner decomposition is now part of mission creation; a mission does not enter execution without a generated task plan.
+- **Workspace locking** — concurrent tasks cannot silently mutate the same workspace at the same time.
+- **Evidence + capsules** — completed tasks publish bounded result evidence for dashboard/review layers.
+
+The system still deliberately refuses to make high-risk operations autonomous by default. Push, merge, delete, credential and system-level actions remain approval-gated. This is a safety property, not a missing feature.
