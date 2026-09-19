@@ -179,7 +179,25 @@ A novice should be able to:
 9. receive a verified Result Capsule;
 10. copy the Result Capsule back to ChatGPT.
 
-## 11. Technology direction
+## 11. AI Engineering Control Plane operating model
+
+AECP now explicitly adopts a Harness-first engineering model:
+
+- GitHub is the engineering Source of Truth.
+- Harness is the control plane and state machine.
+- Claude Code is the preferred Planner/Reviewer adapter.
+- Codex CLI is the preferred Local Builder adapter.
+- GitHub Actions is the CI/event backbone.
+- Dashboard is the human command center.
+- Human remains final authority for goals and high-risk operations.
+
+The stable abstraction is the role, not the vendor. Planner, Builder, Reviewer, Verifier and Local Compute can be remapped without changing Task state or Workspace policy.
+
+Canonical loop: `Blueprint → Plan → Task Queue → Worker → Verify → Git/CI → Review → Rework or Accept → Next Task`.
+
+All autonomous loops are bounded by iteration, timeout, permission, verifier and evidence gates.
+
+## 12. Technology direction
 
 Initial implementation is an Electron desktop application because it enables a fast Windows-first delivery path, strong Chromium isolation controls, native dialog/clipboard/process APIs, and straightforward x64/ARM64 packaging. Electron security requirements are mandatory: context isolation on, Node integration off in renderer, sandboxing on, narrowly-scoped preload API, strict navigation/window-open rules.
 
