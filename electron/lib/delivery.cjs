@@ -6,6 +6,6 @@ class DeliveryManager{
  async branch(worktree,branch){await sh(['git','fetch','origin',branch],{cwd:worktree}).catch(()=>{});await sh(['git','checkout','-B',branch,`origin/${branch}`],{cwd:worktree}).catch(async()=>{await sh(['git','checkout','-b',branch],{cwd:worktree});});return branch;}
  async commit(worktree,message){await sh(['git','add','-A'],{cwd:worktree});await sh(['git','commit','-m',message],{cwd:worktree});return sh(['git','rev-parse','HEAD'],{cwd:worktree});}
  async push(worktree,branch){return sh(['git','push','-u','origin',branch],{cwd:worktree});}
- async draftPR(worktree,{branch,title,body}){return sh(['gh','pr','create','--repo',this.repo,'--head',branch,'--base','main','--title',title,'--body',body||'','--draft'],{cwd:worktree});}
+ async draftPR(worktree,{branch,title,body}){const existing=await sh(['gh','pr','list','--repo',this.repo,'--head',branch,'--state','open','--json','url','-q','.[0].url'],{cwd:worktree}).catch(()=>'' );if(existing)return existing;return sh(['gh','pr','create','--repo',this.repo,'--head',branch,'--base','main','--title',title,'--body',body||'','--draft'],{cwd:worktree});}
 }
 module.exports={DeliveryManager};
