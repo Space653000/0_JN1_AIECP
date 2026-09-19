@@ -12,6 +12,10 @@ const { ContextBus } = require('./context-bus.cjs');
 const { ProviderRouter } = require('./provider-router.cjs');
 const { DeliveryManager } = require('./delivery.cjs');
 const { CIMonitor } = require('./ci-monitor.cjs');
+const { EventLedger } = require('./event-ledger.cjs');
+const { ResourceManager } = require('./resource-manager.cjs');
+const { MaintenanceManager } = require('./maintenance.cjs');
+const { RemoteGateway } = require('./remote-gateway.cjs');
 
 const SCHEMA='aecp.control-plane/v1';
 const STATES=Object.freeze(['PLANNING','QUEUED','RUNNING','VERIFYING','REVIEWING','REWORK','DONE','BLOCKED','HUMAN_REQUIRED','FAILED','CANCELLED','PAUSED']);
@@ -37,11 +41,17 @@ class ControlPlane {
     this.contextBus=new ContextBus(this.rootDir);
     this.providers=new ProviderRouter();
     this.delivery=new DeliveryManager({repo:null,cwd:this.rootDir});
+    this.ledger=new EventLedger(this.eventFile+'.ledger');
+    this.resources=new ResourceManager(path.join(this.rootDir,'resources'));
+    this.maintenance=null;
+    this.remote=new RemoteGateway({status:()=>this.status(),replay:(runId,limit)=>this.replay(runId,limit)});
   }
 
   async init(){
     await fs.mkdir(this.rootDir,{recursive:true});
-    await this.locks.init(); await this.evidence.init(); await this.contextBus.init();
+    await this.locks.init(); await this.evidence.init(); await this.contextBus.init(); await this.ledger.init(); await this.resources.init();
+    this.maintenance=new MaintenanceManager({locks:this.locks,evidence:this.evidence,contextBus:this.contextBus});
+    await this.remote.start();
     try{this.state=JSON.parse(await fs.readFile(this.file,'utf8'));}catch(e){
       if(e.code!=='ENOENT') throw e;
       this.state={schema:SCHEMA,version:1,runs:{},tasks:{},agents:{},approvals:{},locks:{},updatedAt:now()};
@@ -59,7 +69,9 @@ class ControlPlane {
   }
 
   async event(type,data={}){
-    const e={schema:'aecp.event/v1',id:uid('evt'),at:now(),type,...data};
+    const e={schema:'aecp.event/v1',id:uid('evt'),at:now(),type,correlationId:data.correlationId||data.runId||null,...data};
+    const ledger=await this.ledger.append({...e,idempotencyKey:data.idempotencyKey||null});
+    if(ledger.duplicate) return e;
     await fs.appendFile(this.eventFile,JSON.stringify(e)+'\n','utf8');
     this.state.runs[data.runId]?.events?.push(e);
     await this.persist();
@@ -80,7 +92,7 @@ class ControlPlane {
       for(const taskId of run.taskIds||[]){
         const task=this.state.tasks[taskId];
         if(task?.lease && new Date(task.lease.expiresAt).getTime()<Date.now() && !TERMINAL.has(task.state)){
-          task.state='QUEUED'; task.lease=null; task.recoveredAt=now();
+          task.state='QUEUED'; task.phase='RECOVERED'; task.lease=null; task.recoveredAt=now();
         }
       }
     }
@@ -107,7 +119,7 @@ class ControlPlane {
     const plan=safeJson(out);
     const tasks=Array.isArray(plan?.tasks)?plan.tasks.slice(0,run.maxTasks):[];
     if(!tasks.length) throw new Error('Planner returned no tasks.');
-    for(const item of tasks) await this.enqueueTask(run,{title:String(item.title||'Task'),objective:String(item.objective||''),acceptance:String(item.acceptance||run.done),dependencies:Array.isArray(item.dependencies)?item.dependencies:[],risk:['GREEN','YELLOW','RED'].includes(item.risk)?item.risk:'YELLOW'});
+    for(const item of tasks) await this.enqueueTask(run,{title:String(item.title||'Task'),objective:String(item.objective||''),acceptance:String(item.acceptance||run.done),dependencies:Array.isArray(item.dependencies)?item.dependencies:[],risk:['GREEN','YELLOW','RED'].includes(item.risk)?item.risk:'YELLOW',repositories:Array.isArray(item.repositories)?item.repositories:[]});
     run.plannedAt=now();run.plan=plan;await this.persist();await this.event('mission.planned',{runId:run.id,taskCount:tasks.length});
     return tasks;
   }
@@ -176,6 +188,7 @@ class ControlPlane {
       for(const task of queued) this.executeTask(run,task).catch(()=>{});
     }
     await this.persist();
+    if(!this.lastMaintenanceAt || Date.now()-this.lastMaintenanceAt>60000){this.lastMaintenanceAt=Date.now();this.maintenance?.run().then(r=>this.event('maintenance.completed',{data:r,idempotencyKey:'maintenance:'+Math.floor(Date.now()/60000)})).catch(e=>this.event('maintenance.failed',{error:String(e.message||e)}));}
   }
 
   schedule(){
@@ -187,7 +200,7 @@ class ControlPlane {
 
   async enqueueTask(run,task){
     const id=uid('task');
-    const t={...task,id,runId:run.id,state:'QUEUED',createdAt:now(),updatedAt:now(),attempts:0,lease:null};
+    const t={...task,id,runId:run.id,state:'QUEUED',phase:'QUEUED',createdAt:now(),updatedAt:now(),attempts:0,lease:null,resources:{repositories:(task.repositories||[]).map(x=>path.resolve(run.sourceRoot,x))}};
     this.state.tasks[id]=t;run.taskIds.push(id);
     await this.persist();await this.event('task.queued',{runId:run.id,taskId:id,title:t.title});
     return t;
@@ -195,20 +208,22 @@ class ControlPlane {
 
   async executeTask(run,task){
     if(task.state!=='QUEUED'||run.state!=='RUNNING') return;
-    task.state='RUNNING';task.attempts++;task.startedAt=now();
+    task.state='RUNNING';task.phase='PREPARE';task.attempts++;task.startedAt=now();
     task.lease={id:uid('lease'),owner:process.pid,expiresAt:new Date(Date.now()+15*60*1000).toISOString()};
     const subRoot=path.join(this.rootDir,'runs',run.id,task.id);
-    const lockKey='workspace:'+subRoot.toLowerCase();
-    let lock=null;
-    try { lock=await this.locks.acquire(lockKey,String(process.pid),{meta:{runId:run.id,taskId:task.id}}); } catch(e) { task.state='QUEUED'; task.lease=null; await this.event('task.waiting_for_lock',{runId:run.id,taskId:task.id}); return; }
+    const lockKeys=[...(task.resources?.repositories||[run.sourceRoot]).map(p=>'repo:'+path.resolve(p).toLowerCase()),'worktree:'+subRoot.toLowerCase()].sort();
+    const locks=[];
+    try { for(const key of lockKeys) locks.push(await this.locks.acquire(key,String(process.pid),{meta:{runId:run.id,taskId:task.id}})); } catch(e) { for(const x of locks){try{await this.locks.release(x.key,String(process.pid),x.token)}catch{}} task.state='QUEUED'; task.lease=null; await this.event('task.waiting_for_lock',{runId:run.id,taskId:task.id,error:String(e.message||e)}); return; }
     await this.persist();await this.event('task.claimed',{runId:run.id,taskId:task.id,lease:task.lease});
     const controller=new AbortController();this.controllers.set(task.id,controller);
     try{
       const policyCheck=this.policy.check({action:'WRITE',path:subRoot});
       if(!policyCheck.allowed) throw Object.assign(new Error(policyCheck.reason),{code:policyCheck.requiresApproval?'APPROVAL_REQUIRED':'POLICY_DENIED'});
+      task.phase='EXECUTING'; await this.persist();
       const result=await runHarness({goal:run.goal+'\nTask: '+task.title,done:task.acceptance||run.done,context:run.context+'\nOBJECTIVE: '+task.objective,sourceRoot:run.sourceRoot,runRoot:subRoot,maxTasks:1,maxIterations:run.maxIterations,signal:controller.signal,onEvent:async e=>{task.lastEvent=e;task.updatedAt=now();await this.evidence.appendEvent(run.id,e).catch(()=>{});await this.persist();await this.emit({schema:'aecp.event/v1',type:'task.event',at:now(),runId:run.id,taskId:task.id,data:e});}});
-      task.result=result;task.state=result.state==='DONE'?'DONE':result.state;task.lease=null;task.finishedAt=now();
+      task.phase='VERIFYING'; await this.persist(); task.result=result;task.state=result.state==='DONE'?'DONE':result.state;task.lease=null;task.finishedAt=now();
       if(task.state==='DONE' && run.delivery){
+        task.phase='DELIVERY'; await this.persist();
         try{
           const repo=run.githubRepo || await this.detectRepo(run.sourceRoot); if(!repo) throw new Error('GitHub repository could not be detected.');
           const branch='agent/'+task.id;
@@ -222,13 +237,13 @@ class ControlPlane {
         }catch(e){task.deliveryError=String(e.message||e);await this.event('delivery.blocked',{runId:run.id,taskId:task.id,error:task.deliveryError});}
       }
       if(result.state==='DONE' && result.patch) { task.evidence=await this.evidence.write(run.id,task.id+'-result.json',{task,result}); }
-      if(result.state==='DONE') { task.resultCapsule=await this.contextBus.write('result',{runId:run.id,taskId:task.id,state:task.state,evidence:task.evidence||null,verification:result.tasks}); }
+      if(result.state==='DONE') { task.phase='COMPLETED'; task.resultCapsule=await this.contextBus.write('result',{runId:run.id,taskId:task.id,state:task.state,evidence:task.evidence||null,verification:result.tasks}); }
       if(task.state==='HUMAN_REQUIRED') await this.requestApproval(run,task,'Harness requested human approval.');
       await this.event('task.finished',{runId:run.id,taskId:task.id,state:task.state});
     }catch(e){
       task.state=controller.signal.aborted?'CANCELLED':'FAILED';task.error=String(e.message||e);task.lease=null;await this.event('task.failed',{runId:run.id,taskId:task.id,error:task.error});
     }finally{
-      this.controllers.delete(task.id); if(lock){try{await this.locks.release(lockKey,String(process.pid),lock.token);}catch{}} await this.persist();this.finalizeRun(run).catch(()=>{});this.schedule();
+      this.controllers.delete(task.id); for(const x of locks){try{await this.locks.release(x.key,String(process.pid),x.token);}catch{}} await this.persist();this.finalizeRun(run).catch(()=>{});this.schedule();
     }
   }
 
@@ -290,7 +305,9 @@ class ControlPlane {
   }
 
   async detectRepo(cwd){try{const out=await new Promise((resolve,reject)=>{const p=spawn('gh',['repo','view','--json','nameWithOwner','-q','.nameWithOwner'],{cwd,windowsHide:true,stdio:['ignore','pipe','pipe']});let o='',e='';p.stdout.on('data',b=>o+=b);p.stderr.on('data',b=>e+=b);p.on('error',reject);p.on('close',code=>code===0?resolve(o.trim()):reject(new Error(e||'gh repo view failed')));});return out||null;}catch{return null;}}
-  async status(){return this.snapshot();}
+  async status(){const s=this.snapshot();s.remote=this.remote?.info()||{enabled:false};s.resources=this.resources.state;return s;}
+  async scanResources(root){return this.resources.scan(root)}
+  async ingestExternalEvent(event){const key=event?.idempotencyKey||event?.externalId;if(!key)throw new Error('External event requires idempotencyKey or externalId.');const r=await this.ledger.append({type:'external.received',...event,idempotencyKey:key});if(r.duplicate)return{duplicate:true};await this.event('external.correlated',{externalId:event.externalId||null,correlationId:event.correlationId||null,idempotencyKey:key});return{duplicate:false};}
   async gc(){const removed=await this.contextBus.gc();await this.locks.recover();await this.event('maintenance.gc',{removedCapsules:removed});return{removedCapsules:removed};}
   async replay(runId,limit=500){const events=await this.listEvents(limit);return events.filter(e=>!runId||e.runId===runId);}
   async listEvents(limit=500){
@@ -298,7 +315,7 @@ class ControlPlane {
   }
   async getRun(id){return this.state.runs[id]||null;}
   async getTask(id){return this.state.tasks[id]||null;}
-  async shutdown(){if(this.scheduler)clearInterval(this.scheduler);for(const c of this.controllers.values())c.abort();this.controllers.clear();await this.persist();}
+  async shutdown(){if(this.scheduler)clearInterval(this.scheduler);for(const c of this.controllers.values())c.abort();this.controllers.clear();await this.remote?.stop();await this.persist();}
 }
 
 module.exports={ControlPlane,STATES,TERMINAL,RISK};
