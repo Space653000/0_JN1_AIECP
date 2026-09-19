@@ -151,7 +151,7 @@ class ControlPlane {
     const a=this.state.approvals[id]; if(!a) throw new Error('Approval not found.');
     if(a.state!=='WAITING') throw new Error('Approval is not waiting.');
     a.state='APPROVED'; a.decidedAt=now(); a.decidedBy=by; a.note=note;
-    const task=this.state.tasks[a.taskId]; if(task){task.state='QUEUED';task.lease=null;}
+    const task=this.state.tasks[a.taskId]; if(task){task.lease=null;if(!task.delivery?.pr) task.state='QUEUED'; else task.state='HUMAN_REQUIRED';}
     await this.persist(); await this.event('approval.approved',{runId:a.runId,taskId:a.taskId,approvalId:id});
     this.schedule(); return a;
   }
