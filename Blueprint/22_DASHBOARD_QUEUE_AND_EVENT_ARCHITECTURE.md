@@ -207,3 +207,12 @@ A novice should answer within one screen:
 6. What changed?
 7. Does it need me?
 8. What happens next?
+
+
+## 17. Runtime status — 2026-09-19
+
+The Harness Command Center is implemented as a live projection of the durable Control Plane. It currently exposes mission metrics, queue state, approvals, task state, PR/CI status, pause/resume/cancel, emergency STOP ALL and a journaled event stream. Delivery approval is explicitly separated from normal task approval and requires CI success plus human approval.
+
+The Dashboard remains a projection: canonical runtime state lives in the Control Plane, engineering truth remains GitHub, and event/evidence records provide replayable history.
+
+Future dashboard work is limited to deeper GitHub projection, mobile read-only supervision, accessibility hardening and richer evidence/artifact inspection.
