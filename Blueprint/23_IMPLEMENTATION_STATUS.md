@@ -270,3 +270,14 @@ The bounded Failure Recovery Assistant is now in the runtime path: transient/det
 ### Autonomous maintenance hardening — 2026-09-19
 
 The maintenance loop now includes a bounded, non-mutating Blueprint/documentation drift scanner. It checks the authoritative Blueprint/README/status files and emits findings into maintenance results; it does not silently rewrite project documentation. This is a diagnostic gate, not a claim of production readiness.
+
+
+### Security / recovery hardening — 2026-09-19
+
+- Added an explicit adapter security matrix covering filesystem, shell, git, GitHub, browser, desktop, Python, local compute, all provider adapters, remote gateway and webhook ingestion.
+- Every adapter now has an explicit READ/WRITE/EXECUTE/NETWORK/CREDENTIAL decision; missing decisions fail the audit.
+- Workspace WRITE remains policy-governed but no longer forces a human gate for ordinary bounded local engineering. High-risk publish/merge/delete/credential/system actions remain approval-gated.
+- Failure Recovery Assistant now consumes error/phase/CI/evidence/log signals, emits a bounded recovery plan, records NO_NEW_PERMISSIONS, and requires evidence for the recovery decision.
+- CI failure recovery now uses the same classifier rather than treating every CI failure as automatically safe to rework.
+- Maintenance scans actual mission repository roots for Blueprint/documentation drift and reports adapter-security audit findings.
+
