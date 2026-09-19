@@ -632,3 +632,48 @@ MIT. See [`LICENSE`](LICENSE).
 # Status
 
 This repository is an active preview. A `1.0.0` claim is blocked until the Blueprint's stable-release gates—including signed installers, broader harness adapters, migration/update testing, accessibility, and security review—are satisfied.
+
+
+# Blueprint / Architecture
+
+The **Blueprint is the product source of truth**. The complete architecture is now consolidated into `Blueprint/`, including the Harness engineering expansion:
+
+- `20_HARNESS_ENGINEERING_MULTI_AGENT_LOOP.md` — Planner → Queue → Worker → Verify → CI → Reviewer → Rework/Accept, bounded autonomy, scheduler/locks/recovery.
+- `21_AGENT_ROLES_AND_HANDOFF_PROTOCOL.md` — vendor-neutral Supervisor/Planner/Builder/Reviewer/Verifier roles and versioned handoff contracts.
+- `22_DASHBOARD_QUEUE_AND_EVENT_ARCHITECTURE.md` — Board/Queue/Agents/Trace/Git/CI/Evidence dashboard, event stream and mobile-ready supervision model.
+
+### What is designed vs. what is implemented
+
+**Blueprint complete:** the target end-state architecture, contracts, security boundaries, UX, event model, multi-repo model, provider abstraction, autonomous loop and acceptance gates are documented.
+
+**Implementation is staged:** v0.3.0 Preview currently provides the safe bridge, workspace/task UI, local detection, bounded isolated-worktree autonomous worker, deterministic verification, evidence and verified-patch apply flow. The full multi-agent Planner/Queue/Reviewer scheduler is a roadmap implementation, not a claim of current availability.
+
+### Canonical end-state loop
+
+```text
+Goal / Blueprint
+      ↓
+Planner (Claude / replaceable provider)
+      ↓
+Durable Task Queue
+      ↓
+Harness Scheduler + Policy + Locks
+      ↓
+Builder Worker (Codex / replaceable provider)
+      ↓
+Deterministic Verify
+      ↓
+Git / PR / GitHub Actions
+      ↓
+Reviewer (Claude / replaceable provider)
+   ├─ PASS → ACCEPT → next task
+   ├─ REWORK → Builder
+   └─ HUMAN_REQUIRED → user approval
+```
+
+The Harness owns state, permissions, budgets, retries, timeouts, evidence and recovery. A model never grants itself permission or declares technical completion by itself.
+
+### Current release truth
+
+Do not treat Blueprint roadmap items as installed features. The **Complete Feature Map** below is the authoritative v0.3.0 Preview status table. Future features must pass the Blueprint acceptance gates before being marked implemented.
+
