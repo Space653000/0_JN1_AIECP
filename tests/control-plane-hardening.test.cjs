@@ -84,3 +84,14 @@ test('failure recovery assistant only auto-eligible bounded low-risk classes',()
  assert.equal(recommend({error:'permission denied for credential'}).action,'HUMAN_REQUIRED');
  assert.equal(recommend({error:'unknown compiler anomaly'}).autoEligible,false);
 });
+
+
+test('drift scanner detects missing authoritative files without mutating the workspace', async()=>{
+ const {scan}=require('../electron/lib/drift-scanner.cjs');
+ const root=await tmp();
+ await fs.mkdir(path.join(root,'Blueprint'),{recursive:true});
+ await fs.writeFile(path.join(root,'README.md'),'# AECP\\n');
+ const result=await scan(root);
+ assert.equal(result.ok,false);
+ assert.equal(result.findings.some(x=>x.type==='MISSING_REQUIRED_FILE'&&x.path==='Blueprint/00_MASTER_BLUEPRINT.md'),true);
+});
