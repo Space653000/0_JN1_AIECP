@@ -783,3 +783,8 @@ When these disagree, do not guess. Reconcile them through the event/state model 
 ## Current closure rule
 
 The core AECP engineering loop is now considered **implemented and hardened prototype-complete**. Remaining items are external integration/trust operations or deliberately gated remote capabilities. In particular, Microsoft Store publication and production code-signing require user-owned publisher identity/certificates; repository code cannot legitimately manufacture those credentials.
+
+
+## Optional GitHub webhook hardening
+
+AECP includes a signed inbound GitHub webhook receiver. It is disabled by default. To enable the software-side receiver, configure the process environment with `AECP_GITHUB_WEBHOOK_SECRET` and optionally `AECP_GITHUB_WEBHOOK_PORT`. The receiver binds to loopback by default, verifies `X-Hub-Signature-256`, assigns a delivery idempotency key from `X-GitHub-Delivery`, and sends the event through the Control Plane event ledger. Exposing it to GitHub requires a user-owned authenticated tunnel or GitHub App/webhook endpoint; AECP never opens a public inbound port automatically.
