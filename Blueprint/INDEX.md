@@ -23,7 +23,10 @@
 17. `17_V0_2_TRIPLE_AUDIT.md` — v0.2 constraint-resolution, MCP security and release conformance audit
 18. `18_BOUNDED_AUTONOMOUS_EXECUTION.md` — isolated worktree execution, bounded workers, deterministic verification and explicit verified-patch apply
 19. `19_V0_3_TRIPLE_AUDIT.md` — v0.3 isolation, security, cross-platform and release audit
-20. `Conversation/2026-09-17_FOUNDING_CONVERSATION.md` — full project-specific founding conversation archive
+20. `20_HARNESS_ENGINEERING_MULTI_AGENT_LOOP.md` — Harness engineering, Planner/Worker/Reviewer loop, bounded autonomy, queue, locks, CI events and maturity model
+21. `21_AGENT_ROLES_AND_HANDOFF_PROTOCOL.md` — vendor-neutral agent roles and explicit handoff contracts
+22. `22_DASHBOARD_QUEUE_AND_EVENT_ARCHITECTURE.md` — engineering cockpit, queue, event stream and mobile-ready view
+23. `Conversation/2026-09-17_FOUNDING_CONVERSATION.md` — full project-specific founding conversation archive
 
 ## Product name
 
