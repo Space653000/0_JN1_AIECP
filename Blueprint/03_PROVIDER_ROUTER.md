@@ -108,3 +108,32 @@ For ChatGPT Web, AECP must not infer or scrape hidden usage counters. UI shows o
 ## 8. Failover
 
 Failover never silently moves private local context to a cloud provider. Any provider change that changes the data boundary requires explicit user approval or a predeclared policy.
+
+
+## 8. Role-based routing
+
+AECP routes by stable engineering role rather than vendor brand:
+
+```yaml
+roles:
+  supervisor: chatgpt-web
+  planner: claude-code
+  builder: codex-cli
+  reviewer: claude-code
+  verifier: deterministic-local
+  local_compute: ollama
+```
+
+Any role may later be remapped without changing Task state, Workspace policy or Evidence schemas.
+
+## 9. Agent adapter contract
+
+Provider adapters expose only capabilities they can actually verify. A detected CLI is not automatically an enabled writer. Read, write, review, execute, network and publish capabilities are separate.
+
+## 10. Inter-agent handoff
+
+Agents never exchange hidden vendor sessions. They exchange Goal/Plan/Task/Context/Worker-Report/Review/Result artifacts with schema versions and correlation IDs.
+
+## 11. Cost/attention control
+
+The Harness optimizes verified engineering progress per unit of human attention. It must not create extra model calls merely to keep agents busy.

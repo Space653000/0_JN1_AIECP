@@ -102,3 +102,24 @@ Per repo capture:
 - `git diff --stat`
 - commit hash if created
 - remote target if publishing was approved
+
+
+## 10. GitHub as event backbone
+
+GitHub is both engineering Source of Truth and an asynchronous event source. Harness may publish branches/PRs and consume CI/repository events through a dedicated adapter.
+
+`repository_dispatch` may carry a versioned AECP event and correlation IDs; `workflow_dispatch` may provide controlled manual runs. The Harness remains the runtime source for queue/locks/heartbeats and must correlate external events before changing task state.
+
+## 11. Agent branch convention
+
+```text
+agent/<task-id>
+review/<task-id>
+maintenance/<task-id>
+```
+
+Branch/worktree identity is part of Task evidence.
+
+## 12. Multi-agent scheduling
+
+Parallel work is allowed only after dependency/resource analysis. Repository write conflicts must be blocked by Harness locks before a Worker starts.

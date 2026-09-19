@@ -190,3 +190,34 @@ Deliberately not exposed yet:
 - external API invocation
 
 Those are governed roadmap adapters, not hidden v0.1.0 behavior.
+
+
+## 12. Harness Engineering expansion
+
+The Harness is the permanent control plane around agent execution. It owns Queue, Scheduler, Locks, State Machine, Budgets, Policy, Verification, Recovery and Evidence.
+
+### Planner / Worker / Reviewer loop
+
+```text
+Claude Planner → Task Queue → Codex Worker → Verifier → Claude Reviewer
+                                      ↑                 │
+                                      └── REWORK ───────┘
+```
+
+The Worker cannot declare its own success. The Harness verifier determines pass/fail, and the Reviewer determines Blueprint/Plan compliance.
+
+### Queue requirements
+
+Tasks are durable objects with dependencies, priority, role, Workspace/repository bindings, limits, verifier profile and risk policy. Scheduler decisions must remain explainable after restart.
+
+### Worktree requirements
+
+Autonomous write tasks prefer one isolated Git worktree per task. Active user Workspaces remain unchanged until an explicit integration gate.
+
+### Event requirements
+
+Runtime state changes emit versioned append-only events. Dashboard state is a materialized projection, not a second source of truth.
+
+### Maintenance / garbage collection
+
+The Harness should schedule bounded maintenance tasks for architecture drift, dependency hygiene, test gaps, documentation drift and security rules.

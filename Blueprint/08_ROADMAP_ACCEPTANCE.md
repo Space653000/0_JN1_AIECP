@@ -108,6 +108,29 @@ Acceptance:
 - no automatic commit/push/publish
 - CI proves isolation and explicit apply on a real temporary Git repository
 
+## P4.7 — Harness Engineering Control Plane
+
+Deliverables:
+- Planner / Worker / Reviewer role model
+- durable Task Queue
+- Scheduler with dependency/lock/risk checks
+- repository/worktree-per-task isolation
+- bounded rework loop
+- structured Worker/Review contracts
+- event bus and materialized Dashboard state
+- GitHub CI event adapter
+- maintenance/garbage-collection task type
+
+Acceptance:
+- a Goal becomes a Plan and Task graph;
+- Harness dispatches Worker without manual agent-to-agent copy/paste;
+- Verifier independently gates completion;
+- Reviewer can return PASS/REWORK/HUMAN_REQUIRED;
+- queue dispatches the next eligible task;
+- stale locks and interrupted runs are recoverable;
+- all loops have finite budgets;
+- external GitHub events are correlated before state mutation.
+
 ## P5 — Desktop/engineering adapters
 
 Deliverables:
