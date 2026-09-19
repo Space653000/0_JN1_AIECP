@@ -11,6 +11,9 @@ contextBridge.exposeInMainWorld('aecp', Object.freeze({
   openWorkspace: () => call('workspace:open'),
   openTerminal: () => call('workspace:terminal'),
   openChatGPT: () => call('chatgpt:open'),
+  startHarness: (payload) => call('harness:start', payload),
+  getHarnessStatus: () => call('harness:status'),
+  cancelHarness: () => call('harness:cancel'),
   getAutonomyOptions: () => call('autonomy:options'),
   getAutonomyStatus: () => call('autonomy:status'),
   startAutonomy: (payload) => call('autonomy:start', payload),
@@ -40,6 +43,12 @@ contextBridge.exposeInMainWorld('aecp', Object.freeze({
   listProviders: () => call('provider:list'),
   saveProvider: (provider) => call('provider:save', provider),
   deleteProvider: (providerId) => call('provider:delete', { providerId }),
+  onHarnessEvent: (callback) => {
+    if (typeof callback !== 'function') return () => {};
+    const handler = (_event, payload) => callback(payload);
+    ipcRenderer.on('autonomy:event', handler);
+    return () => ipcRenderer.removeListener('autonomy:event', handler);
+  },
   onAutonomyEvent: (callback) => {
     if (typeof callback !== 'function') return () => {};
     const handler = (_event, payload) => callback(payload);

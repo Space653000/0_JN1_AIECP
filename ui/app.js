@@ -14,6 +14,7 @@ const state = {
   mcpStatus: null,
   autonomyOptions: null,
   autonomyStatus: null,
+  harnessStatus: null,
   selectedTaskId: null,
   view: 'start',
   engineering: false,
@@ -64,7 +65,7 @@ function statusClass(value) {
 }
 
 async function loadAll() {
-  const [app, data, tools, tasks, providers, agents, githubConnection, mcpStatus, autonomyOptions, autonomyStatus] = await Promise.all([
+  const [app, data, tools, tasks, providers, agents, githubConnection, mcpStatus, autonomyOptions, autonomyStatus, harnessStatus] = await Promise.all([
     safe(() => window.aecp.getAppInfo()),
     safe(() => window.aecp.getState()),
     safe(() => window.aecp.detectTools(), []),
@@ -74,7 +75,8 @@ async function loadAll() {
     safe(() => window.aecp.getGitHubConnection(), null),
     safe(() => window.aecp.getMcpStatus(), null),
     safe(() => window.aecp.getAutonomyOptions(), null),
-    safe(() => window.aecp.getAutonomyStatus(), null)
+    safe(() => window.aecp.getAutonomyStatus(), null),
+    safe(() => window.aecp.getHarnessStatus(), null)
   ]);
   state.app = app;
   state.data = data;
@@ -86,6 +88,7 @@ async function loadAll() {
   state.mcpStatus = mcpStatus;
   state.autonomyOptions = autonomyOptions;
   state.autonomyStatus = autonomyStatus;
+  state.harnessStatus = harnessStatus;
   if (!state.selectedTaskId && state.tasks[0]) state.selectedTaskId = state.tasks[0].id;
   if (state.selectedTaskId && !state.tasks.some((task) => task.id === state.selectedTaskId)) state.selectedTaskId = state.tasks[0]?.id || null;
   render();
@@ -266,10 +269,15 @@ function renderLoop(host) {
       </div>
       <div class="task-actions">
         <button class="primary-button" type="button" data-action="copy-loop-prompt">Copy Goal Loop prompt</button>
+        <button class="primary-button" type="button" data-action="start-harness" ${state.harnessStatus && ['PLANNING','READY','RUNNING','VERIFYING','REVIEWING','REWORK'].includes(state.harnessStatus.state) ? 'disabled' : ''}>Start Full Harness</button>
+        <button class="secondary-button" type="button" data-action="cancel-harness" ${state.harnessStatus && ['PLANNING','READY','RUNNING','VERIFYING','REVIEWING','REWORK'].includes(state.harnessStatus.state) ? '' : 'disabled'}>Stop Harness</button>
         <button class="secondary-button" type="button" data-action="open-chatgpt">Open ChatGPT</button>
       </div>
     </form>
+    <div class="card-title-row"><div><span class="eyebrow">HARNESS ENGINEERING</span><h3>Planner → Queue → Builder → Verify → Reviewer</h3></div><span class="status ${statusClass(state.harnessStatus?.state)}">${esc(state.harnessStatus?.state || 'IDLE')}</span></div>
+    <p class="muted">This is the full bounded multi-agent loop. The Harness owns state, retries and stop conditions; workers cannot self-declare completion.</p>
     <div class="pipeline">
+
       ${[
         ['RESEARCH', 'Collect only the information needed for the current uncertainty.'],
         ['PLAN', 'Choose the smallest high-value next action and state why.'],
@@ -623,6 +631,24 @@ async function copyGoalLoopPrompt() {
   if (ok) toast('Goal Loop prompt copied. Paste it into ChatGPT and keep returning verified Result Capsules.');
 }
 
+async function startHarness() {
+  const goal = $('#loopGoal')?.value.trim() || '';
+  const done = $('#loopDone')?.value.trim() || '';
+  if (!goal || !done) { toast('Goal and Definition of Done are required.', 'error'); return; }
+  const result = await safe(() => window.aecp.startHarness({
+    goal, done, maxTasks: 4, maxIterations: 3,
+    context: 'Use the current AECP Workspace and its Blueprint as engineering constraints.'
+  }));
+  if (!result) return;
+  state.harnessStatus = result;
+  renderControl();
+  toast('Full Harness started: Planner → Queue → Builder → Verify → Reviewer.');
+}
+async function cancelHarness() {
+  const result = await safe(() => window.aecp.cancelHarness());
+  if (result) { state.harnessStatus = result; renderControl(); toast('Harness cancellation requested.'); }
+}
+
 async function startAutonomy() {
   const goal = $('#loopGoal')?.value.trim() || '';
   const done = $('#loopDone')?.value.trim() || '';
@@ -723,6 +749,8 @@ function bindEvents() {
       if (action === 'show-loop') setView('loop');
       if (action === 'copy-loop-prompt') await copyGoalLoopPrompt();
       if (action === 'start-autonomy') await startAutonomy();
+      if (action === 'start-harness') await startHarness();
+      if (action === 'cancel-harness') await cancelHarness();
       if (action === 'cancel-autonomy') await cancelAutonomy();
       if (action === 'open-autonomy-worktree') await openAutonomyWorktree();
       if (action === 'apply-autonomy') await applyAutonomy();
@@ -762,6 +790,13 @@ function bindEvents() {
     if (event?.type === 'run.failed') toast(event?.data?.error || 'Autonomous run failed.', 'error');
     if (event?.type === 'run.cancelled') toast('Autonomous run cancelled. Nothing was applied.');
   });
+  window.aecp.onHarnessEvent(async (event) => {
+    state.harnessStatus = await safe(() => window.aecp.getHarnessStatus(), state.harnessStatus);
+    if (state.view === 'loop' || state.view === 'board' || state.view === 'pipeline') renderControl();
+    if (event?.type === 'task.accepted') toast(`Harness accepted ${event?.data?.taskId || 'task'}.`);
+    if (event?.type === 'harness.final' && event?.state === 'DONE') toast('Full Harness completed and produced a verified patch.');
+  });
+
 }
 
 async function boot() {

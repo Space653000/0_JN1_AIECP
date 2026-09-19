@@ -437,7 +437,10 @@ OpenCode 特別適合作為 Local Autonomous worker，因為它可以作為本�
 | Dark / Light theme | ✅ | 使用者可切換 |
 | Beginner / Engineering mode | ✅ | 新人預設簡化，高階使用者可展開 |
 | Arbitrary AI shell execution | ❌ | v0.3.0 刻意禁止 |
-| Bounded autonomous file modification | ✅ | 只在 isolated Git worktree 施工；PASS 後產生 verified patch，按 Apply 才套回 Workspace |
+| Bounded autonomous file modification | ✅ | isolated Git worktree + deterministic verification + verified patch/apply |
+| Harness Planner → Builder → Verify → Reviewer | ✅ | bounded multi-task orchestration with rework and HUMAN_REQUIRED stop states |
+| Durable multi-process scheduler / parallel workers | ⏳ | architecture documented; runtime hardening remains |
+| Automated GitHub PR / CI event feedback loop | ⏳ | GitHub integration is present, full Harness callback loop remains |
 | Autonomous Git commit/push | ❌ | v0.3 刻意保持未 commit；push/publish 仍需後續高風險 gate |
 | Arbitrary Windows GUI control | ❌ | 後續 desktop-control adapter |
 | ChatGPT DOM scraping/injection | ❌ | 不是產品方向 |
@@ -646,7 +649,7 @@ The **Blueprint is the product source of truth**. The complete architecture is n
 
 **Blueprint complete:** the target end-state architecture, contracts, security boundaries, UX, event model, multi-repo model, provider abstraction, autonomous loop and acceptance gates are documented.
 
-**Implementation is staged:** v0.3.0 Preview currently provides the safe bridge, workspace/task UI, local detection, bounded isolated-worktree autonomous worker, deterministic verification, evidence and verified-patch apply flow. The full multi-agent Planner/Queue/Reviewer scheduler is a roadmap implementation, not a claim of current availability.
+**Implementation is staged:** v0.3.0 Preview currently provides the safe bridge, workspace/task UI, local detection, bounded isolated-worktree autonomous worker, deterministic verification, evidence and verified-patch apply flow. The v0.3.x runtime now includes a bounded Planner → Builder → Verify → Reviewer orchestration path. It is deliberately sequential and bounded; durable multi-process scheduling, parallel workers, GitHub PR automation and CI-event feedback remain the next hardening stage.
 
 ### Canonical end-state loop
 
