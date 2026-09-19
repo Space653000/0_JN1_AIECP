@@ -247,3 +247,17 @@ AECP should not be called production-complete until:
 ## Remaining external dependency
 
 The only major capabilities that cannot be made genuinely production-complete by repository code alone are external trust/account operations: Microsoft Store publisher identity/certification/submission, production code-signing certificate ownership, and optional LAN/Internet remote gateway deployment with a user-owned domain/device identity. AECP now contains the software-side packaging, checksum, release, policy and local-gateway foundations for those operations.
+
+
+## Next autonomous hardening tranche — 2026-09-19
+
+### Engineering work to execute next
+1. **Failure Recovery Assistant** — classify failed task/CI evidence, build a bounded recovery recommendation, and route only low-risk recoveries automatically.
+2. **Adapter Security Audit Matrix** — enumerate every external/local adapter and require an explicit SecurityPolicy decision for READ/WRITE/EXECUTE/NETWORK/CREDENTIAL actions.
+3. **Clean E2E Matrix** — exercise Mission → Plan → Queue → Build → Verify → Git → PR → CI → Review → Rework → Human Gate on temporary repositories.
+4. **Release Gate** — clean Windows x64/ARM64 install, update, rollback, provenance and checksum verification.
+5. **Remote Pairing Gate** — authenticated device pairing and read-only remote supervision before any remote execution capability.
+6. **Drift Scans** — scheduled dependency, security, Blueprint/code and documentation consistency checks.
+
+### Definition of done
+The product is not called Production Ready until all six gates have evidence artifacts and GitHub CI reports success on the exact release commit.
