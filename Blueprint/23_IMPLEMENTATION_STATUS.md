@@ -293,3 +293,9 @@ The maintenance loop now includes a bounded, non-mutating Blueprint/documentatio
 - Added a clean temporary-Git canonical-loop infrastructure test covering repository discovery, policy gates, locks, event idempotency, evidence, bounded recovery and maintenance drift/security results without requiring external model credentials.
 - This is an infrastructure E2E layer; provider-backed clean Windows and real GitHub delivery tests remain separate release-environment gates.
 - Harness provider execution now passes through the Control Plane EXECUTE policy before Planner, Builder, Reviewer and deterministic verifier processes start.
+
+### Dependency/security drift hardening — 2026-09-19
+
+- Added a bounded dependency/security drift scanner using npm audit results and optional outdated-package inspection.
+- Maintenance runs security drift scans on mission repositories on a long interval rather than every scheduler tick; failures are recorded as diagnostics instead of silently changing dependencies.
+- High/critical npm vulnerabilities are represented as an ERROR finding; no automatic dependency upgrade is performed.
