@@ -305,3 +305,9 @@ The maintenance loop now includes a bounded, non-mutating Blueprint/documentatio
 - Harness run state is persisted in harness.json at each transition/event.
 - Restart recovery now reuses the same task run root and resumes persisted task state instead of always rebuilding from a fresh Harness run.
 - Completed tasks are skipped, human-gated tasks remain gated, and unfinished tasks continue within the original bounded iteration budget.
+
+### Release installer hardening — 2026-09-19
+
+- Added a self-contained Windows bootstrap installer source that detects x64 vs ARM64 at runtime and launches the matching embedded NSIS payload.
+- Release workflow now builds x64 and ARM64 payloads, assembles the universal auto-select installer, generates SHA-256 checksums, and publishes release assets for version tags.
+- The universal installer path is now represented in source and CI; clean-machine installer execution remains an external release gate until a Windows runner smoke test has actually executed successfully.
