@@ -156,37 +156,37 @@ Git / GitHub
 ## 5. Remaining work — ordered by engineering dependency
 
 ### P0 — Make the current loop production-correct
-- Finish crash-safe phase persistence and resume.
-- Make CI state transitions idempotent.
-- Persist correlation IDs and idempotency keys for external events.
-- Ensure PR rework updates the existing PR rather than creating duplicates.
-- Add complete GitHub workflow/job/log evidence ingestion.
-- Add integration tests using temporary Git repositories.
-- Verify every high-risk adapter path through SecurityPolicy.
+- Crash-safe phase persistence/resume — completed for orphaned execution and pending CI monitoring.
+- CI state transitions/idempotency — completed in delivery/event paths.
+- Correlation IDs/idempotency keys — implemented via event ledger and GitHub delivery IDs.
+- PR rework idempotency — completed; existing delivery branch/PR is reused.
+- GitHub workflow/job/log evidence — completed for CI completion and failed logs.
+- Temporary Git/infrastructure hardening tests — implemented; full end-to-end matrix remains.
+- High-risk SecurityPolicy enforcement — hardened across governed delivery path; remaining adapter-specific audit is P0 hardening.
 
 ### P1 — Multi-repository engineering
-- Resource graph bindings for tasks.
-- Per-repository locks.
-- Multiple worktrees/repositories in one mission.
-- Cross-repo dependency scheduling.
-- GitHub repository routing.
-- Branch/PR state projection into Dashboard.
+- Resource graph bindings for tasks — completed.
+- Per-repository locks — completed.
+- Multiple worktrees/repositories in one mission — completed at task routing layer.
+- Cross-repo dependency scheduling — completed through task DAG/resource binding.
+- GitHub repository routing — completed.
+- Branch/PR state projection into Dashboard — implemented; richer artifact projection remains.
 
 ### P2 — Event-driven Control Plane
-- Authenticated GitHub webhook/repository_dispatch receiver.
-- Event signature verification.
-- Correlation and replay protection.
-- External event deduplication.
-- Replace polling where an authoritative event exists.
-- Materialized event projection.
+- Authenticated GitHub webhook receiver — completed, opt-in.
+- Event signature verification — completed.
+- Correlation and replay protection — completed.
+- External event deduplication — completed.
+- Polling fallback retained when webhook is unavailable.
+- Materialized event projection — remaining dashboard hardening.
 
 ### P3 — Maintenance / self-healing
-- Expired lease cleanup.
-- Evidence/artifact retention policy.
-- Orphan worktree cleanup.
-- Failed-run recovery assistant.
-- Dependency/security/documentation drift scans.
-- Scheduled maintenance tasks with bounded budgets.
+- Expired lease cleanup — completed.
+- Evidence/artifact retention policy — completed.
+- Orphan worktree cleanup — completed.
+- Failed-run recovery assistant — remaining.
+- Dependency/security/documentation drift scans — remaining.
+- Scheduled maintenance tasks with bounded budgets — completed.
 
 ### P4 — Distribution
 - Reliable x64/ARM64 production builds.
