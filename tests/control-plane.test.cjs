@@ -33,3 +33,25 @@ test('ControlPlane exposes bounded lifecycle states', () => {
   assert.ok(TERMINAL.has('DONE'));
   assert.ok(TERMINAL.has('CANCELLED'));
 });
+
+
+test('ControlPlane recovers orphaned execution state after restart', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'aecp-recover-'));
+  const cp = new ControlPlane({ rootDir: root });
+  await cp.init();
+  const run = { id: 'mission-recovery', state: 'RUNNING', taskIds: [], events: [] };
+  cp.state.runs[run.id] = run;
+  const task = await cp.enqueueTask(run, { title: 'Recover me', objective: 'Recover', acceptance: 'PASS', risk: 'GREEN' });
+  task.state = 'RUNNING';
+  task.phase = 'EXECUTING';
+  task.lease = { id: 'lease', owner: 999999, expiresAt: new Date(Date.now() + 600000).toISOString() };
+  await cp.persist();
+  await cp.shutdown();
+  const cp2 = new ControlPlane({ rootDir: root });
+  await cp2.init();
+  const recovered = await cp2.getTask(task.id);
+  assert.equal(recovered.state, 'QUEUED');
+  assert.equal(recovered.phase, 'RECOVERED');
+  await cp2.shutdown();
+  await fs.rm(root, { recursive: true, force: true });
+});
