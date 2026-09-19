@@ -299,3 +299,9 @@ The maintenance loop now includes a bounded, non-mutating Blueprint/documentatio
 - Added a bounded dependency/security drift scanner using npm audit results and optional outdated-package inspection.
 - Maintenance runs security drift scans on mission repositories on a long interval rather than every scheduler tick; failures are recorded as diagnostics instead of silently changing dependencies.
 - High/critical npm vulnerabilities are represented as an ERROR finding; no automatic dependency upgrade is performed.
+
+### Crash-safe substep resume — 2026-09-19
+
+- Harness run state is persisted in harness.json at each transition/event.
+- Restart recovery now reuses the same task run root and resumes persisted task state instead of always rebuilding from a fresh Harness run.
+- Completed tasks are skipped, human-gated tasks remain gated, and unfinished tasks continue within the original bounded iteration budget.
