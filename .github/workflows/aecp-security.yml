@@ -1,0 +1,26 @@
+name: AECP Security
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm ci
+      - run: npm audit --audit-level=high
+      - run: node --check electron/lib/security-policy.cjs
+      - run: node --check electron/lib/lock-manager.cjs
+      - run: node --check electron/lib/evidence-manager.cjs
+      - run: node --check electron/lib/context-bus.cjs
+      - run: node --check electron/lib/provider-router.cjs
+      - run: node --check electron/lib/github-gateway.cjs
