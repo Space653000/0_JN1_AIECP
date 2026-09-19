@@ -46,3 +46,17 @@ test('remote gateway is loopback and read-only',async()=>{
  const ok=await request('/api/status',{authorization:'Bearer '+info.token}); assert.equal(ok.status,200);
  await gateway.stop();
 });
+
+
+test('GitHub webhook verifies HMAC and deduplicates delivery identity', async () => {
+ const {GitHubWebhookReceiver}=require('../electron/lib/github-webhook.cjs');
+ const secret='test-secret', received=[];
+ const receiver=new GitHubWebhookReceiver({secret,onEvent:async e=>received.push(e)});
+ const info=await receiver.start();
+ const http=require('node:http'), crypto=require('node:crypto');
+ const body=JSON.stringify({workflow_run:{id:123}});
+ const sig='sha256='+crypto.createHmac('sha256',secret).update(body).digest('hex');
+ const response=await new Promise((resolve,reject)=>{const req=http.request({host:'127.0.0.1',port:info.port,path:'/github/webhook',method:'POST',headers:{'x-hub-signature-256':sig,'x-github-delivery':'delivery-1','x-github-event':'workflow_run','content-type':'application/json'}},res=>{let d='';res.on('data',b=>d+=b);res.on('end',()=>resolve({status:res.statusCode,body:d}))});req.on('error',reject);req.write(body);req.end()});
+ assert.equal(response.status,202);assert.equal(received[0].idempotencyKey,'github:delivery-1');
+ await receiver.stop();
+});
