@@ -266,8 +266,8 @@ class ControlPlane {
   }
 
   async monitorDeliveryCI(run,task){
-    if(!task.delivery?.sha||!run.githubRepo)return;
-    const monitor=new CIMonitor({repo:run.githubRepo,cwd:run.sourceRoot,pollMs:10000});
+    const deliveryRepo=task.delivery?.repo||run.githubRepo;if(!task.delivery?.sha||!deliveryRepo)return;
+    const monitor=new CIMonitor({repo:deliveryRepo,cwd:task.delivery?.taskRoot||run.sourceRoot,pollMs:10000});
     task.ci={state:'WAITING',sha:task.delivery.sha,startedAt:now()};
     await this.persist(); await this.event('ci.waiting',{runId:run.id,taskId:task.id,sha:task.delivery.sha});
     const result=await monitor.wait(task.delivery.sha,{timeoutMs:1800000,onUpdate:async snapshot=>{
