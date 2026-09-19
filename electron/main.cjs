@@ -882,6 +882,7 @@ function registerIpc() {
 
   ipcMain.handle('harness:start', async (_event, payload) => startHarness(payload));
   ipcMain.handle('control-plane:status', async () => (await initControlPlane()).status());
+  ipcMain.handle('control-plane:replay', async (_e,p)=>controlPlane.replay(p?.runId,p?.limit));
   ipcMain.handle('control-plane:events', async (_event, payload) => (await initControlPlane()).listEvents(payload?.limit || 500));
   ipcMain.handle('control-plane:create-mission', async (_event, payload) => {
     const state = await loadState();
