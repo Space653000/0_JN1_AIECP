@@ -233,3 +233,8 @@ The local supervision gateway now has an explicit device-pairing foundation: a s
 ## Deterministic E2E and adapter execution gate — 2026-09-19
 
 The engineering loop includes a clean temporary-Git infrastructure E2E matrix that validates repository discovery, policy gates, resource locks, event idempotency, evidence persistence, bounded recovery and maintenance diagnostics without external model credentials. Planner, Builder, Reviewer and deterministic verifier process launches are also subject to the Control Plane EXECUTE policy before they can start.
+
+
+## Dependency and security drift gate — 2026-09-19
+
+Maintenance includes a bounded npm security drift scan for mission repositories. It reports high/critical vulnerabilities as an engineering gate and never silently upgrades dependencies. Optional outdated-package inspection is available for explicit maintenance runs.
