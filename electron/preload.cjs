@@ -43,6 +43,12 @@ contextBridge.exposeInMainWorld('aecp', Object.freeze({
   listProviders: () => call('provider:list'),
   saveProvider: (provider) => call('provider:save', provider),
   deleteProvider: (providerId) => call('provider:delete', { providerId }),
+  onHarnessEvent: (callback) => {
+    if (typeof callback !== 'function') return () => {};
+    const handler = (_event, payload) => callback(payload);
+    ipcRenderer.on('autonomy:event', handler);
+    return () => ipcRenderer.removeListener('autonomy:event', handler);
+  },
   onAutonomyEvent: (callback) => {
     if (typeof callback !== 'function') return () => {};
     const handler = (_event, payload) => callback(payload);
