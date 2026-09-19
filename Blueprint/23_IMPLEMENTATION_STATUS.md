@@ -141,17 +141,17 @@ Git / GitHub
 | GitHub delivery foundation | Implemented |
 | CI monitoring / bounded rework | Implemented |
 | Governed PR approval / merge path | Implemented |
-| Full crash-safe substep resume | Partial |
-| Full multi-repository routing | Partial |
-| Complete GitHub event/webhook/event-bus integration | Partial |
-| Full security enforcement across every adapter | Partial |
-| Mobile authenticated supervision | Not implemented |
+| Full crash-safe substep resume | Implemented |
+| Full multi-repository routing | Implemented for repository-per-task execution |
+| Complete GitHub event/webhook/event-bus integration | Partial — authenticated inbound receiver remains |
+| Full security enforcement across every adapter | Hardened in Control Plane delivery paths; adapter-specific completion remains |
+| Mobile authenticated supervision | Local authenticated read-only gateway implemented; LAN pairing not enabled by default |
 | Windows UI automation | Not implemented |
 | Public/remote MCP gateway | Not implemented |
 | Private Store distribution | Not implemented |
 | One-click production-grade updater | Partial |
 | Full integration/E2E test suite | Partial |
-| Maintenance / garbage collection automation | Partial |
+| Maintenance / garbage collection automation | Implemented bounded scheduler/retention |
 
 ## 5. Remaining work — ordered by engineering dependency
 
@@ -231,3 +231,19 @@ AECP should not be called production-complete until:
 - release artifacts are trusted and rollbackable.
 
 **Bottom line:** the project has moved from a Blueprint-only concept to a real governed Control Plane prototype. The remaining work is now primarily hardening, integration completeness, distribution, and remote supervision—not redefining the core architecture.
+
+
+## Latest hardening completed
+
+- Crash recovery now re-queues orphaned execution phases and resumes pending GitHub CI monitoring after restart.
+- CI failures now capture failed GitHub logs into immutable evidence.
+- CI-passing delivery transitions to HUMAN_REQUIRED and creates the explicit merge approval record.
+- Rework resumes from the existing delivery branch instead of silently restarting from main.
+- Delivery commit/push/PR paths are explicitly policy-gated by the mission's governed delivery opt-in.
+- Repository discovery and task-to-repository routing are now part of mission planning; each task executes against its selected Git repository and locks its resources.
+- External event idempotency ledger, maintenance/retention service and local authenticated read-only gateway are implemented.
+- Release pipeline is explicit-tag/manual rather than silently publishing on every main push.
+
+## Remaining external dependency
+
+The only major capabilities that cannot be made genuinely production-complete by repository code alone are external trust/account operations: Microsoft Store publisher identity/certification/submission, production code-signing certificate ownership, and optional LAN/Internet remote gateway deployment with a user-owned domain/device identity. AECP now contains the software-side packaging, checksum, release, policy and local-gateway foundations for those operations.
