@@ -107,7 +107,7 @@ class ControlPlane {
   }
 
   async planMission(run){
-    const repositories=await this.resources.scan(run.sourceRoot);
+    const repositories=await this.resources.scan(run.sourceRoot); run.repositoryPaths=repositories.map(r=>r.path);
     const prompt=[
       'You are the AECP Mission Planner.',
       'Return ONLY JSON: {"tasks":[{"title":"...","objective":"...","acceptance":"...","dependencies":[],"risk":"GREEN|YELLOW|RED","repositories":["absolute or listed repository path"]}]}',
@@ -209,7 +209,10 @@ class ControlPlane {
 
   async enqueueTask(run,task){
     const id=uid('task');
-    const t={...task,id,runId:run.id,state:'QUEUED',phase:'QUEUED',createdAt:now(),updatedAt:now(),attempts:0,lease:null,resources:{repositories:(task.repositories||[]).map(x=>path.resolve(run.sourceRoot,x))}};
+    const allowed=new Set((run.repositoryPaths||[run.sourceRoot]).map(x=>path.resolve(x).toLowerCase()));
+    const requested=(task.repositories||[]).map(x=>path.resolve(String(x))).filter(x=>allowed.has(x.toLowerCase()));
+    const repositories=requested.length?requested:[run.sourceRoot];
+    const t={...task,id,runId:run.id,state:'QUEUED',phase:'QUEUED',createdAt:now(),updatedAt:now(),attempts:0,lease:null,resources:{repositories}};
     this.state.tasks[id]=t;run.taskIds.push(id);
     await this.persist();await this.event('task.queued',{runId:run.id,taskId:id,title:t.title});
     return t;
