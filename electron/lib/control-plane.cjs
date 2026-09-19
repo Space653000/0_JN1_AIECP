@@ -91,7 +91,11 @@ class ControlPlane {
       if(run.state==='PAUSED' && run.recovery?.reason==='process-restart' && run.autoResume){ run.state='QUEUED'; run.recovery.resumedAt=now(); }
       for(const taskId of run.taskIds||[]){
         const task=this.state.tasks[taskId];
-        if(task?.lease && new Date(task.lease.expiresAt).getTime()<Date.now() && !TERMINAL.has(task.state)){
+        if(!task||TERMINAL.has(task.state)) continue;
+        if(['RUNNING','VERIFYING','REVIEWING'].includes(task.state) && !this.controllers.has(task.id)){
+          if(task.delivery?.sha && task.ci?.state!=='PASSED'){ task.state='REVIEWING'; task.phase='CI_RECOVERY'; task.recoveredAt=now(); this.monitorDeliveryCI(run,task).catch(()=>{}); }
+          else { task.state='QUEUED'; task.phase='RECOVERED'; task.lease=null; task.recoveredAt=now(); }
+        } else if(task.lease && new Date(task.lease.expiresAt).getTime()<Date.now()){
           task.state='QUEUED'; task.phase='RECOVERED'; task.lease=null; task.recoveredAt=now();
         }
       }
