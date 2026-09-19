@@ -897,6 +897,7 @@ function registerIpc() {
   ipcMain.handle('control-plane:pause', async (_event, payload) => (await initControlPlane()).pauseMission(payload?.runId));
   ipcMain.handle('control-plane:cancel', async (_event, payload) => (await initControlPlane()).cancelMission(payload?.runId));
   ipcMain.handle('control-plane:approve', async (_event, payload) => (await initControlPlane()).approve(payload?.approvalId, { by: 'human', note: payload?.note || '' }));
+  ipcMain.handle('control-plane:approve-delivery', async (_e,p)=>controlPlane.approveDelivery(p.runId,p.taskId,p));
   ipcMain.handle('control-plane:reject', async (_event, payload) => (await initControlPlane()).reject(payload?.approvalId, { by: 'human', note: payload?.note || 'Rejected by operator.' }));
 
   ipcMain.handle('harness:status', harnessStatus);
