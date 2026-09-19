@@ -767,3 +767,10 @@ The implementation must eventually demonstrate:
 > **AECP is a local-first control plane that turns AI reasoning into governed, observable, testable and recoverable software engineering.**
 
 The model supplies intelligence. The Harness supplies discipline. Git supplies history. CI supplies deterministic validation. Dashboard supplies visibility. The human remains the final authority.
+
+
+## 29. Implementation status — 2026-09-19
+
+The Planner → Queue → Builder → Verify → Reviewer loop is now a real bounded runtime rather than a design-only concept. It has durable task state, leases, heartbeat, recovery, evidence, policy/locks, GitHub delivery and CI feedback. CI failure can automatically return a task to bounded rework; CI success can advance it toward a human approval gate.
+
+The remaining work is hardening: authenticated external event correlation, complete crash-safe resume, multi-repository scheduling, full adapter policy enforcement and E2E validation.
