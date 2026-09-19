@@ -95,7 +95,7 @@ class ControlPlane {
   async pauseMission(id){
     const run=this.state.runs[id]; if(!run) throw new Error('Mission not found.');
     run.state='PAUSED'; run.pausedAt=now();
-    const c=this.controllers.get(id); if(c) c.abort();
+    for(const taskId of run.taskIds||[]){ const c=this.controllers.get(taskId); if(c) c.abort(); }
     await this.persist(); await this.event('mission.paused',{runId:id}); return run;
   }
 
