@@ -1,0 +1,259 @@
+'use strict';
+
+const crypto = require('node:crypto');
+const fs = require('node:fs/promises');
+const path = require('node:path');
+const { spawn } = require('node:child_process');
+
+const HARNESS_SCHEMA = 'aecp.harness/v1';
+const MAX_OUTPUT = 1024 * 1024;
+
+const STATES = Object.freeze([
+  'PLANNING', 'READY', 'RUNNING', 'VERIFYING', 'REVIEWING',
+  'REWORK', 'DONE', 'BLOCKED', 'HUMAN_REQUIRED', 'FAILED', 'CANCELLED'
+]);
+
+const ROLES = Object.freeze({
+  planner: { id: 'planner', label: 'Planner', command: 'claude' },
+  builder: { id: 'builder', label: 'Builder', command: 'codex' },
+  reviewer: { id: 'reviewer', label: 'Reviewer', command: 'claude' }
+});
+
+function id(prefix) {
+  return `${prefix}-${Date.now().toString(36)}-${crypto.randomBytes(3).toString('hex')}`;
+}
+
+function text(value, max = 12000) {
+  return String(value ?? '').trim().slice(0, max);
+}
+
+function bounded(value, min, max, fallback) {
+  const n = Number.parseInt(String(value ?? ''), 10);
+  return Number.isFinite(n) ? Math.max(min, Math.min(max, n)) : fallback;
+}
+
+function safeJson(raw) {
+  const s = String(raw || '').trim().replace(/^\`\`\`(?:json)?\s*/i, '').replace(/\s*\`\`\`$/i, '');
+  try { return JSON.parse(s); } catch {}
+  const start = s.indexOf('{');
+  const end = s.lastIndexOf('}');
+  if (start >= 0 && end > start) {
+    try { return JSON.parse(s.slice(start, end + 1)); } catch {}
+  }
+  return null;
+}
+
+function runProcess(command, args, options = {}) {
+  const { cwd, env = {}, timeoutMs = 120000, signal, maxOutputBytes = MAX_OUTPUT } = options;
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, {
+      cwd, env: { ...process.env, ...env }, shell: false, windowsHide: true,
+      stdio: ['ignore', 'pipe', 'pipe']
+    });
+    let stdout = Buffer.alloc(0), stderr = Buffer.alloc(0), timedOut = false, aborted = false;
+    const append = (buf, chunk) => {
+      const next = Buffer.concat([buf, Buffer.from(chunk)]);
+      return next.length > maxOutputBytes ? next.subarray(next.length - maxOutputBytes) : next;
+    };
+    child.stdout.on('data', c => { stdout = append(stdout, c); });
+    child.stderr.on('data', c => { stderr = append(stderr, c); });
+    const timer = setTimeout(() => { timedOut = true; kill(child); }, Math.max(1000, timeoutMs));
+    const abort = () => { aborted = true; kill(child); };
+    if (signal) signal.aborted ? abort() : signal.addEventListener('abort', abort, { once: true });
+    child.on('error', e => { clearTimeout(timer); reject(e); });
+    child.on('close', code => {
+      clearTimeout(timer);
+      if (signal) signal.removeEventListener('abort', abort);
+      resolve({ code: Number.isInteger(code) ? code : -1, timedOut, aborted,
+        stdout: stdout.toString('utf8'), stderr: stderr.toString('utf8') });
+    });
+  });
+}
+
+function kill(child) {
+  if (!child?.pid) return;
+  if (process.platform === 'win32') spawn('taskkill', ['/PID', String(child.pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' }).unref();
+  else child.kill('SIGTERM');
+}
+
+async function git(cwd, args, signal) {
+  const r = await runProcess('git', args, { cwd, signal, timeoutMs: 30000 });
+  if (r.code !== 0) throw new Error((r.stderr || r.stdout || `git ${args[0]} failed`).trim().slice(0, 2000));
+  return r.stdout.trim();
+}
+
+async function assertCleanRepo(root, signal) {
+  const top = await git(root, ['rev-parse', '--show-toplevel'], signal);
+  const real = path.resolve(root), actual = path.resolve(top);
+  if (real.toLowerCase() !== actual.toLowerCase()) throw new Error('Harness requires Workspace root to be the Git repository root.');
+  const status = await git(root, ['status', '--porcelain'], signal);
+  if (status) throw new Error('Workspace must be clean before a Harness run.');
+  return { head: await git(root, ['rev-parse', 'HEAD'], signal) };
+}
+
+async function makeWorktree(root, runRoot, signal) {
+  const base = await assertCleanRepo(root, signal);
+  const worktree = path.join(runRoot, 'worktree');
+  await fs.rm(worktree, { recursive: true, force: true });
+  await fs.mkdir(runRoot, { recursive: true });
+  await git(root, ['worktree', 'add', '--detach', worktree, base.head], signal);
+  return { worktree, baseHead: base.head };
+}
+
+async function verify(worktree, command, args, signal) {
+  const r = await runProcess(command, args, { cwd: worktree, signal, timeoutMs: 180000 });
+  return { passed: r.code === 0 && !r.timedOut && !r.aborted, code: r.code,
+    timedOut: r.timedOut, aborted: r.aborted, command: [command, ...args].join(' '),
+    stdout: r.stdout.slice(-20000), stderr: r.stderr.slice(-20000) };
+}
+
+function cli(role, prompt, cwd, model) {
+  if (role === 'builder') {
+    const args = ['exec', '--ephemeral', '--ignore-user-config', '--ignore-rules',
+      '--sandbox', 'workspace-write', '--json', '--cd', cwd,
+      '-c', 'sandbox_workspace_write.network_access=false'];
+    if (model) args.push('--model', model);
+    args.push(prompt);
+    return { command: 'codex', args };
+  }
+  const args = ['-p', prompt, '--output-format', 'json'];
+  if (model) args.push('--model', model);
+  return { command: 'claude', args };
+}
+
+function normalizePlan(plan, goal, done, maxTasks) {
+  const source = Array.isArray(plan?.tasks) ? plan.tasks : [];
+  const tasks = source.slice(0, maxTasks).map((t, i) => ({
+    id: text(t.task_id || t.id, 100) || id(`task-${i + 1}`),
+    title: text(t.title || t.objective, 160) || `Task ${i + 1}`,
+    objective: text(t.objective || t.description, 3000),
+    acceptance: text(t.acceptance || done, 3000),
+    dependencies: Array.isArray(t.dependencies) ? t.dependencies.map(x => text(x, 100)).filter(Boolean) : [],
+    verifier: t.verifier || null,
+    risk: ['GREEN', 'YELLOW', 'RED'].includes(t.risk) ? t.risk : 'YELLOW'
+  })).filter(t => t.objective);
+  if (!tasks.length) throw new Error('Planner returned no executable tasks.');
+  return { schema: 'aecp.plan/v1', plan_id: id('plan'), goal, definition_of_done: done, tasks };
+}
+
+function plannerPrompt(goal, done, context) {
+  return [
+    'You are the AECP Planner. Produce a small executable software-engineering plan.',
+    'Return ONLY JSON matching: {"tasks":[{"task_id":"T1","title":"...","objective":"...","acceptance":"...","dependencies":[],"risk":"GREEN|YELLOW|RED","verifier":"npm run verify"}]}',
+    'Do not invent credentials, remote access, or permissions. Do not write code.',
+    `GOAL:\n${goal}`,
+    `DEFINITION OF DONE:\n${done}`,
+    `CONTEXT:\n${context}`,
+    'Prefer 1-8 coherent tasks, each small enough for one isolated worker run.'
+  ].join('\n\n');
+}
+
+function builderPrompt(task, goal, done, review) {
+  return [
+    'You are the AECP Builder. Work ONLY inside this isolated worktree.',
+    'Do not commit, push, publish, alter credentials, install system software, or access files outside the worktree.',
+    'Implement the smallest change that satisfies the task. Do not claim verification; AECP runs it.',
+    `GOAL:\n${goal}`, `TASK:\n${JSON.stringify(task, null, 2)}`,
+    review ? `PREVIOUS REVIEW / REQUIRED REWORK:\n${review}` : 'This is the first implementation attempt.'
+  ].join('\n\n');
+}
+
+function reviewerPrompt(task, goal, done, diff, verification) {
+  return [
+    'You are the AECP Reviewer. Review evidence, not model confidence.',
+    'Return ONLY JSON: {"result":"PASS|REWORK|HUMAN_REQUIRED","findings":[],"required_changes":[]}',
+    `GOAL:\n${goal}`, `DEFINITION OF DONE:\n${done}`,
+    `TASK:\n${JSON.stringify(task, null, 2)}`,
+    `DIFF:\n${diff}`, `VERIFICATION:\n${JSON.stringify(verification, null, 2)}`,
+    'PASS only when acceptance and evidence are sufficient. HUMAN_REQUIRED for permissions, credentials, destructive actions, or unresolved ambiguity.'
+  ].join('\n\n');
+}
+
+async function diffSummary(worktree, signal) {
+  const status = await git(worktree, ['status', '--short'], signal);
+  const stat = await git(worktree, ['diff', '--stat', 'HEAD'], signal);
+  return [status, stat].filter(Boolean).join('\n').slice(0, 6000);
+}
+
+async function createPatch(worktree, runRoot, signal) {
+  await git(worktree, ['add', '-N', '.'], signal);
+  const r = await runProcess('git', ['diff', '--binary', '--no-ext-diff', 'HEAD'], { cwd: worktree, signal, timeoutMs: 30000, maxOutputBytes: 8 * 1024 * 1024 });
+  if (r.code !== 0) throw new Error(r.stderr.slice(0, 1500));
+  const file = path.join(runRoot, 'verified.patch');
+  await fs.writeFile(file, r.stdout, 'utf8');
+  return { file, bytes: Buffer.byteLength(r.stdout) };
+}
+
+async function runHarness(options) {
+  const goal = text(options.goal, 6000), done = text(options.done, 6000);
+  if (goal.length < 5 || done.length < 5) throw new Error('Goal and Definition of Done are required.');
+  const root = path.resolve(options.sourceRoot);
+  const runRoot = path.resolve(options.runRoot || path.join(root, '.aecp', 'harness', id('run')));
+  const maxIterations = bounded(options.maxIterations, 1, 5, 3);
+  const maxTasks = bounded(options.maxTasks, 1, 8, 4);
+  const signal = options.signal;
+  const event = options.onEvent || (async () => {});
+  const record = { schema: HARNESS_SCHEMA, id: options.runId || id('harness'), state: 'PLANNING',
+    goal, done, sourceRoot: root, runRoot, maxIterations, maxTasks, tasks: [], events: [], startedAt: new Date().toISOString() };
+  const persist = async () => { record.updatedAt = new Date().toISOString(); await fs.mkdir(runRoot, { recursive: true }); await fs.writeFile(path.join(runRoot, 'harness.json'), JSON.stringify(record, null, 2)); };
+  const emit = async (type, data = {}) => { record.events.push({ at: new Date().toISOString(), type, state: record.state, data }); await persist(); await event(record.events.at(-1)); };
+  const transition = async (state, data) => { if (!STATES.includes(state)) throw new Error(`Invalid Harness state: ${state}`); record.state = state; await emit(`state.${state.toLowerCase()}`, data); };
+  try {
+    await transition('PLANNING');
+    const planner = cli('planner', plannerPrompt(goal, done, text(options.context, 8000)), root, options.plannerModel);
+    const p = await runProcess(planner.command, planner.args, { cwd: root, signal, timeoutMs: 180000 });
+    if (p.code !== 0) throw new Error(`Planner failed: ${(p.stderr || p.stdout).slice(-2000)}`);
+    const plan = normalizePlan(safeJson(p.stdout), goal, done, maxTasks);
+    record.plan = plan; record.tasks = plan.tasks.map(t => ({ ...t, state: 'READY', iterations: 0 }));
+    await transition('READY', { taskCount: record.tasks.length });
+    const wt = await makeWorktree(root, runRoot, signal); record.worktree = wt.worktree; record.baseHead = wt.baseHead;
+    for (const task of record.tasks) {
+      if (signal?.aborted) throw Object.assign(new Error('Harness cancelled.'), { name: 'AbortError' });
+      if (task.dependencies.some(d => !record.tasks.find(x => x.id === d && x.state === 'DONE'))) {
+        task.state = 'BLOCKED'; continue;
+      }
+      let review = '';
+      let accepted = false;
+      for (let iteration = 1; iteration <= maxIterations; iteration++) {
+        task.iterations = iteration; await transition('RUNNING', { taskId: task.id, iteration });
+        const build = cli('builder', builderPrompt(task, goal, done, review), wt.worktree, options.builderModel);
+        const b = await runProcess(build.command, build.args, { cwd: wt.worktree, signal, timeoutMs: 600000 });
+        task.worker = { code: b.code, timedOut: b.timedOut, stdout: b.stdout.slice(-12000), stderr: b.stderr.slice(-12000) };
+        if (b.code !== 0 || b.timedOut) { review = `Worker failed: ${(b.stderr || b.stdout).slice(-4000)}`; await transition('REWORK', { taskId: task.id, reason: 'worker-failed' }); continue; }
+        await transition('VERIFYING', { taskId: task.id });
+        const verifier = task.verifier === 'npm test'
+          ? ['npm', ['test']] : ['npm', ['run', 'verify']];
+        const v = await verify(wt.worktree, verifier[0], verifier[1], signal);
+        task.verification = v;
+        if (!v.passed) { review = `Deterministic verification failed.\n${v.stderr.slice(-5000)}`; await transition('REWORK', { taskId: task.id, reason: 'verification-failed' }); continue; }
+        await transition('REVIEWING', { taskId: task.id });
+        const diff = await diffSummary(wt.worktree, signal);
+        const reviewer = cli('reviewer', reviewerPrompt(task, goal, done, diff, v), root, options.reviewerModel);
+        const rr = await runProcess(reviewer.command, reviewer.args, { cwd: root, signal, timeoutMs: 180000 });
+        if (rr.code !== 0) { review = `Reviewer failed: ${(rr.stderr || rr.stdout).slice(-3000)}`; continue; }
+        const report = safeJson(rr.stdout);
+        task.review = report || { result: 'HUMAN_REQUIRED', findings: ['Reviewer did not return valid JSON.'], required_changes: [] };
+        if (task.review.result === 'PASS') {
+          task.state = 'DONE'; accepted = true; await emit('task.accepted', { taskId: task.id, iteration }); break;
+        }
+        if (task.review.result === 'HUMAN_REQUIRED') { task.state = 'HUMAN_REQUIRED'; await transition('HUMAN_REQUIRED', { taskId: task.id }); break; }
+        review = JSON.stringify(task.review);
+        await transition('REWORK', { taskId: task.id, reason: 'review-rework' });
+      }
+      if (!accepted && task.state !== 'HUMAN_REQUIRED') { task.state = 'BLOCKED'; await transition('BLOCKED', { taskId: task.id, reason: 'iteration-budget-exhausted' }); break; }
+    }
+    if (record.tasks.every(t => t.state === 'DONE')) {
+      record.state = 'VERIFYING'; await emit('run.final_verification', {});
+      record.patch = await createPatch(wt.worktree, runRoot, signal);
+      await transition('DONE', { patch: record.patch });
+    } else if (record.tasks.some(t => t.state === 'HUMAN_REQUIRED')) await transition('HUMAN_REQUIRED');
+    else await transition('BLOCKED');
+    return record;
+  } catch (e) {
+    if (e?.name === 'AbortError' || signal?.aborted) { record.error = 'Cancelled'; await transition('CANCELLED'); }
+    else { record.error = text(e?.message || e, 4000); await transition('FAILED', { error: record.error }); }
+    return record;
+  }
+}
+
+module.exports = { HARNESS_SCHEMA, STATES, ROLES, runHarness, safeJson, normalizePlan };
