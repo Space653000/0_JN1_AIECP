@@ -793,3 +793,33 @@ AECP includes a signed inbound GitHub webhook receiver. It is disabled by defaul
 ## Runtime closure update — 2026-09-19
 
 The current implementation also includes: signed GitHub webhook ingestion (opt-in), external-event idempotency, CI failed-log evidence, crash/restart recovery, repository-per-task routing, maintenance/worktree garbage collection, and an authenticated local read-only supervision gateway. GitHub commit-SHA polling remains the fallback when no webhook transport is configured. These capabilities are governed by the same Control Plane policy and are reflected in the Harness Command Center.
+
+
+## Current implementation truth — 2026-09-19
+
+### Completed in the current Control Plane branch
+
+- durable Mission/Task scheduler with leases, heartbeat and restart recovery;
+- Planner → Builder → Verify → Reviewer bounded loop;
+- repository discovery and task-to-repository routing;
+- per-repository/worktree locks and isolated execution;
+- GitHub branch + idempotent Draft PR delivery;
+- CI monitoring, bounded CI-driven rework and failed-log evidence;
+- explicit human gate before governed merge;
+- signed GitHub webhook receiver with delivery-id replay protection (opt-in);
+- event ledger/replay, Context Capsule TTL and maintenance/garbage collection;
+- local authenticated read-only supervision gateway;
+- x64/ARM64 release workflow and SHA-256 artifact manifest;
+- live Harness Command Center and synchronized Blueprint/status documentation.
+
+### Remaining engineering gates
+
+1. Failed-run recovery assistant and deeper drift/security/documentation maintenance scans.
+2. Complete adapter-by-adapter SecurityPolicy audit.
+3. Full integration/E2E matrix on clean temporary Git repositories and clean Windows environments.
+4. Production code signing, installer smoke/update rollback and release provenance.
+5. Authenticated LAN/mobile pairing; public exposure remains disabled by default.
+6. Windows UI automation and public/remote MCP gateway remain separate capability layers.
+7. Microsoft Store submission requires the publisher account/certificate owned by the operator.
+
+**Important:** GitHub Actions is the verification authority for the current branch. Documentation is not used to mark a build as passed; only an actual successful run does that.
