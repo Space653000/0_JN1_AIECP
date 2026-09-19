@@ -70,6 +70,8 @@ function runProcess(command, args, options = {}) {
   });
 }
 
+function assertProcessPolicy(policy,cwd,approved=false){ if(policy?.assert) policy.assert({action:'EXECUTE',path:cwd,approved}); }
+
 function kill(child) {
   if (!child?.pid) return;
   if (process.platform === 'win32') spawn('taskkill', ['/PID', String(child.pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' }).unref();
@@ -202,6 +204,7 @@ async function runHarness(options) {
   try {
     await transition('PLANNING');
     const planner = cli('planner', plannerPrompt(goal, done, text(options.context, 8000)), root, options.plannerModel);
+    assertProcessPolicy(options.policy, root, Boolean(options.executionApproved));
     const p = await runProcess(planner.command, planner.args, { cwd: root, signal, timeoutMs: 180000 });
     if (p.code !== 0) throw new Error(`Planner failed: ${(p.stderr || p.stdout).slice(-2000)}`);
     const plan = normalizePlan(safeJson(p.stdout), goal, done, maxTasks);
@@ -218,18 +221,21 @@ async function runHarness(options) {
       for (let iteration = 1; iteration <= maxIterations; iteration++) {
         task.iterations = iteration; await transition('RUNNING', { taskId: task.id, iteration });
         const build = cli('builder', builderPrompt(task, goal, done, review), wt.worktree, options.builderModel);
+        assertProcessPolicy(options.policy, wt.worktree, Boolean(options.executionApproved));
         const b = await runProcess(build.command, build.args, { cwd: wt.worktree, signal, timeoutMs: 600000 });
         task.worker = { code: b.code, timedOut: b.timedOut, stdout: b.stdout.slice(-12000), stderr: b.stderr.slice(-12000) };
         if (b.code !== 0 || b.timedOut) { review = `Worker failed: ${(b.stderr || b.stdout).slice(-4000)}`; await transition('REWORK', { taskId: task.id, reason: 'worker-failed' }); continue; }
         await transition('VERIFYING', { taskId: task.id });
         const verifier = task.verifier === 'npm test'
           ? ['npm', ['test']] : ['npm', ['run', 'verify']];
+        assertProcessPolicy(options.policy, wt.worktree, Boolean(options.executionApproved));
         const v = await verify(wt.worktree, verifier[0], verifier[1], signal);
         task.verification = v;
         if (!v.passed) { review = `Deterministic verification failed.\n${v.stderr.slice(-5000)}`; await transition('REWORK', { taskId: task.id, reason: 'verification-failed' }); continue; }
         await transition('REVIEWING', { taskId: task.id });
         const diff = await diffSummary(wt.worktree, signal);
         const reviewer = cli('reviewer', reviewerPrompt(task, goal, done, diff, v), root, options.reviewerModel);
+        assertProcessPolicy(options.policy, root, Boolean(options.executionApproved));
         const rr = await runProcess(reviewer.command, reviewer.args, { cwd: root, signal, timeoutMs: 180000 });
         if (rr.code !== 0) { review = `Reviewer failed: ${(rr.stderr || rr.stdout).slice(-3000)}`; continue; }
         const report = safeJson(rr.stdout);
