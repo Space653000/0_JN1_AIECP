@@ -697,3 +697,83 @@ The current hardening stage adds the runtime infrastructure required for a gover
 - **Evidence + capsules** — completed tasks publish bounded result evidence for dashboard/review layers.
 
 The system still deliberately refuses to make high-risk operations autonomous by default. Push, merge, delete, credential and system-level actions remain approval-gated. This is a safety property, not a missing feature.
+
+
+# Current Engineering Status — 2026-09-19
+
+> **Implementation truth:** AECP is now a working governed Control Plane prototype. The Blueprint and runtime have been synchronized to the same architecture. A roadmap item is not marked complete until code and verification exist.
+
+## What is implemented now
+
+- Durable Mission / Task state and bounded scheduler.
+- Planner-driven Task decomposition with dependencies.
+- Isolated task worktrees, leases, heartbeat and restart recovery.
+- Planner → Builder → deterministic Verify → Reviewer loop.
+- Bounded REWORK loop with iteration limits and timeouts.
+- GREEN / YELLOW / RED security policy foundation with actual Builder write enforcement.
+- Durable workspace/task locks.
+- Evidence hashing, manifests, event journal and replay API.
+- Bounded Context Bus / Context Capsules.
+- Role-based Provider Router foundation for Claude, Codex, Gemini, OpenCode and Ollama.
+- GitHub gateway and governed agent/<task-id> delivery branch.
+- Idempotent Draft PR creation across retries.
+- GitHub Actions CI monitoring tied to commit SHA.
+- CI failure → bounded Task REWORK; CI success → approval gate.
+- Human-gated PR merge; merge is blocked without CI PASS + explicit human approval.
+- Live Harness Command Center with Mission Queue, Task Board, Approval Queue, PR/CI state, event stream and STOP ALL.
+- CI and security workflows plus automated syntax/unit/infrastructure verification.
+
+## Current truth / important limitation
+
+The latest observed Security workflow passed. The main CI run was still in progress when this status was recorded; it is deliberately not described as passed until GitHub reports success.
+
+The current implementation is not yet production-complete. The core control-plane architecture is established; remaining work is hardening and integration rather than redesigning the core concept.
+
+## Remaining work
+
+### P0 — Production correctness
+- crash-safe resume at every execution phase;
+- idempotent external event processing and correlation IDs;
+- complete GitHub workflow/job/log evidence ingestion;
+- no duplicate PRs during all rework/restart paths;
+- security enforcement on every high-risk adapter path;
+- full canonical-loop integration/E2E tests.
+
+### P1 — Multi-repository engineering
+- task-to-repository resource graph;
+- per-repository/worktree scheduling and locks;
+- cross-repo dependency handling;
+- GitHub repository/branch/PR state projection.
+
+### P2 — Event-driven integration
+- authenticated GitHub webhook/repository_dispatch receiver;
+- signature verification and replay protection;
+- event deduplication and materialized projections.
+
+### P3 — Operations
+- maintenance/garbage-collection scheduler;
+- orphan worktree cleanup;
+- artifact retention;
+- drift/security/documentation maintenance jobs.
+
+### P4 — Distribution
+- clean-machine installer tests;
+- signed/trusted release channel;
+- update rollback;
+- Private Microsoft Store lane.
+
+### P5 — Remote supervision
+- authenticated device pairing;
+- mobile read-only dashboard;
+- approval-only remote actions;
+- full remote task submission only after policy/revocation hardening.
+
+For the complete maturity matrix, decisions, non-goals and ordered backlog, see Blueprint/23_IMPLEMENTATION_STATUS.md.
+
+## Source-of-truth rule
+
+- **GitHub:** engineering truth — code, Blueprint, commits, PRs, CI and releases.
+- **Control Plane runtime:** runtime truth — queue, locks, heartbeats, budgets, current execution and local events.
+- **Command Center:** human-facing projection — never an independent state database.
+
+When these disagree, do not guess. Reconcile them through the event/state model and update the Blueprint if the architecture has changed.
