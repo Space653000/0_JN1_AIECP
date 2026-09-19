@@ -228,3 +228,8 @@ Maintenance drift scans operate on the actual mission repository roots rather th
 ## Remote supervision security foundation — 2026-09-19
 
 The local supervision gateway now has an explicit device-pairing foundation: a short-lived one-time pairing code creates a short-lived READ_ONLY device credential; credentials can be revoked and enumerated. The gateway remains bound to loopback by default. Pairing never grants task execution, write, merge, credential or system authority. LAN/Internet transport is still a separate deployment gate and must inherit the same policy model.
+
+
+## Deterministic E2E and adapter execution gate — 2026-09-19
+
+The engineering loop includes a clean temporary-Git infrastructure E2E matrix that validates repository discovery, policy gates, resource locks, event idempotency, evidence persistence, bounded recovery and maintenance diagnostics without external model credentials. Planner, Builder, Reviewer and deterministic verifier process launches are also subject to the Control Plane EXECUTE policy before they can start.
