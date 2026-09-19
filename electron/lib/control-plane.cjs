@@ -155,7 +155,7 @@ class ControlPlane {
       if(run.state==='QUEUED') run.state='RUNNING';
       const active=(run.taskIds||[]).map(id=>this.state.tasks[id]).filter(t=>t&&t.state==='RUNNING').length;
       if(active>=run.maxConcurrency) continue;
-      const queued=(run.taskIds||[]).map(id=>this.state.tasks[id]).filter(t=>t&&t.state==='QUEUED').slice(0,run.maxConcurrency-active);
+      const queued=(run.taskIds||[]).map(id=>this.state.tasks[id]).filter(t=>t&&t.state==='QUEUED' && (t.dependencies||[]).every(d=>{const dep=(run.taskIds||[]).map(x=>this.state.tasks[x]).find(x=>x.id===d||x.title===d);return dep?dep.state==='DONE':true;})).slice(0,run.maxConcurrency-active);
       for(const task of queued) this.executeTask(run,task).catch(()=>{});
     }
     await this.persist();
