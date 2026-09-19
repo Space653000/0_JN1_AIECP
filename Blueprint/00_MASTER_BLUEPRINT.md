@@ -214,3 +214,12 @@ The authoritative detailed status and remaining backlog is `23_IMPLEMENTATION_ST
 ## Runtime closure update — 2026-09-19
 
 The current implementation also includes: signed GitHub webhook ingestion (opt-in), external-event idempotency, CI failed-log evidence, crash/restart recovery, repository-per-task routing, maintenance/worktree garbage collection, and an authenticated local read-only supervision gateway. GitHub commit-SHA polling remains the fallback when no webhook transport is configured. These capabilities are governed by the same Control Plane policy and are reflected in the Harness Command Center.
+
+
+## Runtime governance hardening — 2026-09-19
+
+AECP now treats adapter security as a first-class control-plane invariant. Every registered adapter has an explicit decision for READ, WRITE, EXECUTE, NETWORK and CREDENTIAL capabilities. Ordinary workspace writes are allowed only inside the configured workspace boundary; publishing, merge, delete, credential and system actions remain approval-gated.
+
+Failure recovery is evidence-driven and bounded: transient/deterministic failures may return to the existing task loop within the configured iteration budget, while credential, permission, policy, production and unknown failures stop at HUMAN_REQUIRED. Recovery plans explicitly declare that they grant no new permissions and record the evidence required to justify the transition.
+
+Maintenance drift scans operate on the actual mission repository roots rather than only the AECP runtime-data directory.
