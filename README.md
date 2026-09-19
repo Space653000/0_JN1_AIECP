@@ -814,7 +814,7 @@ The current implementation also includes: signed GitHub webhook ingestion (opt-i
 
 ### Remaining engineering gates
 
-1. Failed-run recovery assistant and deeper drift/security/documentation maintenance scans.
+1. Deeper evidence-driven failure diagnosis and drift/security/documentation maintenance scans.
 2. Complete adapter-by-adapter SecurityPolicy audit.
 3. Full integration/E2E matrix on clean temporary Git repositories and clean Windows environments.
 4. Production code signing, installer smoke/update rollback and release provenance.
@@ -828,3 +828,7 @@ The current implementation also includes: signed GitHub webhook ingestion (opt-i
 ## Next hardening tranche
 
 The next engineering cycle is explicitly bounded to six production gates: Failure Recovery Assistant, complete Adapter Security Audit Matrix, clean temporary-repository E2E matrix, Windows x64/ARM64 release/install/rollback verification, authenticated remote pairing, and scheduled dependency/security/Blueprint/documentation drift scans. Production readiness requires evidence for all six gates and successful GitHub Actions on the exact release commit.
+
+
+### Latest implementation update
+The bounded Failure Recovery Assistant is now in the runtime path: transient/deterministic failures receive a constrained rework recommendation; credential, permission, policy, production and unknown failures remain HUMAN_REQUIRED. It never executes arbitrary remediation.
