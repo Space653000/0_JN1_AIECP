@@ -9,7 +9,7 @@ const checks=[
  ['implementation-status','Blueprint/23_IMPLEMENTATION_STATUS.md'],
  ['roadmap-acceptance','Blueprint/08_ROADMAP_ACCEPTANCE.md'],
  ['requirements','Blueprint/REQUIREMENTS.md'],
- ['ui-spec','Blueprint/UI_SPEC.md'],
+ ['ui-spec','Blueprint/01_UX_UI_SPEC.md'],
  ['control-plane','electron/lib/control-plane.cjs'],
  ['harness','electron/lib/harness.cjs'],
  ['security-policy','electron/lib/security-policy.cjs'],
