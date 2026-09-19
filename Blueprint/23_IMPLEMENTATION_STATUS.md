@@ -287,3 +287,9 @@ The maintenance loop now includes a bounded, non-mutating Blueprint/documentatio
 - Added expiring one-time device pairing codes with short-lived read-only device tokens.
 - Added device revocation and device inventory endpoints behind bootstrap authorization.
 - Remote Gateway remains loopback-only by default; pairing does not open a public port and does not grant task execution or write capability.
+
+### Deterministic E2E hardening — 2026-09-19
+
+- Added a clean temporary-Git canonical-loop infrastructure test covering repository discovery, policy gates, locks, event idempotency, evidence, bounded recovery and maintenance drift/security results without requiring external model credentials.
+- This is an infrastructure E2E layer; provider-backed clean Windows and real GitHub delivery tests remain separate release-environment gates.
+- Harness provider execution now passes through the Control Plane EXECUTE policy before Planner, Builder, Reviewer and deterministic verifier processes start.
