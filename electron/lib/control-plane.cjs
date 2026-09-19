@@ -16,6 +16,7 @@ const { EventLedger } = require('./event-ledger.cjs');
 const { ResourceManager } = require('./resource-manager.cjs');
 const { MaintenanceManager } = require('./maintenance.cjs');
 const { RemoteGateway } = require('./remote-gateway.cjs');
+const { GitHubWebhookReceiver } = require('./github-webhook.cjs');
 
 const SCHEMA='aecp.control-plane/v1';
 const STATES=Object.freeze(['PLANNING','QUEUED','RUNNING','VERIFYING','REVIEWING','REWORK','DONE','BLOCKED','HUMAN_REQUIRED','FAILED','CANCELLED','PAUSED']);
@@ -45,6 +46,7 @@ class ControlPlane {
     this.resources=new ResourceManager(path.join(this.rootDir,'resources'));
     this.maintenance=null;
     this.remote=new RemoteGateway({status:()=>this.status(),replay:(runId,limit)=>this.replay(runId,limit)});
+    this.webhook=new GitHubWebhookReceiver({secret:process.env.AECP_GITHUB_WEBHOOK_SECRET,port:Number(process.env.AECP_GITHUB_WEBHOOK_PORT||0),onEvent:(e)=>this.ingestExternalEvent(e)});
   }
 
   async init(){
@@ -52,6 +54,7 @@ class ControlPlane {
     await this.locks.init(); await this.evidence.init(); await this.contextBus.init(); await this.ledger.init(); await this.resources.init();
     this.maintenance=new MaintenanceManager({locks:this.locks,evidence:this.evidence,contextBus:this.contextBus});
     await this.remote.start();
+    if(process.env.AECP_GITHUB_WEBHOOK_SECRET) await this.webhook.start();
     try{this.state=JSON.parse(await fs.readFile(this.file,'utf8'));}catch(e){
       if(e.code!=='ENOENT') throw e;
       this.state={schema:SCHEMA,version:1,runs:{},tasks:{},agents:{},approvals:{},locks:{},updatedAt:now()};
@@ -321,7 +324,7 @@ class ControlPlane {
 
   async gitLocal(cwd,args){return await new Promise((resolve,reject)=>{const p=spawn('git',args,{cwd,windowsHide:true,stdio:['ignore','pipe','pipe']});let o='',e='';p.stdout.on('data',b=>o+=b);p.stderr.on('data',b=>e+=b);p.on('error',reject);p.on('close',code=>code===0?resolve(o.trim()):reject(new Error((e||o).slice(-3000))));});}
   async detectRepo(cwd){try{const out=await new Promise((resolve,reject)=>{const p=spawn('gh',['repo','view','--json','nameWithOwner','-q','.nameWithOwner'],{cwd,windowsHide:true,stdio:['ignore','pipe','pipe']});let o='',e='';p.stdout.on('data',b=>o+=b);p.stderr.on('data',b=>e+=b);p.on('error',reject);p.on('close',code=>code===0?resolve(o.trim()):reject(new Error(e||'gh repo view failed')));});return out||null;}catch{return null;}}
-  async status(){const s=this.snapshot();s.remote=this.remote?.info()||{enabled:false};s.resources=this.resources.state;return s;}
+  async status(){const s=this.snapshot();s.remote=this.remote?.info()||{enabled:false};s.webhook=this.webhook?.info()||{enabled:false};s.resources=this.resources.state;return s;}
   async scanResources(root){return this.resources.scan(root)}
   async ingestExternalEvent(event){const key=event?.idempotencyKey||event?.externalId;if(!key)throw new Error('External event requires idempotencyKey or externalId.');const r=await this.ledger.append({type:'external.received',...event,idempotencyKey:key});if(r.duplicate)return{duplicate:true};await this.event('external.correlated',{externalId:event.externalId||null,correlationId:event.correlationId||null,idempotencyKey:key});return{duplicate:false};}
   async gc(){const removed=await this.contextBus.gc();await this.locks.recover();await this.event('maintenance.gc',{removedCapsules:removed});return{removedCapsules:removed};}
@@ -331,7 +334,7 @@ class ControlPlane {
   }
   async getRun(id){return this.state.runs[id]||null;}
   async getTask(id){return this.state.tasks[id]||null;}
-  async shutdown(){if(this.scheduler)clearInterval(this.scheduler);for(const c of this.controllers.values())c.abort();this.controllers.clear();await this.remote?.stop();await this.persist();}
+  async shutdown(){if(this.scheduler)clearInterval(this.scheduler);for(const c of this.controllers.values())c.abort();this.controllers.clear();await this.remote?.stop();await this.webhook?.stop();await this.persist();}
 }
 
 module.exports={ControlPlane,STATES,TERMINAL,RISK};
