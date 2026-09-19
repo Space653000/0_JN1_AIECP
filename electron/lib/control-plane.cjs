@@ -3,7 +3,8 @@
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const { runHarness } = require('./harness.cjs');
+const { spawn } = require('node:child_process');
+const { runHarness, safeJson } = require('./harness.cjs');
 
 const SCHEMA='aecp.control-plane/v1';
 const STATES=Object.freeze(['PLANNING','QUEUED','RUNNING','VERIFYING','REVIEWING','REWORK','DONE','BLOCKED','HUMAN_REQUIRED','FAILED','CANCELLED','PAUSED']);
@@ -69,6 +70,31 @@ class ControlPlane {
       }
     }
     await this.persist();
+  }
+
+  async planMission(run){
+    const prompt=[
+      'You are the AECP Mission Planner.',
+      'Return ONLY JSON: {"tasks":[{"title":"...","objective":"...","acceptance":"...","dependencies":[],"risk":"GREEN|YELLOW|RED"}]}',
+      'Create small independent engineering tasks. Do not invent permissions or credentials.',
+      'GOAL:\n'+run.goal,
+      'DEFINITION OF DONE:\n'+run.done,
+      'CONTEXT:\n'+run.context
+    ].join('\n\n');
+    const out=await new Promise((resolve,reject)=>{
+      const child=spawn('claude',['-p',prompt,'--output-format','json'],{cwd:run.sourceRoot,windowsHide:true,stdio:['ignore','pipe','pipe']});
+      let stdout='',stderr='';const timer=setTimeout(()=>{try{child.kill()}catch{};reject(new Error('Mission planner timed out.'));},180000);
+      child.stdout.on('data,b=>{stdout+=b.toString()});
+      child.stderr.on('data,b=>{stderr+=b.toString()});
+      child.on('error',e=>{clearTimeout(timer);reject(e)});
+      child.on('close',code=>{clearTimeout(timer);if(code!==0)reject(new Error((stderr||stdout).slice(-3000)));else resolve(stdout)});
+    });
+    const plan=safeJson(out);
+    const tasks=Array.isArray(plan?.tasks)?plan.tasks.slice(0,run.maxTasks):[];
+    if(!tasks.length) throw new Error('Planner returned no tasks.');
+    for(const item of tasks) await this.enqueueTask(run,{title:String(item.title||'Task'),objective:String(item.objective||''),acceptance:String(item.acceptance||run.done),dependencies:Array.isArray(item.dependencies)?item.dependencies:[],risk:['GREEN','YELLOW','RED'].includes(item.risk)?item.risk:'YELLOW'});
+    run.plannedAt=now();run.plan=plan;await this.persist();await this.event('mission.planned',{runId:run.id,taskCount:tasks.length});
+    return tasks;
   }
 
   async createMission({goal,done,sourceRoot,context='',maxTasks=8,maxIterations=5,maxConcurrency=2,autoStart=true}){
