@@ -107,7 +107,7 @@ class ControlPlane {
     const repositories=await this.resources.scan(run.sourceRoot);
     const prompt=[
       'You are the AECP Mission Planner.',
-      'Return ONLY JSON: {"tasks":[{"title":"...","objective":"...","acceptance":"...","dependencies":[],"risk":"GREEN|YELLOW|RED"}]}',
+      'Return ONLY JSON: {"tasks":[{"title":"...","objective":"...","acceptance":"...","dependencies":[],"risk":"GREEN|YELLOW|RED","repositories":["absolute or listed repository path"]}]}',
       'Create small independent engineering tasks. Do not invent permissions or credentials.',
       'GOAL:\n'+run.goal,
       'DEFINITION OF DONE:\n'+run.done,
