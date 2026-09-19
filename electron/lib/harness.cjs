@@ -196,29 +196,45 @@ async function runHarness(options) {
   const maxTasks = bounded(options.maxTasks, 1, 8, 4);
   const signal = options.signal;
   const event = options.onEvent || (async () => {});
-  const record = { schema: HARNESS_SCHEMA, id: options.runId || id('harness'), state: 'PLANNING',
+  let record = null;
+  if (options.resume) {
+    try { record = JSON.parse(await fs.readFile(path.join(runRoot, 'harness.json'), 'utf8')); } catch {}
+  }
+  if (!record) record = { schema: HARNESS_SCHEMA, id: options.runId || id('harness'), state: 'PLANNING',
     goal, done, sourceRoot: root, runRoot, maxIterations, maxTasks, tasks: [], events: [], startedAt: new Date().toISOString() };
+  record.maxIterations=maxIterations; record.maxTasks=maxTasks; record.goal=goal; record.done=done; record.sourceRoot=root; record.runRoot=runRoot;
+  const resumed=Boolean(options.resume && record.plan);
   const persist = async () => { record.updatedAt = new Date().toISOString(); await fs.mkdir(runRoot, { recursive: true }); await fs.writeFile(path.join(runRoot, 'harness.json'), JSON.stringify(record, null, 2)); };
   const emit = async (type, data = {}) => { record.events.push({ at: new Date().toISOString(), type, state: record.state, data }); await persist(); await event(record.events.at(-1)); };
   const transition = async (state, data) => { if (!STATES.includes(state)) throw new Error(`Invalid Harness state: ${state}`); record.state = state; await emit(`state.${state.toLowerCase()}`, data); };
   try {
-    await transition('PLANNING');
-    const planner = cli('planner', plannerPrompt(goal, done, text(options.context, 8000)), root, options.plannerModel);
-    assertProcessPolicy(options.policy, root, Boolean(options.executionApproved));
-    const p = await runProcess(planner.command, planner.args, { cwd: root, signal, timeoutMs: 180000 });
-    if (p.code !== 0) throw new Error(`Planner failed: ${(p.stderr || p.stdout).slice(-2000)}`);
-    const plan = normalizePlan(safeJson(p.stdout), goal, done, maxTasks);
-    record.plan = plan; record.tasks = plan.tasks.map(t => ({ ...t, state: 'READY', iterations: 0 }));
-    await transition('READY', { taskCount: record.tasks.length });
-    const wt = await makeWorktree(root, runRoot, signal, options.baseRef || null); record.worktree = wt.worktree; record.baseHead = wt.baseHead;
+    if (!resumed) {
+      await transition('PLANNING');
+      const planner = cli('planner', plannerPrompt(goal, done, text(options.context, 8000)), root, options.plannerModel);
+      assertProcessPolicy(options.policy, root, Boolean(options.executionApproved));
+      const p = await runProcess(planner.command, planner.args, { cwd: root, signal, timeoutMs: 180000 });
+      if (p.code !== 0) throw new Error(`Planner failed: ${(p.stderr || p.stdout).slice(-2000)}`);
+      const plan = normalizePlan(safeJson(p.stdout), goal, done, maxTasks);
+      record.plan = plan; record.tasks = plan.tasks.map(t => ({ ...t, state: 'READY', iterations: 0 }));
+      await transition('READY', { taskCount: record.tasks.length });
+    } else {
+      record.state='READY'; await emit('run.resumed',{taskCount:record.tasks.length});
+    }
+    let wt;
+    if (record.worktree && await fs.stat(record.worktree).then(()=>true).catch(()=>false)) wt={worktree:record.worktree,baseHead:record.baseHead};
+    else wt=await makeWorktree(root, runRoot, signal, options.baseRef || record.baseHead || null);
+    record.worktree = wt.worktree; record.baseHead = record.baseHead || wt.baseHead;
     for (const task of record.tasks) {
       if (signal?.aborted) throw Object.assign(new Error('Harness cancelled.'), { name: 'AbortError' });
+      if (task.state === 'DONE') continue;
+      if (task.state === 'HUMAN_REQUIRED') { await transition('HUMAN_REQUIRED', { taskId: task.id, reason: 'resume-human-gate' }); break; }
       if (task.dependencies.some(d => !record.tasks.find(x => x.id === d && x.state === 'DONE'))) {
         task.state = 'BLOCKED'; continue;
       }
       let review = '';
       let accepted = false;
-      for (let iteration = 1; iteration <= maxIterations; iteration++) {
+      const resumeIteration = Math.max(1, Math.min(maxIterations, Number(task.iterations) || 1));
+      for (let iteration = resumeIteration; iteration <= maxIterations; iteration++) {
         task.iterations = iteration; await transition('RUNNING', { taskId: task.id, iteration });
         const build = cli('builder', builderPrompt(task, goal, done, review), wt.worktree, options.builderModel);
         assertProcessPolicy(options.policy, wt.worktree, Boolean(options.executionApproved));
