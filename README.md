@@ -747,6 +747,7 @@ The current implementation is not yet production-complete. The core control-plan
 
 ### P2 — Event-driven integration
 - event deduplication/idempotency ledger — implemented;
+- signed GitHub webhook receiver — implemented and opt-in via secret;
 - commit-SHA CI polling and failed-log evidence — implemented;
 - authenticated GitHub webhook/repository_dispatch receiver — remaining integration; polling remains the safe fallback.
 
