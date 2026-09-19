@@ -281,3 +281,9 @@ The maintenance loop now includes a bounded, non-mutating Blueprint/documentatio
 - CI failure recovery now uses the same classifier rather than treating every CI failure as automatically safe to rework.
 - Maintenance scans actual mission repository roots for Blueprint/documentation drift and reports adapter-security audit findings.
 
+
+### Remote supervision hardening — 2026-09-19
+
+- Added expiring one-time device pairing codes with short-lived read-only device tokens.
+- Added device revocation and device inventory endpoints behind bootstrap authorization.
+- Remote Gateway remains loopback-only by default; pairing does not open a public port and does not grant task execution or write capability.
