@@ -234,7 +234,7 @@ class ControlPlane {
       if(task.state==='DONE' && run.delivery){
         task.phase='DELIVERY'; await this.persist();
         try{
-          const repo=task.delivery?.repo || run.githubRepo || await this.detectRepo(taskRoot); if(!repo) throw new Error('GitHub repository could not be detected.');
+          const repo=task.delivery?.repo || (path.resolve(taskRoot)===path.resolve(run.sourceRoot)?run.githubRepo:null) || await this.detectRepo(taskRoot); if(!repo) throw new Error('GitHub repository could not be detected.');
           this.policy.assert({action:'COMMIT',path:result.worktree,approved:Boolean(run.delivery)});
           this.policy.assert({action:'PUSH',path:result.worktree,approved:Boolean(run.delivery)});
           this.policy.assert({action:'PR',path:result.worktree,approved:Boolean(run.delivery)});
