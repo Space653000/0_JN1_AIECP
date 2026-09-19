@@ -12,7 +12,7 @@ Primary:
 - Windows 11 x64
 - Windows 11 ARM64
 
-AECP uses Electron + `electron-builder` NSIS. The **primary** release artifact is a combined x64+ARM64 NSIS installer:
+AECP uses Electron + `electron-builder` NSIS. The **primary** release artifact is now a self-contained x64+ARM64 bootstrap installer. It detects the host architecture and launches the matching embedded NSIS payload:
 
 - `AI-Engineering-Control-Plane-Setup-<version>.exe`
 
@@ -87,7 +87,7 @@ GitHub Actions performs:
 2. static syntax/config checks
 3. package x64 fallback
 4. package ARM64 fallback
-5. package combined x64+ARM64 auto-detect installer
+5. assemble self-contained x64+ARM64 auto-detect bootstrap installer with both payloads
 6. hash installer artifacts
 7. upload workflow artifacts
 8. for designated release commit/tag, create GitHub Release and attach installers/checksums
