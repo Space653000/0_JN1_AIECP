@@ -216,3 +216,8 @@ The Harness Command Center is implemented as a live projection of the durable Co
 The Dashboard remains a projection: canonical runtime state lives in the Control Plane, engineering truth remains GitHub, and event/evidence records provide replayable history.
 
 Future dashboard work is limited to deeper GitHub projection, mobile read-only supervision, accessibility hardening and richer evidence/artifact inspection.
+
+
+## Runtime closure update — 2026-09-19
+
+The current implementation also includes: signed GitHub webhook ingestion (opt-in), external-event idempotency, CI failed-log evidence, crash/restart recovery, repository-per-task routing, maintenance/worktree garbage collection, and an authenticated local read-only supervision gateway. GitHub commit-SHA polling remains the fallback when no webhook transport is configured. These capabilities are governed by the same Control Plane policy and are reflected in the Harness Command Center.
