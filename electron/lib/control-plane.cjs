@@ -228,6 +228,9 @@ class ControlPlane {
         task.phase='DELIVERY'; await this.persist();
         try{
           const repo=run.githubRepo || await this.detectRepo(run.sourceRoot); if(!repo) throw new Error('GitHub repository could not be detected.');
+          this.policy.assert({action:'COMMIT',path:result.worktree,approved:Boolean(run.delivery)});
+          this.policy.assert({action:'PUSH',path:result.worktree,approved:Boolean(run.delivery)});
+          this.policy.assert({action:'PR',path:result.worktree,approved:Boolean(run.delivery)});
           const branch='agent/'+task.id;
           const delivery=new DeliveryManager({repo,cwd:run.sourceRoot});
           await delivery.branch(result.worktree,branch);
