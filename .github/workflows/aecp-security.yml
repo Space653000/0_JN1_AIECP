@@ -32,4 +32,5 @@ jobs:
       - run: node --check electron/lib/resource-manager.cjs
       - run: node --check electron/lib/maintenance.cjs
       - run: node --check electron/lib/remote-gateway.cjs
+      - run: node --check electron/lib/github-webhook.cjs
       - run: npm run verify
