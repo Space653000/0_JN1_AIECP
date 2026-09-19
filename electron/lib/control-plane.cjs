@@ -5,6 +5,11 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { spawn } = require('node:child_process');
 const { runHarness, safeJson } = require('./harness.cjs');
+const { SecurityPolicy } = require('./security-policy.cjs');
+const { LockManager } = require('./lock-manager.cjs');
+const { EvidenceManager } = require('./evidence-manager.cjs');
+const { ContextBus } = require('./context-bus.cjs');
+const { ProviderRouter } = require('./provider-router.cjs');
 
 const SCHEMA='aecp.control-plane/v1';
 const STATES=Object.freeze(['PLANNING','QUEUED','RUNNING','VERIFYING','REVIEWING','REWORK','DONE','BLOCKED','HUMAN_REQUIRED','FAILED','CANCELLED','PAUSED']);
@@ -24,10 +29,16 @@ class ControlPlane {
     this.state=null;
     this.controllers=new Map();
     this.scheduler=null;
+    this.policy=new SecurityPolicy({allowRoots:[this.rootDir]});
+    this.locks=new LockManager(path.join(this.rootDir,'locks'));
+    this.evidence=new EvidenceManager(path.join(this.rootDir,'evidence'));
+    this.contextBus=new ContextBus(this.rootDir);
+    this.providers=new ProviderRouter();
   }
 
   async init(){
     await fs.mkdir(this.rootDir,{recursive:true});
+    await this.locks.init(); await this.evidence.init(); await this.contextBus.init();
     try{this.state=JSON.parse(await fs.readFile(this.file,'utf8'));}catch(e){
       if(e.code!=='ENOENT') throw e;
       this.state={schema:SCHEMA,version:1,runs:{},tasks:{},agents:{},approvals:{},locks:{},updatedAt:now()};
@@ -104,7 +115,7 @@ class ControlPlane {
     this.state.runs[id]=run;
     await this.persist();
     await this.event('mission.created',{runId:id,state:run.state,goal});
-    if(autoStart) this.schedule();
+    if(autoStart) { await this.planMission(run); await this.startMission(id); }
     return run;
   }
 
@@ -127,7 +138,7 @@ class ControlPlane {
 
   async cancelMission(id){
     const run=this.state.runs[id]; if(!run) throw new Error('Mission not found.');
-    const c=this.controllers.get(id); if(c) c.abort();
+    for(const taskId of run.taskIds||[]){const c=this.controllers.get(taskId);if(c)c.abort();}
     run.state='CANCELLED'; run.cancelledAt=now();
     await this.persist(); await this.event('mission.cancelled',{runId:id}); return run;
   }
@@ -180,18 +191,23 @@ class ControlPlane {
     if(task.state!=='QUEUED'||run.state!=='RUNNING') return;
     task.state='RUNNING';task.attempts++;task.startedAt=now();
     task.lease={id:uid('lease'),owner:process.pid,expiresAt:new Date(Date.now()+15*60*1000).toISOString()};
+    const lockKey='workspace:'+run.sourceRoot.toLowerCase();
+    let lock=null;
+    try { lock=await this.locks.acquire(lockKey,String(process.pid),{meta:{runId:run.id,taskId:task.id}}); } catch(e) { task.state='QUEUED'; task.lease=null; await this.event('task.waiting_for_lock',{runId:run.id,taskId:task.id}); return; }
     await this.persist();await this.event('task.claimed',{runId:run.id,taskId:task.id,lease:task.lease});
     const controller=new AbortController();this.controllers.set(task.id,controller);
     try{
       const subRoot=path.join(this.rootDir,'runs',run.id,task.id);
       const result=await runHarness({goal:run.goal+'\nTask: '+task.title,done:task.acceptance||run.done,context:run.context+'\nOBJECTIVE: '+task.objective,sourceRoot:run.sourceRoot,runRoot:subRoot,maxTasks:1,maxIterations:run.maxIterations,signal:controller.signal,onEvent:async e=>{task.lastEvent=e;task.updatedAt=now();await this.persist();await this.emit({schema:'aecp.event/v1',type:'task.event',at:now(),runId:run.id,taskId:task.id,data:e});}});
       task.result=result;task.state=result.state==='DONE'?'DONE':result.state;task.lease=null;task.finishedAt=now();
+      if(result.state==='DONE' && result.patch) { task.evidence=await this.evidence.write(run.id,task.id+'-result.json',{task,result}); }
+      if(result.state==='DONE') { task.resultCapsule=await this.contextBus.write('result',{runId:run.id,taskId:task.id,state:task.state,evidence:task.evidence||null,verification:result.tasks}); }
       if(task.state==='HUMAN_REQUIRED') await this.requestApproval(run,task,'Harness requested human approval.');
       await this.event('task.finished',{runId:run.id,taskId:task.id,state:task.state});
     }catch(e){
       task.state=controller.signal.aborted?'CANCELLED':'FAILED';task.error=String(e.message||e);task.lease=null;await this.event('task.failed',{runId:run.id,taskId:task.id,error:task.error});
     }finally{
-      this.controllers.delete(task.id);await this.persist();this.finalizeRun(run).catch(()=>{});this.schedule();
+      this.controllers.delete(task.id); if(lock){try{await this.locks.release(lockKey,String(process.pid),lock.token);}catch{}} await this.persist();this.finalizeRun(run).catch(()=>{});this.schedule();
     }
   }
 
@@ -212,6 +228,7 @@ class ControlPlane {
   }
 
   async status(){return this.snapshot();}
+  async gc(){const removed=await this.contextBus.gc();await this.locks.recover();await this.event('maintenance.gc',{removedCapsules:removed});return{removedCapsules:removed};}
   async listEvents(limit=500){
     try{const lines=(await fs.readFile(this.eventFile,'utf8')).trim().split(/\r?\n/).filter(Boolean);return lines.slice(-clamp(limit,1,5000,500)).map(x=>JSON.parse(x));}catch(e){if(e.code==='ENOENT')return[];throw e;}
   }
