@@ -202,6 +202,7 @@ async function initControlPlane() {
     }
   });
   await controlPlane.init();
+  controlPlane.schedule();
   return controlPlane;
 }
 
