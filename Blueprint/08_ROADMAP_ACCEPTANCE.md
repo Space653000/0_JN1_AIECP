@@ -217,3 +217,6 @@ P4.7 is now implemented at the software-control-plane level: durable queue/sched
 P6 local security foundation is also implemented: loopback-only authenticated supervision plus expiring one-time device pairing, read-only device credentials and revocation. LAN/Internet transport remains intentionally disabled by default and requires an externally owned authenticated transport/identity.
 
 P5 Windows UI Automation remains an optional capability layer and is not part of the safe core. P6.5 Store identity/submission and production code signing remain operator-owned trust operations. P7 requires clean Windows install/update/rollback, accessibility/localization, signed distribution and full release-environment evidence.
+
+
+Crash-safe substep resume is now implemented in the Harness run record: restart recovery can reuse the existing run root, preserve completed task state and continue unfinished bounded iterations. Release-environment validation is still required before calling this behavior production-proven on clean Windows machines.
