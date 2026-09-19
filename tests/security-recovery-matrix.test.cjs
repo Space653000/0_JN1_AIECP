@@ -20,6 +20,7 @@ test('workspace write is policy-governed but does not force a human gate',()=>{
  const result=policy.check({action:'WRITE',path:'C:\\work\\repo'});
  assert.equal(result.allowed,true);
  assert.equal(result.requiresApproval,false);
+ assert.equal(policy.check({action:'EXECUTE',path:'C:\\work\\repo'}).allowed,true);
  assert.equal(policy.check({action:'PUSH',path:'C:\\work\\repo'}).requiresApproval,true);
 });
 
