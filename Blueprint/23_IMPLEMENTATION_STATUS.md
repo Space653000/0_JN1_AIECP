@@ -143,7 +143,7 @@ Git / GitHub
 | Governed PR approval / merge path | Implemented |
 | Full crash-safe substep resume | Implemented |
 | Full multi-repository routing | Implemented for repository-per-task execution |
-| Complete GitHub event/webhook/event-bus integration | Partial — authenticated inbound receiver remains |
+| Complete GitHub event/webhook/event-bus integration | Hardened — signed inbound receiver + polling fallback; production deployment/tunnel remains external |
 | Full security enforcement across every adapter | Hardened in Control Plane delivery paths; adapter-specific completion remains |
 | Mobile authenticated supervision | Local authenticated read-only gateway implemented; LAN pairing not enabled by default |
 | Windows UI automation | Not implemented |
@@ -241,7 +241,7 @@ AECP should not be called production-complete until:
 - Rework resumes from the existing delivery branch instead of silently restarting from main.
 - Delivery commit/push/PR paths are explicitly policy-gated by the mission's governed delivery opt-in.
 - Repository discovery and task-to-repository routing are now part of mission planning; each task executes against its selected Git repository and locks its resources.
-- External event idempotency ledger, maintenance/retention service and local authenticated read-only gateway are implemented.
+- External event idempotency ledger, signed GitHub webhook receiver, maintenance/retention service and local authenticated read-only gateway are implemented.
 - Release pipeline is explicit-tag/manual rather than silently publishing on every main push.
 
 ## Remaining external dependency
