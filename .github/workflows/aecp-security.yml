@@ -24,3 +24,12 @@ jobs:
       - run: node --check electron/lib/context-bus.cjs
       - run: node --check electron/lib/provider-router.cjs
       - run: node --check electron/lib/github-gateway.cjs
+      - run: node --check electron/lib/ci-monitor.cjs
+      - run: node --check electron/lib/delivery.cjs
+      - run: node --check electron/lib/control-plane.cjs
+      - run: node --check electron/lib/harness.cjs
+      - run: node --check electron/lib/event-ledger.cjs
+      - run: node --check electron/lib/resource-manager.cjs
+      - run: node --check electron/lib/maintenance.cjs
+      - run: node --check electron/lib/remote-gateway.cjs
+      - run: npm run verify
