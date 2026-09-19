@@ -208,3 +208,12 @@ P4.7 core acceptance is now implemented in code: durable queue/scheduler, depend
 The remaining P4.7 acceptance item is the **authenticated inbound GitHub event receiver**. Current CI monitoring is commit-SHA polling with durable idempotency and failed-log evidence; polling is deliberately retained as the safe fallback until a webhook/GitHub App transport is configured.
 
 P5/P6 are intentionally separated from the core local Control Plane: Windows UI Automation and LAN/Internet remote supervision require additional capability and identity boundaries. A local authenticated read-only loopback gateway is now implemented.
+
+
+## 2026-09-19 acceptance refresh
+
+P4.7 is now implemented at the software-control-plane level: durable queue/scheduler, resource-aware multi-repo routing, isolated worktrees, bounded rework, independent verification/review, leases/recovery, event ledger, authenticated/idempotent GitHub webhook ingestion, CI evidence, policy enforcement, adapter security audit and deterministic infrastructure E2E are present.
+
+P6 local security foundation is also implemented: loopback-only authenticated supervision plus expiring one-time device pairing, read-only device credentials and revocation. LAN/Internet transport remains intentionally disabled by default and requires an externally owned authenticated transport/identity.
+
+P5 Windows UI Automation remains an optional capability layer and is not part of the safe core. P6.5 Store identity/submission and production code signing remain operator-owned trust operations. P7 requires clean Windows install/update/rollback, accessibility/localization, signed distribution and full release-environment evidence.
