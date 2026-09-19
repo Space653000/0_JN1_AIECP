@@ -220,7 +220,9 @@ class ControlPlane {
       const policyCheck=this.policy.check({action:'WRITE',path:subRoot});
       if(!policyCheck.allowed) throw Object.assign(new Error(policyCheck.reason),{code:policyCheck.requiresApproval?'APPROVAL_REQUIRED':'POLICY_DENIED'});
       task.phase='EXECUTING'; await this.persist();
-      const result=await runHarness({goal:run.goal+'\nTask: '+task.title,done:task.acceptance||run.done,context:run.context+'\nOBJECTIVE: '+task.objective,sourceRoot:run.sourceRoot,runRoot:subRoot,maxTasks:1,maxIterations:run.maxIterations,signal:controller.signal,onEvent:async e=>{task.lastEvent=e;task.updatedAt=now();await this.evidence.appendEvent(run.id,e).catch(()=>{});await this.persist();await this.emit({schema:'aecp.event/v1',type:'task.event',at:now(),runId:run.id,taskId:task.id,data:e});}});
+      let baseRef=null;
+      if(task.delivery?.branch){await this.gitLocal(run.sourceRoot,['fetch','origin',task.delivery.branch]);baseRef='origin/'+task.delivery.branch;}
+      const result=await runHarness({goal:run.goal+'\nTask: '+task.title,done:task.acceptance||run.done,context:run.context+'\nOBJECTIVE: '+task.objective,sourceRoot:run.sourceRoot,runRoot:subRoot,baseRef,maxTasks:1,maxIterations:run.maxIterations,signal:controller.signal,onEvent:async e=>{task.lastEvent=e;task.updatedAt=now();await this.evidence.appendEvent(run.id,e).catch(()=>{});await this.persist();await this.emit({schema:'aecp.event/v1',type:'task.event',at:now(),runId:run.id,taskId:task.id,data:e});}});
       task.phase='VERIFYING'; await this.persist(); task.result=result;task.state=result.state==='DONE'?'DONE':result.state;task.lease=null;task.finishedAt=now();
       if(task.state==='DONE' && run.delivery){
         task.phase='DELIVERY'; await this.persist();
@@ -307,6 +309,7 @@ class ControlPlane {
     run.finishedAt=now();await this.persist();await this.event('mission.finished',{runId:run.id,state:run.state});
   }
 
+  async gitLocal(cwd,args){return await new Promise((resolve,reject)=>{const p=spawn('git',args,{cwd,windowsHide:true,stdio:['ignore','pipe','pipe']});let o='',e='';p.stdout.on('data',b=>o+=b);p.stderr.on('data',b=>e+=b);p.on('error',reject);p.on('close',code=>code===0?resolve(o.trim()):reject(new Error((e||o).slice(-3000))));});}
   async detectRepo(cwd){try{const out=await new Promise((resolve,reject)=>{const p=spawn('gh',['repo','view','--json','nameWithOwner','-q','.nameWithOwner'],{cwd,windowsHide:true,stdio:['ignore','pipe','pipe']});let o='',e='';p.stdout.on('data',b=>o+=b);p.stderr.on('data',b=>e+=b);p.on('error',reject);p.on('close',code=>code===0?resolve(o.trim()):reject(new Error(e||'gh repo view failed')));});return out||null;}catch{return null;}}
   async status(){const s=this.snapshot();s.remote=this.remote?.info()||{enabled:false};s.resources=this.resources.state;return s;}
   async scanResources(root){return this.resources.scan(root)}
