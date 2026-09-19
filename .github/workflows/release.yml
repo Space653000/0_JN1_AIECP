@@ -91,3 +91,42 @@ jobs:
             --title "AI Engineering Control Plane $TAG" \
             --notes-file RELEASE_NOTES.md \
             --prerelease
+
+  build-universal:
+    needs: [build-x64, build-arm64]
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - uses: actions/download-artifact@v4
+        with:
+          name: aecp-windows-x64
+          path: staging/x64
+      - uses: actions/download-artifact@v4
+        with:
+          name: aecp-windows-arm64
+          path: staging/arm64
+      - shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path release/universal-bootstrap/payloads | Out-Null
+          $x = Get-ChildItem staging/x64 -Filter '*x64*.exe' -Recurse | Select-Object -First 1
+          $a = Get-ChildItem staging/arm64 -Filter '*arm64*.exe' -Recurse | Select-Object -First 1
+          if (-not $x -or -not $a) { throw 'Architecture installer payloads not found.' }
+          Copy-Item $x.FullName release/universal-bootstrap/payloads/AI-Engineering-Control-Plane-Setup-x64.exe
+          Copy-Item $a.FullName release/universal-bootstrap/payloads/AI-Engineering-Control-Plane-Setup-arm64.exe
+      - shell: pwsh
+        working-directory: release/universal-bootstrap
+        run: dotnet publish UniversalBootstrap.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o ../../release/universal
+      - shell: pwsh
+        run: |
+          $exe = Get-ChildItem release/universal -Filter '*.exe' | Select-Object -First 1
+          Rename-Item $exe.FullName "release/universal/AI-Engineering-Control-Plane-Setup-$env:GITHUB_REF_NAME.exe"
+          $final = Get-ChildItem release/universal -Filter '*.exe' | Select-Object -First 1
+          $hash = (Get-FileHash $final.FullName -Algorithm SHA256).Hash.ToLower()
+          "$hash  $($final.Name)" | Out-File -Encoding ascii release/universal/SHA256SUMS-universal.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aecp-universal-installer
+          path: release/universal/**
