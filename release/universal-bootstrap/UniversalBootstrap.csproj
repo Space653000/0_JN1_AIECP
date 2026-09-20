@@ -10,7 +10,7 @@
     <AssemblyName>AI-Engineering-Control-Plane-Setup</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
-    <EmbeddedResource Include="payloadsAI-Engineering-Control-Plane-Setup-x64.exe" />
-    <EmbeddedResource Include="payloadsAI-Engineering-Control-Plane-Setup-arm64.exe" />
+    <EmbeddedResource Include="payloads/AI-Engineering-Control-Plane-Setup-x64.exe" />
+    <EmbeddedResource Include="payloads/AI-Engineering-Control-Plane-Setup-arm64.exe" />
   </ItemGroup>
 </Project>
