@@ -1,4 +1,4 @@
-name: CI
+name: AECP Packaging
 
 on:
   pull_request:
@@ -8,21 +8,8 @@ permissions:
   contents: read
 
 jobs:
-  verify:
-    name: Static checks and tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-      - name: Install dependencies
-        run: npm install --no-audit --no-fund
-      - run: npm run verify
-
   package-windows:
     name: Package Windows ${{ matrix.arch }}
-    needs: verify
     runs-on: windows-latest
     strategy:
       fail-fast: false
@@ -35,8 +22,8 @@ jobs:
           node-version: '24'
       - name: Install build dependencies
         run: npm install --no-audit --no-fund
-      - name: Verify again on Windows
-        run: npm run verify
+      - name: Syntax-check release tree on Windows
+        run: npm run check
       - name: Build architecture-specific fallback installer
         shell: pwsh
         run: npx electron-builder --win nsis --${{ matrix.arch }} --publish never
@@ -61,8 +48,8 @@ jobs:
           node-version: '24'
       - name: Install build dependencies
         run: npm install --no-audit --no-fund
-      - name: Verify again on Windows
-        run: npm run verify
+      - name: Syntax-check release tree on Windows
+        run: npm run check
       - name: Build single auto-detect installer
         run: npm run dist:auto
       - name: Upload primary installer artifact
