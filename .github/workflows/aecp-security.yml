@@ -16,8 +16,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - run: npm install
-      - run: npm audit --audit-level=high
+      - run: npm install --no-audit --no-fund
+      - name: Run dependency security audit
+        shell: bash
+        run: npm audit --audit-level=high 2>&1 | tee security-audit.log
       - run: node --check electron/lib/security-policy.cjs
       - run: node --check electron/lib/lock-manager.cjs
       - run: node --check electron/lib/evidence-manager.cjs
