@@ -31,9 +31,9 @@ test('resource manager discovers a git repository and binds task resources',asyn
 });
 
 test('security policy requires approval for merge and rejects outside root',()=>{
- const p=new SecurityPolicy({allowRoots:['C:\work'],maxRisk:'YELLOW'});
- assert.equal(p.check({action:'MERGE',path:'C:\work',approved:false}).requiresApproval,true);
- assert.equal(p.check({action:'WRITE',path:'C:\other',approved:true}).allowed,false);
+ const p=new SecurityPolicy({allowRoots:['C:\\work'],maxRisk:'YELLOW'});
+ assert.equal(p.check({action:'MERGE',path:'C:\\work',approved:false}).requiresApproval,true);
+ assert.equal(p.check({action:'WRITE',path:'C:\\other',approved:true}).allowed,false);
 });
 
 test('remote gateway is loopback and read-only',async()=>{
