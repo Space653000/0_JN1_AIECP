@@ -308,8 +308,13 @@ class ControlPlane {
     if(!run||!task||!task.delivery?.repo||!task.delivery?.branch||!task.delivery?.pr) throw new Error('Delivery approval target not found.');
     if(task.delivery.state!=='DRAFT') throw new Error('Delivery is not awaiting approval.');
     if(task.ci?.state!=='PASSED') throw new Error('Merge is blocked until required CI passes.');
-    const approvals=Object.values(this.state.approvals||{}).filter(a=>a.runId===runId&&a.taskId===taskId&&a.state==='APPROVED');
-    if(!approvals.length) throw new Error('Explicit human approval is required before merge.');
+    let approvals=Object.values(this.state.approvals||{}).filter(a=>a.runId===runId&&a.taskId===taskId&&a.state==='APPROVED');
+    if(!approvals.length){
+      const waiting=Object.values(this.state.approvals||{}).find(a=>a.runId===runId&&a.taskId===taskId&&a.state==='WAITING');
+      if(!waiting) throw new Error('Explicit human approval is required before merge.');
+      await this.approve(waiting.id,{by, note:note||'Approved from governed delivery action.'});
+      approvals=[waiting];
+    }
     const check=this.policy.check({action:'MERGE',path:run.sourceRoot,approved:true});
     if(!check.allowed) throw new Error(check.reason);
     const gh=await new Promise((resolve,reject)=>{const c=spawn('gh',['pr','merge',String(task.delivery.pr),'--repo',task.delivery.repo,'--squash','--delete-branch'],{cwd:run.sourceRoot,windowsHide:true,stdio:['ignore','pipe','pipe']});let o='',e='';c.stdout.on('data',b=>o+=b);c.stderr.on('data',b=>e+=b);c.on('error',reject);c.on('close',code=>code===0?resolve(o.trim()):reject(new Error((e||o).slice(-3000))));});
