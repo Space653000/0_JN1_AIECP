@@ -39,7 +39,6 @@ jobs:
 
   package-windows-auto:
     name: Package Windows Auto Detect (x64 + ARM64)
-    needs: verify
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
