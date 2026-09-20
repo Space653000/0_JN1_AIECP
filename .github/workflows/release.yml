@@ -56,44 +56,8 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-  github-release:
-    name: Publish preview GitHub Release
-    needs: [build-fallback, build-auto]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: aecp-windows-*
-          path: dist
-          merge-multiple: true
-      - name: Generate SHA-256 manifest
-        shell: bash
-        run: |
-          cd dist
-          sha256sum *.exe > SHA256SUMS.txt
-          cat SHA256SUMS.txt
-      - name: Create release if this version is new
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          TAG="${GITHUB_REF_NAME}"
-          if [[ "$TAG" != v* ]]; then TAG="v$(node -p \"require('./package.json').version\")"; fi
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "Release $TAG already exists; keeping the existing immutable preview release."
-            exit 0
-          fi
-          gh release create "$TAG" dist/*.exe dist/*.blockmap dist/SHA256SUMS.txt \
-            --target "$GITHUB_SHA" \
-            --title "AI Engineering Control Plane $TAG" \
-            --notes-file RELEASE_NOTES.md \
-            --prerelease
-
   build-universal:
-    needs: [build-x64, build-arm64]
+    needs: [build-fallback]
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -133,7 +97,7 @@ jobs:
 
   publish-release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [build-x64, build-arm64, build-universal]
+    needs: [build-fallback, build-auto, build-universal]
     runs-on: windows-latest
     permissions:
       contents: write
