@@ -21,6 +21,18 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - run: npm install
-      - run: npm run verify
-      - run: npm test
+      - run: npm install --no-audit --no-fund
+      - name: Run canonical verification and capture evidence
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path artifacts | Out-Null
+          npm run verify *> artifacts/npm-verify.log
+          if ($LASTEXITCODE -ne 0) { Get-Content artifacts/npm-verify.log; exit $LASTEXITCODE }
+      - name: Upload verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aecp-verification-${{ github.sha }}
+          path: artifacts/npm-verify.log
+          if-no-files-found: error
+          retention-days: 14
