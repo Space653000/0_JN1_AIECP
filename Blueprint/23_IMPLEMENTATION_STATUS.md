@@ -102,11 +102,10 @@ Git / GitHub
 - GitHub / CI / Delivery adapters separated from core state machine.
 
 ### CI
-- Repository CI workflow.
-- Security workflow.
-- Syntax and unit/infrastructure tests.
-- Current Security workflow has passed on the latest observed commit.
-- Main CI is still running at the time of this snapshot; it is **not** recorded as passed until GitHub reports success.
+- Canonical AECP verification workflow runs the full `npm verify` gate on Windows.
+- Security workflow runs independently on Ubuntu.
+- Packaging workflow is separated from canonical verification to avoid duplicate/cancelled verification runs.
+- Current-head CI status is always read from GitHub Actions and is **not** recorded as passed until the exact commit reports success.
 
 ## 3. Important decisions now frozen
 
@@ -145,12 +144,12 @@ Git / GitHub
 | Full multi-repository routing | Implemented for repository-per-task execution |
 | Complete GitHub event/webhook/event-bus integration | Hardened — signed inbound receiver + polling fallback; production deployment/tunnel remains external |
 | Full security enforcement across every adapter | Hardened in Control Plane delivery paths; adapter-specific completion remains |
-| Mobile authenticated supervision | Local authenticated read-only gateway implemented; LAN pairing not enabled by default |
+| Mobile authenticated supervision | Pairing foundation implemented; LAN/Internet transport intentionally gated |
 | Windows UI automation | Not implemented |
 | Public/remote MCP gateway | Not implemented |
 | Private Store distribution | Not implemented |
-| One-click production-grade updater | Partial |
-| Full integration/E2E test suite | Partial |
+| One-click production-grade updater | Partial — update/rollback release-environment proof remains |
+| Full integration/E2E test suite | Infrastructure E2E implemented; provider/clean-Windows matrix external |
 | Maintenance / garbage collection automation | Implemented bounded scheduler/retention |
 
 ## 5. Remaining work — ordered by engineering dependency
@@ -185,7 +184,7 @@ Git / GitHub
 - Evidence/artifact retention policy — completed.
 - Orphan worktree cleanup — completed.
 - Failed-run recovery assistant — bounded classifier + safe auto-rework implemented; deeper diagnostic assistant remains.
-- Dependency/security/documentation drift scans — remaining.
+- Dependency/security/documentation drift scans — bounded scanners implemented; production evidence cadence remains.
 - Scheduled maintenance tasks with bounded budgets — completed.
 
 ### P4 — Distribution
@@ -246,18 +245,18 @@ AECP should not be called production-complete until:
 
 ## Remaining external dependency
 
-The only major capabilities that cannot be made genuinely production-complete by repository code alone are external trust/account operations: Microsoft Store publisher identity/certification/submission, production code-signing certificate ownership, and optional LAN/Internet remote gateway deployment with a user-owned domain/device identity. AECP now contains the software-side packaging, checksum, release, policy and local-gateway foundations for those operations.
+The major capabilities that cannot be made genuinely production-complete by repository code alone are external trust/account operations: Microsoft Store publisher identity/certification/submission, production code-signing certificate ownership, and optional LAN/Internet remote gateway deployment with a user-owned domain/device identity. AECP now contains the software-side packaging, checksum, release, policy and local-gateway foundations for those operations.
 
 
-## Next autonomous hardening tranche — 2026-09-19
+## Autonomous hardening record — 2026-09-19
 
-### Engineering work to execute next
-1. **Failure Recovery Assistant** — bounded classifier + low-risk auto-rework is implemented; next step is richer evidence-driven diagnosis without expanding autonomous authority.
-2. **Adapter Security Audit Matrix** — enumerate every external/local adapter and require an explicit SecurityPolicy decision for READ/WRITE/EXECUTE/NETWORK/CREDENTIAL actions.
-3. **Clean E2E Matrix** — exercise Mission → Plan → Queue → Build → Verify → Git → PR → CI → Review → Rework → Human Gate on temporary repositories.
-4. **Release Gate** — clean Windows x64/ARM64 install, update, rollback, provenance and checksum verification.
-5. **Remote Pairing Gate** — authenticated device pairing and read-only remote supervision before any remote execution capability.
-6. **Drift Scans** — scheduled dependency, security, Blueprint/code and documentation consistency checks.
+### Engineering work tracked in this tranche
+1. **Failure Recovery Assistant** — bounded classifier + low-risk auto-rework implemented; richer evidence-driven diagnosis remains bounded by existing authority.
+2. **Adapter Security Audit Matrix** — explicit SecurityPolicy decisions are now required for READ/WRITE/EXECUTE/NETWORK/CREDENTIAL actions.
+3. **Clean E2E Matrix** — temporary-Git infrastructure coverage is implemented; real provider/clean-Windows evidence remains external.
+4. **Release Gate** — clean Windows x64/ARM64 install, update, rollback, provenance and checksum verification remain release-environment evidence gates.
+5. **Remote Pairing Gate** — authenticated one-time pairing, read-only credentials and revocation are implemented; LAN/Internet transport remains gated.
+6. **Drift Scans** — scheduled dependency, security, Blueprint/code and documentation consistency scanners are implemented.
 
 ### Definition of done
 The product is not called Production Ready until all six gates have evidence artifacts and GitHub CI reports success on the exact release commit.
