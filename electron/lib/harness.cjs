@@ -89,6 +89,17 @@ function runProcess(command, args, options = {}) {
 
 function assertProcessPolicy(policy,cwd,approved=false){ if(policy?.assert) policy.assert({action:'EXECUTE',path:cwd,approved}); }
 
+async function invokeRole({router,role,prompt,cwd,model,providerId,policy,signal,timeoutMs,executionApproved=false,networkApproved=false,credentialApproved=false}){
+  const capabilities=router.capabilities(role,providerId);
+  if(!capabilities) throw new Error(`No provider for role: ${role}`);
+  if(capabilities.process) assertProcessPolicy(policy,cwd,executionApproved);
+  else {
+    if(capabilities.network && policy?.assert) policy.assert({action:'NETWORK',path:cwd,approved:networkApproved});
+    if(capabilities.credential && policy?.assert) policy.assert({action:'CREDENTIAL',path:cwd,approved:credentialApproved});
+  }
+  return router.execute(role,prompt,{provider:providerId,model,cwd,signal,timeoutMs,networkApproved,credentialApproved,maxOutputBytes:MAX_OUTPUT});
+}
+
 function kill(child) {
   if (!child?.pid) return;
   if (process.platform === 'win32') spawn('taskkill', ['/PID', String(child.pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' }).unref();
@@ -222,7 +233,7 @@ async function runHarness(options) {
   }
   if (!record) record = { schema: HARNESS_SCHEMA, id: options.runId || id('harness'), state: 'PLANNING',
     goal, done, sourceRoot: root, runRoot, maxIterations, maxTasks, tasks: [], events: [], startedAt: new Date().toISOString() };
-  record.maxIterations=maxIterations; record.maxTasks=maxTasks; record.goal=goal; record.done=done; record.sourceRoot=root; record.runRoot=runRoot; record.providers=roleProviders; record.models=roleModels;
+  record.maxIterations=maxIterations; record.maxTasks=maxTasks; record.goal=goal; record.done=done; record.sourceRoot=root; record.runRoot=runRoot; record.providers=roleProviders; record.models=roleModels; record.providerApprovals={network:Boolean(options.providerNetworkApproved),credential:Boolean(options.providerCredentialApproved)};
   const resumed=Boolean(options.resume && record.plan);
   const persist = async () => { record.updatedAt = new Date().toISOString(); await fs.mkdir(runRoot, { recursive: true }); await fs.writeFile(path.join(runRoot, 'harness.json'), JSON.stringify(record, null, 2)); };
   const emit = async (type, data = {}) => { record.events.push({ at: new Date().toISOString(), type, state: record.state, data }); await persist(); await event(record.events.at(-1)); };
@@ -230,9 +241,7 @@ async function runHarness(options) {
   try {
     if (!resumed) {
       await transition('PLANNING');
-      const planner = cli('planner', plannerPrompt(goal, done, text(options.context, 8000)), root, roleModels.planner, roleProviders.planner, providerRouter);
-      assertProcessPolicy(options.policy, root, Boolean(options.executionApproved));
-      const p = await runProcess(planner.command, planner.args, { cwd: root, signal, timeoutMs: 180000 });
+      const p = await invokeRole({router:providerRouter,role:'planner',prompt:plannerPrompt(goal, done, text(options.context, 8000)),cwd:root,model:roleModels.planner,providerId:roleProviders.planner,policy:options.policy,signal,timeoutMs:180000,executionApproved:Boolean(options.executionApproved),networkApproved:Boolean(options.providerNetworkApproved),credentialApproved:Boolean(options.providerCredentialApproved)});
       if (p.code !== 0) throw new Error(`Planner failed: ${(p.stderr || p.stdout).slice(-2000)}`);
       const plan = normalizePlan(safeJson(p.stdout), goal, done, maxTasks);
       record.plan = plan; record.tasks = plan.tasks.map(t => ({ ...t, state: 'READY', iterations: 0 }));
@@ -256,9 +265,7 @@ async function runHarness(options) {
       const resumeIteration = Math.max(1, Math.min(maxIterations, Number(task.iterations) || 1));
       for (let iteration = resumeIteration; iteration <= maxIterations; iteration++) {
         task.iterations = iteration; await transition('RUNNING', { taskId: task.id, iteration });
-        const build = cli('builder', builderPrompt(task, goal, done, review), wt.worktree, roleModels.builder, roleProviders.builder, providerRouter);
-        assertProcessPolicy(options.policy, wt.worktree, Boolean(options.executionApproved));
-        const b = await runProcess(build.command, build.args, { cwd: wt.worktree, signal, timeoutMs: 600000 });
+        const b = await invokeRole({router:providerRouter,role:'builder',prompt:builderPrompt(task, goal, done, review),cwd:wt.worktree,model:roleModels.builder,providerId:roleProviders.builder,policy:options.policy,signal,timeoutMs:600000,executionApproved:Boolean(options.executionApproved),networkApproved:Boolean(options.providerNetworkApproved),credentialApproved:Boolean(options.providerCredentialApproved)});
         task.worker = { code: b.code, timedOut: b.timedOut, stdout: b.stdout.slice(-12000), stderr: b.stderr.slice(-12000) };
         if (b.code !== 0 || b.timedOut) { review = `Worker failed: ${(b.stderr || b.stdout).slice(-4000)}`; await transition('REWORK', { taskId: task.id, reason: 'worker-failed' }); continue; }
         await transition('VERIFYING', { taskId: task.id });
@@ -270,9 +277,7 @@ async function runHarness(options) {
         if (!v.passed) { review = `Deterministic verification failed.\n${v.stderr.slice(-5000)}`; await transition('REWORK', { taskId: task.id, reason: 'verification-failed' }); continue; }
         await transition('REVIEWING', { taskId: task.id });
         const diff = await diffSummary(wt.worktree, signal);
-        const reviewer = cli('reviewer', reviewerPrompt(task, goal, done, diff, v), root, roleModels.reviewer, roleProviders.reviewer, providerRouter);
-        assertProcessPolicy(options.policy, root, Boolean(options.executionApproved));
-        const rr = await runProcess(reviewer.command, reviewer.args, { cwd: root, signal, timeoutMs: 180000 });
+        const rr = await invokeRole({router:providerRouter,role:'reviewer',prompt:reviewerPrompt(task, goal, done, diff, v),cwd:root,model:roleModels.reviewer,providerId:roleProviders.reviewer,policy:options.policy,signal,timeoutMs:180000,executionApproved:Boolean(options.executionApproved),networkApproved:Boolean(options.providerNetworkApproved),credentialApproved:Boolean(options.providerCredentialApproved)});
         if (rr.code !== 0) { review = `Reviewer failed: ${(rr.stderr || rr.stdout).slice(-3000)}`; continue; }
         const report = safeJson(rr.stdout);
         task.review = report || { result: 'HUMAN_REQUIRED', findings: ['Reviewer did not return valid JSON.'], required_changes: [] };
@@ -299,4 +304,4 @@ async function runHarness(options) {
   }
 }
 
-module.exports = { HARNESS_SCHEMA, STATES, ROLES, DEFAULT_ROLE_PROVIDERS, cli, runHarness, safeJson, normalizePlan };
+module.exports = { HARNESS_SCHEMA, STATES, ROLES, DEFAULT_ROLE_PROVIDERS, cli, invokeRole, runHarness, safeJson, normalizePlan };
