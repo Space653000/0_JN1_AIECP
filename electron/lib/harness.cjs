@@ -4,6 +4,7 @@ const crypto = require('node:crypto');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
+const { ProviderRouter } = require('./provider-router.cjs');
 
 const HARNESS_SCHEMA = 'aecp.harness/v1';
 const MAX_OUTPUT = 1024 * 1024;
@@ -13,10 +14,16 @@ const STATES = Object.freeze([
   'REWORK', 'DONE', 'BLOCKED', 'HUMAN_REQUIRED', 'FAILED', 'CANCELLED'
 ]);
 
+const DEFAULT_ROLE_PROVIDERS = Object.freeze({
+  planner: 'claude',
+  builder: 'codex',
+  reviewer: 'claude'
+});
+
 const ROLES = Object.freeze({
-  planner: { id: 'planner', label: 'Planner', command: 'claude' },
-  builder: { id: 'builder', label: 'Builder', command: 'codex' },
-  reviewer: { id: 'reviewer', label: 'Reviewer', command: 'claude' }
+  planner: { id: 'planner', label: 'Planner', defaultProvider: DEFAULT_ROLE_PROVIDERS.planner },
+  builder: { id: 'builder', label: 'Builder', defaultProvider: DEFAULT_ROLE_PROVIDERS.builder },
+  reviewer: { id: 'reviewer', label: 'Reviewer', defaultProvider: DEFAULT_ROLE_PROVIDERS.reviewer }
 });
 
 function id(prefix) {
@@ -110,18 +117,10 @@ async function verify(worktree, command, args, signal) {
     stdout: r.stdout.slice(-20000), stderr: r.stderr.slice(-20000) };
 }
 
-function cli(role, prompt, cwd, model) {
-  if (role === 'builder') {
-    const args = ['exec', '--ephemeral', '--ignore-user-config', '--ignore-rules',
-      '--sandbox', 'workspace-write', '--json', '--cd', cwd,
-      '-c', 'sandbox_workspace_write.network_access=false'];
-    if (model) args.push('--model', model);
-    args.push(prompt);
-    return { command: 'codex', args };
-  }
-  const args = ['-p', prompt, '--output-format', 'json'];
-  if (model) args.push('--model', model);
-  return { command: 'claude', args };
+function cli(role, prompt, cwd, model, providerId, router = new ProviderRouter()) {
+  const provider = providerId || DEFAULT_ROLE_PROVIDERS[role];
+  if (!provider) throw new Error(`No default provider for role: ${role}`);
+  return router.commandSpec(provider, role, prompt, { model, cwd });
 }
 
 function normalizePlan(plan, goal, done, maxTasks) {
@@ -196,13 +195,24 @@ async function runHarness(options) {
   const maxTasks = bounded(options.maxTasks, 1, 8, 4);
   const signal = options.signal;
   const event = options.onEvent || (async () => {});
+  const providerRouter = options.providerRouter || new ProviderRouter();
+  const roleProviders = {
+    planner: options.plannerProvider || DEFAULT_ROLE_PROVIDERS.planner,
+    builder: options.builderProvider || DEFAULT_ROLE_PROVIDERS.builder,
+    reviewer: options.reviewerProvider || DEFAULT_ROLE_PROVIDERS.reviewer
+  };
+  const roleModels = {
+    planner: options.plannerModel || null,
+    builder: options.builderModel || null,
+    reviewer: options.reviewerModel || null
+  };
   let record = null;
   if (options.resume) {
     try { record = JSON.parse(await fs.readFile(path.join(runRoot, 'harness.json'), 'utf8')); } catch {}
   }
   if (!record) record = { schema: HARNESS_SCHEMA, id: options.runId || id('harness'), state: 'PLANNING',
     goal, done, sourceRoot: root, runRoot, maxIterations, maxTasks, tasks: [], events: [], startedAt: new Date().toISOString() };
-  record.maxIterations=maxIterations; record.maxTasks=maxTasks; record.goal=goal; record.done=done; record.sourceRoot=root; record.runRoot=runRoot;
+  record.maxIterations=maxIterations; record.maxTasks=maxTasks; record.goal=goal; record.done=done; record.sourceRoot=root; record.runRoot=runRoot; record.providers=roleProviders; record.models=roleModels;
   const resumed=Boolean(options.resume && record.plan);
   const persist = async () => { record.updatedAt = new Date().toISOString(); await fs.mkdir(runRoot, { recursive: true }); await fs.writeFile(path.join(runRoot, 'harness.json'), JSON.stringify(record, null, 2)); };
   const emit = async (type, data = {}) => { record.events.push({ at: new Date().toISOString(), type, state: record.state, data }); await persist(); await event(record.events.at(-1)); };
@@ -210,7 +220,7 @@ async function runHarness(options) {
   try {
     if (!resumed) {
       await transition('PLANNING');
-      const planner = cli('planner', plannerPrompt(goal, done, text(options.context, 8000)), root, options.plannerModel);
+      const planner = cli('planner', plannerPrompt(goal, done, text(options.context, 8000)), root, roleModels.planner, roleProviders.planner, providerRouter);
       assertProcessPolicy(options.policy, root, Boolean(options.executionApproved));
       const p = await runProcess(planner.command, planner.args, { cwd: root, signal, timeoutMs: 180000 });
       if (p.code !== 0) throw new Error(`Planner failed: ${(p.stderr || p.stdout).slice(-2000)}`);
@@ -236,7 +246,7 @@ async function runHarness(options) {
       const resumeIteration = Math.max(1, Math.min(maxIterations, Number(task.iterations) || 1));
       for (let iteration = resumeIteration; iteration <= maxIterations; iteration++) {
         task.iterations = iteration; await transition('RUNNING', { taskId: task.id, iteration });
-        const build = cli('builder', builderPrompt(task, goal, done, review), wt.worktree, options.builderModel);
+        const build = cli('builder', builderPrompt(task, goal, done, review), wt.worktree, roleModels.builder, roleProviders.builder, providerRouter);
         assertProcessPolicy(options.policy, wt.worktree, Boolean(options.executionApproved));
         const b = await runProcess(build.command, build.args, { cwd: wt.worktree, signal, timeoutMs: 600000 });
         task.worker = { code: b.code, timedOut: b.timedOut, stdout: b.stdout.slice(-12000), stderr: b.stderr.slice(-12000) };
@@ -250,7 +260,7 @@ async function runHarness(options) {
         if (!v.passed) { review = `Deterministic verification failed.\n${v.stderr.slice(-5000)}`; await transition('REWORK', { taskId: task.id, reason: 'verification-failed' }); continue; }
         await transition('REVIEWING', { taskId: task.id });
         const diff = await diffSummary(wt.worktree, signal);
-        const reviewer = cli('reviewer', reviewerPrompt(task, goal, done, diff, v), root, options.reviewerModel);
+        const reviewer = cli('reviewer', reviewerPrompt(task, goal, done, diff, v), root, roleModels.reviewer, roleProviders.reviewer, providerRouter);
         assertProcessPolicy(options.policy, root, Boolean(options.executionApproved));
         const rr = await runProcess(reviewer.command, reviewer.args, { cwd: root, signal, timeoutMs: 180000 });
         if (rr.code !== 0) { review = `Reviewer failed: ${(rr.stderr || rr.stdout).slice(-3000)}`; continue; }
@@ -279,4 +289,4 @@ async function runHarness(options) {
   }
 }
 
-module.exports = { HARNESS_SCHEMA, STATES, ROLES, runHarness, safeJson, normalizePlan };
+module.exports = { HARNESS_SCHEMA, STATES, ROLES, DEFAULT_ROLE_PROVIDERS, cli, runHarness, safeJson, normalizePlan };
