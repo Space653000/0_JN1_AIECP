@@ -44,6 +44,11 @@ class ProviderRouter {
       if (!selectedModel) throw new Error('Ollama provider requires a model (options.model or AECP_OLLAMA_MODEL).');
       return { command: provider.command, args: ['run', selectedModel, prompt], provider: provider.id, model: selectedModel, cwd: cwd || null };
     }
+    if (provider.mode === 'local-command') {
+      if (!provider.command || typeof provider.command !== 'string') throw new Error('Local command provider requires a fixed registered command.');
+      const prefix = Array.isArray(provider.args) ? provider.args.map(String) : [];
+      return { command: provider.command, args: [...prefix, prompt], provider: provider.id, model: selectedModel || null, cwd: cwd || null };
+    }
     if (provider.id === 'codex') {
       const args = ['exec', '--ephemeral', '--ignore-user-config', '--ignore-rules', '--sandbox', 'workspace-write', '--json'];
       if (cwd) args.push('--cd', cwd);
