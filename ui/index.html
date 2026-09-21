@@ -140,14 +140,15 @@
   <div id="providerOverlay" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="providerTitle">
     <div class="modal provider-modal">
       <div class="modal-header"><div><span class="eyebrow">PROVIDER REGISTRY</span><h2 id="providerTitle">Intelligence providers</h2></div><button class="icon-button" id="closeProviderButton" type="button">×</button></div>
-      <p class="muted">ChatGPT Web is built in. Optional API/local/MCP providers can be registered without changing the Local Harness. Preview stores API secrets using OS-protected Electron safeStorage, but does not invoke external APIs yet.</p>
+      <p class="muted">ChatGPT Web is built in. Optional API/local/MCP providers can be registered without changing the Local Harness. API/local providers can serve governed Planner/Reviewer roles. Secrets stay OS-protected; direct network and credential use require explicit authorization.</p>
       <div id="providerList" class="provider-list"></div>
       <form id="providerForm" class="provider-form">
         <h3>Add optional provider</h3>
         <div class="form-grid">
           <label>Name<input id="providerNameInput" maxlength="80" placeholder="Example: Company API" required></label>
           <label>Kind<select id="providerKindInput"><option value="api">API</option><option value="local">Local</option><option value="remote-mcp">Remote MCP</option></select></label>
-          <label class="wide">Base URL<input id="providerUrlInput" placeholder="https://api.example.com or http://localhost:11434"></label>
+          <label class="wide">Base URL<input id="providerUrlInput" placeholder="https://api.example.com/v1 or http://localhost:11434/v1"></label>
+          <label class="wide">Default model<input id="providerModelInput" maxlength="200" placeholder="Example: company-code-model or qwen3-coder:30b"></label>
           <label class="wide">API key (optional)<input id="providerKeyInput" type="password" autocomplete="new-password" placeholder="Stored encrypted by Windows/Electron safeStorage"></label>
         </div>
         <div class="modal-actions"><button type="button" id="cancelProviderButton" class="secondary-button">Cancel</button><button type="submit" class="primary-button">Save provider</button></div>
