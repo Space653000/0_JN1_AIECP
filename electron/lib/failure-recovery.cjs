@@ -15,7 +15,7 @@ const HUMAN_PATTERNS=[
  /policy/i,/security/i,/merge/i,/delete/i,/production/i
 ];
 const DETERMINISTIC_PATTERNS=[
- /test failed/i,/failing test/i,/lint/i,/build failed/i,/compile/i,/assert/i,
+ /test failed/i,/failing test/i,/\blint(?:ed|ing)?\b/i,/build failed/i,/\bcompile(?:d|s|ing)?\b/i,/\bassert(?:ion|ed|s|ing)?\b/i,
  /syntax error/i,/type error/i,/module not found/i,/command not found/i
 ];
 
@@ -27,7 +27,7 @@ function classifyFailure(input={}){
  const text=evidenceText(input);
  if(HUMAN_PATTERNS.some(r=>r.test(text)))return 'HIGH_RISK_OR_AUTH';
  if(TRANSIENT_PATTERNS.some(r=>r.test(text)))return 'TRANSIENT';
- if(DETERMINISTIC_PATTERNS.some(r=>r.test(text)) || /test|lint|build|compile|assert/i.test(text))return 'DETERMINISTIC_FAILURE';
+ if(DETERMINISTIC_PATTERNS.some(r=>r.test(text)))return 'DETERMINISTIC_FAILURE';
  return 'UNKNOWN';
 }
 
