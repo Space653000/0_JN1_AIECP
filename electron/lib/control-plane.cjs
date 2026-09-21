@@ -4,7 +4,7 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { spawn } = require('node:child_process');
-const { runHarness, safeJson } = require('./harness.cjs');
+const { runHarness, safeJson, DEFAULT_ROLE_PROVIDERS } = require('./harness.cjs');
 const { SecurityPolicy } = require('./security-policy.cjs');
 const { LockManager } = require('./lock-manager.cjs');
 const { EvidenceManager } = require('./evidence-manager.cjs');
@@ -89,6 +89,24 @@ class ControlPlane {
     return {schema:SCHEMA,updatedAt:this.state?.updatedAt,runs:Object.values(this.state?.runs||{}),tasks:Object.values(this.state?.tasks||{}),agents:Object.values(this.state?.agents||{}),approvals:Object.values(this.state?.approvals||{}),locks:Object.values(this.state?.locks||{})};
   }
 
+  policyForRun(run){
+    const roots=[this.rootDir,run?.sourceRoot,...(run?.repositoryPaths||[])].filter(Boolean).map(x=>path.resolve(String(x)));
+    return new SecurityPolicy({allowRoots:[...new Set(roots)]});
+  }
+
+  normalizeRoleConfig(providers={},models={}){
+    const selected={};
+    const selectedModels={};
+    for(const role of ['planner','builder','reviewer']){
+      const provider=String(providers?.[role]||DEFAULT_ROLE_PROVIDERS[role]||'').trim();
+      if(!provider||!this.providers.resolve(role,provider)) throw new Error(`Provider "${provider||'(empty)'}" cannot serve role "${role}".`);
+      selected[role]=provider;
+      const model=models?.[role];
+      selectedModels[role]=typeof model==='string'&&model.trim()?model.trim().slice(0,200):null;
+    }
+    return {providers:selected,models:selectedModels};
+  }
+
   async recover(){
     for(const run of Object.values(this.state.runs||{})){
       if(run.state==='RUNNING' && !this.controllers.has(run.id)){
@@ -120,15 +138,18 @@ class ControlPlane {
       'CONTEXT:\n'+run.context,
       'AVAILABLE REPOSITORIES:\n'+repositories.map(r=>r.path+' | '+r.remote+' | '+r.branch).join('\n')
     ].join('\n\n');
-    const out=await new Promise((resolve,reject)=>{
-      const child=spawn('claude',['-p',prompt,'--output-format','json'],{cwd:run.sourceRoot,windowsHide:true,stdio:['ignore','pipe','pipe']});
-      let stdout='',stderr='';const timer=setTimeout(()=>{try{child.kill()}catch{};reject(new Error('Mission planner timed out.'));},180000);
-      child.stdout.on('data',b=>{stdout+=b.toString()});
-      child.stderr.on('data',b=>{stderr+=b.toString()});
-      child.on('error',e=>{clearTimeout(timer);reject(e)});
-      child.on('close',code=>{clearTimeout(timer);if(code!==0)reject(new Error((stderr||stdout).slice(-3000)));else resolve(stdout)});
+    const roleConfig=this.normalizeRoleConfig(run.providers,run.models);
+    run.providers=roleConfig.providers; run.models=roleConfig.models;
+    const runPolicy=this.policyForRun(run);
+    runPolicy.assert({action:'EXECUTE',path:run.sourceRoot});
+    const execution=await this.providers.execute('planner',prompt,{
+      provider:run.providers.planner,
+      model:run.models.planner,
+      cwd:run.sourceRoot,
+      timeoutMs:180000
     });
-    const plan=safeJson(out);
+    if(execution.code!==0||execution.timedOut||execution.aborted) throw new Error('Mission planner failed: '+String(execution.stderr||execution.stdout||'unknown provider failure').slice(-3000));
+    const plan=safeJson(execution.stdout);
     const tasks=Array.isArray(plan?.tasks)?plan.tasks.slice(0,run.maxTasks):[];
     if(!tasks.length) throw new Error('Planner returned no tasks.');
     for(const item of tasks) await this.enqueueTask(run,{title:String(item.title||'Task'),objective:String(item.objective||''),acceptance:String(item.acceptance||run.done),dependencies:Array.isArray(item.dependencies)?item.dependencies:[],risk:['GREEN','YELLOW','RED'].includes(item.risk)?item.risk:'YELLOW',repositories:Array.isArray(item.repositories)?item.repositories:[]});
@@ -136,10 +157,12 @@ class ControlPlane {
     return tasks;
   }
 
-  async createMission({goal,done,sourceRoot,context='',maxTasks=8,maxIterations=5,maxConcurrency=2,autoStart=true,autoResume=true,delivery=false,githubRepo=null}){
+  async createMission({goal,done,sourceRoot,context='',maxTasks=8,maxIterations=5,maxConcurrency=2,autoStart=true,autoResume=true,delivery=false,githubRepo=null,providers={},models={}}){
     if(!goal||!done) throw new Error('Goal and Definition of Done are required.');
+    if(!sourceRoot) throw new Error('Mission sourceRoot is required.');
+    const roleConfig=this.normalizeRoleConfig(providers,models);
     const id=uid('mission');
-    const run={id,schema:'aecp.mission/v1',goal,done,sourceRoot:path.resolve(sourceRoot),context,maxTasks:clamp(maxTasks,1,8,8),maxIterations:clamp(maxIterations,1,5,5),maxConcurrency:clamp(maxConcurrency,1,8,2),autoResume:Boolean(autoResume),delivery:Boolean(delivery),githubRepo:githubRepo||null,state:'QUEUED',createdAt:now(),updatedAt:now(),taskIds:[],events:[]};
+    const run={id,schema:'aecp.mission/v1',goal,done,sourceRoot:path.resolve(sourceRoot),context,maxTasks:clamp(maxTasks,1,8,8),maxIterations:clamp(maxIterations,1,5,5),maxConcurrency:clamp(maxConcurrency,1,8,2),autoResume:Boolean(autoResume),delivery:Boolean(delivery),githubRepo:githubRepo||null,providers:roleConfig.providers,models:roleConfig.models,state:'QUEUED',createdAt:now(),updatedAt:now(),taskIds:[],events:[]};
     this.state.runs[id]=run;
     await this.persist();
     await this.event('mission.created',{runId:id,state:run.state,goal});
@@ -236,22 +259,25 @@ class ControlPlane {
     try { for(const key of lockKeys) locks.push(await this.locks.acquire(key,String(process.pid),{meta:{runId:run.id,taskId:task.id}})); } catch(e) { for(const x of locks){try{await this.locks.release(x.key,String(process.pid),x.token)}catch{}} task.state='QUEUED'; task.lease=null; await this.event('task.waiting_for_lock',{runId:run.id,taskId:task.id,error:String(e.message||e)}); return; }
     await this.persist();await this.event('task.claimed',{runId:run.id,taskId:task.id,lease:task.lease});
     const controller=new AbortController();this.controllers.set(task.id,controller);
+    const runPolicy=this.policyForRun(run);
+    const roleConfig=this.normalizeRoleConfig(run.providers,run.models);
+    run.providers=roleConfig.providers; run.models=roleConfig.models;
     try{
-      const policyCheck=this.policy.check({action:'WRITE',path:subRoot});
+      const policyCheck=runPolicy.check({action:'WRITE',path:subRoot});
       if(!policyCheck.allowed) throw Object.assign(new Error(policyCheck.reason),{code:policyCheck.requiresApproval?'APPROVAL_REQUIRED':'POLICY_DENIED'});
       if(!this.adapterSecurity.ok) throw new Error('Adapter security audit failed; autonomous execution is blocked.');
       task.phase='EXECUTING'; await this.persist();
       let baseRef=null;
       if(task.delivery?.branch){await this.gitLocal(taskRoot,['fetch','origin',task.delivery.branch]);baseRef='origin/'+task.delivery.branch;}
-      const result=await runHarness({goal:run.goal+'\nTask: '+task.title,done:task.acceptance||run.done,context:run.context+'\nOBJECTIVE: '+task.objective,sourceRoot:taskRoot,runRoot:subRoot,baseRef,maxTasks:1,maxIterations:run.maxIterations,signal:controller.signal,policy:this.policy,resume:Boolean(task.resume),onEvent:async e=>{task.lastEvent=e;task.updatedAt=now();await this.evidence.appendEvent(run.id,e).catch(()=>{});await this.persist();await this.emit({schema:'aecp.event/v1',type:'task.event',at:now(),runId:run.id,taskId:task.id,data:e});}});
+      const result=await runHarness({goal:run.goal+'\nTask: '+task.title,done:task.acceptance||run.done,context:run.context+'\nOBJECTIVE: '+task.objective,sourceRoot:taskRoot,runRoot:subRoot,baseRef,maxTasks:1,maxIterations:run.maxIterations,signal:controller.signal,policy:runPolicy,plannerProvider:run.providers.planner,builderProvider:run.providers.builder,reviewerProvider:run.providers.reviewer,plannerModel:run.models.planner,builderModel:run.models.builder,reviewerModel:run.models.reviewer,resume:Boolean(task.resume),onEvent:async e=>{task.lastEvent=e;task.updatedAt=now();await this.evidence.appendEvent(run.id,e).catch(()=>{});await this.persist();await this.emit({schema:'aecp.event/v1',type:'task.event',at:now(),runId:run.id,taskId:task.id,data:e});}});
       task.phase='VERIFYING'; await this.persist(); task.result=result;task.state=result.state==='DONE'?'DONE':result.state;task.lease=null;task.resume=false;task.finishedAt=now();
       if(task.state==='DONE' && run.delivery){
         task.phase='DELIVERY'; await this.persist();
         try{
           const repo=task.delivery?.repo || (path.resolve(taskRoot)===path.resolve(run.sourceRoot)?run.githubRepo:null) || await this.detectRepo(taskRoot); if(!repo) throw new Error('GitHub repository could not be detected.');
-          this.policy.assert({action:'COMMIT',path:result.worktree,approved:Boolean(run.delivery)});
-          this.policy.assert({action:'PUSH',path:result.worktree,approved:Boolean(run.delivery)});
-          this.policy.assert({action:'PR',path:result.worktree,approved:Boolean(run.delivery)});
+          runPolicy.assert({action:'COMMIT',path:result.worktree,approved:Boolean(run.delivery)});
+          runPolicy.assert({action:'PUSH',path:result.worktree,approved:Boolean(run.delivery)});
+          runPolicy.assert({action:'PR',path:result.worktree,approved:Boolean(run.delivery)});
           const branch='agent/'+task.id;
           const delivery=new DeliveryManager({repo,cwd:taskRoot});
           await delivery.branch(result.worktree,branch);
@@ -317,9 +343,10 @@ class ControlPlane {
       await this.approve(waiting.id,{by, note:note||'Approved from governed delivery action.'});
       approvals=[waiting];
     }
-    const check=this.policy.check({action:'MERGE',path:run.sourceRoot,approved:true});
+    const mergeRoot=path.resolve(task.delivery?.taskRoot||run.sourceRoot);
+    const check=this.policyForRun(run).check({action:'MERGE',path:mergeRoot,approved:true});
     if(!check.allowed) throw new Error(check.reason);
-    const gh=await new Promise((resolve,reject)=>{const c=spawn('gh',['pr','merge',String(task.delivery.pr),'--repo',task.delivery.repo,'--squash','--delete-branch'],{cwd:run.sourceRoot,windowsHide:true,stdio:['ignore','pipe','pipe']});let o='',e='';c.stdout.on('data',b=>o+=b);c.stderr.on('data',b=>e+=b);c.on('error',reject);c.on('close',code=>code===0?resolve(o.trim()):reject(new Error((e||o).slice(-3000))));});
+    const gh=await new Promise((resolve,reject)=>{const c=spawn('gh',['pr','merge',String(task.delivery.pr),'--repo',task.delivery.repo,'--squash','--delete-branch'],{cwd:mergeRoot,windowsHide:true,stdio:['ignore','pipe','pipe']});let o='',e='';c.stdout.on('data',b=>o+=b);c.stderr.on('data',b=>e+=b);c.on('error',reject);c.on('close',code=>code===0?resolve(o.trim()):reject(new Error((e||o).slice(-3000))));});
     task.delivery.state='MERGED'; task.delivery.mergedAt=now(); task.delivery.mergedBy=by; task.delivery.note=note; task.state='DONE';
     await this.persist(); await this.event('delivery.merged',{runId,taskId,pr:task.delivery.pr,by,note,output:gh}); await this.finalizeRun(run); return task;
   }
