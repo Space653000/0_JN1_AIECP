@@ -35,6 +35,42 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+  smoke-install:
+    name: Smoke install Windows ${{ matrix.arch }}
+    needs: [build-fallback]
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: windows-latest
+          - arch: arm64
+            runner: windows-11-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: aecp-windows-${{ matrix.arch }}
+          path: smoke
+      - name: Silent install and uninstall smoke test
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem smoke -Filter '*.exe' -Recurse | Where-Object { $_.Name -match '-${{ matrix.arch }}-' } | Select-Object -First 1
+          if (-not $installer) { throw 'Architecture installer artifact not found.' }
+          $installDir = Join-Path $env:RUNNER_TEMP 'aecp-smoke-${{ matrix.arch }}'
+          Remove-Item $installDir -Recurse -Force -ErrorAction SilentlyContinue
+          $install = Start-Process -FilePath $installer.FullName -ArgumentList @('/S', "/D=$installDir") -PassThru -Wait
+          if ($install.ExitCode -ne 0) { throw "Installer exited with $($install.ExitCode)." }
+          $app = Get-ChildItem $installDir -Filter 'AI Engineering Control Plane.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $app) { throw 'Installed AECP executable not found.' }
+          $uninstaller = Get-ChildItem $installDir -Filter 'Uninstall*.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $uninstaller) { throw 'AECP uninstaller not found.' }
+          $uninstall = Start-Process -FilePath $uninstaller.FullName -ArgumentList '/S' -PassThru -Wait
+          if ($uninstall.ExitCode -ne 0) { throw "Uninstaller exited with $($uninstall.ExitCode)." }
+          Start-Sleep -Seconds 2
+          if (Test-Path $app.FullName) { throw 'AECP executable still exists after uninstall.' }
+
   build-auto:
     name: Build Windows Auto Detect (x64 + ARM64)
     runs-on: windows-latest
@@ -97,7 +133,7 @@ jobs:
 
   publish-release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [build-fallback, build-auto, build-universal]
+    needs: [build-fallback, build-auto, build-universal, smoke-install]
     runs-on: windows-latest
     permissions:
       contents: write
