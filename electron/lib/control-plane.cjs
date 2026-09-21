@@ -4,7 +4,7 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { spawn } = require('node:child_process');
-const { runHarness, safeJson, DEFAULT_ROLE_PROVIDERS } = require('./harness.cjs');
+const { runHarness, safeJson, DEFAULT_ROLE_PROVIDERS, invokeRole } = require('./harness.cjs');
 const { SecurityPolicy } = require('./security-policy.cjs');
 const { LockManager } = require('./lock-manager.cjs');
 const { EvidenceManager } = require('./evidence-manager.cjs');
@@ -30,7 +30,7 @@ function now(){return new Date().toISOString();}
 function clamp(n,min,max,d){const x=Number(n);return Number.isFinite(x)?Math.max(min,Math.min(max,x)):d;}
 
 class ControlPlane {
-  constructor({rootDir, emit=async()=>{}}={}) {
+  constructor({rootDir, emit=async()=>{}, providerRouter=null}={}) {
     this.rootDir=path.resolve(rootDir);
     this.file=path.join(this.rootDir,'control-plane.json');
     this.eventFile=path.join(this.rootDir,'events.jsonl');
@@ -42,7 +42,7 @@ class ControlPlane {
     this.locks=new LockManager(path.join(this.rootDir,'locks'));
     this.evidence=new EvidenceManager(path.join(this.rootDir,'evidence'));
     this.contextBus=new ContextBus(this.rootDir);
-    this.providers=new ProviderRouter();
+    this.providers=providerRouter||new ProviderRouter();
     this.delivery=new DeliveryManager({repo:null,cwd:this.rootDir});
     this.ledger=new EventLedger(this.eventFile+'.ledger');
     this.resources=new ResourceManager(path.join(this.rootDir,'resources'));
@@ -141,12 +141,17 @@ class ControlPlane {
     const roleConfig=this.normalizeRoleConfig(run.providers,run.models);
     run.providers=roleConfig.providers; run.models=roleConfig.models;
     const runPolicy=this.policyForRun(run);
-    runPolicy.assert({action:'EXECUTE',path:run.sourceRoot});
-    const execution=await this.providers.execute('planner',prompt,{
-      provider:run.providers.planner,
+    const execution=await invokeRole({
+      router:this.providers,
+      role:'planner',
+      prompt,
+      providerId:run.providers.planner,
       model:run.models.planner,
       cwd:run.sourceRoot,
-      timeoutMs:180000
+      policy:runPolicy,
+      timeoutMs:180000,
+      networkApproved:Boolean(run.providerApprovals?.network),
+      credentialApproved:Boolean(run.providerApprovals?.credential)
     });
     if(execution.code!==0||execution.timedOut||execution.aborted) throw new Error('Mission planner failed: '+String(execution.stderr||execution.stdout||'unknown provider failure').slice(-3000));
     const plan=safeJson(execution.stdout);
@@ -157,12 +162,12 @@ class ControlPlane {
     return tasks;
   }
 
-  async createMission({goal,done,sourceRoot,context='',maxTasks=8,maxIterations=5,maxConcurrency=2,autoStart=true,autoResume=true,delivery=false,githubRepo=null,providers={},models={}}){
+  async createMission({goal,done,sourceRoot,context='',maxTasks=8,maxIterations=5,maxConcurrency=2,autoStart=true,autoResume=true,delivery=false,githubRepo=null,providers={},models={},providerApprovals={}}){
     if(!goal||!done) throw new Error('Goal and Definition of Done are required.');
     if(!sourceRoot) throw new Error('Mission sourceRoot is required.');
     const roleConfig=this.normalizeRoleConfig(providers,models);
     const id=uid('mission');
-    const run={id,schema:'aecp.mission/v1',goal,done,sourceRoot:path.resolve(sourceRoot),context,maxTasks:clamp(maxTasks,1,8,8),maxIterations:clamp(maxIterations,1,5,5),maxConcurrency:clamp(maxConcurrency,1,8,2),autoResume:Boolean(autoResume),delivery:Boolean(delivery),githubRepo:githubRepo||null,providers:roleConfig.providers,models:roleConfig.models,state:'QUEUED',createdAt:now(),updatedAt:now(),taskIds:[],events:[]};
+    const run={id,schema:'aecp.mission/v1',goal,done,sourceRoot:path.resolve(sourceRoot),context,maxTasks:clamp(maxTasks,1,8,8),maxIterations:clamp(maxIterations,1,5,5),maxConcurrency:clamp(maxConcurrency,1,8,2),autoResume:Boolean(autoResume),delivery:Boolean(delivery),githubRepo:githubRepo||null,providers:roleConfig.providers,models:roleConfig.models,providerApprovals:{network:Boolean(providerApprovals?.network),credential:Boolean(providerApprovals?.credential)},state:'QUEUED',createdAt:now(),updatedAt:now(),taskIds:[],events:[]};
     this.state.runs[id]=run;
     await this.persist();
     await this.event('mission.created',{runId:id,state:run.state,goal});
@@ -198,6 +203,9 @@ class ControlPlane {
     const a=this.state.approvals[id]; if(!a) throw new Error('Approval not found.');
     if(a.state!=='WAITING') throw new Error('Approval is not waiting.');
     a.state='APPROVED'; a.decidedAt=now(); a.decidedBy=by; a.note=note;
+    const run=this.state.runs[a.runId];
+    if(run && a.action==='NETWORK'){run.providerApprovals||={};run.providerApprovals.network=true;}
+    if(run && a.action==='CREDENTIAL'){run.providerApprovals||={};run.providerApprovals.credential=true;}
     const task=this.state.tasks[a.taskId]; if(task){task.lease=null;if(!task.delivery?.pr) task.state='QUEUED'; else task.state='HUMAN_REQUIRED';}
     await this.persist(); await this.event('approval.approved',{runId:a.runId,taskId:a.taskId,approvalId:id});
     this.schedule(); return a;
@@ -269,7 +277,7 @@ class ControlPlane {
       task.phase='EXECUTING'; await this.persist();
       let baseRef=null;
       if(task.delivery?.branch){await this.gitLocal(taskRoot,['fetch','origin',task.delivery.branch]);baseRef='origin/'+task.delivery.branch;}
-      const result=await runHarness({goal:run.goal+'\nTask: '+task.title,done:task.acceptance||run.done,context:run.context+'\nOBJECTIVE: '+task.objective,sourceRoot:taskRoot,runRoot:subRoot,baseRef,maxTasks:1,maxIterations:run.maxIterations,signal:controller.signal,policy:runPolicy,plannerProvider:run.providers.planner,builderProvider:run.providers.builder,reviewerProvider:run.providers.reviewer,plannerModel:run.models.planner,builderModel:run.models.builder,reviewerModel:run.models.reviewer,resume:Boolean(task.resume),onEvent:async e=>{task.lastEvent=e;task.updatedAt=now();await this.evidence.appendEvent(run.id,e).catch(()=>{});await this.persist();await this.emit({schema:'aecp.event/v1',type:'task.event',at:now(),runId:run.id,taskId:task.id,data:e});}});
+      const result=await runHarness({goal:run.goal+'\nTask: '+task.title,done:task.acceptance||run.done,context:run.context+'\nOBJECTIVE: '+task.objective,sourceRoot:taskRoot,runRoot:subRoot,baseRef,maxTasks:1,maxIterations:run.maxIterations,signal:controller.signal,policy:runPolicy,providerRouter:this.providers,plannerProvider:run.providers.planner,builderProvider:run.providers.builder,reviewerProvider:run.providers.reviewer,plannerModel:run.models.planner,builderModel:run.models.builder,reviewerModel:run.models.reviewer,providerNetworkApproved:Boolean(run.providerApprovals?.network),providerCredentialApproved:Boolean(run.providerApprovals?.credential),resume:Boolean(task.resume),onEvent:async e=>{task.lastEvent=e;task.updatedAt=now();await this.evidence.appendEvent(run.id,e).catch(()=>{});await this.persist();await this.emit({schema:'aecp.event/v1',type:'task.event',at:now(),runId:run.id,taskId:task.id,data:e});}});
       task.phase='VERIFYING'; await this.persist(); task.result=result;task.state=result.state==='DONE'?'DONE':result.state;task.lease=null;task.resume=false;task.finishedAt=now();
       if(task.state==='DONE' && run.delivery){
         task.phase='DELIVERY'; await this.persist();
@@ -293,7 +301,13 @@ class ControlPlane {
       if(task.state==='HUMAN_REQUIRED') await this.requestApproval(run,task,'Harness requested human approval.');
       await this.event('task.finished',{runId:run.id,taskId:task.id,state:task.state});
     }catch(e){
-      task.state=controller.signal.aborted?'CANCELLED':'FAILED';task.error=String(e.message||e);task.lease=null;task.recovery=recommendRecovery({error:task.error,phase:task.phase});await this.event('task.failed',{runId:run.id,taskId:task.id,error:task.error,recovery:task.recovery});if(task.recovery.autoEligible && task.attempts < run.maxIterations){task.state='REWORK';task.reworkReason=task.recovery.reason;task.reworkAt=now();await this.persist();await this.event('task.recovery_rework',{runId:run.id,taskId:task.id,attempt:task.attempts,recovery:task.recovery});task.state='QUEUED';}
+      task.error=String(e.message||e);task.lease=null;
+      if(e?.code==='APPROVAL_REQUIRED'){
+        task.state='HUMAN_REQUIRED';
+        await this.requestApproval(run,task,task.error,e.action||e.policy?.action||null);
+      }else{
+        task.state=controller.signal.aborted?'CANCELLED':'FAILED';task.recovery=recommendRecovery({error:task.error,phase:task.phase});await this.event('task.failed',{runId:run.id,taskId:task.id,error:task.error,recovery:task.recovery});if(task.recovery.autoEligible && task.attempts < run.maxIterations){task.state='REWORK';task.reworkReason=task.recovery.reason;task.reworkAt=now();await this.persist();await this.event('task.recovery_rework',{runId:run.id,taskId:task.id,attempt:task.attempts,recovery:task.recovery});task.state='QUEUED';}
+      }
     }finally{
       this.controllers.delete(task.id); for(const x of locks){try{await this.locks.release(x.key,String(process.pid),x.token);}catch{}} await this.persist();this.finalizeRun(run).catch(()=>{});this.schedule();
     }
@@ -351,9 +365,9 @@ class ControlPlane {
     await this.persist(); await this.event('delivery.merged',{runId,taskId,pr:task.delivery.pr,by,note,output:gh}); await this.finalizeRun(run); return task;
   }
 
-  async requestApproval(run,task,reason){
+  async requestApproval(run,task,reason,action=null){
     const id=uid('approval');
-    this.state.approvals[id]={id,runId:run.id,taskId:task.id,state:'WAITING',risk:task.risk||'RED',reason,createdAt:now()};
+    this.state.approvals[id]={id,runId:run.id,taskId:task.id,state:'WAITING',risk:task.risk||'RED',reason,action:action||null,createdAt:now()};
     task.state='HUMAN_REQUIRED';await this.persist();await this.event('approval.requested',{runId:run.id,taskId:task.id,approvalId:id,risk:task.risk||'RED',reason});
   }
 
