@@ -9,6 +9,7 @@ const os = require('node:os');
 const { pathToFileURL } = require('node:url');
 const { runHarness } = require('./lib/harness.cjs');
 const { ControlPlane } = require('./lib/control-plane.cjs');
+const { migrateState } = require('./lib/state-migration.cjs');
 
 const { parseCommandCard, makeTaskId, makeResultCapsule, hashJson } = require('./lib/protocol.cjs');
 const { compareVersions, versionFromTag, selectHighestRelease, selectInstallerAsset } = require('./lib/version.cjs');
@@ -75,15 +76,27 @@ async function writeJsonAtomic(file, value) {
 }
 
 async function loadState() {
-  const state = await readJson(dataPath('state.json'), defaultState());
-  if (state.schemaVersion !== STATE_SCHEMA) throw new Error(`Unsupported local state schema ${state.schemaVersion}.`);
-  state.workspaces ||= [];
-  state.tasks ||= [];
-  state.providers ||= [];
+  const raw = await readJson(dataPath('state.json'), defaultState());
+  const migration = migrateState(raw, STATE_SCHEMA);
+  const state = migration.state;
+  if (migration.mode === 'READ_ONLY_RECOVERY') {
+    Object.defineProperty(state, '__aecpReadOnlyRecovery', { value: true, enumerable: false });
+    state.recovery = {
+      mode: migration.mode,
+      sourceVersion: migration.sourceVersion,
+      supportedVersion: migration.targetVersion,
+      reason: migration.reason
+    };
+    return state;
+  }
+  if (migration.migrated) await writeJsonAtomic(dataPath('state.json'), state);
   return state;
 }
 
 async function saveState(state) {
+  if (state?.__aecpReadOnlyRecovery || state?.recovery?.mode === 'READ_ONLY_RECOVERY') {
+    throw new Error('AECP local state is in read-only recovery mode because it was created by a newer schema.');
+  }
   await writeJsonAtomic(dataPath('state.json'), state);
 }
 
