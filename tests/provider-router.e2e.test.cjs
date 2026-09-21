@@ -16,7 +16,7 @@ test('Provider Router executes a deterministic local worker without network acce
     await fs.writeFile(worker, '#!/bin/sh\nprintf "LOCAL_PROVIDER_OK\\n"\n', 'utf8');
     await fs.chmod(worker, 0o755);
   }
-  const registry = { local: { command: worker, roles: ['builder'], mode: 'local-test' } };
+  const registry = { local: { command: worker, roles: ['builder'], mode: 'local-command' } };
   const router = new ProviderRouter(registry);
   const result = await router.execute('builder', 'deterministic test', { provider: 'local', cwd: root, timeoutMs: 5000 });
   assert.equal(result.code, 0);
