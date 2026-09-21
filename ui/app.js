@@ -15,6 +15,7 @@ const state = {
   autonomyOptions: null,
   autonomyStatus: null,
   harnessStatus: null,
+  guidance: null,
   selectedTaskId: null,
   view: 'start',
   engineering: false,
@@ -65,7 +66,7 @@ function statusClass(value) {
 }
 
 async function loadAll() {
-  const [app, data, tools, tasks, providers, agents, githubConnection, mcpStatus, autonomyOptions, autonomyStatus, harnessStatus] = await Promise.all([
+  const [app, data, tools, tasks, providers, agents, githubConnection, mcpStatus, autonomyOptions, autonomyStatus, harnessStatus, guidance] = await Promise.all([
     safe(() => window.aecp.getAppInfo()),
     safe(() => window.aecp.getState()),
     safe(() => window.aecp.detectTools(), []),
@@ -76,7 +77,8 @@ async function loadAll() {
     safe(() => window.aecp.getMcpStatus(), null),
     safe(() => window.aecp.getAutonomyOptions(), null),
     safe(() => window.aecp.getAutonomyStatus(), null),
-    safe(() => window.aecp.getHarnessStatus(), null)
+    safe(() => window.aecp.getHarnessStatus(), null),
+    safe(() => window.aecp.getGuidance({ chatgptOpened: state.chatgptOpened }), null)
   ]);
   state.app = app;
   state.data = data;
@@ -89,6 +91,7 @@ async function loadAll() {
   state.autonomyOptions = autonomyOptions;
   state.autonomyStatus = autonomyStatus;
   state.harnessStatus = harnessStatus;
+  state.guidance = guidance;
   if (!state.selectedTaskId && state.tasks[0]) state.selectedTaskId = state.tasks[0].id;
   if (state.selectedTaskId && !state.tasks.some((task) => task.id === state.selectedTaskId)) state.selectedTaskId = state.tasks[0]?.id || null;
   render();
@@ -225,6 +228,14 @@ function renderStart(host) {
   const repos = workspace.repositories?.length || 0;
   const latest = state.tasks[0];
   const nextTaskText = latest ? `${latest.title} · ${latest.state}` : 'No local task yet';
+  const guidance = state.guidance || { action: 'CREATE_GOAL', label: 'Define a Goal Loop', detail: 'Create measurable work.' };
+  const guidanceAction = guidance.action === 'CHOOSE_WORKSPACE' ? 'choose-workspace'
+    : guidance.action === 'OPEN_CHATGPT' ? 'open-chatgpt'
+    : guidance.action === 'RUN_TASK' ? 'run-task'
+    : guidance.action === 'REVIEW_EVIDENCE' ? 'show-evidence'
+    : guidance.action === 'WATCH_ACTIVE_WORK' ? 'show-loop'
+    : guidance.action === 'REVIEW_APPROVAL' ? 'show-loop'
+    : 'show-loop';
   host.innerHTML = `<section class="task-detail">
     <div class="card-title-row"><div><span class="eyebrow">GUIDED START</span><h3>What do you want to accomplish?</h3></div><span class="status ready">Ready</span></div>
     <p class="muted">Beginner mode hides the plumbing. AECP detects the environment, keeps the Workspace boundary, and shows the next useful action.</p>
@@ -236,11 +247,13 @@ function renderStart(host) {
     </div>
     <h3>Execution mode</h3>
     ${executionModeCards()}
-    <h3>Choose one path</h3>
+    <h3>Recommended action</h3>
+    <div class="privacy-note"><strong>${esc(guidance.label)}</strong><p>${esc(guidance.detail)}</p></div>
     <div class="task-actions">
-      <button class="primary-button" data-action="open-chatgpt">1 · Open ChatGPT</button>
-      <button class="secondary-button" data-action="sample-task">2 · Run safe local check</button>
-      <button class="secondary-button" data-action="show-loop">Goal Loop · Longer work</button>
+      <button class="primary-button" data-action="${guidanceAction}" ${guidance.taskId ? `data-task-id="${esc(guidance.taskId)}"` : ''}>${esc(guidance.label)}</button>
+      <button class="secondary-button" data-action="sample-task">Run safe local check</button>
+      <button class="secondary-button" data-action="show-loop">Goal Loop</button>
+      <button class="secondary-button" data-action="open-chatgpt">Open ChatGPT</button>
     </div>
     <div class="privacy-note"><strong>Automatic where safe</strong><p>Architecture, tools, repositories and Git state are detected automatically. AECP asks only for choices that affect data access, permissions, or high-risk actions.</p></div>
   </section>`;
