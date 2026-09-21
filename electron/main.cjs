@@ -10,6 +10,7 @@ const { pathToFileURL } = require('node:url');
 const { runHarness } = require('./lib/harness.cjs');
 const { ControlPlane } = require('./lib/control-plane.cjs');
 const { migrateState } = require('./lib/state-migration.cjs');
+const { recommendNextAction } = require('./lib/guidance.cjs');
 
 const { parseCommandCard, makeTaskId, makeResultCapsule, hashJson } = require('./lib/protocol.cjs');
 const { compareVersions, versionFromTag, selectHighestRelease, selectInstallerAsset } = require('./lib/version.cjs');
@@ -838,6 +839,18 @@ function registerIpc() {
     hostname: os.hostname(),
     userDataPath: app.getPath('userData')
   }));
+
+  ipcMain.handle('guidance:recommend', async (_event, payload) => {
+    const state = await loadState();
+    const cp = controlPlane ? await controlPlane.status() : null;
+    return recommendNextAction({
+      hasWorkspace: Boolean(getCurrentWorkspace(state)),
+      tasks: [...(cp?.tasks || []), ...(state.tasks || [])],
+      approvals: cp?.approvals || [],
+      chatgptOpened: Boolean(payload?.chatgptOpened),
+      harnessState: harnessRecord?.state || null
+    });
+  });
 
   ipcMain.handle('state:get', async () => {
     const state = await loadState();
