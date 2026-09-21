@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { safeJson, normalizePlan, STATES } = require('../electron/lib/harness.cjs');
+const { safeJson, normalizePlan, STATES, cli } = require('../electron/lib/harness.cjs');
 
 test('Harness exposes bounded state machine states', () => {
   assert.ok(STATES.includes('PLANNING'));
@@ -26,4 +26,24 @@ test('Planner output is normalized and bounded', () => {
   assert.equal(plan.schema, 'aecp.plan/v1');
   assert.equal(plan.tasks.length, 2);
   assert.deepEqual(plan.tasks[1].dependencies, ['T1']);
+});
+
+test('Provider Router-backed Harness role selection is explicit and vendor-neutral', () => {
+  const calls = [];
+  const router = {
+    commandSpec(provider, role, prompt, options) {
+      calls.push({ provider, role, prompt, options });
+      return { command: 'worker', args: [prompt], provider, model: options.model || null, cwd: options.cwd };
+    }
+  };
+  const spec = cli('builder', 'build safely', 'C:\\repo', 'local-model', 'local-agent', router);
+  assert.equal(spec.provider, 'local-agent');
+  assert.equal(spec.command, 'worker');
+  assert.equal(calls[0].role, 'builder');
+  assert.equal(calls[0].options.model, 'local-model');
+});
+
+test('safeJson unwraps provider CLI result envelopes', () => {
+  const value = safeJson(JSON.stringify({ type: 'result', result: '{"result":"PASS","findings":[],"required_changes":[]}' }));
+  assert.equal(value.result, 'PASS');
 });
