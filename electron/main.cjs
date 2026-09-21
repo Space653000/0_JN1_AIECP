@@ -9,6 +9,8 @@ const os = require('node:os');
 const { pathToFileURL } = require('node:url');
 const { runHarness } = require('./lib/harness.cjs');
 const { ControlPlane } = require('./lib/control-plane.cjs');
+const { ProviderRouter, PROVIDERS } = require('./lib/provider-router.cjs');
+const { SecurityPolicy } = require('./lib/security-policy.cjs');
 const { migrateState } = require('./lib/state-migration.cjs');
 const { recommendNextAction } = require('./lib/guidance.cjs');
 
@@ -211,6 +213,7 @@ async function initControlPlane() {
   if (controlPlane) return controlPlane;
   controlPlane = new ControlPlane({
     rootDir: dataPath('runtime'),
+    providerRouter: await buildRuntimeProviderRouter(),
     emit: async (event) => {
       if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('control-plane:event', event);
     }
@@ -230,8 +233,11 @@ async function startHarness(payload) {
   const runRoot = dataPath('harness', 'runs', `run-${Date.now()}`);
   const initial = { schema: 'aecp.harness/v1', state: 'PLANNING', runRoot, goal: payload?.goal || '', done: payload?.done || '', startedAt: new Date().toISOString() };
   harnessRecord = initial;
+  const providerRouter = await buildRuntimeProviderRouter();
+  const policy = new SecurityPolicy({ allowRoots: [workspace.rootPath, runRoot] });
   void runHarness({
     ...payload, sourceRoot: workspace.rootPath, runRoot, signal: controller.signal,
+    providerRouter, policy,
     onEvent: async (event) => {
       harnessRecord = { ...harnessRecord, state: event.state, events: [...(harnessRecord.events || []), event] };
       sendAutonomyEvent({ schema: 'aecp.harness.event/v1', ...event });
@@ -710,6 +716,35 @@ async function loadSecrets() {
   return readJson(dataPath('credentials.json'), { schemaVersion: 1, values: {} });
 }
 
+async function buildRuntimeProviderRouter() {
+  const state = await loadState();
+  const secrets = await loadSecrets();
+  const registry = Object.fromEntries(Object.entries(PROVIDERS).map(([id, provider]) => [id, { ...provider, roles: [...(provider.roles || [])] }]));
+  for (const item of state.providers || []) {
+    if (!['api', 'local'].includes(item.kind) || !item.baseUrl || !item.defaultModel) continue;
+    let apiKey = '';
+    const encrypted = secrets.values?.[item.id];
+    if (encrypted && safeStorage.isEncryptionAvailable()) {
+      try { apiKey = safeStorage.decryptString(Buffer.from(encrypted, 'base64')); } catch {}
+    }
+    registry[item.id] = {
+      mode: 'openai-compatible',
+      baseUrl: item.baseUrl,
+      defaultModel: item.defaultModel,
+      roles: Array.isArray(item.roles) && item.roles.length ? item.roles : ['planner', 'reviewer', 'general'],
+      apiKey,
+      network: true,
+      credential: Boolean(apiKey),
+      kind: item.kind
+    };
+  }
+  return new ProviderRouter(registry);
+}
+
+async function refreshRuntimeProviders() {
+  if (controlPlane) controlPlane.providers = await buildRuntimeProviderRouter();
+}
+
 async function getOrCreateLocalMcpToken() {
   if (!safeStorage.isEncryptionAvailable()) throw new Error('OS credential encryption is unavailable; Local MCP cannot start safely.');
   const secrets = await loadSecrets();
@@ -792,18 +827,29 @@ async function saveProvider(payload) {
   const kind = String(payload?.kind || 'api');
   const baseUrl = String(payload?.baseUrl || '').trim();
   const apiKey = String(payload?.apiKey || '');
+  const defaultModel = String(payload?.defaultModel || '').trim().slice(0, 200);
   if (name.length < 2 || name.length > 80) throw new Error('Provider name must be 2–80 characters.');
   if (!['api', 'local', 'remote-mcp'].includes(kind)) throw new Error('Unsupported provider kind.');
-  if (baseUrl && !/^https:\/\//i.test(baseUrl) && !/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?(?:\/|$)/i.test(baseUrl)) throw new Error('Provider URL must use HTTPS, except localhost development endpoints.');
+  if (!baseUrl) throw new Error('Provider Base URL is required.');
+  let parsedUrl;
+  try { parsedUrl = new URL(baseUrl); } catch { throw new Error('Provider Base URL is invalid.'); }
+  const isLoopback = ['localhost', '127.0.0.1', '::1'].includes(parsedUrl.hostname);
+  if (parsedUrl.protocol !== 'https:' && !(parsedUrl.protocol === 'http:' && isLoopback)) throw new Error('Provider URL must use HTTPS, except localhost development endpoints.');
+  if (kind === 'local' && !isLoopback) throw new Error('Local provider URL must resolve to loopback.');
+  if (['api', 'local'].includes(kind) && !defaultModel) throw new Error('API/local provider requires a default model.');
 
   const id = payload?.id || `provider-${crypto.randomBytes(5).toString('hex')}`;
+  const existing = state.providers.find((item) => item.id === id);
+  const roles = ['api', 'local'].includes(kind) ? ['planner', 'reviewer', 'general'] : [];
   const provider = {
     id,
     name,
     kind,
     baseUrl,
-    status: apiKey ? 'CONFIGURED' : 'NOT_CONFIGURED',
-    credentialRef: apiKey ? `cred:${id}` : null,
+    defaultModel: defaultModel || null,
+    roles,
+    status: kind === 'remote-mcp' || defaultModel ? 'CONFIGURED' : 'NOT_CONFIGURED',
+    credentialRef: apiKey ? `cred:${id}` : (existing?.credentialRef || null),
     updatedAt: new Date().toISOString()
   };
   const index = state.providers.findIndex((item) => item.id === id);
@@ -816,6 +862,7 @@ async function saveProvider(payload) {
     await writeJsonAtomic(dataPath('credentials.json'), secrets);
   }
   await saveState(state);
+  await refreshRuntimeProviders();
   return (await publicProviders(state)).find((item) => item.id === id);
 }
 
@@ -827,6 +874,7 @@ async function deleteProvider(providerId) {
   delete secrets.values[providerId];
   await writeJsonAtomic(dataPath('credentials.json'), secrets);
   await saveState(state);
+  await refreshRuntimeProviders();
   return true;
 }
 
