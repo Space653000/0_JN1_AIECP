@@ -52,3 +52,16 @@ test('Codex builder keeps the bounded workspace sandbox', () => {
   assert.ok(spec.args.includes('C:\\repo'));
   assert.ok(spec.args.includes('sandbox_workspace_write.network_access=false'));
 });
+
+test('fixed local-command provider uses only its registered executable and arguments', () => {
+  const registry = { local: { command: 'trusted-local-worker', args: ['--bounded'], roles: ['builder'], mode: 'local-command' } };
+  const spec = new ProviderRouter(registry).commandSpec('local', 'builder', 'TASK_TEXT_CANNOT_SELECT_EXECUTABLE', { cwd: 'C:\\repo' });
+  assert.equal(spec.command, 'trusted-local-worker');
+  assert.deepEqual(spec.args, ['--bounded', 'TASK_TEXT_CANNOT_SELECT_EXECUTABLE']);
+  assert.equal(spec.cwd, 'C:\\repo');
+});
+
+test('unknown provider mode is rejected', () => {
+  const registry = { local: { command: 'worker', roles: ['builder'], mode: 'unknown-mode' } };
+  assert.throws(() => new ProviderRouter(registry).commandSpec('local', 'builder', 'work'), /Unsupported provider mode/);
+});
