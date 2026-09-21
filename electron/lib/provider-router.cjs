@@ -12,88 +12,64 @@ const PROVIDERS = Object.freeze({
 
 function run(command, args, { cwd, timeoutMs = 180000, signal, env = {} } = {}) {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, {
-      cwd,
-      env: { ...process.env, ...env },
-      windowsHide: true,
-      shell: false,
-      stdio: ['ignore', 'pipe', 'pipe']
-    });
+    const child = spawn(command, args, { cwd, env: { ...process.env, ...env }, windowsHide: true, shell: false, stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = '', stderr = '', timedOut = false, aborted = false;
-    const timer = setTimeout(() => {
-      timedOut = true;
-      try { child.kill(); } catch {}
-    }, Math.max(1000, timeoutMs));
-    const abort = () => {
-      aborted = true;
-      try { child.kill(); } catch {}
-    };
+    const timer = setTimeout(() => { timedOut = true; try { child.kill(); } catch {} }, Math.max(1000, timeoutMs));
+    const abort = () => { aborted = true; try { child.kill(); } catch {} };
     if (signal) signal.aborted ? abort() : signal.addEventListener('abort', abort, { once: true });
     child.stdout.on('data', b => { stdout += b; });
     child.stderr.on('data', b => { stderr += b; });
     child.on('error', reject);
-    child.on('close', code => {
-      clearTimeout(timer);
-      if (signal) signal.removeEventListener('abort', abort);
-      resolve({ code: Number.isInteger(code) ? code : -1, stdout, stderr, timedOut, aborted });
-    });
+    child.on('close', code => { clearTimeout(timer); if (signal) signal.removeEventListener('abort', abort); resolve({ code: Number.isInteger(code) ? code : -1, stdout, stderr, timedOut, aborted }); });
   });
 }
 
-function normalizeRoles(provider) {
-  if (!provider) return [];
-  if (Array.isArray(provider.roles)) return provider.roles;
-  return provider.role ? [provider.role] : [];
-}
+function normalizeRoles(provider) { return Array.isArray(provider?.roles) ? provider.roles : provider?.role ? [provider.role] : []; }
 
 class ProviderRouter {
-  constructor(registry = PROVIDERS) {
-    this.registry = registry;
-  }
-
+  constructor(registry = PROVIDERS) { this.registry = registry; }
   resolve(role, preferred) {
     const ids = preferred ? [preferred] : Object.keys(this.registry);
     for (const id of ids) {
       const provider = this.registry[id];
-      if (!provider) continue;
-      const roles = normalizeRoles(provider);
-      if (roles.includes(role) || (role === 'general' && roles.includes('general'))) return { id, ...provider };
+      if (provider && normalizeRoles(provider).includes(role)) return { id, ...provider };
     }
     return null;
   }
-
-  commandSpec(providerId, role, prompt, { model } = {}) {
+  commandSpec(providerId, role, prompt, { model, cwd } = {}) {
     const provider = this.resolve(role, providerId);
     if (!provider) throw new Error(`No provider for role: ${role}`);
     const selectedModel = model || process.env[`AECP_${provider.id.toUpperCase()}_MODEL`] || '';
     if (provider.mode === 'ollama') {
       if (!selectedModel) throw new Error('Ollama provider requires a model (options.model or AECP_OLLAMA_MODEL).');
-      return { command: provider.command, args: ['run', selectedModel, prompt], provider: provider.id, model: selectedModel };
+      return { command: provider.command, args: ['run', selectedModel, prompt], provider: provider.id, model: selectedModel, cwd: cwd || null };
     }
     if (provider.id === 'codex') {
-      const args = ['exec', '--ephemeral', '--ignore-user-config', '--ignore-rules', '--sandbox', 'workspace-write', '-c', 'sandbox_workspace_write.network_access=false'];
+      const args = ['exec', '--ephemeral', '--ignore-user-config', '--ignore-rules', '--sandbox', 'workspace-write', '--json'];
+      if (cwd) args.push('--cd', cwd);
+      args.push('-c', 'sandbox_workspace_write.network_access=false');
       if (selectedModel) args.push('--model', selectedModel);
       args.push(prompt);
-      return { command: provider.command, args, provider: provider.id, model: selectedModel || null };
+      return { command: provider.command, args, provider: provider.id, model: selectedModel || null, cwd: cwd || null };
     }
     if (provider.id === 'claude') {
       const args = ['-p', prompt, '--output-format', 'json'];
       if (selectedModel) args.push('--model', selectedModel);
-      return { command: provider.command, args, provider: provider.id, model: selectedModel || null };
+      return { command: provider.command, args, provider: provider.id, model: selectedModel || null, cwd: cwd || null };
     }
     if (provider.id === 'opencode') {
-      const args = ['run', prompt];
-      if (selectedModel) args.unshift('--model', selectedModel);
-      return { command: provider.command, args, provider: provider.id, model: selectedModel || null };
+      const args = ['run'];
+      if (selectedModel) args.push('--model', selectedModel);
+      args.push(prompt);
+      return { command: provider.command, args, provider: provider.id, model: selectedModel || null, cwd: cwd || null };
     }
     if (provider.id === 'gemini') {
       const args = ['-p', prompt];
       if (selectedModel) args.push('--model', selectedModel);
-      return { command: provider.command, args, provider: provider.id, model: selectedModel || null };
+      return { command: provider.command, args, provider: provider.id, model: selectedModel || null, cwd: cwd || null };
     }
     throw new Error(`Unsupported provider mode: ${provider.mode}`);
   }
-
   async execute(role, prompt, opts = {}) {
     const spec = this.commandSpec(opts.provider, role, prompt, opts);
     return { ...await run(spec.command, spec.args, opts), provider: spec.provider, model: spec.model };
