@@ -1,7 +1,7 @@
 'use strict';
 
-const ACTIONS=Object.freeze({READ:'READ',TEST:'TEST',WRITE:'WRITE',EXECUTE:'EXECUTE',INSTALL:'INSTALL',COMMIT:'COMMIT',PUSH:'PUSH',PR:'PR',MERGE:'MERGE',DELETE:'DELETE',CREDENTIAL:'CREDENTIAL',SYSTEM:'SYSTEM'});
-const RISK=Object.freeze({READ:'GREEN',TEST:'GREEN',WRITE:'YELLOW',EXECUTE:'YELLOW',INSTALL:'YELLOW',COMMIT:'YELLOW',PUSH:'RED',PR:'YELLOW',MERGE:'RED',DELETE:'RED',CREDENTIAL:'RED',SYSTEM:'RED'});
+const ACTIONS=Object.freeze({READ:'READ',TEST:'TEST',WRITE:'WRITE',EXECUTE:'EXECUTE',NETWORK:'NETWORK',INSTALL:'INSTALL',COMMIT:'COMMIT',PUSH:'PUSH',PR:'PR',MERGE:'MERGE',DELETE:'DELETE',CREDENTIAL:'CREDENTIAL',SYSTEM:'SYSTEM'});
+const RISK=Object.freeze({READ:'GREEN',TEST:'GREEN',WRITE:'YELLOW',EXECUTE:'YELLOW',NETWORK:'YELLOW',INSTALL:'YELLOW',COMMIT:'YELLOW',PUSH:'RED',PR:'YELLOW',MERGE:'RED',DELETE:'RED',CREDENTIAL:'RED',SYSTEM:'RED'});
 const ORDER=Object.freeze({GREEN:0,YELLOW:1,RED:2});
 const normalizeRisk=r=>['GREEN','YELLOW','RED'].includes(r)?r:'RED';
 
@@ -9,7 +9,7 @@ class SecurityPolicy{
  constructor(o={}){
   this.allowRoots=(o.allowRoots||[]).map(x=>String(x).toLowerCase());
   this.maxRisk=normalizeRisk(o.maxRisk||'YELLOW');
-  this.requireApprovalFor=new Set(o.requireApprovalFor||['INSTALL','PUSH','PR','MERGE','DELETE','CREDENTIAL','SYSTEM']);
+  this.requireApprovalFor=new Set(o.requireApprovalFor||['NETWORK','INSTALL','PUSH','PR','MERGE','DELETE','CREDENTIAL','SYSTEM']);
  }
  classify(a){return RISK[a]||'RED';}
  check({action,path='',approved=false}={}){
