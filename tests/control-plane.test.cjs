@@ -55,3 +55,49 @@ test('ControlPlane recovers orphaned execution state after restart', async () =>
   await cp2.shutdown();
   await fs.rm(root, { recursive: true, force: true });
 });
+
+test('ControlPlane stores explicit provider roles and scopes policy to the mission workspace', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'aecp-provider-mission-'));
+  const workspace = path.join(root, 'workspace');
+  const runtime = path.join(root, 'runtime');
+  await fs.mkdir(workspace, { recursive: true });
+  const cp = new ControlPlane({ rootDir: runtime });
+  await cp.init();
+  try {
+    const run = await cp.createMission({
+      goal: 'Use explicit provider roles',
+      done: 'Mission configuration is persisted',
+      sourceRoot: workspace,
+      autoStart: false,
+      providers: { planner: 'gemini', builder: 'opencode', reviewer: 'gemini' },
+      models: { planner: 'planner-model', builder: 'local/model', reviewer: 'review-model' }
+    });
+    assert.deepEqual(run.providers, { planner: 'gemini', builder: 'opencode', reviewer: 'gemini' });
+    assert.equal(run.models.builder, 'local/model');
+    const policy = cp.policyForRun(run);
+    assert.equal(policy.check({ action: 'EXECUTE', path: workspace }).allowed, true);
+    assert.equal(policy.check({ action: 'WRITE', path: path.join(workspace, 'file.txt') }).allowed, true);
+    assert.equal(policy.check({ action: 'WRITE', path: path.join(root, 'outside') }).allowed, false);
+  } finally {
+    await cp.shutdown();
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+test('ControlPlane rejects a provider that cannot serve the requested role', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'aecp-provider-invalid-'));
+  const cp = new ControlPlane({ rootDir: path.join(root, 'runtime') });
+  await cp.init();
+  try {
+    await assert.rejects(() => cp.createMission({
+      goal: 'Reject invalid role routing',
+      done: 'Invalid role provider is rejected',
+      sourceRoot: root,
+      autoStart: false,
+      providers: { planner: 'codex', builder: 'codex', reviewer: 'claude' }
+    }), /cannot serve role "planner"/);
+  } finally {
+    await cp.shutdown();
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
