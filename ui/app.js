@@ -442,7 +442,7 @@ async function renderEvidence(host) {
 
 function renderProviders() {
   const host = $('#providerList');
-  host.innerHTML = state.providers.map((provider) => `<div class="provider-item"><div><strong>${esc(provider.name)}</strong><small>${esc(provider.kind)} · ${esc(provider.status)}${provider.hasCredential ? ' · credential stored' : ''}${provider.baseUrl ? ` · ${esc(provider.baseUrl)}` : ''}</small></div>${provider.builtIn ? '<span class="status ready">Built in</span>' : `<button class="secondary-button" data-delete-provider="${esc(provider.id)}" type="button">Remove</button>`}</div>`).join('');
+  host.innerHTML = state.providers.map((provider) => `<div class="provider-item"><div><strong>${esc(provider.name)}</strong><small>${esc(provider.kind)} · ${esc(provider.status)}${provider.hasCredential ? ' · credential stored' : ''}${provider.defaultModel ? ` · model ${esc(provider.defaultModel)}` : ''}${provider.baseUrl ? ` · ${esc(provider.baseUrl)}` : ''}</small></div>${provider.builtIn ? '<span class="status ready">Built in</span>' : `<button class="secondary-button" data-delete-provider="${esc(provider.id)}" type="button">Remove</button>`}</div>`).join('');
 }
 
 function renderAgents() {
@@ -735,6 +735,7 @@ function bindEvents() {
       name: $('#providerNameInput').value,
       kind: $('#providerKindInput').value,
       baseUrl: $('#providerUrlInput').value,
+      defaultModel: $('#providerModelInput').value,
       apiKey: $('#providerKeyInput').value
     };
     const saved = await safe(() => window.aecp.saveProvider(payload));
