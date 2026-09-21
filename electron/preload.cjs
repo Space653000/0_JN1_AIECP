@@ -6,6 +6,7 @@ const call = (channel, payload) => ipcRenderer.invoke(channel, payload);
 contextBridge.exposeInMainWorld('aecp', Object.freeze({
   getAppInfo: () => call('app:info'),
   getState: () => call('state:get'),
+  getGuidance: (context) => call('guidance:recommend', context),
   selectWorkspace: () => call('workspace:select'),
   refreshWorkspace: () => call('workspace:refresh'),
   openWorkspace: () => call('workspace:open'),
