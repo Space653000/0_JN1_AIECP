@@ -41,11 +41,21 @@ function bounded(value, min, max, fallback) {
 
 function safeJson(raw) {
   const s = String(raw || '').trim().replace(/^\`\`\`(?:json)?\s*/i, '').replace(/\s*\`\`\`$/i, '');
-  try { return JSON.parse(s); } catch {}
+  const unwrap = (value) => {
+    if (!value || typeof value !== 'object') return value;
+    for (const key of ['result', 'output', 'response', 'text']) {
+      if (typeof value[key] === 'string') {
+        const nested = safeJson(value[key]);
+        if (nested) return nested;
+      }
+    }
+    return value;
+  };
+  try { return unwrap(JSON.parse(s)); } catch {}
   const start = s.indexOf('{');
   const end = s.lastIndexOf('}');
   if (start >= 0 && end > start) {
-    try { return JSON.parse(s.slice(start, end + 1)); } catch {}
+    try { return unwrap(JSON.parse(s.slice(start, end + 1))); } catch {}
   }
   return null;
 }
