@@ -56,14 +56,14 @@ class ControlPlane {
     await this.locks.init(); await this.evidence.init(); await this.contextBus.init(); await this.ledger.init(); await this.resources.init();
     this.maintenance=new MaintenanceManager({locks:this.locks,evidence:this.evidence,contextBus:this.contextBus});
     this.adapterSecurity=auditAdapters();
-    await this.remote.start();
-    if(process.env.AECP_GITHUB_WEBHOOK_SECRET) await this.webhook.start();
     try{this.state=JSON.parse(await fs.readFile(this.file,'utf8'));}catch(e){
       if(e.code!=='ENOENT') throw e;
       this.state={schema:SCHEMA,version:1,runs:{},tasks:{},agents:{},approvals:{},locks:{},updatedAt:now()};
       await this.persist();
     }
     await this.recover();
+    await this.remote.start();
+    if(process.env.AECP_GITHUB_WEBHOOK_SECRET) await this.webhook.start();
     return this.snapshot();
   }
 
@@ -214,9 +214,11 @@ class ControlPlane {
 
   async enqueueTask(run,task){
     const id=uid('task');
-    const allowed=new Set((run.repositoryPaths||[run.sourceRoot]).map(x=>path.resolve(x).toLowerCase()));
+    const fallbackRoot=path.resolve(run.sourceRoot||this.rootDir);
+    const allowedRoots=(Array.isArray(run.repositoryPaths)&&run.repositoryPaths.length?run.repositoryPaths:[fallbackRoot]).filter(Boolean);
+    const allowed=new Set(allowedRoots.map(x=>path.resolve(String(x)).toLowerCase()));
     const requested=(task.repositories||[]).map(x=>path.resolve(String(x))).filter(x=>allowed.has(x.toLowerCase()));
-    const repositories=requested.length?requested:[run.sourceRoot];
+    const repositories=requested.length?requested:[fallbackRoot];
     const t={...task,id,runId:run.id,state:'QUEUED',phase:'QUEUED',createdAt:now(),updatedAt:now(),attempts:0,lease:null,resources:{repositories}};
     this.state.tasks[id]=t;run.taskIds.push(id);
     await this.persist();await this.event('task.queued',{runId:run.id,taskId:id,title:t.title});
