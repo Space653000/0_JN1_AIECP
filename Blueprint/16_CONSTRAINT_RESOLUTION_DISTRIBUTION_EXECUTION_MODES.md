@@ -163,8 +163,8 @@ ChatGPT Web is still the preferred supervisor/architect, but it does not need to
 - Gemini CLI
 - Claude Code
 - Codex CLI
-- future OpenCode/local agent
-- external API providers if explicitly enabled later
+- OpenCode/local agent with deny-first permissions
+- external/OpenAI-compatible API providers when explicitly enabled and approved
 
 Each adapter has its own authentication/quota rules. AECP must not imply that a provider is unlimited.
 
@@ -185,7 +185,7 @@ AECP owns:
 
 ### Provider-specific notes
 
-Claude Code and Gemini CLI both expose non-interactive modes suitable for controlled worker adapters. Provider automation may have its own subscription/credit/quota semantics and must be surfaced in the capability/status UI.
+Claude Code, Gemini CLI, Codex CLI and OpenCode are represented through governed role/capability adapters. Provider automation may have its own subscription/credit/quota semantics and must be surfaced in capability/status rather than treated as unlimited.
 
 Local-only workers are the only path that can truthfully avoid external model quotas entirely.
 
