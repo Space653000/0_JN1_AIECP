@@ -289,6 +289,17 @@ const staticInvariants=[
   {label:'generic MCP not recommended',re:/const recommended = localWorkers\.length \? 'local-autonomous' : 'web-safe'/},
   {label:'end-to-end wording',re:/same-task result return[\s\S]*disconnect fallback[\s\S]*no-DOM-automation/}
  ]),
+ invariant('shell-free-windows-cli-resolution','electron/lib/command-resolver.cjs',[
+  {label:'known npm-style allowlist',re:/NPM_STYLE_COMMANDS/},
+  {label:'npm execpath route',re:/npm_execpath/},
+  {label:'cmd shim parser',re:/parseNodeCmdShim/},
+  {label:'node direct execution',re:/npm-cmd-shim/},
+  {label:'fail-closed unresolved route',re:/source:'unresolved'/}
+ ]),
+ invariant('shell-free-resolver-adoption','electron/lib/provider-router.cjs',[
+  {label:'provider router uses resolver',re:/resolveKnownCommand/},
+  {label:'provider process remains shell false',re:/shell:\s*false/}
+ ]),
  invariant('canonical-provider-routing','electron/lib/harness.cjs',[
   {label:'ProviderRouter imported',re:/ProviderRouter/},
   {label:'planner provider routed',re:/plannerProvider/},
