@@ -20,13 +20,9 @@ Type: `remote-mcp`
 
 Used only through supported official OpenAI mechanisms and account capabilities. ChatGPT connects to remote MCP endpoints; a local server requires an official/secure tunnel mechanism rather than an assumed direct localhost connection.
 
-### External API providers — future optional
+### External API providers — optional and governed
 
-Examples: OpenAI API, Anthropic, Gemini, enterprise gateways.
-
-Type: `api`
-
-Each implements the same capabilities and may be assigned to supervisor/worker/reviewer roles.
+Examples include OpenAI-compatible APIs, enterprise gateways and supported cloud CLIs. Type: `api`. The current router supports governed OpenAI-compatible endpoints behind NETWORK/CREDENTIAL approval, while vendor-specific adapters may implement the same contract without changing Task state.
 
 ### Local providers — optional
 
@@ -64,7 +60,7 @@ providers:
   reviewer: chatgpt-web
 ```
 
-or later:
+or equivalently:
 
 ```yaml
 providers:
@@ -79,7 +75,7 @@ No task-state or tool code changes when roles change.
 
 - API keys never live in repository YAML/JSON.
 - Provider configuration stores only `credentialRef`.
-- Credentials use OS-protected secure storage (Electron `safeStorage` on Windows bootstrap; future Windows Credential Manager adapter acceptable).
+- Credentials use OS-protected secure storage (Electron `safeStorage` on Windows); a Windows Credential Manager adapter is optional, not required for the current security boundary.
 - UI only returns masked key metadata, never plaintext after save.
 - Secrets are injected into the provider process/request in memory.
 - Evidence/trace redaction runs before persistence.
@@ -124,7 +120,7 @@ roles:
   local_compute: ollama
 ```
 
-Any role may later be remapped without changing Task state, Workspace policy or Evidence schemas.
+Any role may be remapped without changing Task state, Workspace policy or Evidence schemas, subject to provider capability/policy checks.
 
 ## 9. Agent adapter contract
 
