@@ -103,6 +103,19 @@ function safeNetworkUrl(value) {
   return url;
 }
 
+function sanitizeNumericMetadata(value, depth = 0) {
+  if (depth > 4 || value == null) return null;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (typeof value !== 'object' || Array.isArray(value)) return null;
+  const out = {};
+  for (const [key, item] of Object.entries(value)) {
+    if (!/token|cost|price|credit|cached|reasoning|input|output|prompt|completion|total/i.test(key)) continue;
+    const sanitized = sanitizeNumericMetadata(item, depth + 1);
+    if (sanitized !== null && (typeof sanitized !== 'object' || Object.keys(sanitized).length)) out[key] = sanitized;
+  }
+  return Object.keys(out).length ? out : null;
+}
+
 async function executeOpenAICompatible(provider, role, prompt, opts = {}) {
   if (!opts.networkApproved) throw Object.assign(new Error('External provider network access requires explicit approval.'), { code: 'APPROVAL_REQUIRED', action: 'NETWORK' });
   if (provider.apiKey && !opts.credentialApproved) throw Object.assign(new Error('Provider credential use requires explicit approval.'), { code: 'APPROVAL_REQUIRED', action: 'CREDENTIAL' });
@@ -146,11 +159,17 @@ async function executeOpenAICompatible(provider, role, prompt, opts = {}) {
 }
 
 class ProviderRouter {
-  constructor(registry = PROVIDERS, { runner = run, fetchImpl = globalThis.fetch, platform = process.platform } = {}) {
+  constructor(registry = PROVIDERS, { runner = run, fetchImpl = globalThis.fetch, platform = process.platform, metricsSink = null } = {}) {
     this.registry = registry;
     this.runner = runner;
     this.fetchImpl = fetchImpl;
     this.platform = platform;
+    this.metricsSink = typeof metricsSink === 'function' ? metricsSink : null;
+  }
+
+  async recordMetric(metric) {
+    if (!this.metricsSink) return;
+    try { await this.metricsSink(metric); } catch {}
   }
 
   async health(providerId, opts = {}) {
@@ -301,17 +320,56 @@ class ProviderRouter {
   async execute(role, prompt, opts = {}) {
     const provider = this.resolve(role, opts.provider);
     if (!provider) throw new Error(`No provider for role: ${role}`);
-    if (provider.mode === 'openai-compatible') return executeOpenAICompatible(provider, role, prompt, opts);
-    let providerVersion = opts.providerVersion || '';
-    if (provider.id === 'opencode' && !providerVersion) {
-      const versionResult = await this.runner(provider.command, ['--version'], { cwd: opts.cwd, timeoutMs: 5000, signal: opts.signal, maxOutputBytes: 4096 });
-      if (versionResult.code !== 0) throw new Error('Unable to determine OpenCode version for bounded permission policy.');
-      providerVersion = versionResult.stdout || versionResult.stderr;
+    const started = Date.now();
+    let selectedModel = opts.model || provider.defaultModel || process.env[`AECP_${provider.id.toUpperCase()}_MODEL`] || null;
+    try {
+      let result;
+      if (provider.mode === 'openai-compatible') {
+        result = await executeOpenAICompatible(provider, role, prompt, opts);
+        selectedModel = result.model || selectedModel;
+      } else {
+        let providerVersion = opts.providerVersion || '';
+        if (provider.id === 'opencode' && !providerVersion) {
+          const versionResult = await this.runner(provider.command, ['--version'], { cwd: opts.cwd, timeoutMs: 5000, signal: opts.signal, maxOutputBytes: 4096 });
+          if (versionResult.code !== 0) throw new Error('Unable to determine OpenCode version for bounded permission policy.');
+          providerVersion = versionResult.stdout || versionResult.stderr;
+        }
+        const spec = this.commandSpec(provider.id, role, prompt, { ...opts, providerVersion });
+        selectedModel = spec.model || selectedModel;
+        const env = { ...(spec.env || {}), ...(opts.env || {}) };
+        result = { ...await this.runner(spec.command, spec.args, { ...opts, env }), provider: spec.provider, model: spec.model };
+      }
+      await this.recordMetric({
+        schema: 'aecp.provider-usage/v1',
+        provider: provider.id,
+        role,
+        model: selectedModel,
+        success: result.code === 0,
+        code: result.code,
+        timedOut: Boolean(result.timedOut),
+        aborted: Boolean(result.aborted),
+        latencyMs: Math.max(0, Date.now() - started),
+        usage: sanitizeNumericMetadata(result.usage),
+        recordedAt: new Date().toISOString()
+      });
+      return result;
+    } catch (error) {
+      await this.recordMetric({
+        schema: 'aecp.provider-usage/v1',
+        provider: provider.id,
+        role,
+        model: selectedModel,
+        success: false,
+        code: error?.code || 'ERROR',
+        timedOut: error?.code === 'PROVIDER_TIMEOUT',
+        aborted: error?.name === 'AbortError',
+        latencyMs: Math.max(0, Date.now() - started),
+        usage: null,
+        recordedAt: new Date().toISOString()
+      });
+      throw error;
     }
-    const spec = this.commandSpec(provider.id, role, prompt, { ...opts, providerVersion });
-    const env = { ...(spec.env || {}), ...(opts.env || {}) };
-    return { ...await this.runner(spec.command, spec.args, { ...opts, env }), provider: spec.provider, model: spec.model };
   }
 }
 
-module.exports = { ProviderRouter, PROVIDERS, run, safeNetworkUrl, executeOpenAICompatible, parseMajor, openCodeBoundedConfig, modelLooksLocal };
+module.exports = { ProviderRouter, PROVIDERS, run, safeNetworkUrl, executeOpenAICompatible, parseMajor, openCodeBoundedConfig, modelLooksLocal, sanitizeNumericMetadata };
