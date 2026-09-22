@@ -282,6 +282,13 @@ async function startHarness(payload) {
   const policy = new SecurityPolicy({ allowRoots: [workspace.rootPath, runRoot], ...compileWorkspacePolicy(workspace.policy || {}) });
   void runHarness({
     ...payload, sourceRoot: workspace.rootPath, workspaceId: workspace.id, runRoot, signal: controller.signal,
+    permissionPolicy: {
+      mode: 'FULL_HARNESS',
+      ...compileWorkspacePolicy(workspace.policy || {}),
+      networkApproved: Boolean(payload?.providerNetworkApproved),
+      credentialApproved: Boolean(payload?.providerCredentialApproved),
+      highRisk: 'HUMAN_REQUIRED'
+    },
     providerRouter, policy,
     onEvent: async (event) => {
       harnessRecord = { ...harnessRecord, state: event.state, events: [...(harnessRecord.events || []), event] };
@@ -402,6 +409,7 @@ async function startAutonomy(payload) {
     workspaceRoot: workspace.rootPath,
     permissionPolicy: {
       mode: 'LOCAL_AUTONOMOUS',
+      ...compileWorkspacePolicy(workspace.policy || {}),
       workspaceWrite: 'isolated-worktree-only',
       applyToWorkspace: 'explicit-user-approval',
       network: 'worker-policy',
@@ -1459,6 +1467,7 @@ function registerIpc() {
     return (await initControlPlane()).createMission({
       ...payload,
       sourceRoot: workspace.rootPath,
+      workspaceId: workspace.id,
       autoStart: payload?.autoStart !== false
     });
   });
