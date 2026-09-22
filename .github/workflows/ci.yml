@@ -66,6 +66,8 @@ jobs:
           if ($install.ExitCode -ne 0) { throw "Installer exited with $($install.ExitCode)." }
           $app = Get-ChildItem $installDir -Filter 'AI Engineering Control Plane.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
           if (-not $app) { throw 'Installed AECP executable not found.' }
+          $launch = Start-Process -FilePath $app.FullName -ArgumentList '--smoke-test' -PassThru -Wait
+          if ($launch.ExitCode -ne 0) { throw "Installed AECP smoke launch exited with $($launch.ExitCode)." }
           $uninstaller = Get-ChildItem $installDir -Filter 'Uninstall*.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
           if (-not $uninstaller) { throw 'AECP uninstaller not found.' }
           $uninstall = Start-Process -FilePath $uninstaller.FullName -ArgumentList '/S' -PassThru -Wait
@@ -170,6 +172,8 @@ jobs:
           if ($process.ExitCode -ne 0) { throw "Universal bootstrap exited with $($process.ExitCode)." }
           $app = Get-ChildItem $installDir -Filter 'AI Engineering Control Plane.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
           if (-not $app) { throw 'AECP executable not found after universal bootstrap install.' }
+          $launch = Start-Process -FilePath $app.FullName -ArgumentList '--smoke-test' -PassThru -Wait
+          if ($launch.ExitCode -ne 0) { throw "Universal-installed AECP smoke launch exited with $($launch.ExitCode)." }
           $uninstaller = Get-ChildItem $installDir -Filter 'Uninstall*.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
           if (-not $uninstaller) { throw 'AECP uninstaller not found after universal bootstrap install.' }
           $uninstall = Start-Process -FilePath $uninstaller.FullName -ArgumentList '/S' -PassThru -Wait
