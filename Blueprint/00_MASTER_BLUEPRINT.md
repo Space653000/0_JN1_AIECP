@@ -204,7 +204,7 @@ Initial implementation is an Electron desktop application because it enables a f
 Windows packages are produced for x64 and ARM64. Native modules are deliberately avoided in the bootstrap release to keep ARM64 cross-packaging deterministic.
 
 
-## 13. Current implementation baseline — 2026-09-19
+## 13. Current implementation baseline — 2026-09-22
 
 The current implementation has crossed from architecture definition into a durable governed Control Plane prototype. The runtime now includes mission planning, durable task state, bounded scheduling, leases/heartbeat, recovery, policy checks, locks, evidence, context capsules, provider routing, GitHub delivery, CI monitoring, bounded CI-driven rework, human-gated PR merge and a live Harness Command Center.
 
@@ -227,7 +227,7 @@ Maintenance drift scans operate on the actual mission repository roots rather th
 
 ## Remote supervision security foundation — 2026-09-19
 
-The local supervision gateway now has an explicit device-pairing foundation: a short-lived one-time pairing code creates a short-lived READ_ONLY device credential; credentials can be revoked and enumerated. The gateway remains bound to loopback by default. Pairing never grants task execution, write, merge, credential or system authority. LAN/Internet transport is still a separate deployment gate and must inherit the same policy model.
+The supervision gateway has short-lived one-time pairing, revocation, READ_ONLY and APPROVAL_ONLY scopes, and replay-safe approval request IDs. APPROVAL_ONLY may only approve/reject an already-existing approval and cannot create tasks. The gateway remains loopback-first; any explicitly enabled non-loopback bind requires TLS. Public/LAN deployment identity/domain/TLS ownership remains an external deployment gate and never weakens the local policy model.
 
 
 ## Deterministic E2E and adapter execution gate — 2026-09-19
@@ -238,3 +238,10 @@ The engineering loop includes a clean temporary-Git infrastructure E2E matrix th
 ## Dependency and security drift gate — 2026-09-19
 
 Maintenance includes a bounded npm security drift scan for mission repositories. It reports high/critical vulnerabilities as an engineering gate and never silently upgrades dependencies. Optional outdated-package inspection is available for explicit maintenance runs.
+
+
+## Exact-HEAD CI and Windows capability boundary — 2026-09-22
+
+PR verification for AECP CI, AECP Security and AECP Packaging explicitly checks out `pull_request.head.sha`; GitHub's synthetic PR merge ref is not accepted as a substitute for exact-head evidence. Packaging includes x64/ARM64/universal build and Windows-runner install/uninstall smoke gates.
+
+Windows desktop integration remains capability-scoped: top-level/general-app UI Automation inspection is read-only; browser/ChatGPT automation-tree inspection is denied by default; window-state mutation such as docking requires SYSTEM approval. No ChatGPT DOM, cookie, message or browser-traffic extraction is permitted.
