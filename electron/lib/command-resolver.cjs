@@ -32,13 +32,13 @@ function resolveNodeExecutable({env=process.env,execPath=process.execPath,where=
 function parseNodeCmdShim(cmdPath,{read=fs.readFileSync,exists=fs.existsSync,nodeExecutable=null}={}){
   let source='';
   try{source=read(cmdPath,'utf8');}catch{return null;}
-  const shimDir=path.dirname(cmdPath);
+  const shimDir=path.win32.dirname(String(cmdPath));
   const matches=[...source.matchAll(/["']?%dp0%\\([^"'\r\n]+?\.js)["']?/ig)];
   if(!matches.length)return null;
   const relative=matches.at(-1)[1].replace(/\\/g,path.sep);
   const script=path.resolve(shimDir,relative);
   if(!exists(script))return null;
-  const localNode=path.join(shimDir,'node.exe');
+  const localNode=path.win32.join(shimDir,'node.exe');
   const node=firstExisting([localNode,nodeExecutable],exists);
   if(!node)return null;
   return {command:node,argsPrefix:[script],source:'npm-cmd-shim'};
