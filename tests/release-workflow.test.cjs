@@ -11,6 +11,9 @@ const count = (text, pattern) => (text.match(pattern) || []).length;
 
 test('release workflow is structurally unique and gated by real smoke evidence', () => {
   const workflow = read('.github/workflows/release.yml');
+  assert.match(workflow, /pull_request:[\s\S]*branches:\s*\[main\]/);
+  assert.match(workflow, /pull_request\.head\.sha \|\| github\.sha/);
+  assert.match(workflow, /cancel-in-progress:\s*true/);
 
   for (const job of [
     'verify',
