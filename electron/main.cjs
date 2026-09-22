@@ -298,6 +298,8 @@ async function initControlPlane() {
 
 async function startHarness(payload) {
   if (harnessController) throw new Error('A Harness run is already active.');
+  if (autonomyController) throw new Error('Stop the active autonomous run before starting Harness.');
+  if (controlPlane?.hasActiveWork?.()) throw new Error('Pause/cancel active Control Plane work before starting Harness.');
   const state = await loadState();
   const workspace = getCurrentWorkspace(state);
   if (!workspace) throw new Error('Choose a Workspace first.');
@@ -412,6 +414,8 @@ function sendAutonomyEvent(event) {
 
 async function startAutonomy(payload) {
   if (autonomyController) throw new Error('An autonomous run is already active.');
+  if (harnessController) throw new Error('Stop the active Harness run before starting bounded autonomy.');
+  if (controlPlane?.hasActiveWork?.()) throw new Error('Pause/cancel active Control Plane work before starting bounded autonomy.');
   const state = await loadState();
   const workspace = getCurrentWorkspace(state);
   if (!workspace) throw new Error('Choose a Workspace first.');
