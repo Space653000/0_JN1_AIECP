@@ -108,6 +108,37 @@ class ControlPlane {
     return {providers:selected,models:selectedModels};
   }
 
+  missingProviderApprovals(run){
+    const missing=new Set();
+    for(const role of ['planner','builder','reviewer']){
+      const providerId=run.providers?.[role];
+      if(!providerId) continue;
+      const capabilities=this.providers.capabilities(role,providerId,{model:run.models?.[role]});
+      if(!capabilities) continue;
+      if(capabilities.network && !run.providerApprovals?.network) missing.add('NETWORK');
+      if(capabilities.credential && !run.providerApprovals?.credential) missing.add('CREDENTIAL');
+    }
+    return [...missing];
+  }
+
+  async ensureMissionProviderApprovals(run){
+    const missing=this.missingProviderApprovals(run);
+    if(!missing.length) return true;
+    const action=missing[0];
+    const existing=Object.values(this.state.approvals||{}).find(a=>a.runId===run.id&&!a.taskId&&a.action===action&&a.state==='WAITING');
+    if(!existing){
+      const id=uid('approval');
+      const risk=this.policy.classify(action);
+      this.state.approvals[id]={id,runId:run.id,taskId:null,state:'WAITING',risk,reason:`${action} approval is required by the selected mission providers.`,action,createdAt:now()};
+      run.state='HUMAN_REQUIRED'; run.waitingFor=action;
+      await this.persist();
+      await this.event('approval.requested',{runId:run.id,taskId:null,approvalId:id,risk,reason:this.state.approvals[id].reason,action});
+    }else{
+      run.state='HUMAN_REQUIRED'; run.waitingFor=action; await this.persist();
+    }
+    return false;
+  }
+
   async recover(){
     for(const run of Object.values(this.state.runs||{})){
       if(run.state==='RUNNING' && !this.controllers.has(run.id)){
@@ -172,7 +203,12 @@ class ControlPlane {
     this.state.runs[id]=run;
     await this.persist();
     await this.event('mission.created',{runId:id,state:run.state,goal});
-    if(autoStart) { await this.planMission(run); await this.startMission(id); }
+    if(autoStart) {
+      if(await this.ensureMissionProviderApprovals(run)){
+        await this.planMission(run);
+        await this.startMission(id);
+      }
+    }
     return run;
   }
 
@@ -209,6 +245,13 @@ class ControlPlane {
     if(run && a.action==='CREDENTIAL'){run.providerApprovals||={};run.providerApprovals.credential=true;}
     const task=this.state.tasks[a.taskId]; if(task){task.lease=null;if(!task.delivery?.pr) task.state='QUEUED'; else task.state='HUMAN_REQUIRED';}
     await this.persist(); await this.event('approval.approved',{runId:a.runId,taskId:a.taskId,approvalId:id});
+    if(run && !a.taskId && ['NETWORK','CREDENTIAL'].includes(a.action)){
+      run.waitingFor=null;
+      if(await this.ensureMissionProviderApprovals(run)){
+        if(!(run.taskIds||[]).length) await this.planMission(run);
+        await this.startMission(run.id);
+      }
+    }
     this.schedule(); return a;
   }
 
@@ -216,6 +259,7 @@ class ControlPlane {
     const a=this.state.approvals[id]; if(!a) throw new Error('Approval not found.');
     a.state='REJECTED';a.decidedAt=now();a.decidedBy=by;a.note=note;
     const task=this.state.tasks[a.taskId]; if(task) task.state='BLOCKED';
+    const run=this.state.runs[a.runId]; if(run&&!a.taskId){run.state='BLOCKED';run.blockedAt=now();run.blockReason=note;}
     await this.persist(); await this.event('approval.rejected',{runId:a.runId,taskId:a.taskId,approvalId:id});
     return a;
   }
