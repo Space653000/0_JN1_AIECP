@@ -276,3 +276,56 @@ test('budget exhaustion is terminal across Control Plane and Dashboard', async (
   assert.ok(TERMINAL.has('BUDGET_EXHAUSTED'));
   assert.match(dashboard,/BUDGET_EXHAUSTED/);
 });
+
+
+test('ControlPlane persists explicit mission hard budgets for Harness execution', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'aecp-mission-budgets-'));
+  const workspace = path.join(root, 'workspace');
+  await fs.mkdir(workspace, { recursive: true });
+  const cp = new ControlPlane({ rootDir: path.join(root, 'runtime') });
+  await cp.init();
+  try {
+    const run = await cp.createMission({
+      goal: 'Persist bounded mission controls',
+      done: 'Every hard budget is durable',
+      sourceRoot: workspace,
+      autoStart: false,
+      maxTasks: 3,
+      maxIterations: 4,
+      maxTurns: 17,
+      maxFailedAttempts: 7,
+      maxNoProgressAttempts: 3,
+      maxWallClockMs: 600000,
+      maxPatchBytes: 2 * 1024 * 1024,
+      maxChangedFiles: 25,
+      checkpointEvery: 2
+    });
+    assert.equal(run.maxTasks, 3);
+    assert.equal(run.maxIterations, 4);
+    assert.equal(run.maxTurns, 17);
+    assert.equal(run.maxFailedAttempts, 7);
+    assert.equal(run.maxNoProgressAttempts, 3);
+    assert.equal(run.maxWallClockMs, 600000);
+    assert.equal(run.maxPatchBytes, 2 * 1024 * 1024);
+    assert.equal(run.maxChangedFiles, 25);
+    assert.equal(run.checkpointEvery, 2);
+    const saved = JSON.parse(await fs.readFile(path.join(root, 'runtime', 'control-plane.json'), 'utf8'));
+    assert.equal(saved.runs[run.id].maxTurns, 17);
+    assert.equal(saved.runs[run.id].maxChangedFiles, 25);
+  } finally {
+    await cp.shutdown();
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+test('Command Center exposes finite mission budgets instead of hidden unbounded defaults', async () => {
+  const dashboard = await fs.readFile(path.join(__dirname, '..', 'ui', 'harness-console.js'), 'utf8');
+  for (const id of ['hcTurns','hcFailures','hcChangedFiles','hcPatchMiB','hcWallMinutes']) {
+    assert.match(dashboard, new RegExp(id));
+  }
+  assert.match(dashboard, /maxTurns:/);
+  assert.match(dashboard, /maxFailedAttempts:/);
+  assert.match(dashboard, /maxChangedFiles:/);
+  assert.match(dashboard, /maxPatchBytes:/);
+  assert.match(dashboard, /maxWallClockMs:/);
+});
