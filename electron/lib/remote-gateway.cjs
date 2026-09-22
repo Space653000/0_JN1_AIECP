@@ -98,6 +98,7 @@ class RemoteGateway{
 
  async stop(){if(!this.server)return;await new Promise(r=>this.server.close(()=>r()));this.server=null}
  revokeDevice(token){return this.pairing.revoke(token)}
+ revokeDeviceId(deviceId){return this.pairing.revokeDeviceId(deviceId)}
  listDevices(){return this.pairing.list()}
 }
 
