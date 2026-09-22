@@ -1329,6 +1329,7 @@ async function saveProvider(payload) {
   const baseUrl = String(payload?.baseUrl || '').trim();
   const apiKey = String(payload?.apiKey || '');
   const defaultModel = String(payload?.defaultModel || '').trim().slice(0, 200);
+  const requestedWireApi = String(payload?.wireApi || '').trim().toLowerCase();
   const command = String(payload?.command || '').trim().slice(0, 2048);
   const args = String(payload?.args || '').trim().split(/\s+/).filter(Boolean).slice(0, 32);
   if (name.length < 2 || name.length > 80) throw new Error('Provider name must be 2–80 characters.');
@@ -1346,9 +1347,12 @@ async function saveProvider(payload) {
     if (['api', 'local'].includes(kind) && !defaultModel) throw new Error('API/local provider requires a default model.');
   }
 
-  const id = payload?.id || `provider-${crypto.randomBytes(5).toString('hex')}`;
+  const isPega = kind === 'api' && normalizedProviderUrl(baseUrl) === PEGA_BASE_URL;
+  const id = isPega ? PEGA_PROVIDER_ID : (payload?.id || `provider-${crypto.randomBytes(5).toString('hex')}`);
   const existing = state.providers.find((item) => item.id === id);
-  const roles = ['api', 'local'].includes(kind) ? ['planner', 'reviewer', 'general'] : (kind === 'local-command' ? ['planner', 'builder', 'reviewer', 'general'] : []);
+  const wireApi = isPega ? (requestedWireApi || existing?.wireApi || 'responses') : null;
+  if (isPega && !['responses','chat'].includes(wireApi)) throw new Error('PEGA wire API must be responses or chat.');
+  const roles = isPega ? ['builder'] : (['api', 'local'].includes(kind) ? ['planner', 'reviewer', 'general'] : (kind === 'local-command' ? ['planner', 'builder', 'reviewer', 'general'] : []));
   const provider = {
     id,
     name,
@@ -1357,6 +1361,7 @@ async function saveProvider(payload) {
     command: kind === 'local-command' ? command : null,
     args: kind === 'local-command' ? args : [],
     defaultModel: defaultModel || null,
+    wireApi,
     roles,
     status: 'DEGRADED',
     credentialRef: apiKey ? `cred:${id}` : (existing?.credentialRef || null),
