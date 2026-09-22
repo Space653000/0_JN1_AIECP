@@ -68,7 +68,11 @@ test('ControlPlane recovers orphaned execution state after restart', async () =>
   await cp.shutdown();
   const cp2 = new ControlPlane({ rootDir: root });
   await cp2.init();
+  const recoveredRun = await cp2.getRun(run.id);
   const recovered = await cp2.getTask(task.id);
+  assert.equal(recoveredRun.state, 'PAUSED');
+  assert.equal(recoveredRun.recovery.reason, 'process-restart');
+  assert.equal(recoveredRun.recovery.requiresExplicitResume, true);
   assert.equal(recovered.state, 'QUEUED');
   assert.equal(recovered.phase, 'RECOVERED');
   await cp2.shutdown();
@@ -219,5 +223,46 @@ test('ControlPlane makes remote approval decisions idempotent by request id', as
   } finally {
     await cp.shutdown();
     await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+
+test('restart recovery never auto-resumes a mutating mission even when autoResume was enabled', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'aecp-no-blind-replay-'));
+  try {
+    const cp = new ControlPlane({ rootDir: root });
+    await cp.init();
+    const run = {
+      id:'mission-no-blind-replay',
+      schema:'aecp.mission/v1',
+      state:'RUNNING',
+      autoResume:true,
+      taskIds:[],
+      events:[],
+      sourceRoot:root,
+      maxConcurrency:1
+    };
+    cp.state.runs[run.id]=run;
+    const task=await cp.enqueueTask(run,{title:'Mutating task',objective:'Do not replay blindly',acceptance:'PASS',risk:'YELLOW'});
+    task.state='RUNNING';
+    task.phase='EXECUTING';
+    task.lease={id:'lease',owner:999999,expiresAt:new Date(Date.now()+600000).toISOString()};
+    await cp.persist();
+    await cp.shutdown();
+
+    const cp2=new ControlPlane({rootDir:root});
+    await cp2.init();
+    const recoveredRun=await cp2.getRun(run.id);
+    const recoveredTask=await cp2.getTask(task.id);
+    assert.equal(recoveredRun.state,'PAUSED');
+    assert.equal(recoveredRun.recovery.requiresExplicitResume,true);
+    assert.equal(recoveredTask.state,'QUEUED');
+    assert.equal(recoveredTask.resume,true);
+    await new Promise(resolve=>setTimeout(resolve,50));
+    assert.equal((await cp2.getRun(run.id)).state,'PAUSED');
+    assert.equal((await cp2.getTask(task.id)).state,'QUEUED');
+    await cp2.shutdown();
+  } finally {
+    await fs.rm(root,{recursive:true,force:true});
   }
 });
