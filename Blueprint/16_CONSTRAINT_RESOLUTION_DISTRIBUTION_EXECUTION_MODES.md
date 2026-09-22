@@ -394,11 +394,11 @@ Implemented on the v0.2 feature branch:
 - workspace traversal rejection and 256 KiB text-read limit;
 - CI integration test that starts the MCP server, checks health, verifies missing bearer returns 401, and shuts it down.
 
-Not yet claimed complete:
-- Local Autonomous write-capable loop;
-- Secure MCP Tunnel provisioning against a real supported ChatGPT workspace;
-- Full MCP write tools;
-- Microsoft Partner Center / Store certification;
-- signed/stable public distribution.
+Current status:
+- Local Autonomous write-capable loop — **repository-verifiable implementation complete**: isolated worktree, deny-first worker policy, bounded turns/time/output/patch/changed-files, deterministic verification, explicit apply, checkpoint/recovery and failure-state preservation are covered by tests;
+- Secure MCP Tunnel provisioning against a real supported ChatGPT workspace — **EXTERNAL PRODUCT/DEPLOYMENT GATE**;
+- Full MCP write tools — intentionally not claimed until an approved end-to-end connector/tunnel and policy-gated write path are available;
+- Microsoft Partner Center / Store certification — **EXTERNAL OWNER GATE**;
+- production signed/stable public distribution — software lane implemented; actual owner certificate/signing remains **EXTERNAL OWNER GATE**.
 
-These remain acceptance-gated rather than simulated.
+External/product gates remain acceptance-gated rather than simulated.
