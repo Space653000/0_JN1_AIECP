@@ -272,6 +272,13 @@ const staticInvariants=[
  invariant('restart-no-blind-replay-test','tests/control-plane.test.cjs',[
   {label:'explicit resume recovery test',re:/never auto-resumes a mutating mission/}
  ]),
+ invariant('durable-lock-serialization','electron/lib/lock-manager.cjs',[
+  {label:'serialized mutation queue',re:/this\.queue=Promise\.resolve\(\)/},
+  {label:'unique atomic temp files',re:/tmp-'\+process\.pid\+'-'\+\(\+\+this\.persistSequence\)/},
+  {label:'task owner conflict code',re:/LOCK_BUSY/},
+  {label:'ownership mismatch code',re:/LOCK_OWNERSHIP_MISMATCH/},
+  {label:'explicit expired recovery',re:/_recoverUnlocked/}
+ ]),
  invariant('explainable-scheduler','electron/lib/control-plane.cjs',[
   {label:'scheduler decision schema',re:/aecp\.scheduler-decision\/v1/},
   {label:'provider health eligibility',re:/providerHealthForRun/},
