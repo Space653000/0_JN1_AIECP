@@ -26,7 +26,9 @@ const state = {
 };
 
 const $ = (selector) => document.querySelector(selector);
-const $$ = (selector) => [...document.querySelectorAll(selector)];
+const $ = (selector) => [...document.querySelectorAll(selector)];
+const tr = (key, fallback = '') => window.AECPI18N?.t(key, fallback) || fallback || key;
+let providerFocusReturn = null;
 
 function esc(value) {
   return String(value ?? '')
@@ -106,7 +108,8 @@ async function loadAll() {
 function render() {
   document.documentElement.dataset.theme = state.theme;
   document.body.classList.toggle('engineering-mode', state.engineering);
-  $('#modeButton').textContent = state.engineering ? 'Engineering' : 'Beginner';
+  $('#modeButton').dataset.i18n = state.engineering ? 'mode.engineering' : 'mode.beginner';
+  $('#modeButton').textContent = tr(state.engineering ? 'mode.engineering' : 'mode.beginner', state.engineering ? 'Engineering' : 'Beginner');
   $('#versionText').textContent = state.app ? `v${state.app.version} · ${state.app.arch}` : 'Preview';
   renderWorkspace();
   renderTools();
@@ -118,13 +121,14 @@ function render() {
   renderTabs();
   renderControl();
   $('#welcomeOverlay').classList.toggle('hidden', Boolean(state.data?.currentWorkspace));
+  window.AECPI18N?.apply(document);
 }
 
 function renderWorkspace() {
   const workspace = state.data?.currentWorkspace;
-  $('#workspaceName').textContent = workspace?.name || 'Choose Workspace';
+  $('#workspaceName').textContent = workspace?.name || tr('workspace.choose','Choose Workspace');
   $('#workspacePath').textContent = workspace?.rootPath || 'Choose the folder AECP is allowed to inspect.';
-  $('#workspaceState').textContent = workspace ? 'Bound' : 'Not set';
+  $('#workspaceState').textContent = workspace ? tr('workspace.bound','Bound') : tr('workspace.notSet','Not set');
   $('#workspaceState').className = `status ${workspace ? 'ready' : 'neutral'}`;
   $('#workspaceButton .dot').className = `dot ${workspace ? 'ready' : 'idle'}`;
   $('#openWorkspaceButton').disabled = !workspace;
@@ -157,9 +161,24 @@ function renderTools() {
 }
 
 function renderTabs() {
-  $$('.view-tab').forEach((button) => button.classList.toggle('active', button.dataset.view === state.view));
-  const names = { start: 'Start', board: 'Task Board', pipeline: 'Task Pipeline', loop: 'Goal Loop', graph: 'Workspace Graph', trace: 'Execution Trace', evidence: 'Evidence' };
-  $('#controlTitle').textContent = names[state.view] || 'Control Plane';
+  $('.view-tab').forEach((button) => {
+    const active = button.dataset.view === state.view;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-selected', active ? 'true' : 'false');
+    button.tabIndex = active ? 0 : -1;
+  });
+  const names = {
+    start: ['start','Start'],
+    command: ['harness','Harness'],
+    board: ['taskBoard','Task Board'],
+    pipeline: ['taskPipeline','Task Pipeline'],
+    loop: ['goalLoop','Goal Loop'],
+    graph: ['workspaceGraph','Workspace Graph'],
+    trace: ['executionTrace','Execution Trace'],
+    evidence: ['evidence','Evidence']
+  };
+  const selected = names[state.view];
+  $('#controlTitle').textContent = selected ? tr(selected[0],selected[1]) : tr('controlPlane.title','Control Plane');
 }
 
 function renderControl() {
@@ -855,6 +874,24 @@ function setView(view) {
   renderControl();
 }
 
+function openProviderSettings() {
+  providerFocusReturn = document.activeElement;
+  $('#providerOverlay').classList.remove('hidden');
+  $('#providerNameInput')?.focus();
+}
+
+function closeProviderSettings() {
+  $('#providerOverlay').classList.add('hidden');
+  if (providerFocusReturn instanceof HTMLElement) providerFocusReturn.focus();
+  providerFocusReturn = null;
+}
+
+function toggleLocale() {
+  const current = window.AECPI18N?.getLocale?.() || 'en';
+  window.AECPI18N?.setLocale(current === 'en' ? 'zh-TW' : 'en', document);
+  render();
+}
+
 function bindEvents() {
   $('#workspaceButton').addEventListener('click', chooseWorkspace);
   $('#chooseWorkspaceButton').addEventListener('click', chooseWorkspace);
@@ -881,9 +918,10 @@ function bindEvents() {
   $('#sampleButton').addEventListener('click', createSampleTask);
   $('#modeButton').addEventListener('click', () => { state.engineering = !state.engineering; if (!state.engineering && state.view === 'trace') state.view = 'start'; render(); });
   $('#themeButton').addEventListener('click', () => { state.theme = state.theme === 'dark' ? 'light' : 'dark'; localStorage.setItem('aecp-theme', state.theme); render(); });
-  $('#settingsButton').addEventListener('click', () => $('#providerOverlay').classList.remove('hidden'));
-  $('#closeProviderButton').addEventListener('click', () => $('#providerOverlay').classList.add('hidden'));
-  $('#cancelProviderButton').addEventListener('click', () => $('#providerOverlay').classList.add('hidden'));
+  $('#languageButton').addEventListener('click', toggleLocale);
+  $('#settingsButton').addEventListener('click', openProviderSettings);
+  $('#closeProviderButton').addEventListener('click', closeProviderSettings);
+  $('#cancelProviderButton').addEventListener('click', closeProviderSettings);
   $$('.view-tab').forEach((button) => button.addEventListener('click', () => setView(button.dataset.view)));
 
   $('#providerForm').addEventListener('submit', async (event) => {
@@ -903,6 +941,22 @@ function bindEvents() {
     state.providers = await safe(() => window.aecp.listProviders(), state.providers);
     renderProviders();
     toast(`Provider registered: ${saved.name}`);
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !$('#providerOverlay').classList.contains('hidden')) {
+      event.preventDefault();
+      closeProviderSettings();
+      return;
+    }
+    if ((event.key === 'ArrowLeft' || event.key === 'ArrowRight') && event.target?.classList?.contains('view-tab')) {
+      const tabs = $('.view-tab').filter((tab) => !tab.classList.contains('engineering-only') || state.engineering);
+      const current = tabs.indexOf(event.target);
+      const delta = event.key === 'ArrowRight' ? 1 : -1;
+      const target = tabs[(current + delta + tabs.length) % tabs.length];
+      target?.focus();
+      target?.click();
+    }
   });
 
   document.addEventListener('click', async (event) => {
