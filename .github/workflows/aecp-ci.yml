@@ -40,5 +40,6 @@ jobs:
             artifacts/license-audit.json
             artifacts/requirements-coverage.json
             artifacts/blueprint-coverage.json
+            artifacts/roadmap-gates.json
           if-no-files-found: error
           retention-days: 14
