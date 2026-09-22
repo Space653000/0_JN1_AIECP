@@ -24,6 +24,18 @@ const AUTONOMOUS_WORKERS = Object.freeze({
   'codex-cli': { id: 'codex-cli', label: 'Codex CLI', command: 'codex', safety: 'workspace-write-sandbox' }
 });
 
+function platformCommand(command) {
+  const value = String(command || '');
+  if (process.platform !== 'win32') return value;
+  const fixed = {
+    npm: 'npm.cmd',
+    npx: 'npx.cmd',
+    pnpm: 'pnpm.cmd',
+    yarn: 'yarn.cmd'
+  };
+  return fixed[value.toLowerCase()] || value;
+}
+
 function clampInteger(value, min, max, fallback) {
   const parsed = Number.parseInt(String(value ?? ''), 10);
   if (!Number.isFinite(parsed)) return fallback;
@@ -218,7 +230,7 @@ function runProcess(command, args, options = {}) {
   } = options;
 
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, {
+    const child = spawn(platformCommand(command), args, {
       cwd,
       env: { ...process.env, ...env },
       windowsHide: true,
