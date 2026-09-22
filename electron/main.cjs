@@ -11,6 +11,7 @@ const { runHarness } = require('./lib/harness.cjs');
 const { ControlPlane } = require('./lib/control-plane.cjs');
 const { ProviderRouter, PROVIDERS } = require('./lib/provider-router.cjs');
 const { ProviderUsageStore } = require('./lib/provider-usage.cjs');
+const { clearEvidence, removeWorkspaceBinding, clearCredentials, resetActiveState } = require('./lib/local-data-manager.cjs');
 const { SecurityPolicy } = require('./lib/security-policy.cjs');
 const { migrateState } = require('./lib/state-migration.cjs');
 const { recommendNextAction } = require('./lib/guidance.cjs');
@@ -1045,6 +1046,94 @@ async function deleteProvider(providerId) {
   return true;
 }
 
+async function assertDataOperationIdle() {
+  if (harnessController) throw new Error('Stop the active Harness run before changing AECP local data.');
+  if (autonomyController) throw new Error('Stop the active autonomous run before changing AECP local data.');
+  if (controlPlane?.hasActiveWork?.()) throw new Error('Pause/cancel active Control Plane work before changing AECP local data.');
+}
+
+async function confirmDataOperation({ title, message, detail, confirmLabel }) {
+  const result = await dialog.showMessageBox(mainWindow, {
+    type: 'warning',
+    buttons: ['Cancel', confirmLabel],
+    defaultId: 0,
+    cancelId: 0,
+    noLink: true,
+    title,
+    message,
+    detail
+  });
+  return result.response === 1;
+}
+
+async function clearLocalEvidence() {
+  await assertDataOperationIdle();
+  const approved = await confirmDataOperation({
+    title: 'Clear AECP evidence?',
+    message: 'Delete local AECP evidence and trace artifacts?',
+    detail: 'Only AECP-owned evidence folders are cleared. Workspace/project files are never deleted.',
+    confirmLabel: 'Clear evidence'
+  });
+  if (!approved) return null;
+  return clearEvidence(dataPath());
+}
+
+async function removeCurrentWorkspaceBinding() {
+  await assertDataOperationIdle();
+  const state = await loadState();
+  const workspace = getCurrentWorkspace(state);
+  if (!workspace) return { removed: false, workspaceFilesTouched: false };
+  const approved = await confirmDataOperation({
+    title: 'Remove Workspace binding?',
+    message: 'Stop using this Workspace in AECP?',
+    detail: 'AECP will remove only its local binding to:\n' + workspace.rootPath + '\n\nThe original folder and every file inside it remain untouched.',
+    confirmLabel: 'Remove binding'
+  });
+  if (!approved) return null;
+  await stopLocalMcp();
+  const result = removeWorkspaceBinding(state, workspace.id);
+  await saveState(result.state);
+  return { removed: result.removed, workspaceFilesTouched: false, workspaceId: workspace.id };
+}
+
+async function clearStoredCredentials() {
+  await assertDataOperationIdle();
+  const approved = await confirmDataOperation({
+    title: 'Clear stored credentials?',
+    message: 'Delete AECP provider credentials and the Local MCP bearer?',
+    detail: 'This deletes only AECP OS-encrypted credential storage. Provider registrations remain, but credential-backed providers will require credentials again.',
+    confirmLabel: 'Clear credentials'
+  });
+  if (!approved) return null;
+  await stopLocalMcp();
+  const result = await clearCredentials(dataPath());
+  await refreshRuntimeProviders();
+  return result;
+}
+
+async function resetAecpLocalState() {
+  await assertDataOperationIdle();
+  const approved = await confirmDataOperation({
+    title: 'Reset AECP local state?',
+    message: 'Reset AECP configuration, runtime, evidence, credentials and update state?',
+    detail: 'This does NOT delete or modify any Workspace/project folder. Existing pre-restore safety backups are preserved.',
+    confirmLabel: 'Reset AECP'
+  });
+  if (!approved) return null;
+  await stopLocalMcp();
+  if (controlPlane) {
+    const current = controlPlane;
+    controlPlane = null;
+    await current.shutdown();
+  }
+  const result = await resetActiveState(dataPath());
+  harnessRecord = null;
+  autonomyRecord = null;
+  providerUsageStore = null;
+  await ensureDataDirs();
+  await saveState(defaultState());
+  return result;
+}
 async function exportBackup() {
   const stamp=new Date().toISOString().replace(/[:.]/g,'-');
   const chosen=await dialog.showSaveDialog(mainWindow,{
@@ -1104,6 +1193,10 @@ function registerIpc() {
 
   ipcMain.handle('backup:export', exportBackup);
   ipcMain.handle('backup:restore', restoreBackup);
+  ipcMain.handle('data:clear-evidence', clearLocalEvidence);
+  ipcMain.handle('data:remove-workspace', removeCurrentWorkspaceBinding);
+  ipcMain.handle('data:clear-credentials', clearStoredCredentials);
+  ipcMain.handle('data:reset-state', resetAecpLocalState);
 
   ipcMain.handle('state:get', async () => {
     const state = await loadState();
