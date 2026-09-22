@@ -198,7 +198,7 @@ AECP verifier
 - 原 Workspace 在執行期間不會被 Worker 直接修改。
 - OpenCode autonomous 模式拒絕 external directory 與任意 shell；只開放 worktree 內的讀寫與少量 read-only Git。
 - Codex autonomous 模式使用 `workspace-write` sandbox 並關閉 sandbox network。
-- AECP 不會自動 commit / push / release。
+- AECP 只有在 mission 明確啟用 governed delivery 且 SecurityPolicy 允許時，才會在 agent branch 進行 bounded commit / push / Draft PR；**Merge 與正式 Release 仍必須通過 CI 與人工授權**。
 - 原 Workspace 如果在執行期間被你改過、HEAD 變了、或變 Dirty，**Apply 會拒絕**。
 
 ---
@@ -597,22 +597,27 @@ Renderer：
 
 # Automated CI / Release
 
-Pull Request 會驗證：
+Pull Request 會對 **exact PR HEAD** 驗證：
 
-1. syntax checks
-2. unit tests
-3. Windows x64 fallback installer
-4. Windows ARM64 fallback installer
-5. Windows x64+ARM64 Auto-Detect installer
+1. syntax / unit / requirements / Blueprint / license / acceptance audits
+2. Windows x64 與 ARM64 fallback installer
+3. Windows x64+ARM64 Auto-Detect / Universal Bootstrap
+4. x64 / ARM64 silent install → smoke launch → uninstall
+5. x64 / ARM64 Store AppX build + manifest validation
+6. synthetic previous-version → current-version upgrade → previous-version rollback smoke
+7. release dry-run、SHA-256 與 provenance contract
 
-Merge / push 到 `main` 後，Release workflow 會重新 build 並建立該版本的 GitHub **pre-release**，內容包含：
+正式 GitHub Release **只在明確的版本 tag（`v*`）或 owner-authorized signed-release workflow 下發佈**，不會因一般 `main` push 自動發布。Preview release bundle 包含：
 
-- `AI-Engineering-Control-Plane-Setup-0.3.0.exe` — **一般使用者下載這個**
+- `AI-Engineering-Control-Plane-Setup-<version>.exe` — 一般使用者優先下載的 Universal installer
 - x64 fallback installer
 - ARM64 fallback installer
 - blockmaps
 - `SHA256SUMS.txt`
+- `RELEASE_PROVENANCE.json`
 - release notes
+
+Production Authenticode 另走 owner-gated signed-release lane；Microsoft Store 另走 owner-gated Store package lane。
 
 ---
 
@@ -636,7 +641,7 @@ MIT. See [`LICENSE`](LICENSE).
 
 # Status
 
-This repository is an active preview. A `1.0.0` claim is blocked until the Blueprint's stable-release gates—including signed installers, broader harness adapters, migration/update testing, accessibility, and security review—are satisfied.
+This repository is an active preview. The repository-verifiable stable-release gates now include canonical Harness/provider routing, migration/update/rollback tests, accessibility/security audits, Store software packaging and signed-release software preparation. A `1.0.0` production-trust claim remains blocked until owner-controlled Authenticode credentials/signing and Microsoft Store publisher/certification requirements are actually satisfied.
 
 
 # Blueprint / Architecture
@@ -758,8 +763,12 @@ The current implementation is not yet production-complete. The core control-plan
 
 ### P4 — Distribution
 - x64, ARM64 and universal-bootstrap build plus Windows-runner install/uninstall smoke gates are implemented in repository CI; exact-HEAD Actions determine PASS;
-- updater SHA-256 validation, transaction state, first-boot reconciliation, rollback and backup/restore foundations are implemented and tested;
-- production Authenticode signing and Microsoft Store publication remain EXTERNAL OWNER GATE operations.
+- updater SHA-256 validation, durable transaction state, first-boot reconciliation, retained rollback, and backup/restore are implemented and tested;
+- Packaging CI performs real x64/ARM64 baseline → upgrade → rollback smoke tests;
+- Store AppX x64/ARM64 software packaging + manifest validation and owner-identity bundle preparation are implemented;
+- stable/signed updater builds support pinned Authenticode signer verification for both target and rollback installers;
+- the signed-release workflow builds/verifies signed x64/ARM64/Universal artifacts and provenance when owner certificate secrets are supplied;
+- **actual production certificate ownership/signing authorization and Microsoft Store Partner Center submission/certification remain EXTERNAL OWNER GATE operations.**
 
 ### P5 — Remote supervision
 - authenticated loopback gateway, one-time pairing, READ_ONLY and APPROVAL_ONLY scopes, device revocation, request-id replay safety and TLS requirement for non-loopback binding are implemented;
@@ -779,7 +788,7 @@ When these disagree, do not guess. Reconcile them through the event/state model 
 
 ## Current closure rule
 
-The core AECP engineering loop is now considered **implemented and hardened prototype-complete**. Remaining items are external integration/trust operations or deliberately gated remote capabilities. In particular, Microsoft Store publication and production code-signing require user-owned publisher identity/certificates; repository code cannot legitimately manufacture those credentials.
+The core AECP engineering loop and the repository-verifiable distribution/update lanes are now considered **implemented and hardened prototype-complete**. Remaining items are external integration/trust operations or deliberately gated remote capabilities. Microsoft Store publication/certification and production code-signing require user-owned publisher identity/certificates; real provider-specific production claims require their actual local/company/provider environment. Repository code cannot legitimately manufacture those credentials or environments.
 
 
 ## Optional GitHub webhook hardening
@@ -806,23 +815,23 @@ The current implementation also includes: signed GitHub webhook ingestion (opt-i
 - signed GitHub webhook receiver with delivery-id replay protection (opt-in);
 - event ledger/replay, Context Capsule TTL and maintenance/garbage collection;
 - local authenticated read-only supervision gateway;
-- x64/ARM64 release workflow and SHA-256 artifact manifest;
+- x64/ARM64/Universal release workflows, Store AppX dry-run packages, SHA-256/provenance artifacts, and x64/ARM64 upgrade/rollback smoke evidence;
 - live Harness Command Center and synchronized Blueprint/status documentation.
 
-### Remaining engineering gates
+### Remaining engineering / owner gates
 
-1. Exact-HEAD AECP CI + Security + Packaging must all pass after the final source/documentation commit.
-2. Real provider execution claims require the corresponding local/company/provider environment and credentials; deterministic adapter tests do not substitute for them.
-3. Production Authenticode signing and Microsoft Store submission require operator-owned trust identities/certificates.
-4. Optional public/LAN deployment requires operator-owned domain/device identity/TLS configuration; remote task submission remains intentionally disabled.
-5. Windows UI Automation stays capability-scoped: read-only general-app inspection is implemented, browser/ChatGPT inspection is deny-by-default, and state-changing docking requires SYSTEM approval.
+1. **Final exact-HEAD verification:** AECP CI + Security + Packaging + release dry-run evidence must pass after the final source/documentation commit.
+2. **Real provider/environment evidence:** actual Ollama/OpenCode/company C++ worker or third-party provider production claims require the corresponding real environment/credentials; deterministic adapter tests do not substitute for those claims.
+3. **Production trust:** Authenticode certificate ownership/secrets, owner-authorized signing run, Microsoft Store publisher identity/submission/certification and private-audience acquisition remain EXTERNAL OWNER GATE.
+4. **Optional public/LAN deployment:** user-owned domain/device identity/TLS configuration remains EXTERNAL OWNER GATE; remote task submission remains intentionally disabled.
+5. **Windows UI boundary:** read-only general-app inspection is implemented, browser/ChatGPT inspection is deny-by-default, and state-changing docking requires SYSTEM approval.
 
 **Important:** GitHub Actions is the verification authority for the current branch. Documentation is not used to mark a build as passed; only an actual successful run does that.
 
 
-## Next hardening tranche
+## Production-gate closure status
 
-The next engineering cycle is explicitly bounded to six production gates: Failure Recovery Assistant, complete Adapter Security Audit Matrix, clean temporary-repository E2E matrix, Windows x64/ARM64 release/install/rollback verification, authenticated remote pairing, and scheduled dependency/security/Blueprint/documentation drift scans. Production readiness requires evidence for all six gates and successful GitHub Actions on the exact release commit.
+The six previously identified repository-verifiable production gates are now implemented in code/tests/workflows: Failure Recovery Assistant, Adapter Security Audit Matrix, clean temporary-repository E2E, Windows x64/ARM64 install + upgrade/rollback verification, authenticated remote pairing, and scheduled dependency/security/Blueprint/documentation drift scans. Their completion is accepted only from successful GitHub Actions on the exact commit; external trust/provider-environment gates remain separate.
 
 
 ### Latest implementation update
