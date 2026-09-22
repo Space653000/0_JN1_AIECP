@@ -24,6 +24,9 @@ const requiredFiles=[
  ['provider-router','electron/lib/provider-router.cjs'],
  ['provider-usage','electron/lib/provider-usage.cjs'],
  ['provider-usage-test','tests/provider-usage.test.cjs'],
+ ['real-provider-test','tests/provider-environment-workflow.test.cjs'],
+ ['real-provider-script','scripts/provider-environment-verify.cjs'],
+ ['real-provider-workflow','.github/workflows/provider-environment.yml'],
  ['github-gateway','electron/lib/github-gateway.cjs'],
  ['github-webhook','electron/lib/github-webhook.cjs'],
  ['ci-monitor','electron/lib/ci-monitor.cjs'],
@@ -91,6 +94,21 @@ const staticInvariants=[
   {label:'role config validation',re:/normalizeRoleConfig/},
   {label:'provider planner execution',re:/invokeRole\(\{[\s\S]*role:'planner'/},
   {label:'human-gated CI delivery',re:/GitHub CI passed\. Human approval is required before PR merge/}
+ ]),
+ invariant('real-provider-evidence-lane','.github/workflows/provider-environment.yml',[
+  {label:'manual dispatch',re:/workflow_dispatch:/},
+  {label:'dedicated self-hosted runner',re:/runs-on:\s*\[self-hosted, Windows, aecp-provider\]/},
+  {label:'exact source checkout',re:/ref:\s*\$\{\{ inputs\.source_ref \}\}/},
+  {label:'provider evidence artifact',re:/provider-environment-evidence\.json/},
+  {label:'always upload evidence',re:/if:\s*always\(\)[\s\S]*Upload real provider evidence/}
+ ]),
+ invariant('real-provider-evidence-script','scripts/provider-environment-verify.cjs',[
+  {label:'real Ollama smoke',re:/ollama\.real-smoke/},
+  {label:'OpenCode Ollama edit',re:/opencode\.ollama-real-edit/},
+  {label:'fixed local command smoke',re:/local-command\.real-smoke/},
+  {label:'canonical local Harness',re:/canonical-harness\.ollama-opencode/},
+  {label:'no provider network approval',re:/providerNetworkApproved:false/},
+  {label:'privacy declaration',re:/promptBodiesPersisted:false[\s\S]*responseBodiesPersisted:false[\s\S]*credentialsPersisted:false/}
  ]),
  invariant('provider-health-and-observability','electron/lib/provider-router.cjs',[
   {label:'provider health states',re:/NOT_CONFIGURED[\s\S]*READY[\s\S]*DEGRADED[\s\S]*UNAVAILABLE[\s\S]*AUTH_REQUIRED/},
