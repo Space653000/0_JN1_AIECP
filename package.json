@@ -51,7 +51,8 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "AI Engineering Control Plane",
-      "uninstallDisplayName": "AI Engineering Control Plane"
+      "uninstallDisplayName": "AI Engineering Control Plane",
+      "deleteAppDataOnUninstall": false
     },
     "appx": {
       "applicationId": "AECP",
