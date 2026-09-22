@@ -87,9 +87,11 @@ test('provider URLs reject embedded credentials at the network boundary',()=>{
 test('all operational persistence surfaces use centralized redaction',()=>{
   const root=path.resolve(__dirname,'..');
   const harness=fss.readFileSync(path.join(root,'electron','lib','harness.cjs'),'utf8');
+  const autonomy=fss.readFileSync(path.join(root,'electron','lib','autonomy.cjs'),'utf8');
   const control=fss.readFileSync(path.join(root,'electron','lib','control-plane.cjs'),'utf8');
   const main=fss.readFileSync(path.join(root,'electron','main.cjs'),'utf8');
   assert.match(harness,/JSON\.stringify\(redactSensitive\(record\)/);
+  assert.match(autonomy,/JSON\.stringify\(redactSensitive\(record\)/);
   assert.match(control,/JSON\.stringify\(redactSensitive\(this\.state\)/);
   assert.match(control,/const e=redactSensitive/);
   assert.match(main,/state\.json'\), redactSensitive\(state\)/);
