@@ -34,3 +34,29 @@ test('raw Ollama is reasoning-only while tool-capable workers can build', () => 
   assert.match(ui, /Raw Ollama is Planner\/Reviewer only/);
   assert.match(ui, /OpenCode with an Ollama model/);
 });
+
+
+test('provider health is exposed through IPC and UI without implicit network access', () => {
+  const main = read('electron/main.cjs');
+  const preload = read('electron/preload.cjs');
+  const app = read('ui/app.js');
+  assert.match(main, /ipcMain\.handle\('provider:health'/);
+  assert.match(main, /checkProviderHealth/);
+  assert.match(preload, /checkProviderHealth/);
+  assert.match(app, /data-provider-health/);
+  assert.match(app, /Check health/);
+  assert.match(app, /networkApproved = confirm/);
+  assert.match(app, /credentialApproved = confirm/);
+  assert.match(app, /AUTH_REQUIRED|DEGRADED/);
+});
+
+test('provider usage observability is durable and ChatGPT Web remains externally managed', () => {
+  const main = read('electron/main.cjs');
+  const app = read('ui/app.js');
+  assert.match(main, /ProviderUsageStore/);
+  assert.match(main, /provider-usage\.json/);
+  assert.match(main, /metricsSink/);
+  assert.match(app, /formatProviderUsage/);
+  assert.match(app, /subscription-managed externally/);
+  assert.doesNotMatch(app, /chatgpt[^\n]{0,80}(?:token|usage)[^\n]{0,80}(?:scrape|fetch)/i);
+});
