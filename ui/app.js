@@ -24,6 +24,7 @@ const state = {
   view: 'start',
   engineering: false,
   theme: ['system', 'dark', 'light'].includes(localStorage.getItem('aecp-theme')) ? localStorage.getItem('aecp-theme') : 'system',
+  motion: ['system', 'reduced'].includes(localStorage.getItem('aecp-motion')) ? localStorage.getItem('aecp-motion') : 'system',
   chatgptOpened: localStorage.getItem('aecp-chatgpt-opened') === '1'
 };
 
@@ -141,6 +142,7 @@ async function loadAll() {
 
 function render() {
   document.documentElement.dataset.theme = resolvedTheme();
+  document.documentElement.dataset.motion = state.motion;
   $('#themeButton').setAttribute('aria-label', `Theme: ${state.theme}`);
   $('#themeButton').title = `Theme: ${state.theme}`;
   document.body.classList.toggle('engineering-mode', state.engineering);
@@ -1109,6 +1111,7 @@ function setView(view) {
 async function openProviderSettings() {
   providerFocusReturn = document.activeElement;
   $('#providerOverlay').classList.remove('hidden');
+  $('#motionPreference').value = state.motion;
   await refreshEngineeringSettings();
   $('#providerNameInput')?.focus();
 }
@@ -1151,6 +1154,11 @@ function bindEvents() {
   $('#clearCredentialsButton').addEventListener('click', clearCredentialData);
   $('#resetLocalStateButton').addEventListener('click', resetLocalStateData);
   $('#savePolicyButton').addEventListener('click', saveWorkspacePolicySettings);
+  $('#motionPreference').addEventListener('change', (event) => {
+    state.motion = event.target.value === 'reduced' ? 'reduced' : 'system';
+    localStorage.setItem('aecp-motion', state.motion);
+    render();
+  });
   $('#connectGitHubButton').addEventListener('click', connectGitHub);
   $('#openReleasesButton').addEventListener('click', () => safe(() => window.aecp.openReleases()));
   $('#importClipboardButton').addEventListener('click', importFromClipboard);
