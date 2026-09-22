@@ -41,6 +41,7 @@ const requiredFiles=[
  ['authenticode-test','tests/authenticode.test.cjs'],
  ['store-validator','scripts/validate-store-package.ps1'],
  ['license-audit','scripts/license-audit.cjs'],
+ ['roadmap-gate-audit','scripts/roadmap-gate-audit.cjs'],
  ['requirements-coverage','scripts/requirements-coverage.cjs'],
  ['blueprint-coverage','scripts/blueprint-coverage.cjs'],
  ['store-metadata','release/store/store-metadata.template.json'],
@@ -195,6 +196,13 @@ const staticInvariants=[
   {label:'matching signer test',re:/accepts a valid matching signature/},
   {label:'wrong signer rejection',re:/wrong certificate/},
   {label:'invalid signature rejection',re:/invalid signature status/}
+ ]),
+ invariant('canonical-roadmap-gate','package.json',[
+  {label:'roadmap audit script',re:/"audit:roadmap"\s*:\s*"node scripts\/roadmap-gate-audit\.cjs"/},
+  {label:'verify executes roadmap audit',re:/"verify"\s*:\s*"[^"]*audit:roadmap[^"]*"/}
+ ]),
+ invariant('roadmap-evidence-artifact','.github/workflows/aecp-ci.yml',[
+  {label:'roadmap gate artifact',re:/artifacts\/roadmap-gates\.json/}
  ]),
  invariant('canonical-license-gate','package.json',[
   {label:'license audit script',re:/"audit:license"\s*:\s*"node scripts\/license-audit\.cjs"/},
