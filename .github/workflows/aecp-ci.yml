@@ -35,6 +35,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: aecp-verification-${{ github.event.pull_request.head.sha || github.sha }}
-          path: artifacts/npm-verify.log
+          path: |
+            artifacts/npm-verify.log
+            artifacts/license-audit.json
+            artifacts/requirements-coverage.json
           if-no-files-found: error
           retention-days: 14
