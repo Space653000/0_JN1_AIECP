@@ -12,6 +12,7 @@ const { ControlPlane } = require('./lib/control-plane.cjs');
 const { ProviderRouter, PROVIDERS } = require('./lib/provider-router.cjs');
 const { ProviderUsageStore } = require('./lib/provider-usage.cjs');
 const { clearEvidence, removeWorkspaceBinding, clearCredentials, resetActiveState } = require('./lib/local-data-manager.cjs');
+const { assertWithinRoot } = require('./lib/path-safety.cjs');
 const { SecurityPolicy } = require('./lib/security-policy.cjs');
 const { migrateState } = require('./lib/state-migration.cjs');
 const { recommendNextAction } = require('./lib/guidance.cjs');
@@ -720,14 +721,58 @@ async function scanRepositories(root) {
 
 async function buildWorkspace(root, existing = null) {
   const realRoot = await realDirectory(root);
+  const automatic = await scanRepositories(realRoot);
+  const manualRepositories = [];
+  for (const candidate of Array.isArray(existing?.manualRepositories) ? existing.manualRepositories : []) {
+    try {
+      const realCandidate = await realDirectory(candidate);
+      assertWithinRoot(realRoot, realCandidate);
+      const repo = await inspectGit(realCandidate);
+      if (!repo) continue;
+      const realRepoRoot = await realDirectory(repo.path);
+      assertWithinRoot(realRoot, realRepoRoot);
+      if (path.resolve(realRepoRoot) !== path.resolve(realCandidate)) continue;
+      manualRepositories.push(realRepoRoot);
+    } catch {}
+  }
+  const byPath = new Map(automatic.map((repo) => [path.resolve(repo.path).toLowerCase(), repo]));
+  for (const manual of manualRepositories) {
+    const repo = await inspectGit(manual);
+    if (repo) byPath.set(path.resolve(repo.path).toLowerCase(), repo);
+  }
   return {
     id: existing?.id || workspaceId(realRoot),
     name: existing?.name || path.basename(realRoot) || realRoot,
     rootPath: realRoot,
     createdAt: existing?.createdAt || new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-    repositories: await scanRepositories(realRoot)
+    manualRepositories: [...new Set(manualRepositories.map((item) => path.resolve(item)))].slice(0, 24),
+    repositories: [...byPath.values()].slice(0, 24)
   };
+}
+
+async function addWorkspaceRepository() {
+  const state = await loadState();
+  const workspace = getCurrentWorkspace(state);
+  if (!workspace) throw new Error('Choose a Workspace first.');
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Add Git repository inside the current Workspace',
+    defaultPath: workspace.rootPath,
+    properties: ['openDirectory']
+  });
+  if (result.canceled || !result.filePaths[0]) return null;
+  const selected = await realDirectory(result.filePaths[0]);
+  assertWithinRoot(workspace.rootPath, selected);
+  const repo = await inspectGit(selected);
+  if (!repo) throw new Error('The selected folder is not inside a Git repository.');
+  const repoRoot = await realDirectory(repo.path);
+  assertWithinRoot(workspace.rootPath, repoRoot);
+  if (path.resolve(repoRoot) !== path.resolve(selected)) throw new Error('Select the Git repository root itself.');
+  const manual = [...new Set([...(workspace.manualRepositories || []), repoRoot])].slice(0, 24);
+  const refreshed = await buildWorkspace(workspace.rootPath, { ...workspace, manualRepositories: manual });
+  state.workspaces[state.workspaces.findIndex((item) => item.id === workspace.id)] = refreshed;
+  await saveState(state);
+  return refreshed;
 }
 
 async function appendTrace(taskId, type, data = {}, severity = 'info') {
@@ -1227,6 +1272,7 @@ function registerIpc() {
     await saveState(state);
     return refreshed;
   });
+  ipcMain.handle('workspace:add-repo', addWorkspaceRepository);
 
   ipcMain.handle('workspace:open', async () => {
     const state = await loadState();
