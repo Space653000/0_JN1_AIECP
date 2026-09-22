@@ -182,6 +182,14 @@ const staticInvariants=[
   {label:'Provider URL credential rejection',re:/provider URLs reject embedded credentials/},
   {label:'Operational persistence test',re:/all operational persistence surfaces use centralized redaction/}
  ]),
+ invariant('restart-no-blind-replay','electron/lib/control-plane.cjs',[
+  {label:'restart pause',re:/requiresExplicitResume:true/},
+  {label:'running and queued recovery',re:/\['RUNNING','QUEUED'\]/},
+  {label:'recovered task checkpoint',re:/task\.resume=true/}
+ ]),
+ invariant('restart-no-blind-replay-test','tests/control-plane.test.cjs',[
+  {label:'explicit resume recovery test',re:/never auto-resumes a mutating mission/}
+ ]),
  invariant('canonical-provider-routing','electron/lib/harness.cjs',[
   {label:'ProviderRouter imported',re:/ProviderRouter/},
   {label:'planner provider routed',re:/plannerProvider/},
