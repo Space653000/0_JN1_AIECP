@@ -143,13 +143,13 @@ Git / GitHub
 | Full crash-safe substep resume | Implemented |
 | Full multi-repository routing | Implemented for repository-per-task execution |
 | Complete GitHub event/webhook/event-bus integration | Hardened — signed inbound receiver + polling fallback; production deployment/tunnel remains external |
-| Full security enforcement across every adapter | Hardened in Control Plane delivery paths; adapter-specific completion remains |
+| Full security enforcement across every adapter | Implemented through explicit adapter security matrix + runtime SecurityPolicy; high-risk/credential/system actions remain approval-gated |
 | Remote authenticated supervision | READ_ONLY + APPROVAL_ONLY pairing/revocation implemented; remote task submission disabled; non-loopback requires explicit enablement + TLS |
 | Windows UI automation | Scoped read-only inspection implemented; browser/ChatGPT deny-by-default; state-changing docking requires SYSTEM approval |
 | Public/remote gateway | Software boundary implemented; public deployment disabled by default and remains operator-owned |
-| Private Store distribution | Not implemented |
-| One-click production-grade updater | Partial — update/rollback release-environment proof remains |
-| Full integration/E2E test suite | Deterministic canonical/provider/pairing/security tests plus Windows packaging/smoke workflow implemented; real-provider environment remains external |
+| Private Store distribution | Software-side implemented: x64/ARM64 AppX build, manifest validation, owner-identity bundle/provenance; Partner Center submission/certification remains EXTERNAL OWNER GATE |
+| One-click production-grade updater | Software-side implemented: SHA-256, durable transaction, first-boot health, retained rollback, x64/ARM64 upgrade→rollback smoke, optional pinned Authenticode signer; production signing trust remains EXTERNAL OWNER GATE |
+| Full integration/E2E test suite | Repository-verifiable canonical/provider/pairing/security + Windows x64/ARM64/Store/install/upgrade/rollback/Universal smoke implemented; real-provider execution remains environment-specific |
 | Maintenance / garbage collection automation | Implemented bounded scheduler/retention |
 
 ## 5. Remaining work — ordered by engineering dependency
@@ -160,8 +160,8 @@ Git / GitHub
 - Correlation IDs/idempotency keys — implemented via event ledger and GitHub delivery IDs.
 - PR rework idempotency — completed; existing delivery branch/PR is reused.
 - GitHub workflow/job/log evidence — completed for CI completion and failed logs.
-- Temporary Git/infrastructure hardening tests — implemented; full end-to-end matrix remains.
-- High-risk SecurityPolicy enforcement — hardened across governed delivery path; remaining adapter-specific audit is P0 hardening.
+- Temporary Git/infrastructure hardening tests — implemented with canonical-loop E2E plus requirements/Blueprint/acceptance coverage audits; real provider-backed execution remains environment-specific.
+- High-risk SecurityPolicy enforcement — implemented across the audited adapter matrix; missing adapter decisions fail deterministic verification.
 
 ### P1 — Multi-repository engineering
 - Resource graph bindings for tasks — completed.
@@ -169,7 +169,7 @@ Git / GitHub
 - Multiple worktrees/repositories in one mission — completed at task routing layer.
 - Cross-repo dependency scheduling — completed through task DAG/resource binding.
 - GitHub repository routing — completed.
-- Branch/PR state projection into Dashboard — implemented; richer artifact projection remains.
+- Branch/PR/CI/evidence/event state projection into Dashboard — implemented; Dashboard remains a projection rather than Source of Truth.
 
 ### P2 — Event-driven Control Plane
 - Authenticated GitHub webhook receiver — completed, opt-in.
@@ -183,17 +183,21 @@ Git / GitHub
 - Expired lease cleanup — completed.
 - Evidence/artifact retention policy — completed.
 - Orphan worktree cleanup — completed.
-- Failed-run recovery assistant — bounded classifier + safe auto-rework implemented; deeper diagnostic assistant remains.
-- Dependency/security/documentation drift scans — bounded scanners implemented; production evidence cadence remains.
+- Failed-run recovery assistant — bounded evidence/log-aware classifier + safe auto-rework implemented; credential/permission/policy/production/unknown classes remain HUMAN_REQUIRED.
+- Dependency/security/documentation drift scans — bounded scanners implemented and covered by canonical verification; they diagnose but never silently mutate dependencies or documentation.
 - Scheduled maintenance tasks with bounded budgets — completed.
 
 ### P4 — Distribution
 - x64/ARM64 architecture-specific builds — implemented in Packaging workflow; exact-HEAD Actions determine PASS.
-- Universal architecture-selecting bootstrap — implemented with Windows-runner smoke gate.
+- Universal architecture-selecting bootstrap — implemented with Windows-runner x64/ARM64 selection/install/uninstall smoke.
 - Silent install/uninstall smoke on x64/ARM64 — repository-verifiable on GitHub Windows runners.
-- SHA-256 release manifest, updater verification, update transaction/rollback and backup/restore foundations — implemented.
-- Production Authenticode signing and Microsoft Store publication — **EXTERNAL OWNER GATE**.
-- Optional production release provenance tied to owner signing identity — **EXTERNAL OWNER GATE**.
+- Store AppX x64/ARM64 build + manifest/identity/architecture/capability validation — implemented in PR Packaging.
+- Owner-identity Store submission bundle + SHA-256 + provenance preparation — implemented; Partner Center submission/certification/private-audience acquisition is **EXTERNAL OWNER GATE**.
+- SHA-256 release verification, durable updater transaction, first-boot reconciliation, retained rollback and backup/restore — implemented.
+- Real NSIS baseline → upgrade → rollback smoke — implemented on x64 and ARM64 Windows runners.
+- Stable signed builds support pinned Authenticode signer verification for target + rollback installers.
+- Owner-gated signed-release workflow prepares/verifies signed x64/ARM64/Universal artifacts and signed provenance when owner certificate secrets are supplied.
+- Production certificate ownership/secrets and owner-authorized signed publication remain **EXTERNAL OWNER GATE**.
 
 ### P5 — Remote/mobile
 - One-time authenticated device pairing and revocation — implemented.
@@ -242,11 +246,11 @@ AECP should not be called production-complete until:
 - Delivery commit/push/PR paths are explicitly policy-gated by the mission's governed delivery opt-in.
 - Repository discovery and task-to-repository routing are now part of mission planning; each task executes against its selected Git repository and locks its resources.
 - External event idempotency ledger, signed GitHub webhook receiver, maintenance/retention service and local authenticated read-only gateway are implemented.
-- Release pipeline is explicit-tag/manual rather than silently publishing on every main push.
+- Release pipeline runs a non-publishing PR dry-run and publishes only on explicit version tags; production Authenticode publication remains a separate owner-authorized manual workflow.
 
 ## Remaining external dependency
 
-The major capabilities that cannot be made genuinely production-complete by repository code alone are external trust/account operations: Microsoft Store publisher identity/certification/submission, production code-signing certificate ownership, and optional LAN/Internet remote gateway deployment with a user-owned domain/device identity. AECP now contains the software-side packaging, checksum, release, policy and local-gateway foundations for those operations.
+The remaining capabilities that cannot be made genuinely production-complete by repository code alone are external trust/account/environment operations: Microsoft Store publisher identity/certification/submission/private-audience acquisition, production code-signing certificate ownership/secrets and authorized signing run, optional LAN/Internet remote-gateway deployment with a user-owned domain/device identity, and real provider execution requiring actual local/company/provider runtimes or credentials. AECP contains the software-side packaging, Store bundle, signer verification, signed-release preparation, checksum/provenance, release, policy and gateway foundations for those operations.
 
 
 ## Autonomous hardening record — 2026-09-19
@@ -255,12 +259,12 @@ The major capabilities that cannot be made genuinely production-complete by repo
 1. **Failure Recovery Assistant** — bounded classifier + low-risk auto-rework implemented; richer evidence-driven diagnosis remains bounded by existing authority.
 2. **Adapter Security Audit Matrix** — explicit SecurityPolicy decisions are now required for READ/WRITE/EXECUTE/NETWORK/CREDENTIAL actions.
 3. **Clean E2E Matrix** — temporary-Git infrastructure coverage plus x64/ARM64/universal Windows-runner install/uninstall smoke workflows are implemented; real provider execution still requires its environment.
-4. **Release Gate** — repository CI can prove unsigned x64/ARM64/universal build/install/uninstall/checksum behavior; production signing/Store trust remains an owner gate, while update/rollback must retain exact evidence.
+4. **Release Gate** — repository CI proves unsigned x64/ARM64/Universal build/install/uninstall, Store AppX build/manifest validation, SHA-256/provenance, and x64/ARM64 installer upgrade→rollback behavior; signer pinning/signed-release software is implemented, while actual production signing/Store trust remains an owner gate.
 5. **Remote Pairing Gate** — authenticated one-time pairing, read-only credentials and revocation are implemented; LAN/Internet transport remains gated.
 6. **Drift Scans** — scheduled dependency, security, Blueprint/code and documentation consistency scanners are implemented.
 
 ### Definition of done
-The product is not called Production Ready until all six gates have evidence artifacts and GitHub CI reports success on the exact release commit.
+Repository-verifiable engineering completion requires all six software gates, normative requirement/Blueprint coverage and exact-HEAD CI/Security/Packaging/release-dry-run evidence. A separate **Production Trust Ready** claim additionally requires owner-controlled signing/Store/provider/deployment evidence; those external operations are never fabricated by repository tests.
 
 
 ### Latest implementation update
@@ -309,8 +313,9 @@ The maintenance loop now includes a bounded, non-mutating Blueprint/documentatio
 ### Release installer hardening — 2026-09-19
 
 - Added a self-contained Windows bootstrap installer source that detects x64 vs ARM64 at runtime and launches the matching embedded NSIS payload.
-- Release workflow now builds x64 and ARM64 payloads, assembles the universal auto-select installer, generates SHA-256 checksums, and publishes release assets for version tags.
-- The universal installer path is represented in source and CI, and the Packaging workflow contains architecture-specific plus universal Windows-runner install/uninstall smoke gates. PASS is accepted only from the exact PR HEAD Actions run.
+- Release workflow now verifies source, builds x64/ARM64/Auto/Universal artifacts, performs Store dry-run packaging, executes x64/ARM64 upgrade→rollback smoke, emits SHA-256/provenance, and publishes only for explicit version tags.
+- Packaging performs architecture-specific + Universal Windows-runner install/uninstall smoke, Store AppX manifest validation, and real installer upgrade/rollback smoke. PASS is accepted only from the exact PR HEAD Actions run.
+- Stable update software now supports pinned Authenticode signer verification; the owner-gated signed-release workflow verifies signed x64/ARM64/Universal artifacts and emits signed provenance without storing certificate material in the repository.
 
 
 ## Exact-HEAD verification hardening — 2026-09-22
