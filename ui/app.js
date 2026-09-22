@@ -853,6 +853,10 @@ function bindEvents() {
   $('#openWorkspaceButton').addEventListener('click', () => safe(() => window.aecp.openWorkspace()));
   $('#terminalButton').addEventListener('click', () => safe(() => window.aecp.openTerminal()));
   $('#openChatGPTButton').addEventListener('click', openChatGPT);
+  $('#refreshBrowserWindowsButton').addEventListener('click', refreshBrowserWindows);
+  $('#dockBrowserLeftButton').addEventListener('click', () => dockBrowser('left'));
+  $('#dockBrowserRightButton').addEventListener('click', () => dockBrowser('right'));
+  $('#browserWindowSelect').addEventListener('change', renderBrowserDock);
   $('#startMcpButton').addEventListener('click', startMcp);
   $('#stopMcpButton').addEventListener('click', stopMcp);
   $('#copyMcpButton').addEventListener('click', copyMcpConnection);
