@@ -22,6 +22,8 @@ const requiredFiles=[
  ['lock-manager','electron/lib/lock-manager.cjs'],
  ['context-bus','electron/lib/context-bus.cjs'],
  ['provider-router','electron/lib/provider-router.cjs'],
+ ['provider-usage','electron/lib/provider-usage.cjs'],
+ ['provider-usage-test','tests/provider-usage.test.cjs'],
  ['github-gateway','electron/lib/github-gateway.cjs'],
  ['github-webhook','electron/lib/github-webhook.cjs'],
  ['ci-monitor','electron/lib/ci-monitor.cjs'],
@@ -89,6 +91,25 @@ const staticInvariants=[
   {label:'role config validation',re:/normalizeRoleConfig/},
   {label:'provider planner execution',re:/invokeRole\(\{[\s\S]*role:'planner'/},
   {label:'human-gated CI delivery',re:/GitHub CI passed\. Human approval is required before PR merge/}
+ ]),
+ invariant('provider-health-and-observability','electron/lib/provider-router.cjs',[
+  {label:'provider health states',re:/NOT_CONFIGURED[\s\S]*READY[\s\S]*DEGRADED[\s\S]*UNAVAILABLE[\s\S]*AUTH_REQUIRED/},
+  {label:'network health approval',re:/NETWORK approval was not granted/},
+  {label:'credential health approval',re:/CREDENTIAL approval/},
+  {label:'privacy-safe metrics',re:/aecp\.provider-usage\/v1/},
+  {label:'metrics sink',re:/metricsSink/}
+ ]),
+ invariant('provider-usage-store','electron/lib/provider-usage.cjs',[
+  {label:'bounded retention',re:/maxRecords/},
+  {label:'serialized writes',re:/this\.queue/},
+  {label:'privacy whitelist',re:/numericOnly/},
+  {label:'usage summaries',re:/async summaries\(\)/}
+ ]),
+ invariant('provider-health-ui','ui/app.js',[
+  {label:'health action',re:/data-provider-health/},
+  {label:'health IPC call',re:/checkProviderHealth/},
+  {label:'external subscription text',re:/subscription-managed externally/},
+  {label:'usage summary',re:/formatProviderUsage/}
  ]),
  invariant('provider-sandbox-and-local','electron/lib/provider-router.cjs',[
   {label:'Ollama explicit model',re:/Ollama provider requires a model/},
