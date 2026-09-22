@@ -5,7 +5,7 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
 const { redactSensitive } = require('./redaction.cjs');
-const { validateExecutionContract } = require('./execution-contract.cjs');
+const { makeExecutionContract, validateExecutionContract } = require('./execution-contract.cjs');
 
 const AUTONOMY_SCHEMA = 'aecp.autonomous/v1';
 const MAX_OUTPUT_BYTES = 1024 * 1024;
@@ -433,12 +433,28 @@ async function runBoundedAutonomy(options, deps = {}) {
   }
   if (resumeRecord && normalizePathForCompare(resumeRecord.sourceRoot) !== normalizePathForCompare(sourceRoot)) throw new Error('Resume sourceRoot does not match the persisted run.');
   if (resumeRecord && normalizePathForCompare(resumeRecord.runRoot) !== normalizePathForCompare(runRoot)) throw new Error('Resume runRoot does not match the persisted run.');
-  const incomingContract = options.executionContract || resumeRecord?.executionContract || null;
-  if (!incomingContract || !validateExecutionContract(incomingContract).ok) throw new Error('A valid canonical execution contract is required for bounded autonomy.');
+  const runId = resumeRecord?.id || options.runId || makeRunId();
+  const incomingContract = options.executionContract || resumeRecord?.executionContract || makeExecutionContract({
+    goal: spec.goal,
+    done: spec.done,
+    workspaceRoot: sourceRoot,
+    permissionPolicy: {
+      mode: 'LOCAL_AUTONOMOUS',
+      workspaceWrite: 'isolated-worktree-only',
+      applyToWorkspace: 'explicit-user-approval',
+      highRisk: 'HUMAN_REQUIRED'
+    },
+    taskIds: [runId],
+    resultCapsuleRef: `local://autonomy/${runId}/run.json`,
+    evidenceRef: `local://autonomy/${runId}/verified.patch`,
+    traceRef: `local://autonomy/${runId}/run.json`,
+    transport: 'local-autonomous',
+    worker: spec.workerId
+  });
+  if (!validateExecutionContract(incomingContract).ok) throw new Error('A valid canonical execution contract is required for bounded autonomy.');
   if (resumeRecord?.executionContract && JSON.stringify(resumeRecord.executionContract) !== JSON.stringify(incomingContract)) {
     throw new Error('Autonomous resume cannot change the persisted execution contract.');
   }
-  const runId = resumeRecord?.id || options.runId || makeRunId();
   const startedAt = resumeRecord?.startedAt || new Date().toISOString();
   const record = resumeRecord ? {
     ...resumeRecord,
