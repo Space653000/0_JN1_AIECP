@@ -125,6 +125,8 @@ test('bounded runner isolates writes in worktree then applies only after explici
   const applied = await applyVerifiedPatch({ sourceRoot: repo, runRecord: record });
   assert.equal(applied.applied, true);
   assert.equal(normalizeEol(await fs.readFile(path.join(repo, 'value.txt'), 'utf8')), 'changed\n');
+  const statusAfterApply = await exec('git', ['status', '--porcelain'], { cwd: repo });
+  assert.match(normalizeEol(statusAfterApply.stdout), /value\.txt/);
 });
 
 
@@ -219,4 +221,179 @@ test('autonomy refuses a verified patch that exceeds changed-file budget', async
 
   assert.equal(record.state, 'BUDGET_EXHAUSTED');
   assert.match(record.error, /Changed-file budget exceeded/);
+});
+
+
+async function makeAutonomyRepo(prefix) {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), prefix));
+  const repo = path.join(root, 'repo');
+  const runRoot = path.join(root, 'run');
+  await fs.mkdir(repo, { recursive: true });
+  await exec('git', ['init'], { cwd: repo });
+  await exec('git', ['config', 'user.email', 'test@example.com'], { cwd: repo });
+  await exec('git', ['config', 'user.name', 'AECP Test'], { cwd: repo });
+  await fs.writeFile(path.join(repo, 'value.txt'), 'original\n');
+  await exec('git', ['add', '.'], { cwd: repo });
+  await exec('git', ['commit', '-m', 'base'], { cwd: repo });
+  return { root, repo, runRoot };
+}
+
+test('dirty source repository blocks bounded autonomy before Worker execution', async (t) => {
+  const fixture = await makeAutonomyRepo('aecp-auto-dirty-');
+  t.after(async () => fs.rm(fixture.root, { recursive: true, force: true }));
+  await fs.writeFile(path.join(fixture.repo, 'value.txt'), 'dirty\n');
+  let workerRan = false;
+  const record = await runBoundedAutonomy({
+    sourceRoot: fixture.repo,
+    runRoot: fixture.runRoot,
+    spec: {
+      goal: 'Attempt bounded work.',
+      done: 'Verifier passes.',
+      workerId: 'opencode',
+      verificationProfile: 'npm-test',
+      maxIterations: 1
+    }
+  }, {
+    workerProbe: async () => '1.18.30',
+    runProcess: async () => { workerRan = true; return { code: 0, timedOut: false, aborted: false, stdout: '', stderr: '' }; }
+  });
+  assert.equal(record.state, 'FAILED');
+  assert.match(record.error, /uncommitted changes|clean/i);
+  assert.equal(workerRan, false);
+});
+
+test('failed verification triggers another bounded iteration and can then pass', async (t) => {
+  const fixture = await makeAutonomyRepo('aecp-auto-retry-');
+  t.after(async () => fs.rm(fixture.root, { recursive: true, force: true }));
+  let workerCalls = 0;
+  let verifyCalls = 0;
+  const record = await runBoundedAutonomy({
+    sourceRoot: fixture.repo,
+    runRoot: fixture.runRoot,
+    spec: {
+      goal: 'Retry until deterministic verification passes.',
+      done: 'Verifier passes.',
+      workerId: 'opencode',
+      verificationProfile: 'npm-test',
+      maxIterations: 3
+    }
+  }, {
+    workerProbe: async () => '1.18.30',
+    runProcess: async (_command, _args, options) => {
+      workerCalls++;
+      await fs.writeFile(path.join(options.cwd, 'value.txt'), 'changed\n');
+      return { code: 0, signal: null, timedOut: false, aborted: false, outputLimitExceeded: false, stdout: 'worker', stderr: '' };
+    },
+    runVerification: async () => {
+      verifyCalls++;
+      return {
+        profile: 'npm-test', label: 'fake', command: 'fake verify',
+        passed: verifyCalls >= 2, code: verifyCalls >= 2 ? 0 : 1,
+        timedOut: false, aborted: false, outputLimitExceeded: false,
+        stdout: verifyCalls >= 2 ? 'PASS' : '', stderr: verifyCalls >= 2 ? '' : 'FAIL'
+      };
+    }
+  });
+  assert.equal(record.state, 'DONE', record.error || JSON.stringify(record, null, 2));
+  assert.equal(workerCalls, 2);
+  assert.equal(verifyCalls, 2);
+  assert.equal(record.iterations.length, 2);
+});
+
+test('max iteration limit terminates repeated verification failure as BUDGET_EXHAUSTED', async (t) => {
+  const fixture = await makeAutonomyRepo('aecp-auto-max-iterations-');
+  t.after(async () => fs.rm(fixture.root, { recursive: true, force: true }));
+  let workerCalls = 0;
+  const record = await runBoundedAutonomy({
+    sourceRoot: fixture.repo,
+    runRoot: fixture.runRoot,
+    spec: {
+      goal: 'Stay bounded when verification never passes.',
+      done: 'Verifier passes.',
+      workerId: 'opencode',
+      verificationProfile: 'npm-test',
+      maxIterations: 2
+    }
+  }, {
+    workerProbe: async () => '1.18.30',
+    runProcess: async () => {
+      workerCalls++;
+      return { code: 0, signal: null, timedOut: false, aborted: false, outputLimitExceeded: false, stdout: 'worker', stderr: '' };
+    },
+    runVerification: async () => ({
+      profile: 'npm-test', label: 'fake', command: 'fake verify',
+      passed: false, code: 1, timedOut: false, aborted: false, outputLimitExceeded: false,
+      stdout: '', stderr: 'still failing'
+    })
+  });
+  assert.equal(record.state, 'BUDGET_EXHAUSTED');
+  assert.equal(workerCalls, 2);
+  assert.equal(record.iterations.length, 2);
+});
+
+test('cancellation aborts bounded autonomy instead of continuing another iteration', async (t) => {
+  const fixture = await makeAutonomyRepo('aecp-auto-cancel-');
+  t.after(async () => fs.rm(fixture.root, { recursive: true, force: true }));
+  const controller = new AbortController();
+  let workerCalls = 0;
+  const record = await runBoundedAutonomy({
+    sourceRoot: fixture.repo,
+    runRoot: fixture.runRoot,
+    signal: controller.signal,
+    onEvent: async (event) => {
+      if (event.type === 'iteration.started') controller.abort();
+    },
+    spec: {
+      goal: 'Cancel bounded work safely.',
+      done: 'Cancellation is terminal.',
+      workerId: 'opencode',
+      verificationProfile: 'npm-test',
+      maxIterations: 3
+    }
+  }, {
+    workerProbe: async () => '1.18.30',
+    runProcess: async (_command, _args, options) => {
+      workerCalls++;
+      return { code: -1, signal: null, timedOut: false, aborted: Boolean(options.signal?.aborted), outputLimitExceeded: false, stdout: '', stderr: '' };
+    }
+  });
+  assert.equal(record.state, 'CANCELLED');
+  assert.equal(workerCalls, 1);
+});
+
+test('Apply refuses a verified patch after source HEAD changes', async (t) => {
+  const fixture = await makeAutonomyRepo('aecp-auto-stale-head-');
+  t.after(async () => fs.rm(fixture.root, { recursive: true, force: true }));
+  const record = await runBoundedAutonomy({
+    sourceRoot: fixture.repo,
+    runRoot: fixture.runRoot,
+    spec: {
+      goal: 'Produce a verified patch.',
+      done: 'Verifier passes.',
+      workerId: 'opencode',
+      verificationProfile: 'npm-test',
+      maxIterations: 1
+    }
+  }, {
+    workerProbe: async () => '1.18.30',
+    runProcess: async (_command, _args, options) => {
+      await fs.writeFile(path.join(options.cwd, 'value.txt'), 'changed\n');
+      return { code: 0, signal: null, timedOut: false, aborted: false, outputLimitExceeded: false, stdout: 'worker', stderr: '' };
+    },
+    runVerification: async () => ({
+      profile: 'npm-test', label: 'fake', command: 'fake verify',
+      passed: true, code: 0, timedOut: false, aborted: false, outputLimitExceeded: false,
+      stdout: 'PASS', stderr: ''
+    })
+  });
+  assert.equal(record.state, 'DONE', record.error || JSON.stringify(record, null, 2));
+
+  await fs.writeFile(path.join(fixture.repo, 'external.txt'), 'new HEAD\n');
+  await exec('git', ['add', '.'], { cwd: fixture.repo });
+  await exec('git', ['commit', '-m', 'external change'], { cwd: fixture.repo });
+
+  await assert.rejects(
+    () => applyVerifiedPatch({ sourceRoot: fixture.repo, runRecord: record }),
+    /HEAD changed/
+  );
 });
