@@ -556,11 +556,35 @@ class ControlPlane {
     task.lease={id:uid('lease'),owner:task.id,processId:process.pid,expiresAt:new Date(Date.now()+15*60*1000).toISOString()};
     const taskRoot=path.resolve(task.resources?.repositories?.[0]||run.sourceRoot);
     const subRoot=path.join(this.rootDir,'runs',run.id,task.id);
+    const selectedWorkerId=task.schedulerDecision?.selectedWorkerId||null;
+    let workerProfile=null;
+    let workerAcquired=false;
+    if(selectedWorkerId&&this.workerRegistry){
+      try{
+        workerProfile=await this.workerRegistry.acquire(selectedWorkerId,{
+          runId:run.id,
+          taskId:task.id,
+          repository:taskRoot,
+          worktree:path.join(subRoot,'worktree'),
+          verificationState:'PENDING'
+        });
+        workerAcquired=true;
+        task.workerId=workerProfile.id;
+        task.worker={id:workerProfile.id,name:workerProfile.name,providerId:workerProfile.providerId,providerName:workerProfile.providerName,model:workerProfile.model||null,runtime:workerProfile.runtime,codexHome:workerProfile.codexHome};
+      }catch(error){
+        task.state='QUEUED';task.phase='WAITING_WORKER';task.lease=null;task.attempts=Math.max(0,task.attempts-1);
+        await this.persist();
+        await this.event('task.waiting_for_worker',{runId:run.id,taskId:task.id,workerId:selectedWorkerId,error:String(error?.message||error)});
+        return;
+      }
+    }
+    const builderProvider=workerProfile?.providerId||run.providers.builder;
+    const builderModel=workerProfile?.model||run.models.builder||null;
     const lockKeys=[...(task.resources?.repositories||[run.sourceRoot]).map(p=>'repo:'+path.resolve(p).toLowerCase()),'worktree:'+subRoot.toLowerCase()].sort();
     const locks=[];
-    try { for(const key of lockKeys) locks.push(await this.locks.acquire(key,task.id,{meta:{runId:run.id,taskId:task.id}})); } catch(e) { for(const x of locks){try{await this.locks.release(x.key,task.id,x.token)}catch{}} task.state='QUEUED'; task.lease=null; await this.event('task.waiting_for_lock',{runId:run.id,taskId:task.id,error:String(e.message||e)}); return; }
+    try { for(const key of lockKeys) locks.push(await this.locks.acquire(key,task.id,{meta:{runId:run.id,taskId:task.id,workerId:task.workerId||null}})); } catch(e) { for(const x of locks){try{await this.locks.release(x.key,task.id,x.token)}catch{}} if(workerAcquired&&this.workerRegistry)await this.workerRegistry.release(selectedWorkerId,{resultState:'WAITING_LOCK'}).catch(()=>{}); task.state='QUEUED'; task.phase='WAITING_LOCK'; task.lease=null; task.attempts=Math.max(0,task.attempts-1); await this.event('task.waiting_for_lock',{runId:run.id,taskId:task.id,workerId:selectedWorkerId,error:String(e.message||e)}); return; }
     task.lockLeases=locks.map(x=>({key:x.key,token:x.token,expiresAt:x.expiresAt}));
-    await this.persist();await this.event('task.claimed',{runId:run.id,taskId:task.id,lease:task.lease,locks:task.lockLeases});
+    await this.persist();await this.event('task.claimed',{runId:run.id,taskId:task.id,workerId:task.workerId||null,builderProvider,lease:task.lease,locks:task.lockLeases});
     const controller=new AbortController();this.controllers.set(task.id,controller);
     const runPolicy=this.policyForRun(run);
     const roleConfig=this.normalizeRoleConfig(run.providers,run.models);
@@ -583,10 +607,12 @@ class ControlPlane {
         evidenceRef:`local://control-plane/${run.id}/${task.id}/verified.patch`,
         traceRef:`local://control-plane/${run.id}/${task.id}/harness.json`,
         transport:'control-plane-harness',
-        worker:run.providers.builder
+        worker:task.workerId||builderProvider
       });
-      const result=await runHarness({goal:run.goal+'\nTask: '+task.title,done:task.acceptance||run.done,context:run.context+'\nOBJECTIVE: '+task.objective,sourceRoot:taskRoot,runRoot:subRoot,baseRef,maxTasks:1,maxIterations:run.maxIterations,maxTurns:run.maxTurns,maxFailedAttempts:run.maxFailedAttempts,maxNoProgressAttempts:run.maxNoProgressAttempts,maxWallClockMs:run.maxWallClockMs,maxProviderReportedCost:run.maxProviderReportedCost,maxLocalComputeMs:run.maxLocalComputeMs,maxPatchBytes:run.maxPatchBytes,maxChangedFiles:run.maxChangedFiles,checkpointEvery:run.checkpointEvery,workspaceId:run.workspaceId||null,executionContract:task.executionContract,signal:controller.signal,policy:runPolicy,providerRouter:this.providers,plannerProvider:run.providers.planner,builderProvider:run.providers.builder,reviewerProvider:run.providers.reviewer,plannerModel:run.models.planner,builderModel:run.models.builder,reviewerModel:run.models.reviewer,executionApproved:Boolean(task.approvedActions?.includes('EXECUTE')),providerNetworkApproved:Boolean(run.providerApprovals?.network),providerCredentialApproved:Boolean(run.providerApprovals?.credential),resume:Boolean(task.resume),onEvent:async e=>{task.lastEvent=e;task.updatedAt=now();await this.evidence.appendEvent(run.id,e).catch(()=>{});await this.persist();await this.emit({schema:'aecp.event/v1',type:'task.event',at:now(),runId:run.id,taskId:task.id,data:e});}});
-      task.phase='VERIFYING'; await this.persist(); task.result=result;task.state=result.state==='DONE'?'DONE':result.state;task.lease=null;task.resume=false;task.finishedAt=now();
+      const result=await runHarness({goal:run.goal+'\nTask: '+task.title,done:task.acceptance||run.done,context:run.context+'\nOBJECTIVE: '+task.objective,sourceRoot:taskRoot,runRoot:subRoot,baseRef,maxTasks:1,maxIterations:run.maxIterations,maxTurns:run.maxTurns,maxFailedAttempts:run.maxFailedAttempts,maxNoProgressAttempts:run.maxNoProgressAttempts,maxWallClockMs:run.maxWallClockMs,maxProviderReportedCost:run.maxProviderReportedCost,maxLocalComputeMs:run.maxLocalComputeMs,maxPatchBytes:run.maxPatchBytes,maxChangedFiles:run.maxChangedFiles,checkpointEvery:run.checkpointEvery,workspaceId:run.workspaceId||null,executionContract:task.executionContract,signal:controller.signal,policy:runPolicy,providerRouter:this.providers,plannerProvider:run.providers.planner,builderProvider,reviewerProvider:run.providers.reviewer,plannerModel:run.models.planner,builderModel,reviewerModel:run.models.reviewer,executionApproved:Boolean(task.approvedActions?.includes('EXECUTE')),providerNetworkApproved:Boolean(run.providerApprovals?.network),providerCredentialApproved:Boolean(run.providerApprovals?.credential),resume:Boolean(task.resume),onEvent:async e=>{task.lastEvent=e;task.updatedAt=now();await this.evidence.appendEvent(run.id,e).catch(()=>{});await this.persist();await this.emit({schema:'aecp.event/v1',type:'task.event',at:now(),runId:run.id,taskId:task.id,data:e});}});
+      task.phase='VERIFYING';
+      if(workerAcquired&&this.workerRegistry) await this.workerRegistry.updateAssignment(selectedWorkerId,{worktree:result.worktree||path.join(subRoot,'worktree'),verificationState:'RUNNING'}).catch(()=>{});
+      await this.persist(); task.result=result;task.state=result.state==='DONE'?'DONE':result.state;task.lease=null;task.resume=false;task.finishedAt=now();
       if(task.state==='DONE' && run.delivery){
         task.phase='DELIVERY'; await this.persist();
         try{
@@ -622,7 +648,7 @@ class ControlPlane {
       }
       if(result.state==='DONE') { task.phase='COMPLETED'; task.resultCapsule=await this.contextBus.write('result',{runId:run.id,taskId:task.id,state:task.state,evidence:task.evidenceManifest||task.evidence||null,verification:result.tasks}); }
       if(task.state==='HUMAN_REQUIRED') await this.requestApproval(run,task,'Harness requested human approval.',result.requiredAction||null);
-      await this.event('task.finished',{runId:run.id,taskId:task.id,state:task.state});
+      await this.event('task.finished',{runId:run.id,taskId:task.id,workerId:task.workerId||null,builderProvider,state:task.state});
     }catch(e){
       task.error=String(e.message||e);task.lease=null;
       if(e?.code==='APPROVAL_REQUIRED'){
@@ -632,7 +658,18 @@ class ControlPlane {
         task.state=controller.signal.aborted?'CANCELLED':'FAILED';task.recovery=recommendRecovery({error:task.error,phase:task.phase});await this.event('task.failed',{runId:run.id,taskId:task.id,error:task.error,recovery:task.recovery});if(task.recovery.autoEligible && task.attempts < run.maxIterations){task.state='REWORK';task.reworkReason=task.recovery.reason;task.reworkAt=now();await this.persist();await this.event('task.recovery_rework',{runId:run.id,taskId:task.id,attempt:task.attempts,recovery:task.recovery});task.state='QUEUED';}
       }
     }finally{
-      this.controllers.delete(task.id); for(const x of locks){try{await this.locks.release(x.key,task.id,x.token);}catch{}} task.lockLeases=[]; await this.persist();this.finalizeRun(run).catch(()=>{});this.schedule();
+      this.controllers.delete(task.id);
+      for(const x of locks){try{await this.locks.release(x.key,task.id,x.token);}catch{}}
+      task.lockLeases=[];
+      if(workerAcquired&&this.workerRegistry){
+        const evidenceRefs=[task.evidence?.file,task.acceptedEvidence?.file,task.evidenceManifest?.file].filter(Boolean);
+        await this.workerRegistry.release(selectedWorkerId,{
+          resultState:task.state,
+          verificationState:task.result?.state==='DONE'?'PASS':(task.phase==='VERIFYING'?'FAIL':task.phase||null),
+          evidenceRefs
+        }).catch(()=>{});
+      }
+      await this.persist();this.finalizeRun(run).catch(()=>{});this.schedule();
     }
   }
 
