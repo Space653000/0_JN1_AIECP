@@ -253,7 +253,7 @@ jobs:
         shell: pwsh
         run: |
           node -e "const fs=require('fs');const p=require('./package.json');p.version='0.2.99';fs.writeFileSync('package.json',JSON.stringify(p,null,2)+'\n')"
-          npx electron-builder --win nsis --${{ matrix.arch }} --publish never -c.directories.output=release/upgrade-baseline
+          npx electron-builder --win nsis --${{ matrix.arch }} --publish never --config.directories.output=release/upgrade-baseline
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - uses: actions/upload-artifact@v4
         with:
