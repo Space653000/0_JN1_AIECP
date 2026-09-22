@@ -60,3 +60,20 @@ test('provider usage observability is durable and ChatGPT Web remains externally
   assert.match(app, /subscription-managed externally/);
   assert.doesNotMatch(app, /chatgpt[^\n]{0,80}(?:token|usage)[^\n]{0,80}(?:scrape|fetch)/i);
 });
+
+
+test('OFFICIAL and PEGA are first-class isolated Codex workers instead of GUI profile switching', () => {
+  const main = read('electron/main.cjs');
+  const workerRuntime = read('electron/lib/codex-worker-runtime.cjs');
+  const pega = read('electron/lib/pega-provider.cjs');
+  assert.match(main, /WorkerRegistry/);
+  assert.match(main, /CodexWorkerRuntime/);
+  assert.match(main, /registry\['openai-official'\]/);
+  assert.match(main, /registry\[PEGA_PROVIDER_ID\]/);
+  assert.match(main, /PEGA_BASE_URL/);
+  assert.match(workerRuntime, /CODEX_HOME/);
+  assert.match(workerRuntime, /providerId:'openai-official'/);
+  assert.match(pega, /PEGA_PROVIDER_ID='pega'/);
+  assert.match(pega, /PEGA_WORKER_ID='codex-pega'/);
+  assert.doesNotMatch(main, /Dual Codex|Dual Launcher/i);
+});
