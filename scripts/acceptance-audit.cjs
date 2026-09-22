@@ -282,6 +282,13 @@ const staticInvariants=[
   {label:'task-owned lock',re:/locks\.acquire\(key,task\.id/},
   {label:'lock heartbeat renewal',re:/locks\.renew\(lock\.key,t\.id/}
  ]),
+ invariant('official-mcp-external-gate','ui/app.js',[
+  {label:'endpoint health separated',re:/remoteMcpEndpointHealthy/},
+  {label:'full MCP remains external gate',re:/const officialMcpReady = false/},
+  {label:'card uses official gate',re:/ready:\s*status\.officialMcpReady/},
+  {label:'generic MCP not recommended',re:/const recommended = localWorkers\.length \? 'local-autonomous' : 'web-safe'/},
+  {label:'end-to-end wording',re:/same-task result return[\s\S]*disconnect fallback[\s\S]*no-DOM-automation/}
+ ]),
  invariant('canonical-provider-routing','electron/lib/harness.cjs',[
   {label:'ProviderRouter imported',re:/ProviderRouter/},
   {label:'planner provider routed',re:/plannerProvider/},
