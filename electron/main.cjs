@@ -210,11 +210,26 @@ async function launchAgent(agentId) {
   return { ok: true, id: agentId };
 }
 
+async function buildRemoteGatewayOptions() {
+  const host = String(process.env.AECP_REMOTE_HOST || '127.0.0.1').trim();
+  const allowRemote = process.env.AECP_REMOTE_ALLOW === '1';
+  const port = Number(process.env.AECP_REMOTE_PORT || 0);
+  const keyPath = String(process.env.AECP_REMOTE_TLS_KEY || '').trim();
+  const certPath = String(process.env.AECP_REMOTE_TLS_CERT || '').trim();
+  if (Boolean(keyPath) !== Boolean(certPath)) throw new Error('AECP remote TLS requires both AECP_REMOTE_TLS_KEY and AECP_REMOTE_TLS_CERT.');
+  let tls = null;
+  if (keyPath && certPath) {
+    tls = { key: await fsp.readFile(keyPath), cert: await fsp.readFile(certPath), minVersion: 'TLSv1.2' };
+  }
+  return { host, allowRemote, port: Number.isFinite(port) && port >= 0 ? port : 0, tls };
+}
+
 async function initControlPlane() {
   if (controlPlane) return controlPlane;
   controlPlane = new ControlPlane({
     rootDir: dataPath('runtime'),
     providerRouter: await buildRuntimeProviderRouter(),
+    remoteOptions: await buildRemoteGatewayOptions(),
     emit: async (event) => {
       if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('control-plane:event', event);
     }
@@ -1054,8 +1069,11 @@ function registerIpc() {
 
   ipcMain.handle('harness:start', async (_event, payload) => startHarness(payload));
   ipcMain.handle('control-plane:status', async () => (await initControlPlane()).status());
-  ipcMain.handle('control-plane:replay', async (_e,p)=>controlPlane.replay(p?.runId,p?.limit));
+  ipcMain.handle('control-plane:replay', async (_e,p)=>(await initControlPlane()).replay(p?.runId,p?.limit));
   ipcMain.handle('control-plane:events', async (_event, payload) => (await initControlPlane()).listEvents(payload?.limit || 500));
+  ipcMain.handle('control-plane:remote-pair', async () => (await initControlPlane()).createRemotePairing());
+  ipcMain.handle('control-plane:remote-devices', async () => (await initControlPlane()).listRemoteDevices());
+  ipcMain.handle('control-plane:remote-revoke', async (_event,payload) => (await initControlPlane()).revokeRemoteDevice(payload?.deviceId));
   ipcMain.handle('control-plane:create-mission', async (_event, payload) => {
     const state = await loadState();
     const workspace = getCurrentWorkspace(state);
