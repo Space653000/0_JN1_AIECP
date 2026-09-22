@@ -16,6 +16,7 @@ const { recommendNextAction } = require('./lib/guidance.cjs');
 const { WindowsDesktopAdapter } = require('./lib/windows-desktop-adapter.cjs');
 const { writeBackup, stageRestore, applyPendingRestore } = require('./lib/backup-manager.cjs');
 const { WindowsUiAdapter } = require('./lib/windows-ui-adapter.cjs');
+const { PythonWorker } = require('./lib/python-worker.cjs');
 
 const { parseCommandCard, makeTaskId, makeResultCapsule, hashJson } = require('./lib/protocol.cjs');
 const { compareVersions, versionFromTag, selectHighestRelease, selectInstallerAsset } = require('./lib/version.cjs');
@@ -48,6 +49,7 @@ let harnessRecord = null;
 let controlPlane = null;
 const desktopAdapter = new WindowsDesktopAdapter();
 const windowsUiAdapter = new WindowsUiAdapter();
+const pythonWorker = new PythonWorker();
 
 function dataPath(...parts) {
   return path.join(app.getPath('userData'), ...parts);
@@ -1150,6 +1152,12 @@ function registerIpc() {
 
   ipcMain.handle('agents:list', detectAgents);
   ipcMain.handle('agents:launch', async (_event, payload) => launchAgent(payload?.agentId));
+  ipcMain.handle('python:syntax-scan', async () => {
+    const state=await loadState();
+    const workspace=getCurrentWorkspace(state);
+    if(!workspace) throw new Error('Choose a Workspace before running the Python syntax worker.');
+    return pythonWorker.syntaxScan(workspace.rootPath);
+  });
   ipcMain.handle('desktop:list-windows', async () => windowsUiAdapter.listWindows());
   ipcMain.handle('desktop:inspect-ui', async (_event,payload) => windowsUiAdapter.inspect(payload?.pid,{maxNodes:payload?.maxNodes||120,allowBrowser:false}));
   ipcMain.handle('desktop:list-browser-windows', async () => desktopAdapter.listBrowserWindows());
