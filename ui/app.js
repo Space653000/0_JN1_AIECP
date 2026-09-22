@@ -267,6 +267,42 @@ function loadLoopConfig() {
   }
 }
 
+const HARNESS_AGENT_PROVIDER = Object.freeze({
+  'claude-code': { id: 'claude', roles: ['planner', 'reviewer'] },
+  'codex-cli': { id: 'codex', roles: ['builder'] },
+  'gemini-cli': { id: 'gemini', roles: ['planner', 'builder', 'reviewer'] },
+  'opencode': { id: 'opencode', roles: ['planner', 'builder', 'reviewer'] },
+  'ollama': { id: 'ollama', roles: ['planner', 'reviewer'] }
+});
+
+function harnessProviderChoices(role) {
+  const choices = [];
+  for (const agent of state.agents || []) {
+    const mapped = HARNESS_AGENT_PROVIDER[agent.id];
+    if (!mapped || !mapped.roles.includes(role) || !agent.available) continue;
+    choices.push({ id: mapped.id, label: agent.name, kind: agent.kind || 'cli', hasCredential: false });
+  }
+  for (const provider of state.providers || []) {
+    if (!provider || provider.id === 'chatgpt-web' || provider.kind === 'remote-mcp') continue;
+    if (!Array.isArray(provider.roles) || !provider.roles.includes(role)) continue;
+    choices.push({ id: provider.id, label: provider.name, kind: provider.kind, hasCredential: Boolean(provider.hasCredential), defaultModel: provider.defaultModel || '' });
+  }
+  const seen = new Set();
+  return choices.filter((item) => !seen.has(item.id) && seen.add(item.id));
+}
+
+function defaultHarnessProvider(role, choices) {
+  const preferred = role === 'builder' ? ['codex', 'opencode', 'gemini'] : ['claude', 'gemini', 'opencode', 'ollama'];
+  return preferred.find((id) => choices.some((item) => item.id === id)) || choices[0]?.id || '';
+}
+
+function harnessProviderSelect(role, selected) {
+  const choices = harnessProviderChoices(role);
+  const value = choices.some((item) => item.id === selected) ? selected : defaultHarnessProvider(role, choices);
+  const options = choices.map((item) => `<option value="${esc(item.id)}" ${item.id === value ? 'selected' : ''}>${esc(item.label)} · ${esc(item.kind)}</option>`).join('');
+  return { value, html: options || '<option value="" selected disabled>No compatible provider detected</option>' };
+}
+
 function renderLoop(host) {
   const config = loadLoopConfig();
   host.innerHTML = `<section class="task-detail">
@@ -279,6 +315,9 @@ function renderLoop(host) {
         <label class="wide">Definition of Done<textarea id="loopDone" rows="3" placeholder="Use measurable acceptance criteria, not 'looks good'.">${esc(config.done || '')}</textarea></label>
         <label>Maximum iterations<input id="loopIterations" type="number" min="1" max="50" value="${esc(config.maxIterations || 10)}"></label>
         <label>Checkpoint every N iterations<input id="loopCheckpoint" type="number" min="1" max="10" value="${esc(config.checkpointEvery || 2)}"></label>
+        ${(() => { const p=harnessProviderSelect('planner',config.plannerProvider); return `<label>Planner<select id="harnessPlannerProvider">${p.html}</select></label><label>Planner model<input id="harnessPlannerModel" maxlength="200" value="${esc(config.plannerModel || '')}" placeholder="Optional; required for raw Ollama"></label>`; })()}
+        ${(() => { const p=harnessProviderSelect('builder',config.builderProvider); return `<label>Builder<select id="harnessBuilderProvider">${p.html}</select></label><label>Builder model<input id="harnessBuilderModel" maxlength="200" value="${esc(config.builderModel || '')}" placeholder="Example: ollama/qwen3-coder:30b for OpenCode"></label>`; })()}
+        ${(() => { const p=harnessProviderSelect('reviewer',config.reviewerProvider); return `<label>Reviewer<select id="harnessReviewerProvider">${p.html}</select></label><label>Reviewer model<input id="harnessReviewerModel" maxlength="200" value="${esc(config.reviewerModel || '')}" placeholder="Optional; required for raw Ollama"></label>`; })()}
       </div>
       <div class="task-actions">
         <button class="primary-button" type="button" data-action="copy-loop-prompt">Copy Goal Loop prompt</button>
@@ -288,7 +327,7 @@ function renderLoop(host) {
       </div>
     </form>
     <div class="card-title-row"><div><span class="eyebrow">HARNESS ENGINEERING</span><h3>Planner → Queue → Builder → Verify → Reviewer</h3></div><span class="status ${statusClass(state.harnessStatus?.state)}">${esc(state.harnessStatus?.state || 'IDLE')}</span></div>
-    <p class="muted">This is the full bounded multi-agent loop. The Harness owns state, retries and stop conditions; workers cannot self-declare completion.</p>
+    <p class="muted">This is the full bounded multi-agent loop. The Harness owns state, retries and stop conditions; workers cannot self-declare completion. Raw Ollama is Planner/Reviewer only; use OpenCode with an Ollama model or a fixed local-command worker for actual file construction.</p>
     <div class="pipeline">
 
       ${[
@@ -648,14 +687,44 @@ async function startHarness() {
   const goal = $('#loopGoal')?.value.trim() || '';
   const done = $('#loopDone')?.value.trim() || '';
   if (!goal || !done) { toast('Goal and Definition of Done are required.', 'error'); return; }
+
+  const plannerProvider = $('#harnessPlannerProvider')?.value || '';
+  const builderProvider = $('#harnessBuilderProvider')?.value || '';
+  const reviewerProvider = $('#harnessReviewerProvider')?.value || '';
+  if (!plannerProvider || !builderProvider || !reviewerProvider) { toast('Planner, Builder and Reviewer providers must all be available.', 'error'); return; }
+
+  const selectedIds = new Set([plannerProvider, builderProvider, reviewerProvider]);
+  const selectedCustom = (state.providers || []).filter((provider) => selectedIds.has(provider.id));
+  const needsNetwork = selectedCustom.some((provider) => ['api', 'local'].includes(provider.kind));
+  const needsCredential = selectedCustom.some((provider) => provider.hasCredential);
+  if (needsNetwork && !confirm('This Harness run will send prompts to the selected configured provider endpoint. Allow network access for this run?')) return;
+  if (needsCredential && !confirm('This Harness run will use an OS-protected provider credential for the selected endpoint. Allow credential use for this run?')) return;
+
+  const config = {
+    goal, done,
+    maxIterations: Math.max(1, Math.min(5, Number($('#loopIterations')?.value || 3))),
+    checkpointEvery: Math.max(1, Math.min(10, Number($('#loopCheckpoint')?.value || 2))),
+    plannerProvider, builderProvider, reviewerProvider,
+    plannerModel: $('#harnessPlannerModel')?.value.trim() || '',
+    builderModel: $('#harnessBuilderModel')?.value.trim() || '',
+    reviewerModel: $('#harnessReviewerModel')?.value.trim() || ''
+  };
+  localStorage.setItem('aecp-goal-loop', JSON.stringify(config));
+
   const result = await safe(() => window.aecp.startHarness({
-    goal, done, maxTasks: 4, maxIterations: 3,
+    goal, done, maxTasks: 4, maxIterations: config.maxIterations,
+    plannerProvider, builderProvider, reviewerProvider,
+    plannerModel: config.plannerModel || null,
+    builderModel: config.builderModel || null,
+    reviewerModel: config.reviewerModel || null,
+    providerNetworkApproved: needsNetwork,
+    providerCredentialApproved: needsCredential,
     context: 'Use the current AECP Workspace and its Blueprint as engineering constraints.'
   }));
   if (!result) return;
   state.harnessStatus = result;
   renderControl();
-  toast('Full Harness started: Planner → Queue → Builder → Verify → Reviewer.');
+  toast('Full Harness started with explicit Planner / Builder / Reviewer routing.');
 }
 async function cancelHarness() {
   const result = await safe(() => window.aecp.cancelHarness());
@@ -736,6 +805,8 @@ function bindEvents() {
       kind: $('#providerKindInput').value,
       baseUrl: $('#providerUrlInput').value,
       defaultModel: $('#providerModelInput').value,
+      command: $('#providerCommandInput').value,
+      args: $('#providerArgsInput').value,
       apiKey: $('#providerKeyInput').value
     };
     const saved = await safe(() => window.aecp.saveProvider(payload));
