@@ -504,6 +504,34 @@ function renderAgents() {
     </div>`).join('') || '<div class="empty-list">No agents detected.</div>';
 }
 
+function renderBrowserDock() {
+  const select = $('#browserWindowSelect');
+  const left = $('#dockBrowserLeftButton');
+  const right = $('#dockBrowserRightButton');
+  if (!select || !left || !right) return;
+  const prior = select.value;
+  const windows = state.browserWindows || [];
+  select.innerHTML = windows.length
+    ? windows.map((item) => `<option value="${esc(item.pid)}">${esc(item.process)} · PID ${esc(item.pid)}</option>`).join('')
+    : '<option value="">No allowlisted browser window detected</option>';
+  if (prior && windows.some((item) => String(item.pid) === prior)) select.value = prior;
+  const enabled = Boolean(select.value);
+  left.disabled = !enabled;
+  right.disabled = !enabled;
+}
+
+async function refreshBrowserWindows() {
+  state.browserWindows = await safe(() => window.aecp.listBrowserWindows(), []);
+  renderBrowserDock();
+}
+
+async function dockBrowser(side) {
+  const pid = Number($('#browserWindowSelect')?.value || 0);
+  if (!pid) { toast('Detect and choose a browser window first.', 'error'); return; }
+  const result = await safe(() => window.aecp.dockBrowserWindow(pid, side));
+  if (result?.ok) toast(`Browser window docked ${side}.`);
+}
+
 function renderUpdate() {
   const badge = $('#updateBadge');
   const text = $('#updateText');
