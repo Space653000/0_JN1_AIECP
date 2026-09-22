@@ -77,3 +77,17 @@ test('OFFICIAL and PEGA are first-class isolated Codex workers instead of GUI pr
   assert.match(pega, /PEGA_WORKER_ID='codex-pega'/);
   assert.doesNotMatch(main, /Dual Codex|Dual Launcher/i);
 });
+
+
+test('Codex OFFICIAL login is an explicit user action scoped to its isolated CODEX_HOME', () => {
+  const main = read('electron/main.cjs');
+  const preload = read('electron/preload.cjs');
+  const ui = read('ui/app.js');
+  assert.match(main, /loginOfficialCodexWorker/);
+  assert.match(main, /worker:login-official/);
+  assert.match(main, /env: \{ \.\.\.process\.env, CODEX_HOME: profile\.codexHome \}/);
+  assert.match(main, /'codex login'/);
+  assert.match(preload, /loginOfficialWorker/);
+  assert.match(ui, /data-worker-login-official/);
+  assert.match(ui, /Sign in isolated OFFICIAL/);
+});
