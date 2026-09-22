@@ -1,9 +1,41 @@
 # 23 — Implementation Status, Decisions and Remaining Work
 
-**Status date:** 2026-09-22  
+**Status date:** 2026-09-23  
 **Branch:** `feat/control-plane-complete-loop`  
 **Current integration vehicle:** PR #7  
 **Purpose:** This document is the authoritative implementation snapshot for the current AECP Harness / Control Plane expansion.
+
+## 0A. Approved Blueprint extension — isolated OFFICIAL / PEGA Multi-Worker
+
+The Master Blueprint now formally adopts the following target architecture:
+
+```text
+AECP
+ ↓
+Harness / Control Plane
+ ├─ Codex OFFICIAL Worker → OpenAI Official → isolated CODEX_HOME
+ ├─ Codex PEGA Worker     → PEGA           → isolated CODEX_HOME
+ ├─ Claude Code Planner / Reviewer
+ └─ Future Provider / Worker
+```
+
+This is an extension of the existing Harness architecture. It is **not** Dual Codex Desktop, a Dual Launcher, a second GUI, or a second Control Plane.
+
+### Blueprint status
+
+- Master architecture integration: **PLANNED / DOCUMENTED**
+- Provider-vs-Worker contract: **PLANNED / DOCUMENTED**
+- PEGA Provider Adapter contract: **PLANNED / DOCUMENTED**
+- isolated OFFICIAL/PEGA `CODEX_HOME`: **NOT YET IMPLEMENTED**
+- parallel OFFICIAL/PEGA Worker runtime: **NOT YET IMPLEMENTED**
+- Worker Registry/runtime persistence: **NOT YET IMPLEMENTED**
+- Worker-specific Dashboard cards: **NOT YET IMPLEMENTED**
+- real PEGA endpoint/model/auth evidence: **ENVIRONMENT NOT YET VERIFIED**
+- Windows ARM64 deterministic validation for this extension: **NOT YET VERIFIED**
+
+Existing Provider Router, Scheduler, isolated worktrees, locks, bounded execution, deterministic verification, Evidence, GitHub/CI and Dashboard foundations remain the architecture to extend; they must not be duplicated.
+
+The authoritative acceptance rule is: **Blueprint presence is not Runtime completion.** Runtime completion requires implementation + deterministic tests + exact-HEAD CI; real PEGA/OpenAI worker claims additionally require ENVIRONMENT evidence.
 
 ## 1. Current architecture actually implemented
 
