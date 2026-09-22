@@ -96,3 +96,84 @@ jobs:
             release/*.blockmap
           if-no-files-found: error
           retention-days: 14
+
+  package-universal-bootstrap:
+    name: Package Universal Bootstrap
+    needs: package-windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - uses: actions/download-artifact@v4
+        with:
+          name: aecp-windows-x64
+          path: staging/x64
+      - uses: actions/download-artifact@v4
+        with:
+          name: aecp-windows-arm64
+          path: staging/arm64
+      - name: Stage architecture payloads
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path release/universal-bootstrap/payloads | Out-Null
+          $x = Get-ChildItem staging/x64 -Filter '*x64*.exe' -Recurse | Select-Object -First 1
+          $a = Get-ChildItem staging/arm64 -Filter '*arm64*.exe' -Recurse | Select-Object -First 1
+          if (-not $x -or -not $a) { throw 'Architecture installer payloads not found.' }
+          Copy-Item $x.FullName release/universal-bootstrap/payloads/AI-Engineering-Control-Plane-Setup-x64.exe
+          Copy-Item $a.FullName release/universal-bootstrap/payloads/AI-Engineering-Control-Plane-Setup-arm64.exe
+      - name: Build self-contained universal bootstrap
+        shell: pwsh
+        working-directory: release/universal-bootstrap
+        run: dotnet publish UniversalBootstrap.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o ../../release/universal-ci
+      - name: Normalize universal artifact name
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem release/universal-ci -Filter '*.exe' | Select-Object -First 1
+          if (-not $exe) { throw 'Universal bootstrap executable not found.' }
+          Rename-Item $exe.FullName 'AI-Engineering-Control-Plane-Setup-universal.exe'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aecp-universal-bootstrap
+          path: release/universal-ci/AI-Engineering-Control-Plane-Setup-universal.exe
+          if-no-files-found: error
+          retention-days: 14
+
+  smoke-universal-bootstrap:
+    name: Smoke universal bootstrap Windows ${{ matrix.arch }}
+    needs: package-universal-bootstrap
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: windows-latest
+          - arch: arm64
+            runner: windows-11-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: aecp-universal-bootstrap
+          path: smoke-universal
+      - name: Install through architecture-selecting bootstrap and uninstall
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem smoke-universal -Filter '*.exe' -Recurse | Select-Object -First 1
+          if (-not $installer) { throw 'Universal bootstrap artifact not found.' }
+          $installDir = Join-Path $env:RUNNER_TEMP 'aecp-universal-${{ matrix.arch }}'
+          Remove-Item $installDir -Recurse -Force -ErrorAction SilentlyContinue
+          $env:AECP_BOOTSTRAP_INSTALL_ARGS = "/S /D=$installDir"
+          $process = Start-Process -FilePath $installer.FullName -PassThru -Wait
+          if ($process.ExitCode -ne 0) { throw "Universal bootstrap exited with $($process.ExitCode)." }
+          $app = Get-ChildItem $installDir -Filter 'AI Engineering Control Plane.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $app) { throw 'AECP executable not found after universal bootstrap install.' }
+          $uninstaller = Get-ChildItem $installDir -Filter 'Uninstall*.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $uninstaller) { throw 'AECP uninstaller not found after universal bootstrap install.' }
+          $uninstall = Start-Process -FilePath $uninstaller.FullName -ArgumentList '/S' -PassThru -Wait
+          if ($uninstall.ExitCode -ne 0) { throw "Universal bootstrap uninstall exited with $($uninstall.ExitCode)." }
+          Start-Sleep -Seconds 2
+          if (Test-Path $app.FullName) { throw 'AECP executable still exists after universal bootstrap uninstall.' }
+
