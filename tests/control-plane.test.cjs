@@ -266,3 +266,13 @@ test('restart recovery never auto-resumes a mutating mission even when autoResum
     await fs.rm(root,{recursive:true,force:true});
   }
 });
+
+
+test('budget exhaustion is terminal across Control Plane and Dashboard', async () => {
+  const { STATES, TERMINAL } = require('../electron/lib/control-plane.cjs');
+  const fsSync = require('node:fs');
+  const dashboard = fsSync.readFileSync(require('node:path').join(__dirname, '..', 'ui', 'harness-console.js'), 'utf8');
+  assert.ok(STATES.includes('BUDGET_EXHAUSTED'));
+  assert.ok(TERMINAL.has('BUDGET_EXHAUSTED'));
+  assert.match(dashboard,/BUDGET_EXHAUSTED/);
+});
