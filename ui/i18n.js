@@ -102,7 +102,7 @@ function normalizeLocale(value){
 
 function createI18n({initialLocale,storage}={}){
   let locale=normalizeLocale(initialLocale||storage?.getItem?.('aecp-locale')||'en');
-  const t=(key,fallback='')=>DICTIONARIES[locale]?.[key]??DICTIONARIES.en[key]??fallback||key;
+  const t=(key,fallback='')=>(DICTIONARIES[locale]?.[key] ?? DICTIONARIES.en[key] ?? fallback) || key;
   const apply=(root)=>{
     if(typeof document!=='undefined') document.documentElement.lang=locale;
     const scope=root||((typeof document!=='undefined')?document:null);
