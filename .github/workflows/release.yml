@@ -365,7 +365,8 @@ jobs:
           $hashLines | Out-File -Encoding ascii release-assets/SHA256SUMS.txt
           $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
           $sourceCommit = (git rev-parse HEAD).Trim()
-          if ($LASTEXITCODE -ne 0 -or $sourceCommit -notmatch '^[0-9a-f]{40}
+          if ($LASTEXITCODE -ne 0 -or $sourceCommit -notmatch '^[0-9a-f]{40}$') { throw 'Unable to resolve exact checked-out source commit.' }
+          $prov = [ordered]@{
             schema='aecp.release-provenance/v1'
             version=$version
             sourceCommit=$sourceCommit
@@ -387,50 +388,7 @@ jobs:
   publish-release:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: provenance
-    runs-on: windows-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: aecp-release-bundle
-          path: release-assets
-      - name: Publish GitHub Release
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          $tag = $env:GITHUB_REF_NAME
-          gh release view $tag 2>$null
-          if ($LASTEXITCODE -ne 0) {
-            gh release create $tag --title "AECP $tag" --generate-notes
-          }
-          Get-ChildItem release-assets -Recurse -File | ForEach-Object {
-            gh release upload $tag $_.FullName --clobber
-          }
-) { throw 'Unable to resolve exact checked-out source commit.' }
-          $prov = [ordered]@{
-            schema='aecp.release-provenance/v1'
-            version=$version
-            sourceCommit=$env:GITHUB_SHA
-            repository=$env:GITHUB_REPOSITORY
-            workflowRunId=$env:GITHUB_RUN_ID
-            workflowRunAttempt=$env:GITHUB_RUN_ATTEMPT
-            unsignedPreview=$true
-            assets=$records
-            generatedAt=(Get-Date).ToUniversalTime().ToString('o')
-          }
-          $prov | ConvertTo-Json -Depth 6 | Out-File -Encoding utf8 release-assets/RELEASE_PROVENANCE.json
-      - uses: actions/upload-artifact@v4
-        with:
-          name: aecp-release-bundle
-          path: release-assets/**
-          if-no-files-found: error
-          retention-days: 30
-
-  publish-release:
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: provenance
+    timeout-minutes: 45
     runs-on: windows-latest
     permissions:
       contents: write
