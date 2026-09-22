@@ -1248,6 +1248,11 @@ async function createMainWindow() {
 app.whenReady().then(async () => {
   await ensureDataDirs();
   await reconcileUpdateTransaction();
+  if (process.argv.includes('--smoke-test')) {
+    process.stdout.write(JSON.stringify({ ok:true, version:app.getVersion(), arch:process.arch })+'\n');
+    app.quit();
+    return;
+  }
   await initControlPlane();
   registerIpc();
   await createMainWindow();
