@@ -42,7 +42,7 @@ function dockScript(pid,side){
     `$p=Get-Process -Id ${safePid} -ErrorAction Stop`,
     "if(-not ($allowed -contains $p.ProcessName.ToLowerInvariant())){throw 'Process is not an allowlisted browser.'}",
     "if($p.MainWindowHandle -eq 0){throw 'Browser has no main window.'}",
-    "Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public static class AECPUser32 { [DllImport("user32.dll")] public static extern bool MoveWindow(IntPtr hWnd,int X,int Y,int nWidth,int nHeight,bool bRepaint); [DllImport("user32.dll")] public static extern int GetSystemMetrics(int nIndex); }'",
+    "Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public static class AECPUser32 { [DllImport(\"user32.dll\")] public static extern bool MoveWindow(IntPtr hWnd,int X,int Y,int nWidth,int nHeight,bool bRepaint); [DllImport(\"user32.dll\")] public static extern int GetSystemMetrics(int nIndex); }'",
     "$w=[AECPUser32]::GetSystemMetrics(0);$h=[AECPUser32]::GetSystemMetrics(1);$half=[int]($w/2)",
     `$x=if('${safeSide}' -eq 'left'){0}else{$half}`,
     "if(-not [AECPUser32]::MoveWindow($p.MainWindowHandle,$x,0,$half,$h,$true)){throw 'MoveWindow failed.'}",
