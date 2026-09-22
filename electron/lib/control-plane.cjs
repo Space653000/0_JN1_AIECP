@@ -699,8 +699,23 @@ class ControlPlane {
       if(e?.code==='APPROVAL_REQUIRED'){
         task.state='HUMAN_REQUIRED';
         await this.requestApproval(run,task,task.error,e.action||e.policy?.action||null);
+      }else if(controller.signal.aborted){
+        if(run.state==='PAUSED'){
+          task.state='QUEUED';
+          task.phase='PAUSED';
+          task.resume=true;
+          task.error=null;
+          task.lease=null;
+          await this.event('task.paused',{runId:run.id,taskId:task.id,workerId:task.workerId||null});
+        }else{
+          task.state='CANCELLED';
+          task.phase='CANCELLED';
+          task.resume=false;
+          task.lease=null;
+          await this.event('task.cancelled',{runId:run.id,taskId:task.id,workerId:task.workerId||null});
+        }
       }else{
-        task.state=controller.signal.aborted?'CANCELLED':'FAILED';task.recovery=recommendRecovery({error:task.error,phase:task.phase});await this.event('task.failed',{runId:run.id,taskId:task.id,error:task.error,recovery:task.recovery});if(task.recovery.autoEligible && task.attempts < run.maxIterations){task.state='REWORK';task.reworkReason=task.recovery.reason;task.reworkAt=now();await this.persist();await this.event('task.recovery_rework',{runId:run.id,taskId:task.id,attempt:task.attempts,recovery:task.recovery});task.state='QUEUED';}
+        task.state='FAILED';task.recovery=recommendRecovery({error:task.error,phase:task.phase});await this.event('task.failed',{runId:run.id,taskId:task.id,error:task.error,recovery:task.recovery});if(task.recovery.autoEligible && task.attempts < run.maxIterations){task.state='REWORK';task.reworkReason=task.recovery.reason;task.reworkAt=now();await this.persist();await this.event('task.recovery_rework',{runId:run.id,taskId:task.id,attempt:task.attempts,recovery:task.recovery});task.state='QUEUED';}
       }
     }finally{
       this.controllers.delete(task.id);
