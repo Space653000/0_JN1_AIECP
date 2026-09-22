@@ -622,6 +622,13 @@ async function runBoundedAutonomy(options, deps = {}) {
       iterationRecord.diffSummary = currentDiff;
       record.iterations.push(iterationRecord);
 
+      if (verification.outputLimitExceeded) {
+        record.state = 'BUDGET_EXHAUSTED';
+        record.completedAt = new Date().toISOString();
+        await emit('run.budget_exhausted', { iteration, reason: 'verification-output-limit', maxOutputBytes: spec.maxOutputBytes });
+        return record;
+      }
+
       if (verification.passed) {
         record.state = 'DONE';
         record.completedAt = new Date().toISOString();
