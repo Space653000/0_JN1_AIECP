@@ -120,6 +120,10 @@ test('bounded runner isolates writes in worktree then applies only after explici
   });
 
   assert.equal(record.state, 'DONE', record.error || JSON.stringify(record, null, 2));
+  assert.equal(record.executionContract.schema, 'aecp.execution-contract/v1');
+  assert.equal(record.executionContract.transport, 'local-autonomous');
+  assert.equal(path.resolve(record.executionContract.workspace.root), path.resolve(repo));
+  assert.equal(record.executionContract.definitionOfDone, 'Verifier passes.');
   assert.equal(normalizeEol(await fs.readFile(path.join(repo, 'value.txt'), 'utf8')), 'original\n');
   assert.equal(normalizeEol(await fs.readFile(path.join(record.worktree, 'value.txt'), 'utf8')), 'changed\n');
 
