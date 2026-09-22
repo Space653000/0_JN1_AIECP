@@ -9,6 +9,7 @@ const state = {
   tasks: [],
   providers: [],
   agents: [],
+  browserWindows: [],
   githubConnection: null,
   update: null,
   updateTransaction: null,
@@ -67,13 +68,14 @@ function statusClass(value) {
 }
 
 async function loadAll() {
-  const [app, data, tools, tasks, providers, agents, githubConnection, updateTransaction, mcpStatus, autonomyOptions, autonomyStatus, harnessStatus, guidance] = await Promise.all([
+  const [app, data, tools, tasks, providers, agents, browserWindows, githubConnection, updateTransaction, mcpStatus, autonomyOptions, autonomyStatus, harnessStatus, guidance] = await Promise.all([
     safe(() => window.aecp.getAppInfo()),
     safe(() => window.aecp.getState()),
     safe(() => window.aecp.detectTools(), []),
     safe(() => window.aecp.listTasks(), []),
     safe(() => window.aecp.listProviders(), []),
     safe(() => window.aecp.listAgents(), []),
+    safe(() => window.aecp.listBrowserWindows(), []),
     safe(() => window.aecp.getGitHubConnection(), null),
     safe(() => window.aecp.getUpdateStatus(), null),
     safe(() => window.aecp.getMcpStatus(), null),
@@ -88,6 +90,7 @@ async function loadAll() {
   state.tasks = tasks || [];
   state.providers = providers || [];
   state.agents = agents || [];
+  state.browserWindows = browserWindows || [];
   state.githubConnection = githubConnection;
   state.updateTransaction = updateTransaction;
   state.mcpStatus = mcpStatus;
@@ -109,6 +112,7 @@ function render() {
   renderTools();
   renderProviders();
   renderAgents();
+  renderBrowserDock();
   renderUpdate();
   renderMcp();
   renderTabs();
