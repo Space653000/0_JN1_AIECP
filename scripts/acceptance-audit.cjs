@@ -364,6 +364,12 @@ const staticInvariants=[
   {label:'Codex workspace sandbox',re:/workspace-write/},
   {label:'Codex network disabled',re:/sandbox_workspace_write\.network_access=false/}
  ]),
+ invariant('canonical-policy-paths','electron/lib/security-policy.cjs',[
+  {label:'shared canonical containment',re:/isWithinRoot/},
+  {label:'network path detector',re:/isNetworkPath/},
+  {label:'UNC default deny',re:/UNC\/network paths are disabled by policy/},
+  {label:'explicit UNC opt-in',re:/allowNetworkPaths/}
+ ]),
  invariant('security-high-risk-gates','electron/lib/security-policy.cjs',[
   {label:'MERGE risk',re:/MERGE:'RED'/},
   {label:'DELETE risk',re:/DELETE:'RED'/},
