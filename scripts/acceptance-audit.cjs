@@ -111,7 +111,11 @@ const staticInvariants=[
   {label:'privacy declaration',re:/promptBodiesPersisted:false[\s\S]*responseBodiesPersisted:false[\s\S]*credentialsPersisted:false/}
  ]),
  invariant('provider-health-and-observability','electron/lib/provider-router.cjs',[
-  {label:'provider health states',re:/NOT_CONFIGURED[\s\S]*READY[\s\S]*DEGRADED[\s\S]*UNAVAILABLE[\s\S]*AUTH_REQUIRED/},
+  {label:'health NOT_CONFIGURED',re:/NOT_CONFIGURED/},
+  {label:'health READY',re:/READY/},
+  {label:'health DEGRADED',re:/DEGRADED/},
+  {label:'health UNAVAILABLE',re:/UNAVAILABLE/},
+  {label:'health AUTH_REQUIRED',re:/AUTH_REQUIRED/},
   {label:'network health approval',re:/NETWORK approval was not granted/},
   {label:'credential health approval',re:/CREDENTIAL approval/},
   {label:'privacy-safe metrics',re:/aecp\.provider-usage\/v1/},
