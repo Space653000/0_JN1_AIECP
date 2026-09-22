@@ -1,5 +1,7 @@
 # 17 — v0.2 Triple Audit: Constraint Resolution
 
+> **HISTORICAL AUDIT NOTICE (2026-09-23):** This file preserves the release audit for its named version. Current implementation status and remaining gates are authoritative in `23_IMPLEMENTATION_STATUS.md`; exact-HEAD GitHub Actions evidence overrides historical PASS/DEFERRED wording.
+
 Audit date: 2026-09-18
 
 Audited branch: `feat/v0.2-distribution-and-execution-modes`
