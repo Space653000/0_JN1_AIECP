@@ -763,7 +763,29 @@ class ControlPlane {
 
   async gitLocal(cwd,args){return await new Promise((resolve,reject)=>{const p=spawn('git',args,{cwd,windowsHide:true,stdio:['ignore','pipe','pipe']});let o='',e='';p.stdout.on('data',b=>o+=b);p.stderr.on('data',b=>e+=b);p.on('error',reject);p.on('close',code=>code===0?resolve(o.trim()):reject(new Error((e||o).slice(-3000))));});}
   async detectRepo(cwd){try{const out=await new Promise((resolve,reject)=>{const p=spawn('gh',['repo','view','--json','nameWithOwner','-q','.nameWithOwner'],{cwd,windowsHide:true,stdio:['ignore','pipe','pipe']});let o='',e='';p.stdout.on('data',b=>o+=b);p.stderr.on('data',b=>e+=b);p.on('error',reject);p.on('close',code=>code===0?resolve(o.trim()):reject(new Error(e||'gh repo view failed')));});return out||null;}catch{return null;}}
-  async status(){const s=this.snapshot();s.remote=this.remote?.info()||{enabled:false};s.webhook=this.webhook?.info()||{enabled:false};s.resources=this.resources.state;s.adapterSecurity=this.adapterSecurity||auditAdapters();s.eventProjection=projectEvents(await this.listEvents(5000));return s;}
+  async status(){
+    const s=this.snapshot();
+    s.remote=this.remote?.info()||{enabled:false};
+    s.webhook=this.webhook?.info()||{enabled:false};
+    s.resources=this.resources.state;
+    s.adapterSecurity=this.adapterSecurity||auditAdapters();
+    s.eventProjection=projectEvents(await this.listEvents(5000));
+    if(this.workerRegistry){
+      const workers=this.workerRegistry.list();
+      const health=await this.providerHealthForRun({
+        builderWorkers:workers.map(worker=>worker.id),
+        providers:{},
+        models:{},
+        providerApprovals:{network:false,credential:false}
+      }).catch(()=>({}));
+      s.workers=workers.map(worker=>({
+        ...worker,
+        health:health[worker.providerId]?.status||'UNKNOWN',
+        healthDetail:health[worker.providerId]?.detail||null
+      }));
+    }
+    return s;
+  }
   hasActiveWork(){
     if(this.controllers.size>0) return true;
     return Object.values(this.state?.runs||{}).some(run=>['PLANNING','QUEUED','RUNNING','VERIFYING','REVIEWING','REWORK','PAUSED'].includes(run.state));
