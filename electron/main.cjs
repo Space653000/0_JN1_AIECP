@@ -250,6 +250,34 @@ async function buildRemoteGatewayOptions() {
   return { host, allowRemote, port: Number.isFinite(port) && port >= 0 ? port : 0, tls };
 }
 
+async function approveBoundedLocalExecution(workspace, runRoot, label) {
+  const policy = new SecurityPolicy({
+    allowRoots: [workspace.rootPath, runRoot],
+    ...compileWorkspacePolicy(workspace.policy || {})
+  });
+  const required = [];
+  for (const action of ['WRITE', 'EXECUTE']) {
+    const check = policy.check({ action, path: runRoot, approved: false });
+    if (!check.allowed) {
+      if (!check.requiresApproval) throw Object.assign(new Error(check.reason), { code: 'POLICY_DENIED', policy: check });
+      required.push(action);
+    }
+  }
+  if (!required.length) return false;
+  const approval = await dialog.showMessageBox(mainWindow, {
+    type: 'warning',
+    buttons: ['Cancel', 'Allow this run'],
+    defaultId: 0,
+    cancelId: 0,
+    noLink: true,
+    title: `Approve bounded ${label} execution?`,
+    message: `Workspace policy requires explicit approval for: ${required.join(', ')}`,
+    detail: 'This approval applies only to this bounded run. Workspace scope, deterministic verification, patch/file/output budgets and RED human gates remain unchanged.'
+  });
+  if (approval.response !== 1) throw Object.assign(new Error('Bounded local execution was not approved.'), { code: 'APPROVAL_REQUIRED' });
+  return true;
+}
+
 async function initControlPlane() {
   if (controlPlane) return controlPlane;
   const state = await loadState();
@@ -280,8 +308,10 @@ async function startHarness(payload) {
   harnessRecord = initial;
   const providerRouter = await buildRuntimeProviderRouter();
   const policy = new SecurityPolicy({ allowRoots: [workspace.rootPath, runRoot], ...compileWorkspacePolicy(workspace.policy || {}) });
+  const executionApproved = await approveBoundedLocalExecution(workspace, runRoot, 'Harness');
   void runHarness({
     ...payload, sourceRoot: workspace.rootPath, workspaceId: workspace.id, runRoot, signal: controller.signal,
+    executionApproved,
     permissionPolicy: {
       mode: 'FULL_HARNESS',
       ...compileWorkspacePolicy(workspace.policy || {}),
@@ -402,6 +432,7 @@ async function startAutonomy(payload) {
 
   const runId = makeRunId();
   const runRoot = dataPath('autonomy', 'runs', runId);
+  const executionApproved = await approveBoundedLocalExecution(workspace, runRoot, 'Autonomy');
   const executionContract = makeExecutionContract({
     goal: spec.goal,
     done: spec.done,
@@ -410,6 +441,7 @@ async function startAutonomy(payload) {
     permissionPolicy: {
       mode: 'LOCAL_AUTONOMOUS',
       ...compileWorkspacePolicy(workspace.policy || {}),
+      executionApproved,
       workspaceWrite: 'isolated-worktree-only',
       applyToWorkspace: 'explicit-user-approval',
       network: 'worker-policy',
