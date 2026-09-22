@@ -303,16 +303,15 @@ The queue is a first-class control-plane object.
 Scheduler decisions consider:
 
 - dependencies;
-- locks;
-- agent availability;
-- provider health;
-- Workspace policy;
+- repository/write locks;
+- agent/provider availability and provider health;
+- Workspace/provider policy and required approvals;
 - priority;
 - estimated cost/runtime;
 - risk;
 - retry budget.
 
-The scheduler must be deterministic enough that the same queue state can be explained after restart.
+The current scheduler persists `aecp.scheduler-decision/v1` on queued tasks, including eligibility, reasons, normalized priority/risk/cost/runtime, retry budget, repository lock keys and provider states. Eligible tasks are deterministically ranked by priority → lower risk → lower estimated cost → shorter runtime → age/task ID. Repository locks are owned by **task ID**, not process ID, and are renewed by heartbeat; loss of lock ownership aborts the task rather than silently continuing. This makes dispatch explainable after restart and prevents two tasks in one AECP process from bypassing the one-writer rule.
 
 ## 9. Locks
 
