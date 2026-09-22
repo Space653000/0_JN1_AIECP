@@ -26,7 +26,7 @@ const TRANSITIONS = Object.freeze({
 
 function now(){ return new Date().toISOString(); }
 
-function createUpdateTransaction({ currentVersion, targetVersion, targetInstaller, targetSha256, rollbackInstaller=null, rollbackSha256=null } = {}) {
+function createUpdateTransaction({ currentVersion, targetVersion, targetInstaller, targetSha256, targetSignerThumbprint=null, rollbackInstaller=null, rollbackSha256=null, rollbackSignerThumbprint=null } = {}) {
   if (!currentVersion || !targetVersion || !targetInstaller || !targetSha256) throw new Error('Update transaction requires current/target versions and verified target installer metadata.');
   return {
     schema: 'aecp.update/v1',
@@ -35,8 +35,10 @@ function createUpdateTransaction({ currentVersion, targetVersion, targetInstalle
     targetVersion: String(targetVersion),
     targetInstaller: String(targetInstaller),
     targetSha256: String(targetSha256).toLowerCase(),
+    targetSignerThumbprint: targetSignerThumbprint ? String(targetSignerThumbprint).toUpperCase() : null,
     rollbackInstaller: rollbackInstaller ? String(rollbackInstaller) : null,
     rollbackSha256: rollbackSha256 ? String(rollbackSha256).toLowerCase() : null,
+    rollbackSignerThumbprint: rollbackSignerThumbprint ? String(rollbackSignerThumbprint).toUpperCase() : null,
     createdAt: now(),
     updatedAt: now(),
     history: [{ state: 'VERIFIED', at: now() }]
