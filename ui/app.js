@@ -62,6 +62,26 @@ function formatTime(iso) {
   catch { return iso; }
 }
 
+function formatProviderUsage(summary, managedExternally = false) {
+  if (managedExternally) return 'subscription-managed externally';
+  if (!summary?.requests) return 'no recorded invocations';
+  const totals = summary.numericTotals || {};
+  const totalTokens = Object.entries(totals)
+    .filter(([key]) => /(?:^|\.)total_tokens$/i.test(key))
+    .reduce((sum, [, value]) => sum + Number(value || 0), 0);
+  const costs = Object.entries(totals)
+    .filter(([key]) => /(?:^|\.)(?:cost|total_cost|cost_usd)$/i.test(key))
+    .reduce((sum, [, value]) => sum + Number(value || 0), 0);
+  const bits = [
+    `${summary.requests} requests`,
+    `${summary.successes || 0} ok / ${summary.failures || 0} failed`,
+    `avg ${Math.round(summary.averageLatencyMs || 0)} ms`
+  ];
+  if (totalTokens > 0) bits.push(`${Math.round(totalTokens)} total tokens`);
+  if (costs > 0) bits.push(`reported cost ${costs.toFixed(4)}`);
+  return bits.join(' · ');
+}
+
 function statusClass(value) {
   if (['DONE', 'PASS', 'READY', 'APPLIED'].includes(value)) return 'ready';
   if (['FAILED', 'BLOCKED', 'BUDGET_EXHAUSTED', 'CANCELLED', 'INTERRUPTED', 'UNAVAILABLE'].includes(value)) return 'bad';
@@ -578,8 +598,9 @@ function renderProviders() {
   const host = $('#providerList');
   host.innerHTML = state.providers.map((provider) => {
     const detail = provider.healthDetail ? `<small>${esc(provider.healthDetail)}</small>` : '';
+    const usage = `<small>${esc(formatProviderUsage(provider.usage, provider.usageManagedExternally))}</small>`;
     const controls = `<div class="task-actions"><button class="secondary-button" data-provider-health="${esc(provider.id)}" type="button">Check health</button>${provider.builtIn ? '' : `<button class="secondary-button" data-delete-provider="${esc(provider.id)}" type="button">Remove</button>`}</div>`;
-    return `<div class="provider-item"><div><strong>${esc(provider.name)}</strong><small>${esc(provider.kind)} · <span class="status ${statusClass(provider.status)}">${esc(provider.status)}</span>${provider.hasCredential ? ' · credential stored' : ''}${provider.defaultModel ? ` · model ${esc(provider.defaultModel)}` : ''}${provider.baseUrl ? ` · ${esc(provider.baseUrl)}` : ''}</small>${detail}</div>${controls}</div>`;
+    return `<div class="provider-item"><div><strong>${esc(provider.name)}</strong><small>${esc(provider.kind)} · <span class="status ${statusClass(provider.status)}">${esc(provider.status)}</span>${provider.hasCredential ? ' · credential stored' : ''}${provider.defaultModel ? ` · model ${esc(provider.defaultModel)}` : ''}${provider.baseUrl ? ` · ${esc(provider.baseUrl)}` : ''}</small>${usage}${detail}</div>${controls}</div>`;
   }).join('');
 }
 
@@ -591,6 +612,7 @@ function renderAgents() {
       <div>
         <strong>${esc(agent.name)}</strong>
         <small>${esc(agent.role)} · ${esc(agent.available ? agent.version : 'Not detected')}</small>
+        <small>${esc(formatProviderUsage(agent.usage, agent.usageManagedExternally))}</small>
       </div>
       <button class="${agent.id === 'chatgpt-web' ? 'primary-button' : 'secondary-button'}" data-agent-id="${esc(agent.id)}" type="button" ${agent.available ? '' : 'disabled'}>${agent.id === 'chatgpt-web' ? 'Open' : 'Launch'}</button>
     </div>`).join('') || '<div class="empty-list">No agents detected.</div>';
