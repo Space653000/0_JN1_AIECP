@@ -11,7 +11,8 @@ const state = {
   agents: [],
   githubConnection: null,
   update: null,
-  mcpStatus: null,
+  updateTransaction: null,
+  mcpStatus: null;
   autonomyOptions: null,
   autonomyStatus: null,
   harnessStatus: null,
@@ -66,7 +67,7 @@ function statusClass(value) {
 }
 
 async function loadAll() {
-  const [app, data, tools, tasks, providers, agents, githubConnection, mcpStatus, autonomyOptions, autonomyStatus, harnessStatus, guidance] = await Promise.all([
+  const [app, data, tools, tasks, providers, agents, githubConnection, updateTransaction, mcpStatus, autonomyOptions, autonomyStatus, harnessStatus, guidance] = await Promise.all([
     safe(() => window.aecp.getAppInfo()),
     safe(() => window.aecp.getState()),
     safe(() => window.aecp.detectTools(), []),
@@ -74,6 +75,7 @@ async function loadAll() {
     safe(() => window.aecp.listProviders(), []),
     safe(() => window.aecp.listAgents(), []),
     safe(() => window.aecp.getGitHubConnection(), null),
+    safe(() => window.aecp.getUpdateStatus(), null),
     safe(() => window.aecp.getMcpStatus(), null),
     safe(() => window.aecp.getAutonomyOptions(), null),
     safe(() => window.aecp.getAutonomyStatus(), null),
@@ -87,6 +89,7 @@ async function loadAll() {
   state.providers = providers || [];
   state.agents = agents || [];
   state.githubConnection = githubConnection;
+  state.updateTransaction = updateTransaction;
   state.mcpStatus = mcpStatus;
   state.autonomyOptions = autonomyOptions;
   state.autonomyStatus = autonomyStatus;
@@ -501,8 +504,9 @@ function renderUpdate() {
   const badge = $('#updateBadge');
   const text = $('#updateText');
   const apply = $('#applyUpdateButton');
+  const rollback = $('#rollbackUpdateButton');
   const connect = $('#connectGitHubButton');
-  if (!badge || !text || !apply || !connect) return;
+  if (!badge || !text || !apply || !rollback || !connect) return;
 
   if (state.update) {
     badge.textContent = state.update.available ? 'Update available' : (state.update.connected ? 'Up to date' : 'GitHub needed');
@@ -518,6 +522,17 @@ function renderUpdate() {
       ? 'Private GitHub is authenticated. Check Release status when you want to update.'
       : 'Connect GitHub once, then AECP can securely read private Releases and self-update from the allowlisted repository.';
     apply.disabled = true;
+  }
+  const tx = state.updateTransaction;
+  rollback.disabled = !(tx?.state === 'ROLLBACK_REQUIRED' && tx?.rollbackInstaller && tx?.rollbackSha256);
+  if (tx?.state === 'ROLLBACK_REQUIRED') {
+    badge.textContent = 'Rollback required';
+    badge.className = 'status bad';
+    text.textContent = tx.rollbackInstaller
+      ? `Update health check failed (observed ${tx.observedVersion || 'unknown'}; expected ${tx.targetVersion}). A verified rollback installer is available.`
+      : `Update health check failed (observed ${tx.observedVersion || 'unknown'}; expected ${tx.targetVersion}). No verified rollback installer was retained.`;
+  } else if (tx?.state === 'HEALTHY') {
+    text.textContent += ` Last update to v${tx.targetVersion} passed first-boot health verification.`;
   }
   connect.textContent = state.githubConnection?.connected ? 'GitHub connected' : 'Connect GitHub';
   connect.disabled = Boolean(state.githubConnection?.connected);
@@ -787,6 +802,7 @@ function bindEvents() {
   $('#copyMcpButton').addEventListener('click', copyMcpConnection);
   $('#checkUpdateButton').addEventListener('click', checkUpdate);
   $('#applyUpdateButton').addEventListener('click', applyUpdate);
+  $('#rollbackUpdateButton').addEventListener('click', rollbackUpdate);
   $('#connectGitHubButton').addEventListener('click', connectGitHub);
   $('#openReleasesButton').addEventListener('click', () => safe(() => window.aecp.openReleases()));
   $('#importClipboardButton').addEventListener('click', importFromClipboard);
