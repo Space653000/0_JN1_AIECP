@@ -319,6 +319,31 @@ class ControlPlane {
     await this.persist(); await this.event('mission.paused',{runId:id}); return run;
   }
 
+  async cancelTask(runId,taskId){
+    const run=this.state.runs[runId]; if(!run) throw new Error('Mission not found.');
+    const task=this.state.tasks[taskId]; if(!task||task.runId!==runId) throw new Error('Task not found.');
+    if(TERMINAL.has(task.state)||task.state==='CANCELLED') return task;
+    const controller=this.controllers.get(taskId);
+    if(task.workerId&&this.workerRegistry) await this.workerRegistry.markCancelling(task.workerId).catch(()=>{});
+    task.cancelRequestedAt=now();
+    task.cancelRequested=true;
+    if(controller){
+      controller.abort();
+      await this.persist();
+      await this.event('task.cancel_requested',{runId,taskId,workerId:task.workerId||null});
+      return task;
+    }
+    task.state='CANCELLED';
+    task.phase='CANCELLED';
+    task.lease=null;
+    task.finishedAt=now();
+    await this.persist();
+    await this.event('task.cancelled',{runId,taskId,workerId:task.workerId||null});
+    await this.finalizeRun(run);
+    this.schedule();
+    return task;
+  }
+
   async cancelMission(id){
     const run=this.state.runs[id]; if(!run) throw new Error('Mission not found.');
     for(const taskId of run.taskIds||[]){const task=this.state.tasks[taskId];const controller=this.controllers.get(taskId);if(controller)controller.abort();if(task?.workerId&&this.workerRegistry)await this.workerRegistry.markCancelling(task.workerId).catch(()=>{});}
