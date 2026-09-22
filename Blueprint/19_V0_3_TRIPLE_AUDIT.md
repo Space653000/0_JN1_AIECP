@@ -23,7 +23,7 @@ It does not claim general desktop autonomy, unrestricted shell access, automatic
 | Worker never writes active checkout during run | engine creates detached worktree from recorded base HEAD | PASS |
 | Deterministic verification belongs to AECP | fixed verifier profiles are executed by AECP after every successful worker iteration | PASS |
 | Failed verification can iterate | bounded loop carries prior verifier output into next iteration | PASS |
-| Iteration/timeout are externally enforced | max iterations + per-process timeout owned by AECP | PASS |
+| Iteration/timeout are externally enforced | max iterations/turns/failed attempts/no-progress/output/patch/files + per-process timeout are owned by AECP | PASS |
 | High-impact merge into source is explicit | Apply verified changes is a separate user action | PASS |
 | No automatic commit/push/publish | no such operation exists in v0.3 autonomous path | PASS |
 | Worker/provider can evolve independently | OpenCode + Codex adapters share canonical Goal/Done/Evidence engine | PASS |
@@ -48,8 +48,8 @@ It does not claim general desktop autonomy, unrestricted shell access, automatic
 | OpenCode arbitrary shell denied | deny-first shell rules; only read-only Git status/diff exceptions | PASS |
 | Codex local write bounded | workspace-write sandbox + sandbox network disabled | PASS |
 | Worker cannot decide PASS | only AECP verifier result can transition run to DONE | PASS |
-| Output bounded | stdout/stderr tails capped | PASS |
-| Patch bounded | binary patch capped at 8 MiB | PASS |
+| Output bounded | worker/verifier output is hard-capped; overflow terminates the process/run budget rather than silently truncating to PASS | PASS |
+| Patch bounded | binary patch and changed-file count are hard-capped before accepted evidence/DONE | PASS |
 | Apply rejects stale source | source must still be clean and at recorded base HEAD | PASS |
 | Patch compatibility checked | `git apply --check` before apply | PASS |
 | Cancellation supported | AbortController + child process-tree termination | PASS |
