@@ -73,3 +73,21 @@ test('Goal Loop provides bounded task-shaped presets without bypassing approval 
   assert.match(app,/checkpointEvery:/);
   assert.match(app,/signing\/Store\/publish owner gates are explicitly satisfied or HUMAN_REQUIRED/);
 });
+
+
+test('Add Repo is explicit and cannot widen the authorized Workspace boundary', () => {
+  const main = read('electron/main.cjs');
+  const preload = read('electron/preload.cjs');
+  const app = read('ui/app.js');
+  const html = read('ui/index.html');
+  assert.match(main, /async function addWorkspaceRepository\(\)/);
+  assert.match(main, /workspace:add-repo/);
+  assert.match(main, /assertWithinRoot\(workspace\.rootPath, selected\)/);
+  assert.match(main, /assertWithinRoot\(workspace\.rootPath, repoRoot\)/);
+  assert.match(main, /Select the Git repository root itself/);
+  assert.match(main, /manualRepositories/);
+  assert.match(main, /buildWorkspace\(workspace\.rootPath, \{ \.\.\.workspace, manualRepositories: manual \}\)/);
+  assert.match(preload, /addRepository/);
+  assert.match(app, /addRepository/);
+  assert.match(html, /id="addRepoButton"/);
+});
