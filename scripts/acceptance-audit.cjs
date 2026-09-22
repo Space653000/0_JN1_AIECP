@@ -87,6 +87,25 @@ const staticInvariants=[
   {label:'sandbox true',re:/sandbox:\s*true/},
   {label:'safeStorage credential protection',re:/safeStorage\.(?:encryptString|decryptString)/}
  ]),
+ invariant('goal-loop-runtime-contract','electron/lib/harness.cjs',[
+  {label:'Goal Loop schema',re:/aecp\.goal-loop\/v1/},
+  {label:'checkpoint cadence',re:/checkpointEvery/},
+  {label:'Workspace binding',re:/workspaceId/},
+  {label:'provider policy',re:/providerPolicy/},
+  {label:'permission policy',re:/permissionPolicy/},
+  {label:'verification policy',re:/verificationPolicy/},
+  {label:'stop conditions',re:/stopConditions/},
+  {label:'checkpoint evidence',re:/aecp\.goal-loop-checkpoint\/v1/},
+  {label:'no-progress stop',re:/NO_PROGRESS_STOP/},
+  {label:'wall-clock budget',re:/WALL_CLOCK_BUDGET_EXHAUSTED/},
+  {label:'failed-attempt budget',re:/FAILED_ATTEMPT_BUDGET_EXHAUSTED/}
+ ]),
+ invariant('goal-loop-runtime-tests','tests/harness-bounds.test.cjs',[
+  {label:'Goal Loop contract test',re:/complete Goal Loop contract and checkpoint evidence/},
+  {label:'no-progress test',re:/stops repeated no-progress attempts/},
+  {label:'failed-attempt test',re:/failed-attempt budget outside the model/},
+  {label:'wall-clock test',re:/wall-clock budget before the next provider call/}
+ ]),
  invariant('harness-hard-budgets','electron/lib/harness.cjs',[
   {label:'provider call budget',re:/PROVIDER_CALL_BUDGET_EXHAUSTED/},
   {label:'patch byte budget',re:/PATCH_BUDGET_EXHAUSTED/},
