@@ -16,6 +16,9 @@ on:
           - opencode-ollama
           - canonical-local
           - local-command
+          - codex-official
+          - codex-pega
+          - multi-codex
           - all
       model:
         description: Explicit Ollama model, required for Ollama/OpenCode/canonical modes
@@ -29,6 +32,26 @@ on:
         description: Fixed local worker arguments as a JSON array
         required: false
         default: "[]"
+        type: string
+      official_model:
+        description: Optional explicit model for the real Codex OFFICIAL worker
+        required: false
+        type: string
+      pega_model:
+        description: Explicit PEGA model for codex-pega and multi-codex modes
+        required: false
+        type: string
+      pega_wire_api:
+        description: PEGA Codex wire API supported by the real endpoint
+        required: false
+        default: responses
+        type: choice
+        options:
+          - responses
+          - chat
+      codex_worker_root:
+        description: Persistent AECP Codex worker root on the self-hosted runner; OFFICIAL auth must exist here
+        required: false
         type: string
 
 permissions:
@@ -64,6 +87,8 @@ jobs:
           AECP_MODE: ${{ inputs.mode }}
           AECP_MODEL: ${{ inputs.model }}
           AECP_LOCAL_COMMAND: ${{ inputs.local_command }}
+          AECP_PEGA_MODEL: ${{ inputs.pega_model }}
+          AECP_PEGA_API_KEY: ${{ secrets.AECP_PEGA_API_KEY }}
         run: |
           node --version
           git --version
@@ -78,6 +103,14 @@ jobs:
           if ($env:AECP_MODE -in @('local-command','all') -and [string]::IsNullOrWhiteSpace($env:AECP_LOCAL_COMMAND)) {
             throw 'A fixed local/company worker command is required for local-command/all mode.'
           }
+          if ($env:AECP_MODE -in @('codex-official','codex-pega','multi-codex')) {
+            codex --version
+            if ($LASTEXITCODE -ne 0) { throw 'Codex CLI is required for real Codex worker evidence.' }
+          }
+          if ($env:AECP_MODE -in @('codex-pega','multi-codex')) {
+            if ([string]::IsNullOrWhiteSpace($env:AECP_PEGA_MODEL)) { throw 'An explicit PEGA model is required for codex-pega/multi-codex mode.' }
+            if ([string]::IsNullOrWhiteSpace($env:AECP_PEGA_API_KEY)) { throw 'AECP_PEGA_API_KEY repository/environment secret is required for real PEGA evidence.' }
+          }
 
       - name: Run real provider verification
         id: provider_verify
@@ -87,6 +120,11 @@ jobs:
           AECP_PROVIDER_VERIFY_MODEL: ${{ inputs.model }}
           AECP_PROVIDER_VERIFY_LOCAL_COMMAND: ${{ inputs.local_command }}
           AECP_PROVIDER_VERIFY_LOCAL_ARGS_JSON: ${{ inputs.local_args_json }}
+          AECP_PROVIDER_VERIFY_OFFICIAL_MODEL: ${{ inputs.official_model }}
+          AECP_PROVIDER_VERIFY_PEGA_MODEL: ${{ inputs.pega_model }}
+          AECP_PROVIDER_VERIFY_PEGA_WIRE_API: ${{ inputs.pega_wire_api }}
+          AECP_PROVIDER_VERIFY_CODEX_ROOT: ${{ inputs.codex_worker_root }}
+          AECP_PEGA_API_KEY: ${{ secrets.AECP_PEGA_API_KEY }}
           AECP_PROVIDER_VERIFY_TIMEOUT_MS: "1800000"
           AECP_PROVIDER_EVIDENCE_PATH: artifacts/provider-environment-evidence.json
         run: |
