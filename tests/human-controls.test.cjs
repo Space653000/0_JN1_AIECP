@@ -60,3 +60,16 @@ test('Execution Mode recommendation is factual and keeps Full MCP gated on remot
   assert.match(app,/End-to-end tunnel\/app health must still pass before write mode is enabled/);
   assert.match(app,/No ChatGPT DOM scraping/);
 });
+
+
+test('Goal Loop provides bounded task-shaped presets without bypassing approval policy',()=>{
+  const app=read('ui/app.js');
+  for(const id of ['research','build','debug','review','optimization','release']){
+    assert.match(app,new RegExp(id+": \\{"));
+  }
+  assert.match(app,/data-action="apply-loop-preset"/);
+  assert.match(app,/localStorage\.setItem\('aecp-goal-loop'/);
+  assert.match(app,/maxIterations:/);
+  assert.match(app,/checkpointEvery:/);
+  assert.match(app,/signing\/Store\/publish owner gates are explicitly satisfied or HUMAN_REQUIRED/);
+});
