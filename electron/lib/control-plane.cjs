@@ -389,8 +389,13 @@ class ControlPlane {
     await this.persist();
   }
 
-  repositoryLockKeys(run,task){
-    return (task.resources?.repositories||[run.sourceRoot]).map(p=>'repo:'+path.resolve(p).toLowerCase()).sort();
+  taskMutationLockKeys(run,task){
+    const subRoot=path.join(this.rootDir,'runs',run.id,task.id);
+    return ['worktree:'+subRoot.toLowerCase()];
+  }
+
+  gitAdminLockKey(repositoryRoot){
+    return 'git-admin:'+path.resolve(repositoryRoot).toLowerCase();
   }
 
   async providerHealthForRun(run){
@@ -437,7 +442,7 @@ class ControlPlane {
     const retryRemaining=Math.max(0,Number(run.maxIterations||1)-Number(task.attempts||0));
     if(retryRemaining<=0) reasons.push('RETRY_BUDGET_EXHAUSTED');
 
-    const repositoryLocks=this.repositoryLockKeys(run,task);
+    const repositoryLocks=this.taskMutationLockKeys(run,task);
     const lockConflict=repositoryLocks.find(key=>locks.some(lock=>lock.key===key&&lock.meta?.taskId!==task.id));
     if(lockConflict) reasons.push('LOCK_BUSY');
 
@@ -580,7 +585,7 @@ class ControlPlane {
     }
     const builderProvider=workerProfile?.providerId||run.providers.builder;
     const builderModel=workerProfile?.model||run.models.builder||null;
-    const lockKeys=[...(task.resources?.repositories||[run.sourceRoot]).map(p=>'repo:'+path.resolve(p).toLowerCase()),'worktree:'+subRoot.toLowerCase()].sort();
+    const lockKeys=this.taskMutationLockKeys(run,task);
     const locks=[];
     try { for(const key of lockKeys) locks.push(await this.locks.acquire(key,task.id,{meta:{runId:run.id,taskId:task.id,workerId:task.workerId||null}})); } catch(e) { for(const x of locks){try{await this.locks.release(x.key,task.id,x.token)}catch{}} if(workerAcquired&&this.workerRegistry)await this.workerRegistry.release(selectedWorkerId,{resultState:'WAITING_LOCK'}).catch(()=>{}); task.state='QUEUED'; task.phase='WAITING_LOCK'; task.lease=null; task.attempts=Math.max(0,task.attempts-1); await this.event('task.waiting_for_lock',{runId:run.id,taskId:task.id,workerId:selectedWorkerId,error:String(e.message||e)}); return; }
     task.lockLeases=locks.map(x=>({key:x.key,token:x.token,expiresAt:x.expiresAt}));
@@ -595,7 +600,22 @@ class ControlPlane {
       if(!this.adapterSecurity.ok) throw new Error('Adapter security audit failed; autonomous execution is blocked.');
       task.phase='EXECUTING'; await this.persist();
       let baseRef=null;
-      if(task.delivery?.branch){await this.gitLocal(taskRoot,['fetch','origin',task.delivery.branch]);baseRef='origin/'+task.delivery.branch;}
+      let preparedWorktree=null;
+      let preparedBaseHead=null;
+      const existingHarness=await fs.readFile(path.join(subRoot,'harness.json'),'utf8').then(JSON.parse).catch(()=>null);
+      const resumableWorktree=task.resume&&existingHarness?.worktree&&await fs.stat(existingHarness.worktree).then(()=>true).catch(()=>false);
+      if(!resumableWorktree){
+        const adminKey=this.gitAdminLockKey(taskRoot);
+        const adminLease=await this.locks.acquire(adminKey,task.id,{leaseMs:60000,meta:{runId:run.id,taskId:task.id,scope:'git-worktree-admin'}});
+        try{
+          if(task.delivery?.branch){await this.gitLocal(taskRoot,['fetch','origin',task.delivery.branch]);baseRef='origin/'+task.delivery.branch;}
+          const prepared=await prepareWorktree(taskRoot,subRoot,controller.signal,baseRef);
+          preparedWorktree=prepared.worktree;
+          preparedBaseHead=prepared.baseHead;
+        }finally{
+          await this.locks.release(adminKey,task.id,adminLease.token).catch(()=>{});
+        }
+      }
       task.executionContract=task.executionContract||makeExecutionContract({
         goal:run.goal+'\nTask: '+task.title,
         done:task.acceptance||run.done,
@@ -609,7 +629,7 @@ class ControlPlane {
         transport:'control-plane-harness',
         worker:task.workerId||builderProvider
       });
-      const result=await runHarness({goal:run.goal+'\nTask: '+task.title,done:task.acceptance||run.done,context:run.context+'\nOBJECTIVE: '+task.objective,sourceRoot:taskRoot,runRoot:subRoot,baseRef,maxTasks:1,maxIterations:run.maxIterations,maxTurns:run.maxTurns,maxFailedAttempts:run.maxFailedAttempts,maxNoProgressAttempts:run.maxNoProgressAttempts,maxWallClockMs:run.maxWallClockMs,maxProviderReportedCost:run.maxProviderReportedCost,maxLocalComputeMs:run.maxLocalComputeMs,maxPatchBytes:run.maxPatchBytes,maxChangedFiles:run.maxChangedFiles,checkpointEvery:run.checkpointEvery,workspaceId:run.workspaceId||null,executionContract:task.executionContract,signal:controller.signal,policy:runPolicy,providerRouter:this.providers,plannerProvider:run.providers.planner,builderProvider,reviewerProvider:run.providers.reviewer,plannerModel:run.models.planner,builderModel,reviewerModel:run.models.reviewer,executionApproved:Boolean(task.approvedActions?.includes('EXECUTE')),providerNetworkApproved:Boolean(run.providerApprovals?.network),providerCredentialApproved:Boolean(run.providerApprovals?.credential),resume:Boolean(task.resume),onEvent:async e=>{task.lastEvent=e;task.updatedAt=now();await this.evidence.appendEvent(run.id,e).catch(()=>{});await this.persist();await this.emit({schema:'aecp.event/v1',type:'task.event',at:now(),runId:run.id,taskId:task.id,data:e});}});
+      const result=await runHarness({goal:run.goal+'\nTask: '+task.title,done:task.acceptance||run.done,context:run.context+'\nOBJECTIVE: '+task.objective,sourceRoot:taskRoot,runRoot:subRoot,baseRef,preparedWorktree,preparedBaseHead,maxTasks:1,maxIterations:run.maxIterations,maxTurns:run.maxTurns,maxFailedAttempts:run.maxFailedAttempts,maxNoProgressAttempts:run.maxNoProgressAttempts,maxWallClockMs:run.maxWallClockMs,maxProviderReportedCost:run.maxProviderReportedCost,maxLocalComputeMs:run.maxLocalComputeMs,maxPatchBytes:run.maxPatchBytes,maxChangedFiles:run.maxChangedFiles,checkpointEvery:run.checkpointEvery,workspaceId:run.workspaceId||null,executionContract:task.executionContract,signal:controller.signal,policy:runPolicy,providerRouter:this.providers,plannerProvider:run.providers.planner,builderProvider,reviewerProvider:run.providers.reviewer,plannerModel:run.models.planner,builderModel,reviewerModel:run.models.reviewer,executionApproved:Boolean(task.approvedActions?.includes('EXECUTE')),providerNetworkApproved:Boolean(run.providerApprovals?.network),providerCredentialApproved:Boolean(run.providerApprovals?.credential),resume:Boolean(task.resume),onEvent:async e=>{task.lastEvent=e;task.updatedAt=now();await this.evidence.appendEvent(run.id,e).catch(()=>{});await this.persist();await this.emit({schema:'aecp.event/v1',type:'task.event',at:now(),runId:run.id,taskId:task.id,data:e});}});
       task.phase='VERIFYING';
       if(workerAcquired&&this.workerRegistry) await this.workerRegistry.updateAssignment(selectedWorkerId,{worktree:result.worktree||path.join(subRoot,'worktree'),verificationState:'RUNNING'}).catch(()=>{});
       await this.persist(); task.result=result;task.state=result.state==='DONE'?'DONE':result.state;task.lease=null;task.resume=false;task.finishedAt=now();
