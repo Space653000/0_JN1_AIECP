@@ -41,11 +41,11 @@ Do the v0.2 changes preserve the user's original goal while providing credible a
 |---|---|---|
 | Keep official ChatGPT Web untouched | Web Safe Bridge remains; no DOM injection/scraping added | PASS |
 | Avoid forcing OpenAI model API billing | Web Safe Bridge and Local worker paths remain available without OpenAI model API calls | PASS |
-| Reduce manual handoff where possible | Local Autonomous mode is represented and local/CLI worker readiness is detected | PASS FOR ROUTING FOUNDATION |
+| Reduce manual handoff where possible | Local Autonomous mode is represented and local/CLI worker readiness is detected | PASS FOR ROUTING/BOUNDED EXECUTION FOUNDATION |
 | Keep exact official ChatGPT→local path possible | Local MCP runtime + Official Full MCP architecture documented | PASS FOR LOCAL FOUNDATION; REAL TUNNEL DEFERRED |
 | Do not bind product to one provider | ChatGPT Web, Codex CLI, Claude Code, Gemini CLI, OpenCode, Ollama adapters detected/launched | PASS |
 | Preserve canonical task/evidence model | execution modes share Goal / Done / Workspace / Evidence architecture | PASS |
-| Resolve SmartScreen as permanent product limitation | Store Private Audience lane and acceptance gate defined | PASS FOR DELIVERY PLAN; STORE CERTIFICATION DEFERRED |
+| Resolve SmartScreen as permanent product limitation | Store Private Audience software lane builds/validates x64+ARM64 AppX with owner-identity workflow | PASS FOR SOFTWARE LANE; STORE CERTIFICATION EXTERNAL |
 | Keep private GitHub Preview distribution | existing trusted private Release updater remains | PASS |
 
 ### Finding A1 — “Ready” language
@@ -115,7 +115,7 @@ Static/unit result in run `35290049186`:
 
 This is an intentional explicit operation, but clipboard content is a temporary secret surface.
 
-**Disposition:** documented warning required; future stable UI should offer timed clipboard clearing and/or direct tunnel provisioning that avoids copying the bearer.
+**Disposition:** documented warning required; clipboard bearer copy remains an explicit local action; direct supported tunnel provisioning remains an external product/deployment path. The bearer is never returned by public status or background-copied.
 
 ### Finding B3 — MCP is read-only by design
 
@@ -196,4 +196,4 @@ These cannot be truthfully marked PASS from repository CI alone.
 
 **APPROVED FOR v0.2.0 Preview merge/release, subject to the audit-only final-head CI also remaining green.**
 
-This approval does not convert roadmap items into implemented claims. Store certification, live Secure MCP Tunnel, write-capable Local Autonomous loops and stable signing remain separate acceptance gates.
+This approval does not convert roadmap items into implemented claims. Store certification, live Secure MCP Tunnel and production signing remain separate external acceptance gates. Write-capable Local Autonomous execution is now implemented in v0.3 behind isolated-worktree, deterministic-verifier and explicit-apply controls.
