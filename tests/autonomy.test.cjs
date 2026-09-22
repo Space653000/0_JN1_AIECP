@@ -122,6 +122,8 @@ test('bounded runner isolates writes in worktree then applies only after explici
   assert.equal(normalizeEol(await fs.readFile(path.join(repo, 'value.txt'), 'utf8')), 'original\n');
   assert.equal(normalizeEol(await fs.readFile(path.join(record.worktree, 'value.txt'), 'utf8')), 'changed\n');
 
+  assert.match(record.patchSha256, /^[a-f0-9]{64}$/);
+  assert.ok(Array.isArray(record.patchChangedFiles));
   const applied = await applyVerifiedPatch({ sourceRoot: repo, runRecord: record });
   assert.equal(applied.applied, true);
   assert.equal(normalizeEol(await fs.readFile(path.join(repo, 'value.txt'), 'utf8')), 'changed\n');
@@ -395,5 +397,40 @@ test('Apply refuses a verified patch after source HEAD changes', async (t) => {
   await assert.rejects(
     () => applyVerifiedPatch({ sourceRoot: fixture.repo, runRecord: record }),
     /HEAD changed/
+  );
+});
+
+
+test('Apply rejects a verified patch file modified after verification', async (t) => {
+  const fixture = await makeAutonomyRepo('aecp-auto-tampered-patch-');
+  t.after(async () => fs.rm(fixture.root, { recursive: true, force: true }));
+  const record = await runBoundedAutonomy({
+    sourceRoot: fixture.repo,
+    runRoot: fixture.runRoot,
+    spec: {
+      goal: 'Produce a verified patch with integrity evidence.',
+      done: 'Verifier passes.',
+      workerId: 'opencode',
+      verificationProfile: 'npm-test',
+      maxIterations: 1
+    }
+  }, {
+    workerProbe: async () => '1.18.30',
+    runProcess: async (_command, _args, options) => {
+      await fs.writeFile(path.join(options.cwd, 'value.txt'), 'changed\n');
+      return { code: 0, signal: null, timedOut: false, aborted: false, outputLimitExceeded: false, stdout: 'worker', stderr: '' };
+    },
+    runVerification: async () => ({
+      profile: 'npm-test', label: 'fake', command: 'fake verify',
+      passed: true, code: 0, timedOut: false, aborted: false, outputLimitExceeded: false,
+      stdout: 'PASS', stderr: ''
+    })
+  });
+  assert.equal(record.state, 'DONE', record.error || JSON.stringify(record, null, 2));
+  assert.match(record.patchSha256, /^[a-f0-9]{64}$/);
+  await fs.appendFile(record.patchFile, '\n# tampered after verification\n');
+  await assert.rejects(
+    () => applyVerifiedPatch({ sourceRoot: fixture.repo, runRecord: record }),
+    /changed after verification/
   );
 });
