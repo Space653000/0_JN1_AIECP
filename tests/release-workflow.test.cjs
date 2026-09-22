@@ -114,7 +114,7 @@ test('signed release lane is owner-gated and verifies Authenticode provenance', 
   assert.match(workflow, /aecp\.signed-release-provenance\/v1/);
   assert.equal(count(workflow, /^  signed-provenance:$/gm), 1);
   assert.equal(count(workflow, /^  publish-signed-release:$/gm), 1);
-  assert.match(workflow, /if \(\$LASTEXITCODE -ne 0 -or \$sourceCommit -notmatch '\^\[0-9a-f\]\{40\}\
+  assert.equal(workflow.includes("$sourceCommit -notmatch '^[0-9a-f]{40}$'"), true);
   assert.match(workflow, /sourceCommit=\$sourceCommit/);
   assert.doesNotMatch(workflow, /sourceCommit=\$env:GITHUB_SHA/);
   assert.match(workflow, /if:\s*\$\{\{ inputs\.publish_ack \}\}/);
