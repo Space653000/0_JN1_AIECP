@@ -39,8 +39,8 @@ OpenAI's published harness-engineering work emphasizes repository legibility, ex
 └──────────────┬───────────────┬──────────────────┬────────────────┘
                │               │                  │
                ▼               ▼                  ▼
-        Claude Code        Codex CLI          Other Adapters
-        Planner/Review     Local Worker       Gemini / Local / API
+        Claude Code       Codex Workers       Other Adapters
+        Planner/Review    OFFICIAL / PEGA     Gemini / Local / API
                │               │                  │
                └───────────────┼──────────────────┘
                                ▼
@@ -60,6 +60,34 @@ OpenAI's published harness-engineering work emphasizes repository legibility, ex
                                │
                                └──────────→ Harness Loop
 ~~~
+
+## 2A. Multi-Worker execution topology
+
+AECP is the only operator entry point. Harness may run multiple isolated Worker processes concurrently:
+
+~~~text
+AECP
+ ↓
+Harness / Scheduler / Locks / Policy / Budgets
+ ├─ Codex OFFICIAL Worker → isolated CODEX_HOME → task worktree A
+ ├─ Codex PEGA Worker     → isolated CODEX_HOME → task worktree B
+ ├─ Claude Code Planner / Reviewer
+ └─ future Workers / Providers
+~~~
+
+Concurrency is allowed only when dependencies and resources permit it.
+
+Hard invariants:
+
+- one Worker process has one explicit `worker_id`, provider identity and task assignment;
+- each Codex Worker receives a dedicated `CODEX_HOME` and process environment;
+- same-repository parallel mutations use distinct isolated Git worktrees;
+- two Workers cannot hold the same conflicting mutating resource lock;
+- cancel is task/worker scoped; STOP ALL is global;
+- Worker/provider failure is isolated and does not redefine another Worker health;
+- no Worker may bypass Harness to write directly into an unassigned Workspace/worktree.
+
+Harness remains the owner of Queue / Dependency / Lock / Timeout / Retry / Cancel / Evidence / Verify / Review / Recovery.
 
 ## 3. Separation of responsibilities
 
@@ -95,7 +123,9 @@ Primary roles:
 
 Claude Code should operate at the highest useful abstraction level rather than editing every line.
 
-### Codex CLI
+### Codex Workers
+
+Codex is represented as isolated Worker runtime identities rather than one shared global process. Initial canonical workers are **Codex OFFICIAL** and **Codex PEGA**.
 
 Primary roles:
 
