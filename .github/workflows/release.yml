@@ -131,9 +131,47 @@ jobs:
           name: aecp-universal-installer
           path: release/universal/**
 
+
+  smoke-universal:
+    name: Smoke universal release bootstrap Windows ${{ matrix.arch }}
+    needs: build-universal
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: windows-latest
+          - arch: arm64
+            runner: windows-11-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: aecp-universal-installer
+          path: smoke-universal
+      - name: Install through universal bootstrap and uninstall
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem smoke-universal -Filter '*.exe' -Recurse | Where-Object { $_.Name -like 'AI-Engineering-Control-Plane-Setup-*.exe' } | Select-Object -First 1
+          if (-not $installer) { throw 'Universal release bootstrap not found.' }
+          $installDir = Join-Path $env:RUNNER_TEMP 'aecp-release-universal-${{ matrix.arch }}'
+          Remove-Item $installDir -Recurse -Force -ErrorAction SilentlyContinue
+          $env:AECP_BOOTSTRAP_INSTALL_ARGS = "/S /D=$installDir"
+          $install = Start-Process -FilePath $installer.FullName -PassThru -Wait
+          if ($install.ExitCode -ne 0) { throw "Universal release bootstrap exited with $($install.ExitCode)." }
+          $app = Get-ChildItem $installDir -Filter 'AI Engineering Control Plane.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $app) { throw 'AECP executable not found after universal release install.' }
+          $uninstaller = Get-ChildItem $installDir -Filter 'Uninstall*.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $uninstaller) { throw 'AECP uninstaller not found after universal release install.' }
+          $uninstall = Start-Process -FilePath $uninstaller.FullName -ArgumentList '/S' -PassThru -Wait
+          if ($uninstall.ExitCode -ne 0) { throw "Universal release uninstall exited with $($uninstall.ExitCode)." }
+          Start-Sleep -Seconds 2
+          if (Test-Path $app.FullName) { throw 'AECP executable still exists after universal release uninstall.' }
+
   publish-release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [build-fallback, build-auto, build-universal, smoke-install]
+    needs: [build-fallback, build-auto, build-universal, smoke-install, smoke-universal]
     runs-on: windows-latest
     permissions:
       contents: write
