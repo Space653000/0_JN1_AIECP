@@ -37,6 +37,7 @@ const requiredFiles=[
  ['packaging-workflow','.github/workflows/ci.yml'],
  ['store-workflow','.github/workflows/store-package.yml'],
  ['store-validator','scripts/validate-store-package.ps1'],
+ ['license-audit','scripts/license-audit.cjs'],
  ['universal-bootstrap-source','release/universal-bootstrap/Program.cs'],
  ['universal-bootstrap-project','release/universal-bootstrap/UniversalBootstrap.csproj'],
  ['update-state','electron/lib/update-state.cjs'],
@@ -155,6 +156,14 @@ const staticInvariants=[
   {label:'ARM64 Store script',re:/"dist:store:arm64"/},
   {label:'Traditional Chinese Store language',re:/"zh-TW"/}
  ]),
+ invariant('canonical-license-gate','package.json',[
+  {label:'license audit script',re:/"audit:license"\s*:\s*"node scripts\/license-audit\.cjs"/},
+  {label:'verify executes license audit',re:/"verify"\s*:\s*"[^"]*audit:license[^"]*"/}
+ ]),
+ invariant('security-license-evidence','.github/workflows/aecp-security.yml',[
+  {label:'security audit evidence',re:/security-audit\.log/},
+  {label:'license audit evidence',re:/artifacts\/license-audit\.json/}
+ ]),
  invariant('provider-local-e2e','tests/provider-router.e2e.test.cjs',[
   {label:'fixed local-command E2E',re:/local-command/},
   {label:'successful local evidence',re:/LOCAL_PROVIDER_OK/}
@@ -205,7 +214,8 @@ function run(){
    'tests/security-recovery-matrix.test.cjs',
    'tests/event-projection.test.cjs',
    'tests/provider-integration.test.cjs',
-   'tests/update-state.test.cjs'
+   'tests/update-state.test.cjs',
+   'scripts/license-audit.cjs'
   ],
   exactCommitCIGates:[
    'AECP CI must succeed on the exact commit',
