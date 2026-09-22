@@ -8,6 +8,7 @@ const { spawn } = require('node:child_process');
 const AUTONOMY_SCHEMA = 'aecp.autonomous/v1';
 const MAX_OUTPUT_BYTES = 1024 * 1024;
 const MAX_PATCH_BYTES = 8 * 1024 * 1024;
+const MAX_CHANGED_FILES = 100;
 
 const VERIFICATION_PROFILES = Object.freeze({
   'npm-verify': { id: 'npm-verify', label: 'npm run verify', command: 'npm', args: ['run', 'verify'], timeoutMs: 180000 },
@@ -57,15 +58,20 @@ function validateAutonomySpec(input = {}) {
   if (!AUTONOMOUS_WORKERS[workerId]) throw new Error('Selected worker is not enabled for bounded autonomous execution.');
   if (!VERIFICATION_PROFILES[verificationProfile]) throw new Error('Choose a supported deterministic verification profile.');
 
+  const maxIterations = clampInteger(input.maxIterations, 1, 12, 4);
   return {
     schema: AUTONOMY_SCHEMA,
     goal,
     done,
     workerId,
     verificationProfile,
-    maxIterations: clampInteger(input.maxIterations, 1, 12, 4),
+    maxIterations,
+    maxTurns: maxIterations,
     iterationTimeoutSeconds: clampInteger(input.iterationTimeoutSeconds, 30, 1800, 300),
     checkpointEvery: clampInteger(input.checkpointEvery, 1, 6, 1),
+    maxOutputBytes: MAX_OUTPUT_BYTES,
+    maxPatchBytes: clampInteger(input.maxPatchBytes, 1024, MAX_PATCH_BYTES, MAX_PATCH_BYTES),
+    maxChangedFiles: clampInteger(input.maxChangedFiles, 1, 1000, MAX_CHANGED_FILES),
     model: cleanText(input.model, 160) || null
   };
 }
@@ -222,10 +228,17 @@ function runProcess(command, args, options = {}) {
     let stderr = Buffer.alloc(0);
     let timedOut = false;
     let aborted = false;
+    let outputLimitExceeded = false;
 
     const append = (current, chunk) => {
+      if (outputLimitExceeded) return current;
       const next = Buffer.concat([current, Buffer.from(chunk)]);
-      return next.length > maxOutputBytes ? next.subarray(next.length - maxOutputBytes) : next;
+      if (next.length > maxOutputBytes) {
+        outputLimitExceeded = true;
+        killProcessTree(child);
+        return current;
+      }
+      return next;
     };
 
     child.stdout.on('data', (chunk) => { stdout = append(stdout, chunk); });
@@ -259,6 +272,7 @@ function runProcess(command, args, options = {}) {
         signal: childSignal || null,
         timedOut,
         aborted,
+        outputLimitExceeded,
         stdout: stdout.toString('utf8'),
         stderr: stderr.toString('utf8')
       });
@@ -335,29 +349,40 @@ async function runVerification(worktree, profileId, signal, runner = runProcess)
     profile: profile.id,
     label: profile.label,
     command: [profile.command, ...profile.args].join(' '),
-    passed: result.code === 0 && !result.timedOut && !result.aborted,
+    passed: result.code === 0 && !result.timedOut && !result.aborted && !result.outputLimitExceeded,
     code: result.code,
     timedOut: result.timedOut,
     aborted: result.aborted,
+    outputLimitExceeded: Boolean(result.outputLimitExceeded),
     stdout: result.stdout.slice(-20000),
     stderr: result.stderr.slice(-20000)
   };
 }
 
-async function createPatch({ worktree, runRoot, signal }) {
+async function createPatch({ worktree, runRoot, signal, maxPatchBytes = MAX_PATCH_BYTES, maxChangedFiles = MAX_CHANGED_FILES }) {
   await git(worktree, ['add', '-N', '.'], { signal });
+  const names = await git(worktree, ['diff', '--name-only', 'HEAD'], { signal });
+  const changedFiles = names.split(/\r?\n/).map(x => x.trim()).filter(Boolean);
+  if (changedFiles.length > maxChangedFiles) {
+    throw Object.assign(new Error(`Changed-file budget exceeded (${changedFiles.length} > ${maxChangedFiles}).`), { code: 'CHANGED_FILE_BUDGET_EXHAUSTED' });
+  }
   const result = await runProcess('git', ['diff', '--binary', '--no-ext-diff', 'HEAD'], {
     cwd: worktree,
     timeoutMs: 30000,
     signal,
-    maxOutputBytes: MAX_PATCH_BYTES + 1024
+    maxOutputBytes: maxPatchBytes + 1
   });
+  if (result.outputLimitExceeded) {
+    throw Object.assign(new Error(`Patch budget exceeded (maximum ${maxPatchBytes} bytes).`), { code: 'PATCH_BUDGET_EXHAUSTED' });
+  }
   if (result.code !== 0) throw new Error(`Unable to create patch: ${result.stderr.slice(0, 1000)}`);
   const bytes = Buffer.byteLength(result.stdout, 'utf8');
-  if (bytes > MAX_PATCH_BYTES) throw new Error(`Autonomous patch is too large (${bytes} bytes; maximum ${MAX_PATCH_BYTES}).`);
+  if (bytes > maxPatchBytes) {
+    throw Object.assign(new Error(`Patch budget exceeded (${bytes} > ${maxPatchBytes}).`), { code: 'PATCH_BUDGET_EXHAUSTED' });
+  }
   const patchFile = path.join(runRoot, 'verified.patch');
   await fs.writeFile(patchFile, result.stdout, 'utf8');
-  return { patchFile, bytes };
+  return { patchFile, bytes, changedFiles };
 }
 
 async function applyVerifiedPatch({ sourceRoot, runRecord, signal }) {
@@ -404,6 +429,10 @@ async function runBoundedAutonomy(options, deps = {}) {
     goal: spec.goal,
     done: spec.done,
     maxIterations: spec.maxIterations,
+    maxTurns: spec.maxTurns,
+    maxOutputBytes: spec.maxOutputBytes,
+    maxPatchBytes: spec.maxPatchBytes,
+    maxChangedFiles: spec.maxChangedFiles,
     currentIteration: 0,
     startedAt,
     updatedAt: startedAt,
@@ -471,11 +500,20 @@ async function runBoundedAutonomy(options, deps = {}) {
           aborted: worker.aborted,
           durationMs: Date.now() - workerStarted,
           stdout: worker.stdout.slice(-20000),
-          stderr: worker.stderr.slice(-20000)
+          stderr: worker.stderr.slice(-20000),
+          outputLimitExceeded: Boolean(worker.outputLimitExceeded)
         }
       };
 
       if (worker.aborted || signal?.aborted) throw Object.assign(new Error('Autonomous run cancelled.'), { name: 'AbortError' });
+      if (worker.outputLimitExceeded) {
+        iterationRecord.verification = { passed: false, reason: 'worker-output-limit' };
+        record.iterations.push(iterationRecord);
+        record.state = 'BUDGET_EXHAUSTED';
+        record.completedAt = new Date().toISOString();
+        await emit('run.budget_exhausted', { iteration, reason: 'worker-output-limit', maxOutputBytes: spec.maxOutputBytes });
+        return record;
+      }
       if (worker.timedOut) {
         iterationRecord.verification = { passed: false, reason: 'worker-timeout' };
         record.iterations.push(iterationRecord);
@@ -502,7 +540,7 @@ async function runBoundedAutonomy(options, deps = {}) {
       if (verification.passed) {
         record.state = 'DONE';
         record.completedAt = new Date().toISOString();
-        const patch = await createPatch({ worktree: record.worktree, runRoot, signal });
+        const patch = await createPatch({ worktree: record.worktree, runRoot, signal, maxPatchBytes: spec.maxPatchBytes, maxChangedFiles: spec.maxChangedFiles });
         record.patchFile = patch.patchFile;
         record.patchBytes = patch.bytes;
         await emit('run.done', {
@@ -534,10 +572,12 @@ async function runBoundedAutonomy(options, deps = {}) {
     await emit('run.budget_exhausted', { iterations: spec.maxIterations });
     return record;
   } catch (error) {
-    record.state = error?.name === 'AbortError' ? 'CANCELLED' : 'FAILED';
+    record.state = error?.name === 'AbortError'
+      ? 'CANCELLED'
+      : (['PATCH_BUDGET_EXHAUSTED','CHANGED_FILE_BUDGET_EXHAUSTED'].includes(error?.code) ? 'BUDGET_EXHAUSTED' : 'FAILED');
     record.completedAt = new Date().toISOString();
     record.error = String(error?.message || error);
-    await emit(record.state === 'CANCELLED' ? 'run.cancelled' : 'run.failed', { error: record.error });
+    await emit(record.state === 'CANCELLED' ? 'run.cancelled' : (record.state === 'BUDGET_EXHAUSTED' ? 'run.budget_exhausted' : 'run.failed'), { error: record.error, reason: error?.code || null });
     return record;
   }
 }
