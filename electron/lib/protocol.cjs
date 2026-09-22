@@ -1,10 +1,13 @@
 'use strict';
 
 const crypto = require('node:crypto');
+const { redactText, redactSensitive } = require('./redaction.cjs');
 
 const COMMAND_SCHEMA = 'aecp.task/v1';
 const RESULT_SCHEMA = 'aecp.result/v1';
 const MAX_CARD_BYTES = 64 * 1024;
+const MAX_RESULT_BYTES = 32 * 1024;
+const MAX_RESULT_FACTS = 20;
 const ACTION_TYPES = ['inspect-workspace', 'git-status'];
 
 function extractJsonPayload(input) {
@@ -59,18 +62,36 @@ function makeTaskId(now = new Date()) {
   return `TASK-${stamp}-${random}`;
 }
 
-function makeResultCapsule({ taskId, status, summary, durationMs = 0, verification, evidenceRef, facts = [] }) {
+function compactScalar(value, max = 500) {
+  if (value == null || typeof value === 'boolean' || typeof value === 'number') return value;
+  return redactText(String(value)).slice(0, max);
+}
+
+function compactVerification(value = {}) {
+  const safe = redactSensitive(value && typeof value === 'object' ? value : {});
   return {
+    status: compactScalar(safe.status || 'UNKNOWN', 80),
+    method: compactScalar(safe.method || 'unspecified', 160),
+    expected: ['string','number','boolean'].includes(typeof safe.expected) ? compactScalar(safe.expected, 500) : null,
+    actual: ['string','number','boolean'].includes(typeof safe.actual) ? compactScalar(safe.actual, 500) : null
+  };
+}
+
+function makeResultCapsule({ taskId, status, summary, durationMs = 0, verification, evidenceRef, facts = [] }) {
+  const capsule = {
     schema: RESULT_SCHEMA,
-    taskId,
-    status,
-    summary,
-    execution: { durationMs },
-    verification,
-    facts,
-    evidenceRef,
+    taskId: compactScalar(taskId, 160),
+    status: compactScalar(status, 40),
+    summary: compactScalar(summary, 2000),
+    execution: { durationMs: Math.max(0, Math.min(24 * 60 * 60 * 1000, Number(durationMs) || 0)) },
+    verification: compactVerification(verification),
+    facts: (Array.isArray(facts) ? facts : []).slice(0, MAX_RESULT_FACTS).map(item => compactScalar(item, 500)),
+    evidenceRef: compactScalar(evidenceRef, 2048),
     nextDecision: status === 'PASS' ? null : 'Review the local evidence and decide the next step.'
   };
+  const bytes = Buffer.byteLength(JSON.stringify(capsule), 'utf8');
+  if (bytes > MAX_RESULT_BYTES) throw new Error(`Result Capsule exceeds the compact payload limit (${bytes} > ${MAX_RESULT_BYTES}).`);
+  return capsule;
 }
 
 function hashJson(value) {
@@ -82,6 +103,8 @@ module.exports = {
   RESULT_SCHEMA,
   ACTION_TYPES,
   MAX_CARD_BYTES,
+  MAX_RESULT_BYTES,
+  MAX_RESULT_FACTS,
   extractJsonPayload,
   validateCommandCard,
   parseCommandCard,
