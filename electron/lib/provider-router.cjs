@@ -3,10 +3,10 @@
 const { spawn } = require('node:child_process');
 
 const PROVIDERS = Object.freeze({
-  claude: { command: 'claude', roles: ['planner', 'reviewer'], mode: 'cli', network: true, credential: true },
+  claude: { command: 'claude', roles: ['planner', 'reviewer'], mode: 'cli', network: true, credential: false },
   codex: { command: 'codex', roles: ['builder'], mode: 'cli', network: false, credential: true },
-  gemini: { command: 'gemini', roles: ['planner', 'builder', 'reviewer', 'general'], mode: 'cli', network: true, credential: true },
-  opencode: { command: 'opencode', roles: ['planner', 'builder', 'reviewer', 'general'], mode: 'cli', network: true, credential: true },
+  gemini: { command: 'gemini', roles: ['planner', 'reviewer', 'general'], mode: 'cli', network: true, credential: false },
+  opencode: { command: 'opencode', roles: ['planner', 'builder', 'reviewer', 'general'], mode: 'cli', network: true, credential: false },
   ollama: { command: 'ollama', roles: ['planner', 'reviewer', 'general'], mode: 'ollama', network: false, credential: false }
 });
 
@@ -49,6 +49,52 @@ function run(command, args, { cwd, timeoutMs = 180000, signal, env = {}, maxOutp
 }
 
 function normalizeRoles(provider) { return Array.isArray(provider?.roles) ? provider.roles : provider?.role ? [provider.role] : []; }
+
+function parseMajor(versionText) {
+  const match = String(versionText || '').match(/(\d+)\.(\d+)(?:\.(\d+))?/);
+  return match ? Number(match[1]) : 1;
+}
+
+function openCodeBoundedConfig(versionText) {
+  if (parseMajor(versionText) >= 2) {
+    return {
+      permissions: [
+        { action: 'external_directory', resource: '*', effect: 'deny' },
+        { action: 'shell', resource: '*', effect: 'deny' },
+        { action: 'shell', resource: 'git status *', effect: 'allow' },
+        { action: 'shell', resource: 'git diff *', effect: 'allow' },
+        { action: 'read', resource: '*', effect: 'allow' },
+        { action: 'edit', resource: '*', effect: 'allow' },
+        { action: 'glob', resource: '*', effect: 'allow' },
+        { action: 'grep', resource: '*', effect: 'allow' },
+        { action: 'webfetch', resource: '*', effect: 'deny' },
+        { action: 'websearch', resource: '*', effect: 'deny' },
+        { action: 'subagent', resource: '*', effect: 'deny' },
+        { action: 'skill', resource: '*', effect: 'deny' },
+        { action: 'execute', resource: '*', effect: 'deny' }
+      ]
+    };
+  }
+  return {
+    permission: {
+      '*': 'deny',
+      read: 'allow',
+      edit: 'allow',
+      glob: 'allow',
+      grep: 'allow',
+      bash: { '*': 'deny', 'git status*': 'allow', 'git diff*': 'allow' },
+      external_directory: 'deny',
+      doom_loop: 'deny',
+      webfetch: 'deny',
+      websearch: 'deny',
+      task: 'deny'
+    }
+  };
+}
+
+function modelLooksLocal(model) {
+  return /^(?:ollama|local|lmstudio|llamacpp)\//i.test(String(model || '').trim());
+}
 
 function safeNetworkUrl(value) {
   const url = new URL(String(value || ''));
@@ -111,21 +157,23 @@ class ProviderRouter {
     return null;
   }
 
-  capabilities(role, preferred) {
+  capabilities(role, preferred, { model } = {}) {
     const provider = this.resolve(role, preferred);
     if (!provider) return null;
+    const selectedModel = model || provider.defaultModel || '';
+    const localOpenCode = provider.id === 'opencode' && modelLooksLocal(selectedModel);
     return {
       provider: provider.id,
       role,
       mode: provider.mode,
       process: provider.mode !== 'openai-compatible',
-      network: Boolean(provider.network || provider.mode === 'openai-compatible'),
+      network: localOpenCode ? false : Boolean(provider.network || provider.mode === 'openai-compatible'),
       credential: Boolean(provider.credential || provider.apiKey),
-      local: provider.mode === 'ollama' || provider.mode === 'local-command'
+      local: provider.mode === 'ollama' || provider.mode === 'local-command' || localOpenCode
     };
   }
 
-  commandSpec(providerId, role, prompt, { model, cwd } = {}) {
+  commandSpec(providerId, role, prompt, { model, cwd, providerVersion = '' } = {}) {
     const provider = this.resolve(role, providerId);
     if (!provider) throw new Error(`No provider for role: ${role}`);
     const selectedModel = model || provider.defaultModel || process.env[`AECP_${provider.id.toUpperCase()}_MODEL`] || '';
@@ -148,18 +196,29 @@ class ProviderRouter {
       return { command: provider.command, args, provider: provider.id, model: selectedModel || null, cwd: cwd || null };
     }
     if (provider.id === 'claude') {
-      const args = ['-p', prompt, '--output-format', 'json'];
+      const args = ['-p', prompt, '--output-format', 'json', '--permission-mode', 'plan', '--max-turns', '12'];
       if (selectedModel) args.push('--model', selectedModel);
       return { command: provider.command, args, provider: provider.id, model: selectedModel || null, cwd: cwd || null };
     }
     if (provider.id === 'opencode') {
+      const major = parseMajor(providerVersion);
       const args = ['run'];
+      if (major < 2) args.push('--auto');
+      args.push('--format', 'json');
+      if (cwd) args.push('--dir', cwd);
       if (selectedModel) args.push('--model', selectedModel);
       args.push(prompt);
-      return { command: provider.command, args, provider: provider.id, model: selectedModel || null, cwd: cwd || null };
+      return {
+        command: provider.command,
+        args,
+        env: { OPENCODE_CONFIG_CONTENT: JSON.stringify(openCodeBoundedConfig(providerVersion)) },
+        provider: provider.id,
+        model: selectedModel || null,
+        cwd: cwd || null
+      };
     }
     if (provider.id === 'gemini') {
-      const args = ['-p', prompt];
+      const args = ['--approval-mode', 'plan', '-p', prompt];
       if (selectedModel) args.push('--model', selectedModel);
       return { command: provider.command, args, provider: provider.id, model: selectedModel || null, cwd: cwd || null };
     }
@@ -170,9 +229,16 @@ class ProviderRouter {
     const provider = this.resolve(role, opts.provider);
     if (!provider) throw new Error(`No provider for role: ${role}`);
     if (provider.mode === 'openai-compatible') return executeOpenAICompatible(provider, role, prompt, opts);
-    const spec = this.commandSpec(provider.id, role, prompt, opts);
-    return { ...await run(spec.command, spec.args, opts), provider: spec.provider, model: spec.model };
+    let providerVersion = opts.providerVersion || '';
+    if (provider.id === 'opencode' && !providerVersion) {
+      const versionResult = await run(provider.command, ['--version'], { cwd: opts.cwd, timeoutMs: 5000, signal: opts.signal, maxOutputBytes: 4096 });
+      if (versionResult.code !== 0) throw new Error('Unable to determine OpenCode version for bounded permission policy.');
+      providerVersion = versionResult.stdout || versionResult.stderr;
+    }
+    const spec = this.commandSpec(provider.id, role, prompt, { ...opts, providerVersion });
+    const env = { ...(spec.env || {}), ...(opts.env || {}) };
+    return { ...await run(spec.command, spec.args, { ...opts, env }), provider: spec.provider, model: spec.model };
   }
 }
 
-module.exports = { ProviderRouter, PROVIDERS, run, safeNetworkUrl, executeOpenAICompatible };
+module.exports = { ProviderRouter, PROVIDERS, run, safeNetworkUrl, executeOpenAICompatible, parseMajor, openCodeBoundedConfig, modelLooksLocal };
