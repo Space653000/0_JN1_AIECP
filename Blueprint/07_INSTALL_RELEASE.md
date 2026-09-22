@@ -78,19 +78,22 @@ After the first Workspace is saved, subsequent launches should require no setup 
 
 ## 6. Code signing
 
-Stable public distribution should use Authenticode code signing. Until a certificate is configured, releases must clearly say **unsigned preview build** and document that Windows SmartScreen may warn. Never instruct users to disable Windows security globally.
+Stable public distribution uses the owner-gated Authenticode lane. Repository software now supports signer-thumbprint pinning, signed x64/ARM64 NSIS builds, signed Universal Bootstrap preparation, signature verification and signed provenance. The repository does not contain or fabricate a production certificate: actual certificate ownership/secrets and an owner-authorized signed publication are **EXTERNAL OWNER GATE** operations. Until such a certificate is supplied, preview releases remain explicitly unsigned and may trigger Windows SmartScreen. Never instruct users to disable Windows security globally.
 
 ## 7. Release automation
 
 GitHub Actions performs:
-1. dependency install (`npm ci` once lockfile exists)
-2. static syntax/config checks
-3. package x64 fallback
-4. package ARM64 fallback
-5. assemble self-contained x64+ARM64 auto-detect bootstrap installer with both payloads
-6. hash installer artifacts
-7. upload workflow artifacts
-8. for designated release commit/tag, create GitHub Release and attach installers/checksums
+1. canonical verification, license/requirements/Blueprint/acceptance audits
+2. package x64 and ARM64 NSIS installers
+3. assemble the self-contained x64+ARM64 architecture-selecting bootstrap
+4. build and manifest-validate x64/ARM64 Store AppX packages with a non-production test identity
+5. execute clean x64/ARM64 install/uninstall smoke tests
+6. execute real installer baseline → upgrade → rollback smoke tests on x64 and ARM64
+7. execute Universal Bootstrap install/uninstall smoke on x64 and ARM64
+8. generate SHA-256 manifests and release provenance from the exact checked-out source commit
+9. upload workflow evidence artifacts
+10. publish only on an explicit version tag; PRs run the same release lane as a non-publishing dry-run
+11. provide separate owner-gated Store and Authenticode signed-release workflows without storing production credentials in the repository
 
 Workflow permissions are minimum necessary (`contents: write` only in release job; read elsewhere).
 
@@ -104,7 +107,7 @@ Command/Result protocol has its own schema version independent of app version.
 
 ## 9. Update strategy
 
-Bootstrap release uses explicit GitHub Releases/manual update. Auto-update is deferred until code signing, rollback and update-signature verification are designed and tested.
+The private GitHub Release updater is implemented: it selects a compatible release asset, verifies SHA-256, retains a verified rollback installer when available, records a durable update transaction, reconciles first boot, and can roll back when the installed version does not match the verified target. Stable/signed builds can additionally pin an Authenticode signer thumbprint; when a signer pin is configured, both target and rollback installers must pass Authenticode validation before execution. Production certificate ownership and a real signed-release run remain an **EXTERNAL OWNER GATE**.
 
 ## 10. Release checklist
 
