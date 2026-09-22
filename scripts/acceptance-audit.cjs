@@ -155,6 +155,18 @@ const staticInvariants=[
   {label:'system reduced motion',re:/prefers-reduced-motion:\s*reduce/},
   {label:'explicit reduced motion',re:/data-motion="reduced"/}
  ]),
+ invariant('cross-mode-execution-contract','electron/lib/execution-contract.cjs',[
+  {label:'canonical schema',re:/aecp\.execution-contract\/v1/},
+  {label:'Goal and Done',re:/goal[\s\S]*definitionOfDone/},
+  {label:'Workspace boundary',re:/workspace:\{/},
+  {label:'permission policy',re:/permissionPolicy/},
+  {label:'portable references',re:/contextCapsuleRef[\s\S]*commandCardRef[\s\S]*resultCapsuleRef[\s\S]*evidenceRef[\s\S]*traceRef/},
+  {label:'transport field',re:/transport/}
+ ]),
+ invariant('cross-mode-execution-contract-test','tests/execution-contract.test.cjs',[
+  {label:'Safe Bridge coverage',re:/Safe Bridge Autonomy Harness and Control Plane/},
+  {label:'policy boundary coverage',re:/keep Workspace and policy boundaries explicit/}
+ ]),
  invariant('workspace-policy-editor','electron/lib/workspace-policy.cjs',[
   {label:'canonical policy schema',re:/aecp\.workspace-policy\/v1/},
   {label:'RED approvals forced',re:/ALWAYS_APPROVAL_ACTIONS/},
