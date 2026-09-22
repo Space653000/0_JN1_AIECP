@@ -11,7 +11,7 @@ const matrix={
   '01_UX_UI_SPEC.md':{type:'FUNCTIONAL',evidence:['ui/index.html','ui/app.js','tests/i18n-accessibility.test.cjs','tests/human-controls.test.cjs']},
   '02_LOCAL_AGENT_HARNESS.md':{type:'FUNCTIONAL',evidence:['electron/lib/harness.cjs','electron/lib/control-plane.cjs','tests/harness.test.cjs','tests/canonical-loop.e2e.test.cjs']},
   '03_PROVIDER_ROUTER.md':{type:'FUNCTIONAL',evidence:['electron/lib/provider-router.cjs','tests/provider-router.test.cjs','tests/provider-router.e2e.test.cjs','tests/provider-network.e2e.test.cjs']},
-  '04_SECURITY_AND_POLICY.md':{type:'FUNCTIONAL',evidence:['electron/lib/security-policy.cjs','electron/lib/adapter-security-audit.cjs','tests/security-recovery-matrix.test.cjs']},
+  '04_SECURITY_AND_POLICY.md':{type:'FUNCTIONAL',evidence:['electron/lib/security-policy.cjs','electron/lib/adapter-security-audit.cjs','electron/lib/redaction.cjs','tests/security-recovery-matrix.test.cjs','tests/redaction.test.cjs']},
   '05_GITHUB_MULTI_REPO.md':{type:'FUNCTIONAL',evidence:['electron/lib/resource-manager.cjs','electron/lib/delivery.cjs','electron/lib/ci-monitor.cjs','tests/canonical-loop.e2e.test.cjs']},
   '06_DESKTOP_CHATGPT_INTEGRATION.md':{type:'FUNCTIONAL',evidence:['electron/lib/windows-desktop-adapter.cjs','electron/lib/windows-ui-adapter.cjs','tests/windows-desktop-adapter.test.cjs','tests/windows-ui-adapter.test.cjs']},
   '07_INSTALL_RELEASE.md':{type:'FUNCTIONAL',evidence:['.github/workflows/ci.yml','.github/workflows/release.yml','.github/workflows/store-package.yml','.github/workflows/signed-release.yml','electron/lib/authenticode.cjs','tests/release-workflow.test.cjs','tests/authenticode.test.cjs']},
