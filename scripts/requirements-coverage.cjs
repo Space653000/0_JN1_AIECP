@@ -25,7 +25,7 @@ const matrix={
   'R3.3':{classes:['TESTED'],evidence:['tests/provider-integration.test.cjs','tests/provider-router.e2e.test.cjs']},
   'R3.4':{classes:['TESTED'],evidence:['tests/provider-router.test.cjs']},
   'R3.5':{classes:['TESTED'],evidence:['tests/security-recovery-matrix.test.cjs','tests/provider-network.e2e.test.cjs']},
-  'R3.6':{classes:['STATIC','TESTED'],evidence:['electron/lib/provider-router.cjs','tests/human-controls.test.cjs']},
+  'R3.6':{classes:['STATIC','TESTED'],evidence:['electron/lib/provider-router.cjs','electron/lib/provider-usage.cjs','tests/provider-router.test.cjs','tests/provider-usage.test.cjs','tests/human-controls.test.cjs']},
   'R4.1':{classes:['TESTED'],evidence:['tests/canonical-loop.e2e.test.cjs','electron/lib/resource-manager.cjs']},
   'R4.2':{classes:['TESTED'],evidence:['tests/canonical-loop.e2e.test.cjs','tests/control-plane-infrastructure.test.cjs']},
   'R4.3':{classes:['STATIC','TESTED'],evidence:['electron/lib/delivery.cjs','tests/control-plane.test.cjs']},
