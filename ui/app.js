@@ -18,6 +18,8 @@ const state = {
   autonomyStatus: null,
   harnessStatus: null,
   guidance: null,
+  policyInfo: null,
+  adapterMatrix: null,
   selectedTaskId: null,
   view: 'start',
   engineering: false,
@@ -620,6 +622,74 @@ function renderProviders() {
   }).join('');
 }
 
+function renderPolicySettings() {
+  const info = state.policyInfo;
+  const list = $('#policyActionList');
+  const maxRisk = $('#policyMaxRisk');
+  if (!list || !maxRisk) return;
+  if (!info?.workspaceId) {
+    maxRisk.value = 'YELLOW';
+    maxRisk.disabled = true;
+    $('#savePolicyButton').disabled = true;
+    list.innerHTML = '<div class="empty-list">Choose a Workspace before editing policy.</div>';
+    return;
+  }
+  maxRisk.disabled = false;
+  $('#savePolicyButton').disabled = false;
+  maxRisk.value = info.policy?.maxRisk || 'YELLOW';
+  const required = new Set(info.policy?.requireApprovalFor || []);
+  list.innerHTML = (info.actions || []).map((item) => {
+    const forced = Boolean(item.alwaysApproval);
+    const checked = forced || required.has(item.action);
+    return `<label class="provider-item"><div><strong>${esc(item.action)}</strong><small>Risk: ${esc(item.risk)}${forced ? ' · always requires approval' : ' · require approval before execution'}</small></div><input type="checkbox" data-policy-action="${esc(item.action)}" ${checked ? 'checked' : ''} ${forced ? 'disabled aria-disabled="true"' : ''}></label>`;
+  }).join('');
+}
+
+function renderAdapterMatrix() {
+  const matrix = state.adapterMatrix;
+  const host = $('#adapterMatrix');
+  const badge = $('#adapterMatrixBadge');
+  if (!host || !badge) return;
+  if (!matrix) {
+    badge.textContent = 'Unavailable';
+    badge.className = 'status bad';
+    host.innerHTML = '<div class="empty-list">Adapter audit is unavailable.</div>';
+    return;
+  }
+  badge.textContent = matrix.ok ? 'Verified' : 'Audit failed';
+  badge.className = `status ${matrix.ok ? 'ready' : 'bad'}`;
+  const caps = matrix.capabilities || [];
+  host.innerHTML = (matrix.adapters || []).map((adapter) =>
+    `<article class="provider-item"><div><strong>${esc(adapter.id)}</strong><small>${esc(adapter.kind)} · ${caps.map((cap) => `${esc(cap)}=${esc(adapter.capabilities?.[cap] || 'MISSING')}`).join(' · ')}</small></div></article>`
+  ).join('') || '<div class="empty-list">No adapters reported.</div>';
+}
+
+async function refreshEngineeringSettings() {
+  const [policyInfo, adapterMatrix] = await Promise.all([
+    safe(() => window.aecp.getWorkspacePolicy(), null),
+    safe(() => window.aecp.getAdapterCapabilityMatrix(), null)
+  ]);
+  state.policyInfo = policyInfo;
+  state.adapterMatrix = adapterMatrix;
+  renderPolicySettings();
+  renderAdapterMatrix();
+}
+
+async function saveWorkspacePolicySettings() {
+  if (!state.policyInfo?.workspaceId) return;
+  const requireApprovalFor = selectAll('[data-policy-action]')
+    .filter((node) => node.checked)
+    .map((node) => node.dataset.policyAction);
+  const saved = await safe(() => window.aecp.saveWorkspacePolicy({
+    maxRisk: $('#policyMaxRisk').value,
+    requireApprovalFor
+  }), null);
+  if (!saved) return;
+  state.policyInfo = saved;
+  renderPolicySettings();
+  toast('Workspace policy saved. Future execution will use these approval rules.');
+}
+
 function renderAgents() {
   const host = $('#agentList');
   if (!host) return;
@@ -1036,9 +1106,10 @@ function setView(view) {
   renderControl();
 }
 
-function openProviderSettings() {
+async function openProviderSettings() {
   providerFocusReturn = document.activeElement;
   $('#providerOverlay').classList.remove('hidden');
+  await refreshEngineeringSettings();
   $('#providerNameInput')?.focus();
 }
 
@@ -1079,6 +1150,7 @@ function bindEvents() {
   $('#removeWorkspaceBindingButton').addEventListener('click', removeWorkspaceBindingData);
   $('#clearCredentialsButton').addEventListener('click', clearCredentialData);
   $('#resetLocalStateButton').addEventListener('click', resetLocalStateData);
+  $('#savePolicyButton').addEventListener('click', saveWorkspacePolicySettings);
   $('#connectGitHubButton').addEventListener('click', connectGitHub);
   $('#openReleasesButton').addEventListener('click', () => safe(() => window.aecp.openReleases()));
   $('#importClipboardButton').addEventListener('click', importFromClipboard);
