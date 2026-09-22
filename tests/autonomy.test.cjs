@@ -18,6 +18,7 @@ const {
   buildWorkerInvocation,
   buildIterationPrompt,
   openCodeV1Config,
+  prepareWorktree,
   applyVerifiedPatch,
   runBoundedAutonomy
 } = require('../electron/lib/autonomy.cjs');
@@ -433,4 +434,139 @@ test('Apply rejects a verified patch file modified after verification', async (t
     () => applyVerifiedPatch({ sourceRoot: fixture.repo, runRecord: record }),
     /changed after verification/
   );
+});
+
+
+test('interrupted autonomy resumes from the same persisted worktree and next iteration', async (t) => {
+  const fixture = await makeAutonomyRepo('aecp-auto-resume-');
+  t.after(async () => fs.rm(fixture.root, { recursive: true, force: true }));
+  const spec = validateAutonomySpec({
+    goal: 'Resume the same bounded engineering run.',
+    done: 'Verifier passes.',
+    workerId: 'opencode',
+    verificationProfile: 'npm-test',
+    maxIterations: 3
+  });
+  const prepared = await prepareWorktree({ sourceRoot: fixture.repo, runRoot: fixture.runRoot });
+  await fs.writeFile(path.join(prepared.worktree, 'checkpoint.txt'), 'iteration-one\n');
+  const resumeRecord = {
+    schema: 'aecp.autonomous/v1',
+    id: 'auto-resume-test',
+    state: 'INTERRUPTED',
+    sourceRoot: fixture.repo,
+    runRoot: fixture.runRoot,
+    workerId: spec.workerId,
+    verificationProfile: spec.verificationProfile,
+    goal: spec.goal,
+    done: spec.done,
+    spec,
+    maxIterations: spec.maxIterations,
+    maxTurns: spec.maxTurns,
+    maxOutputBytes: spec.maxOutputBytes,
+    maxPatchBytes: spec.maxPatchBytes,
+    maxChangedFiles: spec.maxChangedFiles,
+    currentIteration: 1,
+    startedAt: new Date().toISOString(),
+    worktree: prepared.worktree,
+    baseHead: prepared.baseHead,
+    linkedNodeModules: prepared.linkedNodeModules,
+    iterations: [{
+      iteration: 1,
+      worker: { command: 'opencode', code: 0, timedOut: false, aborted: false },
+      verification: { passed: false, command: 'fake verify', code: 1, stderr: 'iteration one failed' }
+    }]
+  };
+  let workerCalls = 0;
+  const record = await runBoundedAutonomy({
+    runId: resumeRecord.id,
+    sourceRoot: fixture.repo,
+    runRoot: fixture.runRoot,
+    spec,
+    resumeRecord
+  }, {
+    workerProbe: async () => '1.18.30',
+    runProcess: async (_command, _args, options) => {
+      workerCalls++;
+      assert.equal(path.resolve(options.cwd), path.resolve(prepared.worktree));
+      await fs.writeFile(path.join(options.cwd, 'value.txt'), 'resumed\n');
+      return { code: 0, signal: null, timedOut: false, aborted: false, outputLimitExceeded: false, stdout: 'resumed', stderr: '' };
+    },
+    runVerification: async () => ({
+      profile: 'npm-test', label: 'fake', command: 'fake verify',
+      passed: true, code: 0, timedOut: false, aborted: false, outputLimitExceeded: false,
+      stdout: 'PASS', stderr: ''
+    })
+  });
+  assert.equal(record.state, 'DONE', record.error || JSON.stringify(record, null, 2));
+  assert.equal(record.id, resumeRecord.id);
+  assert.equal(record.currentIteration, 2);
+  assert.equal(record.iterations.length, 2);
+  assert.equal(record.iterations[1].iteration, 2);
+  assert.equal(workerCalls, 1);
+  assert.equal(await fs.readFile(path.join(prepared.worktree, 'checkpoint.txt'), 'utf8'), 'iteration-one\n');
+});
+
+test('autonomy resume rejects source HEAD drift and specification mutation', async (t) => {
+  const fixture = await makeAutonomyRepo('aecp-auto-resume-guard-');
+  t.after(async () => fs.rm(fixture.root, { recursive: true, force: true }));
+  const spec = validateAutonomySpec({
+    goal: 'Resume safely.',
+    done: 'Verifier passes.',
+    workerId: 'opencode',
+    verificationProfile: 'npm-test',
+    maxIterations: 3
+  });
+  const prepared = await prepareWorktree({ sourceRoot: fixture.repo, runRoot: fixture.runRoot });
+  const resumeRecord = {
+    schema: 'aecp.autonomous/v1',
+    id: 'auto-resume-guard',
+    state: 'INTERRUPTED',
+    sourceRoot: fixture.repo,
+    runRoot: fixture.runRoot,
+    workerId: spec.workerId,
+    verificationProfile: spec.verificationProfile,
+    goal: spec.goal,
+    done: spec.done,
+    spec,
+    maxIterations: spec.maxIterations,
+    currentIteration: 1,
+    startedAt: new Date().toISOString(),
+    worktree: prepared.worktree,
+    baseHead: prepared.baseHead,
+    iterations: []
+  };
+
+  const mutated = { ...spec, maxIterations: 2 };
+  await assert.rejects(
+    () => runBoundedAutonomy({ sourceRoot: fixture.repo, runRoot: fixture.runRoot, spec: mutated, resumeRecord }, { workerProbe: async () => '1.18.30' }),
+    /cannot change the persisted run specification/
+  );
+
+  await fs.writeFile(path.join(fixture.repo, 'external.txt'), 'head drift\n');
+  await exec('git', ['add', '.'], { cwd: fixture.repo });
+  await exec('git', ['commit', '-m', 'head drift'], { cwd: fixture.repo });
+  const result = await runBoundedAutonomy({
+    sourceRoot: fixture.repo,
+    runRoot: fixture.runRoot,
+    spec,
+    resumeRecord
+  }, {
+    workerProbe: async () => '1.18.30'
+  });
+  assert.equal(result.state, 'FAILED');
+  assert.match(result.error, /HEAD changed since the interrupted autonomous run/);
+});
+
+test('main process and UI expose resume only for persisted INTERRUPTED autonomy', async () => {
+  const root = path.resolve(__dirname, '..');
+  const main = await fs.readFile(path.join(root, 'electron', 'main.cjs'), 'utf8');
+  const preload = await fs.readFile(path.join(root, 'electron', 'preload.cjs'), 'utf8');
+  const app = await fs.readFile(path.join(root, 'ui', 'app.js'), 'utf8');
+  assert.match(main, /record\.state = 'INTERRUPTED'/);
+  assert.match(main, /autonomy:resume/);
+  assert.match(main, /Only an interrupted autonomous run can resume/);
+  assert.match(main, /resumeRecord/);
+  assert.match(preload, /resumeAutonomy/);
+  assert.match(app, /Resume interrupted run/);
+  assert.match(app, /state\.autonomyStatus\?\.state === 'INTERRUPTED'/);
 });
