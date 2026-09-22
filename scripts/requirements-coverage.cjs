@@ -33,7 +33,7 @@ const matrix={
   'R4.5':{classes:['TESTED'],evidence:['tests/security-recovery-matrix.test.cjs','electron/lib/failure-recovery.cjs']},
   'R4.6':{classes:['STATIC','CI'],evidence:['electron/lib/control-plane.cjs','scripts/acceptance-audit.cjs']},
   'R5.1':{classes:['TESTED'],evidence:['tests/control-plane.test.cjs','tests/event-projection.test.cjs']},
-  'R5.2':{classes:['TESTED'],evidence:['tests/canonical-loop.e2e.test.cjs','electron/lib/evidence-manager.cjs']},
+  'R5.2':{classes:['TESTED'],evidence:['tests/canonical-loop.e2e.test.cjs','electron/lib/evidence-manager.cjs','electron/lib/accepted-evidence.cjs','tests/accepted-evidence.test.cjs']},
   'R5.3':{classes:['TESTED'],evidence:['tests/event-projection.test.cjs','Blueprint/22_DASHBOARD_QUEUE_AND_EVENT_ARCHITECTURE.md']},
   'R5.4':{classes:['TESTED'],evidence:['tests/control-plane-hardening.test.cjs','electron/lib/maintenance.cjs']},
   'R5.5':{classes:['TESTED'],evidence:['tests/control-plane-hardening.test.cjs','electron/lib/dependency-drift-scanner.cjs']},
