@@ -248,6 +248,16 @@ AECP should not be called production-complete until:
 - External event idempotency ledger, signed GitHub webhook receiver, maintenance/retention service and local authenticated read-only gateway are implemented.
 - Release pipeline runs a non-publishing PR dry-run and publishes only on explicit version tags; production Authenticode publication remains a separate owner-authorized manual workflow.
 
+## Latest repository closure hardening — 2026-09-23
+
+- Provider health now exposes bounded `NOT_CONFIGURED / READY / DEGRADED / UNAVAILABLE / AUTH_REQUIRED` states; live network/credential health probes require explicit approval.
+- Provider usage observability persists only bounded numeric metadata (request outcome, model/role, latency, token/cost fields when supplied); prompts, responses, credentials and error bodies are excluded.
+- A dedicated self-hosted Windows provider-evidence workflow now exists for real Ollama, OpenCode+Ollama, fixed company/local worker and canonical local Harness execution. It is an **ENVIRONMENT gate** until an actual `aecp-provider` runner produces exact-source PASS evidence.
+- Mission-level Harness budgets are durable and operator-visible: provider calls, failed/no-progress attempts, optional wall-clock, output, patch bytes, changed files, task count, iterations and process timeouts.
+- Local-data governance is implemented in Settings with native confirmation: clear evidence, remove Workspace binding, clear credentials and reset AECP active state. These operations are blocked while mutating work is active and do not delete Workspace/project files.
+- Harness, bounded Autonomy and Control Plane mutating execution are mutually exclusive on the desktop runtime.
+- Dashboard acceptance is now deterministic: the novice eight-question view, authoritative human controls, event projection and accessibility requirements are regression-tested.
+
 ## Remaining external dependency
 
 The remaining capabilities that cannot be made genuinely production-complete by repository code alone are external trust/account/environment operations: Microsoft Store publisher identity/certification/submission/private-audience acquisition, production code-signing certificate ownership/secrets and authorized signing run, optional LAN/Internet remote-gateway deployment with a user-owned domain/device identity, and real provider execution requiring actual local/company/provider runtimes or credentials. AECP contains the software-side packaging, Store bundle, signer verification, signed-release preparation, checksum/provenance, release, policy and gateway foundations for those operations. Real provider execution now has a dedicated self-hosted Windows evidence workflow; until that workflow runs on the actual machine/model/worker and emits a matching exact-source PASS artifact, the provider environment remains an external evidence gate.
