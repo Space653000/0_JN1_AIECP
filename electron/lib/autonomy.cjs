@@ -521,7 +521,7 @@ async function runBoundedAutonomy(options, deps = {}) {
       const stat = await fs.stat(worktree).catch(() => null);
       if (!stat?.isDirectory()) throw new Error('Persisted autonomous worktree is unavailable.');
       const top = await git(worktree, ['rev-parse', '--show-toplevel'], { signal });
-      if (normalizePathForCompare(top) !== normalizePathForCompare(worktree)) throw new Error('Persisted autonomous worktree identity is invalid.');
+      if (!(await samePhysicalPath(top, worktree))) throw new Error('Persisted autonomous worktree identity is invalid.');
       prepared = { worktree, baseHead: record.baseHead, linkedNodeModules: Boolean(record.linkedNodeModules) };
       const last = record.iterations.at(-1);
       const currentIteration = Math.max(1, Number(record.currentIteration || 1));
