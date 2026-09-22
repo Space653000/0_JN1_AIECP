@@ -50,7 +50,7 @@ class CodexWorkerRuntime{
     ].join('\n');
     await writeAtomic(path.join(codexHome,'config.toml'),config);
     return {
-      schema:WORKER_SCHEMA,id:workerId,name:'Codex OFFICIAL',providerId:'codex-official',provider:'OpenAI',
+      schema:WORKER_SCHEMA,id:workerId,name:'Codex OFFICIAL',providerId:'openai-official',provider:'OpenAI Official',
       model:model||null,role:'builder',codexHome,runtimeDir,isolated:true,env:{CODEX_HOME:codexHome}
     };
   }
