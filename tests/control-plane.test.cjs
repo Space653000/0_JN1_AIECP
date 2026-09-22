@@ -27,6 +27,25 @@ test('ControlPlane persists state and event journal', async () => {
   await fs.rm(root, { recursive: true, force: true });
 });
 
+test('ControlPlane serializes concurrent state persistence without stale overwrite', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'aecp-persist-race-'));
+  const cp = new ControlPlane({ rootDir: root });
+  await cp.init();
+  try {
+    const writes = [];
+    for (let i = 0; i < 20; i += 1) {
+      cp.state.persistenceProbe = i;
+      writes.push(cp.persist());
+    }
+    await Promise.all(writes);
+    const saved = JSON.parse(await fs.readFile(path.join(root, 'control-plane.json'), 'utf8'));
+    assert.equal(saved.persistenceProbe, 19);
+  } finally {
+    await cp.shutdown();
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
 test('ControlPlane exposes bounded lifecycle states', () => {
   assert.ok(STATES.includes('RUNNING'));
   assert.ok(STATES.includes('HUMAN_REQUIRED'));
