@@ -1,6 +1,7 @@
 'use strict';
 
 const { spawn } = require('node:child_process');
+const { resolveKnownCommand } = require('./command-resolver.cjs');
 
 const PROVIDERS = Object.freeze({
   claude: { command: 'claude', roles: ['planner', 'reviewer'], mode: 'cli', network: true, credential: false },
@@ -12,7 +13,8 @@ const PROVIDERS = Object.freeze({
 
 function run(command, args, { cwd, timeoutMs = 180000, signal, env = {}, maxOutputBytes = 4 * 1024 * 1024 } = {}) {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { cwd, env: { ...process.env, ...env }, windowsHide: true, shell: false, stdio: ['ignore', 'pipe', 'pipe'] });
+    const resolved = resolveKnownCommand(command, args);
+    const child = spawn(resolved.command, resolved.args, { cwd, env: { ...process.env, ...env }, windowsHide: true, shell: false, stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = '', stderr = '', timedOut = false, aborted = false, outputLimitExceeded = false, settled = false, bytes = 0;
     const finishReject = (error) => {
       if (settled) return;
