@@ -329,3 +329,26 @@ test('Command Center exposes finite mission budgets instead of hidden unbounded 
   assert.match(dashboard, /maxPatchBytes:/);
   assert.match(dashboard, /maxWallClockMs:/);
 });
+
+
+test('ControlPlane hasActiveWork guards local-data mutation only while missions are nonterminal', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'aecp-active-work-'));
+  const cp = new ControlPlane({ rootDir: root });
+  await cp.init();
+  try {
+    assert.equal(cp.hasActiveWork(), false);
+    cp.state.runs.active = { id:'active', state:'RUNNING', taskIds:[], events:[] };
+    assert.equal(cp.hasActiveWork(), true);
+    cp.state.runs.active.state = 'PAUSED';
+    assert.equal(cp.hasActiveWork(), true);
+    cp.state.runs.active.state = 'DONE';
+    assert.equal(cp.hasActiveWork(), false);
+    cp.controllers.set('task-x', new AbortController());
+    assert.equal(cp.hasActiveWork(), true);
+    cp.controllers.clear();
+    assert.equal(cp.hasActiveWork(), false);
+  } finally {
+    await cp.shutdown();
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
