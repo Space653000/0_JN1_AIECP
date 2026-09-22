@@ -1110,7 +1110,22 @@ function registerIpc() {
   ipcMain.handle('agents:list', detectAgents);
   ipcMain.handle('agents:launch', async (_event, payload) => launchAgent(payload?.agentId));
   ipcMain.handle('desktop:list-browser-windows', async () => desktopAdapter.listBrowserWindows());
-  ipcMain.handle('desktop:dock-browser', async (_event,payload) => desktopAdapter.dockBrowserWindow({pid:payload?.pid,side:payload?.side}));
+  ipcMain.handle('desktop:dock-browser', async (_event,payload) => {
+    const pid=Number(payload?.pid);
+    const side=String(payload?.side||'right');
+    const approval=await dialog.showMessageBox(mainWindow,{
+      type:'question',
+      buttons:['Cancel','Dock browser'],
+      defaultId:0,
+      cancelId:0,
+      noLink:true,
+      title:'Allow browser window movement?',
+      message:`Move allowlisted browser PID ${Number.isInteger(pid)?pid:'?'} to the ${side} half of the screen?`,
+      detail:'AECP will move only the selected browser window frame. It will not read the page title, DOM, messages, cookies, or browser traffic.'
+    });
+    if(approval.response!==1) throw new Error('Browser docking was not approved by the operator.');
+    return desktopAdapter.dockBrowserWindow({pid,side});
+  });
   ipcMain.handle('github:connection', githubConnection);
   ipcMain.handle('github:connect', connectGitHub);
   ipcMain.handle('update:check', checkForUpdate);
