@@ -258,6 +258,16 @@ const staticInvariants=[
  invariant('restart-no-blind-replay-test','tests/control-plane.test.cjs',[
   {label:'explicit resume recovery test',re:/never auto-resumes a mutating mission/}
  ]),
+ invariant('explainable-scheduler','electron/lib/control-plane.cjs',[
+  {label:'scheduler decision schema',re:/aecp\.scheduler-decision\/v1/},
+  {label:'provider health eligibility',re:/providerHealthForRun/},
+  {label:'dependency reason',re:/DEPENDENCY_WAIT/},
+  {label:'lock reason',re:/LOCK_BUSY/},
+  {label:'retry budget reason',re:/RETRY_BUDGET_EXHAUSTED/},
+  {label:'deterministic ordering',re:/compareSchedulerCandidates/},
+  {label:'task-owned lock',re:/locks\.acquire\(key,task\.id/},
+  {label:'lock heartbeat renewal',re:/locks\.renew\(lock\.key,t\.id/}
+ ]),
  invariant('canonical-provider-routing','electron/lib/harness.cjs',[
   {label:'ProviderRouter imported',re:/ProviderRouter/},
   {label:'planner provider routed',re:/plannerProvider/},
