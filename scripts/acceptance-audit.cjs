@@ -37,6 +37,8 @@ const requiredFiles=[
  ['packaging-workflow','.github/workflows/ci.yml'],
  ['universal-bootstrap-source','release/universal-bootstrap/Program.cs'],
  ['universal-bootstrap-project','release/universal-bootstrap/UniversalBootstrap.csproj'],
+ ['update-state','electron/lib/update-state.cjs'],
+ ['update-state-test','tests/update-state.test.cjs'],
  ['e2e-canonical','tests/canonical-loop.e2e.test.cjs'],
  ['e2e-provider','tests/provider-router.e2e.test.cjs'],
  ['e2e-provider-network','tests/provider-network.e2e.test.cjs'],
@@ -109,11 +111,13 @@ const staticInvariants=[
  invariant('clean-windows-smoke-gate','.github/workflows/ci.yml',[
   {label:'x64 clean runner',re:/runner:\s*windows-latest/},
   {label:'ARM64 clean runner',re:/runner:\s*windows-11-arm/},
-  {label:'silent install',re:/Silent install and uninstall smoke test/},
-  {label:'uninstall verification',re:/still exists after uninstall/}
+  {label:'architecture installer smoke',re:/Silent install and uninstall smoke test/},
+  {label:'universal bootstrap build',re:/package-universal-bootstrap/},
+  {label:'universal bootstrap smoke',re:/smoke-universal-bootstrap/},
+  {label:'uninstall verification',re:/still exists after (?:universal bootstrap )?uninstall/}
  ]),
  invariant('release-publication-gate','.github/workflows/release.yml',[
-  {label:'release smoke gate',re:/needs:\s*\[build-fallback, build-auto, build-universal, smoke-install\]/},
+  {label:'release smoke gate',re:/needs:\s*\[build-fallback, build-auto, build-universal, smoke-install, smoke-universal\]/},
   {label:'SHA256 generation',re:/Get-FileHash.*SHA256/}
  ]),
  invariant('provider-local-e2e','tests/provider-router.e2e.test.cjs',[
@@ -133,6 +137,17 @@ const staticInvariants=[
   {label:'reviewer selector',re:/harnessReviewerProvider/},
   {label:'network approval',re:/providerNetworkApproved/},
   {label:'credential approval',re:/providerCredentialApproved/}
+ ]),
+ invariant('updater-transaction-and-rollback','electron/main.cjs',[
+  {label:'release SHA256 verification',re:/Downloaded installer failed SHA-256 verification/},
+  {label:'update transaction persistence',re:/writeUpdateTransaction/},
+  {label:'first boot reconciliation',re:/reconcileUpdateTransaction/},
+  {label:'rollback action',re:/async function rollbackUpdate/}
+ ]),
+ invariant('updater-state-machine','electron/lib/update-state.cjs',[
+  {label:'rollback required state',re:/ROLLBACK_REQUIRED/},
+  {label:'rollback completed state',re:/ROLLED_BACK/},
+  {label:'first boot health',re:/reconcileFirstBoot/}
  ])
 ];
 
@@ -152,12 +167,15 @@ function run(){
    'tests/provider-router.e2e.test.cjs',
    'tests/provider-network.e2e.test.cjs',
    'tests/remote-pairing.test.cjs',
-   'tests/security-recovery-matrix.test.cjs'
+   'tests/security-recovery-matrix.test.cjs',
+   'tests/event-projection.test.cjs',
+   'tests/provider-integration.test.cjs',
+   'tests/update-state.test.cjs'
   ],
   exactCommitCIGates:[
    'AECP CI must succeed on the exact commit',
    'AECP Security must succeed on the exact commit',
-   'AECP Packaging must build x64/ARM64 and pass clean Windows install/uninstall smoke jobs on the exact commit'
+   'AECP Packaging must build x64/ARM64, build the universal bootstrap, and pass architecture-specific plus universal clean Windows install/uninstall smoke jobs on the exact commit'
   ],
   ownerExternalGates:[
    'production Authenticode/code-signing certificate and trusted provenance',
