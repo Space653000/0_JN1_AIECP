@@ -10,6 +10,8 @@
 - Ollama execution is a local CLI process (`ollama run <model> <prompt>`), with the Harness working directory supplied as the process cwd.
 - Codex Builder retains the existing bounded workspace-write sandbox and disables network access in its sandbox configuration.
 - Provider command generation is deterministic and covered by `tests/provider-router.test.cjs`.
+- Provider health exposes `NOT_CONFIGURED / READY / DEGRADED / UNAVAILABLE / AUTH_REQUIRED` without silently using network or credentials.
+- Provider invocation emits bounded privacy-safe usage metadata (request outcome, model/role, latency, numeric token/cost fields when available) into a serialized local store; prompts/responses/secrets are excluded.
 
 ## Local execution boundary
 
@@ -39,7 +41,7 @@ No provider adapter may bypass SecurityPolicy. Provider selection changes the mo
 
 | Evidence | Meaning |
 |---|---|
-| Source + deterministic unit test | Provider command contract is wired correctly |
+| Source + deterministic unit test | Provider command, health, policy and usage-observability contracts are wired correctly |
 | GitHub CI PASS | Current source passes repository verification |
 | Local Ollama smoke | Actual local model process starts and returns output |
 | Canonical Harness E2E with Ollama | Planner → Builder → Verify → Reviewer runs with a local model |
