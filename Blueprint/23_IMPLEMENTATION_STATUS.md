@@ -275,7 +275,7 @@ The remaining capabilities that cannot be made genuinely production-complete by 
 7. **Normative coverage** — R1–R8 requirements coverage, Blueprint 00–24 evidence coverage and P0–P7 phase-by-phase roadmap-gate coverage are canonical `npm verify` gates.
 
 ### Definition of done
-Repository-verifiable engineering completion requires all six software gates, normative requirement/Blueprint coverage and exact-HEAD CI/Security/Packaging/release-dry-run evidence. A separate **Production Trust Ready** claim additionally requires owner-controlled signing/Store/provider/deployment evidence; those external operations are never fabricated by repository tests.
+Repository-verifiable engineering completion requires all six software gates, normative requirement/Blueprint coverage and exact-HEAD CI/Security/Packaging/release-dry-run evidence. The canonical acceptance report now lists all four exact-commit workflows explicitly; no documentation-only PASS is accepted. A separate **Production Trust Ready** claim additionally requires owner-controlled signing/Store/provider/deployment evidence; those external operations are never fabricated by repository tests.
 
 
 ### Latest implementation update
