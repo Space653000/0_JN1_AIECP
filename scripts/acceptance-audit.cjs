@@ -38,6 +38,8 @@ const requiredFiles=[
  ['store-workflow','.github/workflows/store-package.yml'],
  ['store-validator','scripts/validate-store-package.ps1'],
  ['license-audit','scripts/license-audit.cjs'],
+ ['requirements-coverage','scripts/requirements-coverage.cjs'],
+ ['human-controls-test','tests/human-controls.test.cjs'],
  ['universal-bootstrap-source','release/universal-bootstrap/Program.cs'],
  ['universal-bootstrap-project','release/universal-bootstrap/UniversalBootstrap.csproj'],
  ['update-state','electron/lib/update-state.cjs'],
@@ -160,6 +162,17 @@ const staticInvariants=[
   {label:'license audit script',re:/"audit:license"\s*:\s*"node scripts\/license-audit\.cjs"/},
   {label:'verify executes license audit',re:/"verify"\s*:\s*"[^"]*audit:license[^"]*"/}
  ]),
+ invariant('normative-requirements-gate','package.json',[
+  {label:'requirements audit script',re:/"audit:requirements"\s*:\s*"node scripts\/requirements-coverage\.cjs"/},
+  {label:'verify executes requirements audit',re:/"verify"\s*:\s*"[^"]*audit:requirements[^"]*"/}
+ ]),
+ invariant('human-agency-gate','tests/human-controls.test.cjs',[
+  {label:'explicit Workspace selection',re:/Workspace authorization is explicit/},
+  {label:'explicit clipboard',re:/clipboard bridge remains explicit/},
+  {label:'bounded Goal Loop',re:/Goal Loop is visibly bounded/},
+  {label:'emergency stop',re:/emergency stop controls remain authoritative/},
+  {label:'Execution Mode readiness',re:/Execution Mode recommendation is factual/}
+ ]),
  invariant('security-license-evidence','.github/workflows/aecp-security.yml',[
   {label:'security audit evidence',re:/security-audit\.log/},
   {label:'license audit evidence',re:/artifacts\/license-audit\.json/}
@@ -215,7 +228,9 @@ function run(){
    'tests/event-projection.test.cjs',
    'tests/provider-integration.test.cjs',
    'tests/update-state.test.cjs',
-   'scripts/license-audit.cjs'
+   'scripts/license-audit.cjs',
+   'scripts/requirements-coverage.cjs',
+   'tests/human-controls.test.cjs'
   ],
   exactCommitCIGates:[
    'AECP CI must succeed on the exact commit',
