@@ -153,6 +153,7 @@ function renderWorkspace() {
   $('#workspaceButton .dot').className = `dot ${workspace ? 'ready' : 'idle'}`;
   $('#openWorkspaceButton').disabled = !workspace;
   $('#terminalButton').disabled = !workspace;
+  $('#addRepoButton').disabled = !workspace;
 
   const repos = workspace?.repositories || [];
   $('#repoCount').textContent = String(repos.length);
@@ -828,6 +829,13 @@ async function refreshWorkspace() {
   toast('Local Workspace refreshed.');
 }
 
+async function addRepository() {
+  const workspace = await safe(() => window.aecp.addRepository());
+  if (!workspace) return;
+  toast('Repository added inside the authorized Workspace.');
+  await loadAll();
+}
+
 async function openChatGPT() {
   const ok = await safe(() => window.aecp.openChatGPT());
   if (ok) {
@@ -1021,6 +1029,7 @@ function bindEvents() {
   $('#chooseWorkspaceButton').addEventListener('click', chooseWorkspace);
   $('#welcomeChooseButton').addEventListener('click', chooseWorkspace);
   $('#refreshButton').addEventListener('click', refreshWorkspace);
+  $('#addRepoButton').addEventListener('click', addRepository);
   $('#openWorkspaceButton').addEventListener('click', () => safe(() => window.aecp.openWorkspace()));
   $('#terminalButton').addEventListener('click', () => safe(() => window.aecp.openTerminal()));
   $('#openChatGPTButton').addEventListener('click', openChatGPT);
