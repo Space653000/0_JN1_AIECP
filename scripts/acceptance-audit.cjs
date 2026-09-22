@@ -110,6 +110,16 @@ const staticInvariants=[
   {label:'HMAC SHA-256',re:/sha256/i},
   {label:'delivery identity',re:/x-github-delivery/i}
  ]),
+ invariant('exact-head-ci','.github/workflows/aecp-ci.yml',[
+  {label:'PR exact HEAD checkout',re:/pull_request\.head\.sha/},
+  {label:'exact HEAD evidence naming',re:/aecp-verification-\$\{\{ github\.event\.pull_request\.head\.sha \|\| github\.sha \}\}/}
+ ]),
+ invariant('exact-head-security','.github/workflows/aecp-security.yml',[
+  {label:'PR exact HEAD checkout',re:/pull_request\.head\.sha/}
+ ]),
+ invariant('exact-head-packaging','.github/workflows/ci.yml',[
+  {label:'PR exact HEAD checkout',re:/pull_request\.head\.sha/}
+ ]),
  invariant('clean-windows-smoke-gate','.github/workflows/ci.yml',[
   {label:'x64 clean runner',re:/runner:\s*windows-latest/},
   {label:'ARM64 clean runner',re:/runner:\s*windows-11-arm/},
