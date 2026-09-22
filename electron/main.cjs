@@ -721,6 +721,20 @@ async function buildRuntimeProviderRouter() {
   const secrets = await loadSecrets();
   const registry = Object.fromEntries(Object.entries(PROVIDERS).map(([id, provider]) => [id, { ...provider, roles: [...(provider.roles || [])] }]));
   for (const item of state.providers || []) {
+    if (item.kind === 'local-command') {
+      if (!item.command) continue;
+      registry[item.id] = {
+        mode: 'local-command',
+        command: item.command,
+        args: Array.isArray(item.args) ? item.args : [],
+        defaultModel: item.defaultModel || null,
+        roles: Array.isArray(item.roles) && item.roles.length ? item.roles : ['planner', 'builder', 'reviewer', 'general'],
+        network: false,
+        credential: false,
+        kind: item.kind
+      };
+      continue;
+    }
     if (!['api', 'local'].includes(item.kind) || !item.baseUrl || !item.defaultModel) continue;
     let apiKey = '';
     const encrypted = secrets.values?.[item.id];
@@ -828,27 +842,35 @@ async function saveProvider(payload) {
   const baseUrl = String(payload?.baseUrl || '').trim();
   const apiKey = String(payload?.apiKey || '');
   const defaultModel = String(payload?.defaultModel || '').trim().slice(0, 200);
+  const command = String(payload?.command || '').trim().slice(0, 2048);
+  const args = String(payload?.args || '').trim().split(/\s+/).filter(Boolean).slice(0, 32);
   if (name.length < 2 || name.length > 80) throw new Error('Provider name must be 2–80 characters.');
-  if (!['api', 'local', 'remote-mcp'].includes(kind)) throw new Error('Unsupported provider kind.');
-  if (!baseUrl) throw new Error('Provider Base URL is required.');
+  if (!['api', 'local', 'local-command', 'remote-mcp'].includes(kind)) throw new Error('Unsupported provider kind.');
+  if (kind === 'local-command' && !command) throw new Error('Local command provider requires a fixed executable/command.');
+  if (kind !== 'local-command' && !baseUrl) throw new Error('Provider Base URL is required.');
   let parsedUrl;
-  try { parsedUrl = new URL(baseUrl); } catch { throw new Error('Provider Base URL is invalid.'); }
-  const isLoopback = ['localhost', '127.0.0.1', '::1'].includes(parsedUrl.hostname);
-  if (parsedUrl.protocol !== 'https:' && !(parsedUrl.protocol === 'http:' && isLoopback)) throw new Error('Provider URL must use HTTPS, except localhost development endpoints.');
-  if (kind === 'local' && !isLoopback) throw new Error('Local provider URL must resolve to loopback.');
-  if (['api', 'local'].includes(kind) && !defaultModel) throw new Error('API/local provider requires a default model.');
+  let isLoopback = false;
+  if (kind !== 'local-command') {
+    try { parsedUrl = new URL(baseUrl); } catch { throw new Error('Provider Base URL is invalid.'); }
+    isLoopback = ['localhost', '127.0.0.1', '::1'].includes(parsedUrl.hostname);
+    if (parsedUrl.protocol !== 'https:' && !(parsedUrl.protocol === 'http:' && isLoopback)) throw new Error('Provider URL must use HTTPS, except localhost development endpoints.');
+    if (kind === 'local' && !isLoopback) throw new Error('Local provider URL must resolve to loopback.');
+    if (['api', 'local'].includes(kind) && !defaultModel) throw new Error('API/local provider requires a default model.');
+  }
 
   const id = payload?.id || `provider-${crypto.randomBytes(5).toString('hex')}`;
   const existing = state.providers.find((item) => item.id === id);
-  const roles = ['api', 'local'].includes(kind) ? ['planner', 'reviewer', 'general'] : [];
+  const roles = ['api', 'local'].includes(kind) ? ['planner', 'reviewer', 'general'] : (kind === 'local-command' ? ['planner', 'builder', 'reviewer', 'general'] : []);
   const provider = {
     id,
     name,
     kind,
-    baseUrl,
+    baseUrl: kind === 'local-command' ? '' : baseUrl,
+    command: kind === 'local-command' ? command : null,
+    args: kind === 'local-command' ? args : [],
     defaultModel: defaultModel || null,
     roles,
-    status: kind === 'remote-mcp' || defaultModel ? 'CONFIGURED' : 'NOT_CONFIGURED',
+    status: kind === 'local-command' || kind === 'remote-mcp' || defaultModel ? 'CONFIGURED' : 'NOT_CONFIGURED',
     credentialRef: apiKey ? `cred:${id}` : (existing?.credentialRef || null),
     updatedAt: new Date().toISOString()
   };
