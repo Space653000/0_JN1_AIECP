@@ -97,11 +97,13 @@ const staticInvariants=[
   {label:'Bearer authorization',re:/authorization/},
   {label:'workspace path containment',re:/Path escapes the active Workspace/}
  ]),
- invariant('remote-read-only-pairing','electron/lib/remote-gateway.cjs',[
-  {label:'loopback only',re:/127\.0\.0\.1/},
-  {label:'GET only',re:/req\.method!=='GET'/},
+ invariant('remote-scoped-pairing','electron/lib/remote-gateway.cjs',[
+  {label:'loopback default',re:/host='127\.0\.0\.1'/},
   {label:'pair start',re:/\/pair\/start/},
   {label:'pair claim',re:/\/pair\/claim/},
+  {label:'approval-only route',re:/api\\\/approvals/},
+  {label:'approval scope enforcement',re:/APPROVAL_ONLY/},
+  {label:'replay-safe request id',re:/x-aecp-request-id/},
   {label:'device revoke support',re:/revokeDevice/}
  ]),
  invariant('github-event-auth','electron/lib/github-webhook.cjs',[
