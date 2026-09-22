@@ -73,7 +73,7 @@ test('Store packaging is repository-verifiable but submission remains owner-gate
   assert.match(store, /private_audience_ack:/);
   assert.match(store, /ExpectedPublisher/);
   assert.match(store, /submittedToPartnerCenter=\$false/);
-  assert.doesNotMatch(store, /store submission|partner center submit|winget submit/i);
+  assert.doesNotMatch(store, /PartnerCenter\\.|Submit-ToStore|StoreBroker|winget submit/i);
 });
 
 test('Store package validator requires identity, architecture, publisher and runFullTrust', () => {
