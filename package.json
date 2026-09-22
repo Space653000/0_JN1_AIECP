@@ -14,7 +14,9 @@
     "dist:auto": "electron-builder --win nsis --x64 --arm64 --publish never -c.win.artifactName=AI-Engineering-Control-Plane-Setup-${version}.${ext}",
     "dist:x64": "electron-builder --win nsis --x64 --publish never",
     "dist:arm64": "electron-builder --win nsis --arm64 --publish never",
-    "audit:acceptance": "node scripts/acceptance-audit.cjs"
+    "audit:acceptance": "node scripts/acceptance-audit.cjs",
+    "dist:store:x64": "electron-builder --win appx --x64 --publish never",
+    "dist:store:arm64": "electron-builder --win appx --arm64 --publish never"
   },
   "devDependencies": {
     "electron": "44.4.1",
@@ -46,6 +48,18 @@
       "createStartMenuShortcut": true,
       "shortcutName": "AI Engineering Control Plane",
       "uninstallDisplayName": "AI Engineering Control Plane"
+    },
+    "appx": {
+      "applicationId": "AECP",
+      "identityName": "Space653000.AECPPreview",
+      "publisherDisplayName": "Space653000",
+      "displayName": "AI Engineering Control Plane",
+      "languages": [
+        "en-US",
+        "zh-TW"
+      ],
+      "minVersion": "10.0.17763.0",
+      "artifactName": "AI-Engineering-Control-Plane-Store-${arch}-${version}.${ext}"
     }
   },
   "dependencies": {
