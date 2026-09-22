@@ -7,7 +7,7 @@ const PROVIDERS = Object.freeze({
   codex: { command: 'codex', roles: ['builder'], mode: 'cli', network: false, credential: true },
   gemini: { command: 'gemini', roles: ['planner', 'builder', 'reviewer', 'general'], mode: 'cli', network: true, credential: true },
   opencode: { command: 'opencode', roles: ['planner', 'builder', 'reviewer', 'general'], mode: 'cli', network: true, credential: true },
-  ollama: { command: 'ollama', roles: ['planner', 'builder', 'reviewer', 'general'], mode: 'ollama', network: false, credential: false }
+  ollama: { command: 'ollama', roles: ['planner', 'reviewer', 'general'], mode: 'ollama', network: false, credential: false }
 });
 
 function run(command, args, { cwd, timeoutMs = 180000, signal, env = {}, maxOutputBytes = 4 * 1024 * 1024 } = {}) {
