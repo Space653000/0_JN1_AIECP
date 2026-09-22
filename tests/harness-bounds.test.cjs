@@ -71,7 +71,7 @@ test('Harness stops before another provider call when maxTurns is exhausted',asy
     builderProvider:'builder',
     reviewerProvider:'reviewer'
   });
-  assert.equal(run.state,'BUDGET_EXHAUSTED');
+  assert.equal(run.state,'BUDGET_EXHAUSTED', run.error || JSON.stringify(run, null, 2));
   assert.equal(run.providerCalls,1);
   assert.equal(run.maxTurns,1);
   assert.match(run.error,/Provider call budget exhausted/);
@@ -97,7 +97,7 @@ test('Harness refuses DONE when changed-file budget is exceeded after verified r
     builderProvider:'builder',
     reviewerProvider:'reviewer'
   });
-  assert.equal(run.tasks[0].state,'DONE');
+  assert.equal(run.tasks[0].state,'DONE', run.error || JSON.stringify(run, null, 2));
   assert.equal(run.state,'BUDGET_EXHAUSTED');
   assert.match(run.error,/Changed-file budget exceeded/);
 });
@@ -122,6 +122,6 @@ test('Harness refuses DONE when verified patch exceeds maxPatchBytes',async(t)=>
     builderProvider:'builder',
     reviewerProvider:'reviewer'
   });
-  assert.equal(run.state,'BUDGET_EXHAUSTED');
+  assert.equal(run.state,'BUDGET_EXHAUSTED', run.error || JSON.stringify(run, null, 2));
   assert.match(run.error,/Patch budget exceeded/);
 });
