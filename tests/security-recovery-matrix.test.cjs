@@ -39,3 +39,23 @@ test('credential and permission failures stop autonomous recovery',()=>{
  assert.equal(plan.safeToAutoApply,false);
  assert.equal(plan.action,'HUMAN_REQUIRED');
 });
+
+
+test('policy rejects lexical traversal and sibling-prefix escapes',()=>{
+ const policy=new SecurityPolicy({allowRoots:['C:\\work'],maxRisk:'YELLOW'});
+ assert.equal(policy.check({action:'READ',path:'C:\\work\\..\\outside\\secret.txt'}).allowed,false);
+ assert.equal(policy.check({action:'READ',path:'C:\\work-evil\\secret.txt'}).allowed,false);
+ assert.equal(policy.check({action:'READ',path:'C:\\work\\safe\\file.txt'}).allowed,true);
+});
+
+test('UNC paths are denied by default and require explicit network-path policy',()=>{
+ const unc='\\\\server\\share';
+ const denied=new SecurityPolicy({allowRoots:[unc],maxRisk:'YELLOW'});
+ const deniedResult=denied.check({action:'READ',path:'\\\\server\\share\\file.txt'});
+ assert.equal(deniedResult.allowed,false);
+ assert.match(deniedResult.reason,/UNC\/network paths are disabled/);
+
+ const allowed=new SecurityPolicy({allowRoots:[unc],allowNetworkPaths:true,maxRisk:'YELLOW'});
+ assert.equal(allowed.check({action:'READ',path:'\\\\server\\share\\file.txt'}).allowed,true);
+ assert.equal(allowed.check({action:'READ',path:'\\\\server\\other\\file.txt'}).allowed,false);
+});
