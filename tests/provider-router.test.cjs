@@ -264,8 +264,8 @@ test('fixed local-command health checks executable discovery without running tas
 
 test('isolated Codex worker command uses its dedicated CODEX_HOME environment', () => {
   const router = new ProviderRouter({
-    'codex-official': {
-      id:'codex-official',
+    'openai-official': {
+      id:'openai-official',
       command:'codex',
       roles:['builder'],
       mode:'codex-cli',
@@ -278,7 +278,7 @@ test('isolated Codex worker command uses its dedicated CODEX_HOME environment', 
       runtimeEnv:{CODEX_HOME:'C:\\AECP\\workers\\official'}
     }
   });
-  const spec = router.commandSpec('codex-official', 'builder', 'build', { cwd:'C:\\repo' });
+  const spec = router.commandSpec('openai-official', 'builder', 'build', { cwd:'C:\\repo' });
   assert.equal(spec.workerId, 'codex-official');
   assert.equal(spec.codexHome, 'C:\\AECP\\workers\\official');
   assert.equal(spec.env.CODEX_HOME, 'C:\\AECP\\workers\\official');
@@ -288,8 +288,8 @@ test('Codex worker direct execution cannot bypass NETWORK or CREDENTIAL approval
   let calls = 0;
   const runner = async () => { calls += 1; return {code:0,stdout:'ok',stderr:'',timedOut:false,aborted:false}; };
   const router = new ProviderRouter({
-    'codex-pega': {
-      id:'codex-pega',
+    'pega': {
+      id:'pega',
       command:'codex',
       roles:['builder'],
       mode:'codex-cli',
@@ -304,14 +304,14 @@ test('Codex worker direct execution cannot bypass NETWORK or CREDENTIAL approval
     }
   }, {runner});
   await assert.rejects(
-    () => router.execute('builder','build',{provider:'codex-pega'}),
+    () => router.execute('builder','build',{provider:'pega'}),
     error => error?.code === 'APPROVAL_REQUIRED' && error?.action === 'NETWORK'
   );
   await assert.rejects(
-    () => router.execute('builder','build',{provider:'codex-pega',networkApproved:true}),
+    () => router.execute('builder','build',{provider:'pega',networkApproved:true}),
     error => error?.code === 'APPROVAL_REQUIRED' && error?.action === 'CREDENTIAL'
   );
-  const result = await router.execute('builder','build',{provider:'codex-pega',networkApproved:true,credentialApproved:true});
+  const result = await router.execute('builder','build',{provider:'pega',networkApproved:true,credentialApproved:true});
   assert.equal(result.code,0);
   assert.equal(calls,1);
 });
@@ -319,8 +319,8 @@ test('Codex worker direct execution cannot bypass NETWORK or CREDENTIAL approval
 test('Codex OFFICIAL health reports AUTH_REQUIRED when isolated home is not authenticated', async () => {
   const runner = async () => ({code:0,stdout:'codex 1.0.0',stderr:'',timedOut:false,aborted:false});
   const router = new ProviderRouter({
-    'codex-official': {
-      id:'codex-official',
+    'openai-official': {
+      id:'openai-official',
       command:'codex',
       roles:['builder'],
       mode:'codex-cli',
@@ -332,6 +332,6 @@ test('Codex OFFICIAL health reports AUTH_REQUIRED when isolated home is not auth
       authPresent:false
     }
   }, {runner});
-  const health = await router.health('codex-official');
+  const health = await router.health('openai-official');
   assert.equal(health.status,'AUTH_REQUIRED');
 });
