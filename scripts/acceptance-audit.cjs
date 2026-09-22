@@ -517,17 +517,23 @@ function run(){
    'scripts/license-audit.cjs',
    'scripts/requirements-coverage.cjs',
    'scripts/blueprint-coverage.cjs',
-   'tests/human-controls.test.cjs'
+   'tests/human-controls.test.cjs',
+   'tests/harness-bounds.test.cjs',
+   'tests/provider-usage.test.cjs',
+   'tests/provider-environment-workflow.test.cjs',
+   'tests/local-data-manager.test.cjs',
+   'tests/dashboard-acceptance.test.cjs'
   ],
   exactCommitCIGates:[
    'AECP CI must succeed on the exact commit',
    'AECP Security must succeed on the exact commit',
-   'AECP Packaging must build x64/ARM64/universal installers, build and validate x64/ARM64 Store AppX packages, pass install/uninstall smoke, and pass real installer upgrade/rollback smoke on the exact commit'
+   'AECP Packaging must build x64/ARM64/universal installers, build and validate x64/ARM64 Store AppX packages, pass install/uninstall smoke, and pass real installer upgrade/rollback smoke on the exact commit',
+   'Build and Release PR dry-run must succeed on the exact commit without publishing a release'
   ],
   ownerExternalGates:[
    'production Authenticode/code-signing certificate and trusted provenance',
    'Microsoft Store publisher identity/certification/submission',
-   'real third-party provider account credentials where a provider-specific production claim is made',
+   'real third-party/local provider runtime, model artifacts or account credentials where a provider-specific production claim is made; use the dedicated self-hosted provider evidence workflow',
    'optional LAN/Internet deployment identity/domain/TLS transport'
   ],
   policy:'STATIC/TES­TED/CI/ENVIRONMENT/OWNER evidence are distinct. Repository wiring cannot promote owner/external gates to PASS.'
