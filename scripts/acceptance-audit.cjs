@@ -143,7 +143,9 @@ const staticInvariants=[
  invariant('release-exact-head-dry-run','.github/workflows/release.yml',[
   {label:'PR trigger',re:/pull_request:[\s\S]*branches:\s*\[main\]/},
   {label:'PR exact HEAD checkout',re:/pull_request\.head\.sha \|\| github\.sha/},
-  {label:'stale run cancellation',re:/cancel-in-progress:\s*true/}
+  {label:'provenance exact checkout HEAD',re:/\$sourceCommit\s*=\s*\(git rev-parse HEAD\)\.Trim\(\)[\s\S]*sourceCommit=\$sourceCommit/},
+  {label:'stale run cancellation',re:/cancel-in-progress:\s*true/},
+  {label:'bounded release jobs',re:/verify:[\s\S]*timeout-minutes:\s*45[\s\S]*provenance:[\s\S]*timeout-minutes:\s*45/}
  ]),
  invariant('release-publication-gate','.github/workflows/release.yml',[
   {label:'release verify job',re:/^  verify:$/m},
@@ -183,8 +185,10 @@ const staticInvariants=[
   {label:'certificate secret reference',re:/secrets\.AECP_CODESIGN_PFX_BASE64/},
   {label:'password secret reference',re:/secrets\.AECP_CODESIGN_PASSWORD/},
   {label:'signer verification',re:/Get-AuthenticodeSignature/},
-  {label:'signed provenance',re:/aecp\.signed-release-provenance\/v1/},
-  {label:'publish acknowledgement',re:/if:\s*\$\{\{ inputs\.publish_ack \}\}/}
+  {label:'signed exact source checkout',re:/ref:\s*\$\{\{ inputs\.source_ref \}\}[\s\S]*git rev-parse HEAD/},
+  {label:'signed provenance',re:/aecp\.signed-release-provenance\/v1[\s\S]*sourceCommit=\$sourceCommit/},
+  {label:'publish acknowledgement',re:/if:\s*\$\{\{ inputs\.publish_ack \}\}/},
+  {label:'bounded signed jobs',re:/verify-owner-inputs:[\s\S]*timeout-minutes:\s*45[\s\S]*signed-provenance:[\s\S]*timeout-minutes:\s*45/}
  ]),
  invariant('authenticode-tests','tests/authenticode.test.cjs',[
   {label:'preview unsigned policy test',re:/preview mode does not require Authenticode/},
