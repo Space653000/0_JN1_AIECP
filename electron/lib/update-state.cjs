@@ -59,12 +59,17 @@ function transitionUpdate(tx, state, details = {}) {
 
 function reconcileFirstBoot(tx, runningVersion) {
   if (!tx) return null;
+  const observed = String(runningVersion || '');
+  if (tx.state === 'ROLLING_BACK') {
+    if (observed === String(tx.currentVersion)) return transitionUpdate(tx, 'ROLLED_BACK', { observedVersion: observed });
+    return transitionUpdate(tx, 'FAILED', { observedVersion: observed, reason: 'Rollback installer did not restore the expected previous version.' });
+  }
   if (!['INSTALLING','FIRST_BOOT_PENDING'].includes(tx.state)) return tx;
   let next = tx;
-  if (next.state === 'INSTALLING') next = transitionUpdate(next, 'FIRST_BOOT_PENDING', { observedVersion: String(runningVersion || '') });
-  if (String(runningVersion || '') === String(next.targetVersion)) return transitionUpdate(next, 'HEALTHY', { observedVersion: String(runningVersion) });
+  if (next.state === 'INSTALLING') next = transitionUpdate(next, 'FIRST_BOOT_PENDING', { observedVersion: observed });
+  if (observed === String(next.targetVersion)) return transitionUpdate(next, 'HEALTHY', { observedVersion: observed });
   return transitionUpdate(next, 'ROLLBACK_REQUIRED', {
-    observedVersion: String(runningVersion || ''),
+    observedVersion: observed,
     reason: 'Installed version did not match the verified update target on first boot.'
   });
 }
