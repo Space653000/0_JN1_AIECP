@@ -13,6 +13,9 @@ test('release workflow has valid universal-build dependency references', () => {
   assert.match(workflow, /smoke-install:[\s\S]*windows-11-arm/);
   assert.match(workflow, /smoke-universal:[\s\S]*windows-11-arm/);
   assert.match(workflow, /publish-release:\r?\n\s+if: startsWith\(github\.ref, 'refs\/tags\/v'\)\r?\n\s+needs:\s+\[build-fallback, build-auto, build-universal, smoke-install, smoke-universal\]/);
+  assert.match(workflow, /\$version = \$env:GITHUB_REF_NAME -replace '\^v',''/);
+  assert.match(workflow, /AI-Engineering-Control-Plane-Setup-\$version\.exe/);
+  assert.doesNotMatch(workflow, /AI-Engineering-Control-Plane-Setup-\$env:GITHUB_REF_NAME\.exe/);
   assert.match(workflow, /SHA256SUMS\.txt/);
   assert.match(workflow, /Get-FileHash[^\n\r]*SHA256/);
   assert.doesNotMatch(workflow, /needs:\s*\[[^\]]*build-x64[^\]]*\]/);
