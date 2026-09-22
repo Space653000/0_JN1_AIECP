@@ -25,7 +25,7 @@ const matrix={
   '15_SELF_EVOLUTION_PRIVATE_UPDATE_AGENT_INTEROP.md':{type:'FUNCTIONAL',evidence:['electron/lib/update-state.cjs','electron/lib/authenticode.cjs','electron/lib/backup-manager.cjs','tests/update-state.test.cjs','tests/authenticode.test.cjs','tests/backup-manager.test.cjs','.github/workflows/release.yml','.github/workflows/signed-release.yml']},
   '16_CONSTRAINT_RESOLUTION_DISTRIBUTION_EXECUTION_MODES.md':{type:'FUNCTIONAL',evidence:['.github/workflows/store-package.yml','scripts/validate-store-package.ps1','electron/mcp-server.mjs','electron/lib/execution-contract.cjs','electron/lib/autonomy.cjs','electron/lib/harness.cjs','electron/lib/control-plane.cjs','tests/execution-contract.test.cjs','tests/autonomy.test.cjs','tests/human-controls.test.cjs','tests/mcp-server.test.cjs']},
   '17_V0_2_TRIPLE_AUDIT.md':{type:'HISTORICAL',evidence:['Blueprint/23_IMPLEMENTATION_STATUS.md']},
-  '18_BOUNDED_AUTONOMOUS_EXECUTION.md':{type:'FUNCTIONAL',evidence:['electron/lib/autonomy.cjs','tests/autonomy.test.cjs']},
+  '18_BOUNDED_AUTONOMOUS_EXECUTION.md':{type:'FUNCTIONAL',evidence:['electron/lib/autonomy.cjs','tests/autonomy.test.cjs','tests/human-controls.test.cjs']},
   '19_V0_3_TRIPLE_AUDIT.md':{type:'HISTORICAL',evidence:['Blueprint/23_IMPLEMENTATION_STATUS.md']},
   '20_HARNESS_ENGINEERING_MULTI_AGENT_LOOP.md':{type:'FUNCTIONAL',evidence:['electron/lib/control-plane.cjs','electron/lib/harness.cjs','electron/lib/accepted-evidence.cjs','tests/control-plane.test.cjs','tests/canonical-loop.e2e.test.cjs','tests/harness-bounds.test.cjs','tests/accepted-evidence.test.cjs']},
   '21_AGENT_ROLES_AND_HANDOFF_PROTOCOL.md':{type:'FUNCTIONAL',evidence:['electron/lib/provider-router.cjs','electron/lib/harness.cjs','tests/provider-integration.test.cjs']},
