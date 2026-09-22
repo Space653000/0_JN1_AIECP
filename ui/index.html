@@ -177,6 +177,18 @@
         </div>
         <div class="modal-actions"><button type="button" id="cancelProviderButton" class="secondary-button" data-i18n="cancel">Cancel</button><button type="submit" class="primary-button" data-i18n="saveProvider">Save provider</button></div>
       </form>
+      <section class="handoff-card" aria-labelledby="appearanceSettingsTitle">
+        <div class="section-title"><h3 id="appearanceSettingsTitle">Appearance & accessibility</h3><span class="status safe">Local preference</span></div>
+        <div class="form-grid">
+          <label>Motion
+            <select id="motionPreference">
+              <option value="system">Follow system preference</option>
+              <option value="reduced">Reduce motion</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
       <section class="handoff-card engineering-only" aria-labelledby="workspacePolicyTitle">
         <div class="section-title"><h3 id="workspacePolicyTitle">Workspace Policy</h3><span class="status safe">Canonical</span></div>
         <p class="muted">Controls approval requirements for future execution in the current Workspace. RED capabilities always require approval and cannot be disabled.</p>
