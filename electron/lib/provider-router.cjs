@@ -146,7 +146,80 @@ async function executeOpenAICompatible(provider, role, prompt, opts = {}) {
 }
 
 class ProviderRouter {
-  constructor(registry = PROVIDERS) { this.registry = registry; }
+  constructor(registry = PROVIDERS, { runner = run, fetchImpl = globalThis.fetch, platform = process.platform } = {}) {
+    this.registry = registry;
+    this.runner = runner;
+    this.fetchImpl = fetchImpl;
+    this.platform = platform;
+  }
+
+  async health(providerId, opts = {}) {
+    const provider = this.registry[providerId];
+    const checkedAt = new Date().toISOString();
+    const result = (status, detail, extra = {}) => ({ provider: providerId, status, detail, checkedAt, ...extra });
+    if (!provider) return result('NOT_CONFIGURED', 'Provider is not registered.');
+
+    if (provider.mode === 'ollama' || provider.mode === 'cli') {
+      const probe = await this.runner(provider.command, ['--version'], {
+        timeoutMs: Math.min(10000, Math.max(1000, Number(opts.timeoutMs || 5000))),
+        maxOutputBytes: 16 * 1024,
+        signal: opts.signal
+      }).catch((error) => ({ code: -1, stdout: '', stderr: error?.message || String(error), timedOut: false, aborted: false }));
+      if (probe.code !== 0) return result('UNAVAILABLE', (probe.stderr || probe.stdout || 'Provider CLI is unavailable.').slice(0, 500));
+      if (provider.mode === 'ollama' && !(opts.model || provider.defaultModel || process.env.AECP_OLLAMA_MODEL)) {
+        return result('DEGRADED', 'Ollama CLI is available, but an explicit model is required before invocation.', { version: (probe.stdout || probe.stderr || '').split(/\r?\n/)[0] });
+      }
+      return result('READY', 'Provider CLI is available.', { version: (probe.stdout || probe.stderr || '').split(/\r?\n/)[0] });
+    }
+
+    if (provider.mode === 'local-command') {
+      if (!provider.command) return result('NOT_CONFIGURED', 'Fixed local command is missing.');
+      const locator = this.platform === 'win32' ? 'where.exe' : 'which';
+      const probe = await this.runner(locator, [provider.command], {
+        timeoutMs: Math.min(10000, Math.max(1000, Number(opts.timeoutMs || 5000))),
+        maxOutputBytes: 16 * 1024,
+        signal: opts.signal
+      }).catch((error) => ({ code: -1, stdout: '', stderr: error?.message || String(error) }));
+      if (probe.code !== 0) return result('UNAVAILABLE', (probe.stderr || 'Registered local worker executable was not found.').slice(0, 500));
+      return result('READY', 'Registered local worker executable is available.', { resolvedCommand: (probe.stdout || '').split(/\r?\n/)[0] || provider.command });
+    }
+
+    if (provider.mode === 'openai-compatible' || provider.mode === 'remote-mcp') {
+      if (!provider.baseUrl) return result('NOT_CONFIGURED', 'Provider Base URL is missing.');
+      if (provider.mode === 'openai-compatible' && !provider.defaultModel) return result('NOT_CONFIGURED', 'Provider model is missing.');
+      if (provider.requiresCredential && !provider.apiKey) return result('AUTH_REQUIRED', 'A configured provider credential could not be loaded.');
+      if (!opts.networkApproved) return result('DEGRADED', 'Live endpoint health was not probed because NETWORK approval was not granted.');
+      if (provider.apiKey && !opts.credentialApproved) return result('AUTH_REQUIRED', 'Live endpoint health requires explicit CREDENTIAL approval.');
+      if (typeof this.fetchImpl !== 'function') return result('UNAVAILABLE', 'No fetch implementation is available for provider health.');
+
+      const base = safeNetworkUrl(provider.baseUrl);
+      const baseHref = base.href.endsWith('/') ? base.href : base.href + '/';
+      const endpoint = provider.mode === 'remote-mcp'
+        ? base
+        : new URL(String(provider.modelsPath || 'models').replace(/^\/+/, ''), baseHref);
+      const controller = new AbortController();
+      let timedOut = false;
+      const timeout = setTimeout(() => { timedOut = true; controller.abort(); }, Math.min(30000, Math.max(1000, Number(opts.timeoutMs || 5000))));
+      const externalAbort = () => controller.abort();
+      if (opts.signal) opts.signal.aborted ? controller.abort() : opts.signal.addEventListener('abort', externalAbort, { once: true });
+      try {
+        const headers = { accept: 'application/json' };
+        if (provider.apiKey) headers.authorization = `Bearer ${provider.apiKey}`;
+        const response = await this.fetchImpl(endpoint, { method: 'GET', headers, signal: controller.signal });
+        if (response.status === 401 || response.status === 403) return result('AUTH_REQUIRED', `Endpoint returned HTTP ${response.status}.`, { endpoint: endpoint.href });
+        if (!response.ok) return result('DEGRADED', `Endpoint returned HTTP ${response.status}.`, { endpoint: endpoint.href });
+        return result('READY', 'Provider endpoint responded successfully.', { endpoint: endpoint.href });
+      } catch (error) {
+        if (error?.name === 'AbortError') return result('UNAVAILABLE', timedOut ? 'Provider health probe timed out.' : 'Provider health probe was cancelled.');
+        return result('UNAVAILABLE', String(error?.message || error).slice(0, 500));
+      } finally {
+        clearTimeout(timeout);
+        if (opts.signal) opts.signal.removeEventListener('abort', externalAbort);
+      }
+    }
+
+    return result('UNAVAILABLE', `Unsupported provider mode: ${provider.mode}`);
+  }
 
   resolve(role, preferred) {
     const ids = preferred ? [preferred] : Object.keys(this.registry);
@@ -237,7 +310,7 @@ class ProviderRouter {
     }
     const spec = this.commandSpec(provider.id, role, prompt, { ...opts, providerVersion });
     const env = { ...(spec.env || {}), ...(opts.env || {}) };
-    return { ...await run(spec.command, spec.args, { ...opts, env }), provider: spec.provider, model: spec.model };
+    return { ...await this.runner(spec.command, spec.args, { ...opts, env }), provider: spec.provider, model: spec.model };
   }
 }
 
