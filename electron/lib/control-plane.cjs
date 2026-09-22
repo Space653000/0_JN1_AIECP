@@ -34,6 +34,18 @@ function uid(prefix){return prefix+'-'+Date.now().toString(36)+'-'+crypto.random
 function now(){return new Date().toISOString();}
 function clamp(n,min,max,d){const x=Number(n);return Number.isFinite(x)?Math.max(min,Math.min(max,x)):d;}
 
+function schedulerPriority(value){return clamp(value,0,100,50);}
+function schedulerRisk(value){return RISK[String(value||'YELLOW').toUpperCase()] ?? RISK.YELLOW;}
+function schedulerEstimate(value,fallback,max){return clamp(value,0,max,fallback);}
+function compareSchedulerCandidates(a,b){
+  return b.priority-a.priority
+    || a.risk-b.risk
+    || a.estimatedCostUnits-b.estimatedCostUnits
+    || a.estimatedRuntimeMs-b.estimatedRuntimeMs
+    || String(a.createdAt||'').localeCompare(String(b.createdAt||''))
+    || String(a.taskId||'').localeCompare(String(b.taskId||''));
+}
+
 class ControlPlane {
   constructor({rootDir, emit=async()=>{}, providerRouter=null, remoteOptions={}, policyConfig={}}={}) {
     this.rootDir=path.resolve(rootDir);
@@ -47,6 +59,7 @@ class ControlPlane {
     this.persistSequence=0;
     this.shuttingDown=false;
     this.maintenanceTask=null;
+    this.providerHealthCache=new Map();
     this.policyConfig=compileWorkspacePolicy(policyConfig);
     this.policy=new SecurityPolicy({allowRoots:[this.rootDir],...this.policyConfig});
     this.locks=new LockManager(path.join(this.rootDir,'locks'));
@@ -190,7 +203,7 @@ class ControlPlane {
     const repositories=await this.resources.scan(run.sourceRoot); run.repositoryPaths=repositories.map(r=>r.path);
     const prompt=[
       'You are the AECP Mission Planner.',
-      'Return ONLY JSON: {"tasks":[{"title":"...","objective":"...","acceptance":"...","dependencies":[],"risk":"GREEN|YELLOW|RED","repositories":["absolute or listed repository path"]}]}',
+      'Return ONLY JSON: {"tasks":[{"title":"...","objective":"...","acceptance":"...","dependencies":[],"risk":"GREEN|YELLOW|RED","priority":50,"estimatedRuntimeMs":300000,"estimatedCostUnits":1,"repositories":["absolute or listed repository path"]}]}',
       'Create small independent engineering tasks. Do not invent permissions or credentials.',
       'GOAL:\n'+run.goal,
       'DEFINITION OF DONE:\n'+run.done,
@@ -216,7 +229,7 @@ class ControlPlane {
     const plan=safeJson(execution.stdout);
     const tasks=Array.isArray(plan?.tasks)?plan.tasks.slice(0,run.maxTasks):[];
     if(!tasks.length) throw new Error('Planner returned no tasks.');
-    for(const item of tasks) await this.enqueueTask(run,{title:String(item.title||'Task'),objective:String(item.objective||''),acceptance:String(item.acceptance||run.done),dependencies:Array.isArray(item.dependencies)?item.dependencies:[],risk:['GREEN','YELLOW','RED'].includes(item.risk)?item.risk:'YELLOW',repositories:Array.isArray(item.repositories)?item.repositories:[]});
+    for(const item of tasks) await this.enqueueTask(run,{title:String(item.title||'Task'),objective:String(item.objective||''),acceptance:String(item.acceptance||run.done),dependencies:Array.isArray(item.dependencies)?item.dependencies:[],risk:['GREEN','YELLOW','RED'].includes(item.risk)?item.risk:'YELLOW',priority:schedulerPriority(item.priority),estimatedRuntimeMs:schedulerEstimate(item.estimatedRuntimeMs,300000,24*60*60*1000),estimatedCostUnits:schedulerEstimate(item.estimatedCostUnits,1,1000000),repositories:Array.isArray(item.repositories)?item.repositories:[]});
     run.executionContract=updateExecutionContract(run.executionContract,{taskIds:[...(run.taskIds||[])]});
     run.plannedAt=now();run.plan=plan;await this.persist();await this.event('mission.planned',{runId:run.id,taskCount:tasks.length});
     return tasks;
@@ -352,7 +365,7 @@ class ControlPlane {
     const allowed=new Set(allowedRoots.map(x=>path.resolve(String(x)).toLowerCase()));
     const requested=(task.repositories||[]).map(x=>path.resolve(String(x))).filter(x=>allowed.has(x.toLowerCase()));
     const repositories=requested.length?requested:[fallbackRoot];
-    const t={...task,id,runId:run.id,state:'QUEUED',phase:'QUEUED',createdAt:now(),updatedAt:now(),attempts:0,lease:null,resources:{repositories}};
+    const t={...task,id,runId:run.id,state:'QUEUED',phase:'QUEUED',createdAt:now(),updatedAt:now(),attempts:0,lease:null,priority:schedulerPriority(task.priority),estimatedRuntimeMs:schedulerEstimate(task.estimatedRuntimeMs,300000,24*60*60*1000),estimatedCostUnits:schedulerEstimate(task.estimatedCostUnits,1,1000000),resources:{repositories}};
     this.state.tasks[id]=t;run.taskIds.push(id);
     await this.persist();await this.event('task.queued',{runId:run.id,taskId:id,title:t.title});
     return t;
@@ -544,4 +557,4 @@ class ControlPlane {
   }
 }
 
-module.exports={ControlPlane,STATES,TERMINAL,RISK};
+module.exports={ControlPlane,STATES,TERMINAL,RISK,compareSchedulerCandidates,schedulerPriority,schedulerRisk};
