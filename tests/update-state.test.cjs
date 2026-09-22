@@ -4,6 +4,21 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createUpdateTransaction, transitionUpdate, reconcileFirstBoot } = require('../electron/lib/update-state.cjs');
 
+test('update transaction persists signer evidence for target and rollback installers', () => {
+  const tx=createUpdateTransaction({
+    currentVersion:'0.3.0',
+    targetVersion:'1.0.0',
+    targetInstaller:'target.exe',
+    targetSha256:'A'.repeat(64),
+    targetSignerThumbprint:'aa bb cc',
+    rollbackInstaller:'rollback.exe',
+    rollbackSha256:'B'.repeat(64),
+    rollbackSignerThumbprint:'dd ee ff'
+  });
+  assert.equal(tx.targetSignerThumbprint,'AA BB CC');
+  assert.equal(tx.rollbackSignerThumbprint,'DD EE FF');
+});
+
 test('verified update becomes healthy only when first boot matches target version', () => {
   let tx = createUpdateTransaction({
     currentVersion: '0.3.0',
