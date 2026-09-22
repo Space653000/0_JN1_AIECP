@@ -429,6 +429,11 @@ const staticInvariants=[
   {label:'Blueprint audit script',re:/"audit:blueprints"\s*:\s*"node scripts\/blueprint-coverage\.cjs"/},
   {label:'verify executes Blueprint audit',re:/"verify"\s*:\s*"[^"]*audit:blueprints[^"]*"/}
  ]),
+ invariant('mutating-runtime-exclusivity','electron/main.cjs',[
+  {label:'Harness blocks autonomy overlap',re:/startHarness[\s\S]*Stop the active autonomous run before starting Harness/},
+  {label:'Autonomy blocks Harness overlap',re:/startAutonomy[\s\S]*Stop the active Harness run before starting bounded autonomy/},
+  {label:'Control Plane active-work guard',re:/controlPlane\?\.hasActiveWork/}
+ ]),
  invariant('human-agency-gate','tests/human-controls.test.cjs',[
   {label:'explicit Workspace selection',re:/Workspace authorization is explicit/},
   {label:'explicit clipboard',re:/clipboard bridge remains explicit/},
