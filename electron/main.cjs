@@ -15,6 +15,7 @@ const { clearEvidence, removeWorkspaceBinding, clearCredentials, resetActiveStat
 const { assertWithinRoot } = require('./lib/path-safety.cjs');
 const { redactSensitive } = require('./lib/redaction.cjs');
 const { SecurityPolicy } = require('./lib/security-policy.cjs');
+const { normalizeWorkspacePolicy, compileWorkspacePolicy, editableActions } = require('./lib/workspace-policy.cjs');
 const { migrateState } = require('./lib/state-migration.cjs');
 const { recommendNextAction } = require('./lib/guidance.cjs');
 const { WindowsDesktopAdapter } = require('./lib/windows-desktop-adapter.cjs');
@@ -250,9 +251,12 @@ async function buildRemoteGatewayOptions() {
 
 async function initControlPlane() {
   if (controlPlane) return controlPlane;
+  const state = await loadState();
+  const workspace = getCurrentWorkspace(state);
   controlPlane = new ControlPlane({
     rootDir: dataPath('runtime'),
     providerRouter: await buildRuntimeProviderRouter(),
+    policyConfig: compileWorkspacePolicy(workspace?.policy || {}),
     remoteOptions: await buildRemoteGatewayOptions(),
     emit: async (event) => {
       if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('control-plane:event', event);
@@ -274,7 +278,7 @@ async function startHarness(payload) {
   const initial = { schema: 'aecp.harness/v1', state: 'PLANNING', runRoot, goal: payload?.goal || '', done: payload?.done || '', startedAt: new Date().toISOString() };
   harnessRecord = initial;
   const providerRouter = await buildRuntimeProviderRouter();
-  const policy = new SecurityPolicy({ allowRoots: [workspace.rootPath, runRoot] });
+  const policy = new SecurityPolicy({ allowRoots: [workspace.rootPath, runRoot], ...compileWorkspacePolicy(workspace.policy || {}) });
   void runHarness({
     ...payload, sourceRoot: workspace.rootPath, workspaceId: workspace.id, runRoot, signal: controller.signal,
     providerRouter, policy,
@@ -807,7 +811,8 @@ async function buildWorkspace(root, existing = null) {
     createdAt: existing?.createdAt || new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     manualRepositories: [...new Set(manualRepositories.map((item) => path.resolve(item)))].slice(0, 24),
-    repositories: [...byPath.values()].slice(0, 24)
+    repositories: [...byPath.values()].slice(0, 24),
+    policy: normalizeWorkspacePolicy(existing?.policy || {})
   };
 }
 
@@ -1307,6 +1312,51 @@ function registerIpc() {
   ipcMain.handle('state:get', async () => {
     const state = await loadState();
     return { ...state, currentWorkspace: getCurrentWorkspace(state), providers: await publicProviders(state) };
+  });
+
+  ipcMain.handle('policy:get', async () => {
+    const state = await loadState();
+    const workspace = getCurrentWorkspace(state);
+    return {
+      workspaceId: workspace?.id || null,
+      policy: normalizeWorkspacePolicy(workspace?.policy || {}),
+      actions: editableActions()
+    };
+  });
+
+  ipcMain.handle('policy:save', async (_event, payload) => {
+    await assertDataOperationIdle();
+    const state = await loadState();
+    const workspace = getCurrentWorkspace(state);
+    if (!workspace) throw new Error('Choose a Workspace first.');
+    const next = normalizeWorkspacePolicy({
+      maxRisk: payload?.maxRisk,
+      requireApprovalFor: payload?.requireApprovalFor,
+      updatedAt: new Date().toISOString()
+    });
+    const approval = await dialog.showMessageBox(mainWindow, {
+      type: 'warning',
+      buttons: ['Cancel', 'Save policy'],
+      defaultId: 0,
+      cancelId: 0,
+      noLink: true,
+      title: 'Change Workspace policy?',
+      message: 'Apply these execution approval rules to this Workspace?',
+      detail: 'Changing policy affects future local execution. RED capabilities still require explicit approval and cannot be disabled here.'
+    });
+    if (approval.response !== 1) return null;
+    workspace.policy = next;
+    workspace.updatedAt = new Date().toISOString();
+    state.workspaces[state.workspaces.findIndex((item) => item.id === workspace.id)] = workspace;
+    await saveState(state);
+    controlPlane?.setPolicyConfig(next);
+    return { workspaceId: workspace.id, policy: next, actions: editableActions() };
+  });
+
+  ipcMain.handle('security:adapter-matrix', async () => {
+    const cp = await initControlPlane();
+    const status = await cp.status();
+    return status.adapterSecurity;
   });
 
   ipcMain.handle('workspace:select', async () => {
