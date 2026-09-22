@@ -1,0 +1,268 @@
+name: AECP Signed Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: Exact source commit/tag to build
+        required: true
+        type: string
+      release_tag:
+        description: Release tag matching package version, for example v1.0.0
+        required: true
+        type: string
+      signer_thumbprint:
+        description: Expected Authenticode signer certificate thumbprint
+        required: true
+        type: string
+      publish_ack:
+        description: Publish signed artifacts to the GitHub Release after all gates pass
+        required: true
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  verify-owner-inputs:
+    name: Verify signing owner inputs
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm install --no-audit --no-fund
+      - run: npm run verify
+      - name: Validate release tag, signer pin, and owner secrets
+        shell: pwsh
+        env:
+          AECP_RELEASE_TAG: ${{ inputs.release_tag }}
+          AECP_SIGNER_THUMBPRINT: ${{ inputs.signer_thumbprint }}
+          AECP_CODESIGN_PFX_BASE64: ${{ secrets.AECP_CODESIGN_PFX_BASE64 }}
+          AECP_CODESIGN_PASSWORD: ${{ secrets.AECP_CODESIGN_PASSWORD }}
+        run: |
+          if ($env:AECP_RELEASE_TAG -notmatch '^v\d+\.\d+\.\d+(?:[-+].*)?$') { throw 'release_tag must be semantic version form vX.Y.Z.' }
+          $packageVersion = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          if ($env:AECP_RELEASE_TAG -ne "v$packageVersion") { throw "release_tag $env:AECP_RELEASE_TAG does not match package version $packageVersion." }
+          $thumb = ($env:AECP_SIGNER_THUMBPRINT -replace '[^A-Fa-f0-9]','').ToUpperInvariant()
+          if ($thumb.Length -lt 40) { throw 'signer_thumbprint is invalid.' }
+          if ([string]::IsNullOrWhiteSpace($env:AECP_CODESIGN_PFX_BASE64)) { throw 'AECP_CODESIGN_PFX_BASE64 secret is required.' }
+          if ([string]::IsNullOrWhiteSpace($env:AECP_CODESIGN_PASSWORD)) { throw 'AECP_CODESIGN_PASSWORD secret is required.' }
+
+  build-signed:
+    name: Build signed Windows ${{ matrix.arch }}
+    needs: verify-owner-inputs
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x64, arm64]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm install --no-audit --no-fund
+      - name: Prepare signer-pinned package metadata and certificate
+        shell: pwsh
+        env:
+          AECP_SIGNER_THUMBPRINT: ${{ inputs.signer_thumbprint }}
+          AECP_CODESIGN_PFX_BASE64: ${{ secrets.AECP_CODESIGN_PFX_BASE64 }}
+        run: |
+          $thumb = ($env:AECP_SIGNER_THUMBPRINT -replace '[^A-Fa-f0-9]','').ToUpperInvariant()
+          $env:AECP_NORMALIZED_SIGNER = $thumb
+          node -e "const fs=require('fs');const p=require('./package.json');p.aecp=p.aecp||{};p.aecp.requiredSignerThumbprint=process.env.AECP_NORMALIZED_SIGNER;fs.writeFileSync('package.json',JSON.stringify(p,null,2)+'\n')"
+          $certPath = Join-Path $env:RUNNER_TEMP 'aecp-signing.pfx'
+          [IO.File]::WriteAllBytes($certPath,[Convert]::FromBase64String($env:AECP_CODESIGN_PFX_BASE64))
+          "AECP_CERT_PATH=$certPath" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "AECP_NORMALIZED_SIGNER=$thumb" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+      - name: Build signed NSIS installer
+        shell: pwsh
+        env:
+          CSC_LINK: ${{ env.AECP_CERT_PATH }}
+          CSC_KEY_PASSWORD: ${{ secrets.AECP_CODESIGN_PASSWORD }}
+        run: |
+          npx electron-builder --win nsis --${{ matrix.arch }} --publish never
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify installer Authenticode signer
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem release -Filter '*.exe' -Recurse | Where-Object { $_.Name -match '-${{ matrix.arch }}-' } | Select-Object -First 1
+          if (-not $installer) { throw 'Signed installer not found.' }
+          $sig = Get-AuthenticodeSignature -LiteralPath $installer.FullName
+          if ([string]$sig.Status -ne 'Valid') { throw "Authenticode status is $($sig.Status)." }
+          $actual = ([string]$sig.SignerCertificate.Thumbprint -replace '[^A-Fa-f0-9]','').ToUpperInvariant()
+          if ($actual -ne $env:AECP_NORMALIZED_SIGNER) { throw "Signer thumbprint mismatch: $actual" }
+          $evidence = [ordered]@{
+            schema='aecp.authenticode-evidence/v1'
+            file=$installer.Name
+            sha256=(Get-FileHash $installer.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            signerThumbprint=$actual
+            signerSubject=[string]$sig.SignerCertificate.Subject
+            status=[string]$sig.Status
+            verifiedAt=(Get-Date).ToUniversalTime().ToString('o')
+          }
+          $evidence | ConvertTo-Json -Depth 5 | Out-File -Encoding utf8 "release/authenticode-${{ matrix.arch }}.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aecp-signed-${{ matrix.arch }}
+          path: |
+            release/*.exe
+            release/*.blockmap
+            release/authenticode-${{ matrix.arch }}.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Remove temporary signing certificate
+        if: always()
+        shell: pwsh
+        run: Remove-Item $env:AECP_CERT_PATH -Force -ErrorAction SilentlyContinue
+
+  build-signed-universal:
+    name: Build signed Universal Bootstrap
+    needs: build-signed
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_ref }}
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - uses: actions/download-artifact@v4
+        with:
+          name: aecp-signed-x64
+          path: staging/x64
+      - uses: actions/download-artifact@v4
+        with:
+          name: aecp-signed-arm64
+          path: staging/arm64
+      - name: Stage signed payloads
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path release/universal-bootstrap/payloads | Out-Null
+          $x = Get-ChildItem staging/x64 -Filter '*x64*.exe' -Recurse | Select-Object -First 1
+          $a = Get-ChildItem staging/arm64 -Filter '*arm64*.exe' -Recurse | Select-Object -First 1
+          if (-not $x -or -not $a) { throw 'Signed architecture payloads not found.' }
+          Copy-Item $x.FullName release/universal-bootstrap/payloads/AI-Engineering-Control-Plane-Setup-x64.exe
+          Copy-Item $a.FullName release/universal-bootstrap/payloads/AI-Engineering-Control-Plane-Setup-arm64.exe
+      - name: Build universal bootstrap
+        shell: pwsh
+        working-directory: release/universal-bootstrap
+        run: dotnet publish UniversalBootstrap.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o ../../release/signed-universal
+      - name: Sign and verify universal bootstrap
+        shell: pwsh
+        env:
+          AECP_SIGNER_THUMBPRINT: ${{ inputs.signer_thumbprint }}
+          AECP_CODESIGN_PFX_BASE64: ${{ secrets.AECP_CODESIGN_PFX_BASE64 }}
+          AECP_CODESIGN_PASSWORD: ${{ secrets.AECP_CODESIGN_PASSWORD }}
+        run: |
+          $thumb = ($env:AECP_SIGNER_THUMBPRINT -replace '[^A-Fa-f0-9]','').ToUpperInvariant()
+          $certPath = Join-Path $env:RUNNER_TEMP 'aecp-universal-signing.pfx'
+          [IO.File]::WriteAllBytes($certPath,[Convert]::FromBase64String($env:AECP_CODESIGN_PFX_BASE64))
+          $programFilesX86 = [Environment]::GetFolderPath('ProgramFilesX86')
+          $signtool = Get-ChildItem (Join-Path $programFilesX86 'Windows Kits\10\bin') -Filter signtool.exe -Recurse | Where-Object { $_.FullName -match '\\x64\\signtool\.exe$' } | Sort-Object FullName -Descending | Select-Object -First 1
+          if (-not $signtool) { throw 'signtool.exe not found on Windows runner.' }
+          $exe = Get-ChildItem release/signed-universal -Filter '*.exe' | Select-Object -First 1
+          if (-not $exe) { throw 'Universal bootstrap executable not found.' }
+          & $signtool.FullName sign /fd SHA256 /f $certPath /p $env:AECP_CODESIGN_PASSWORD /tr http://timestamp.digicert.com /td SHA256 $exe.FullName
+          if ($LASTEXITCODE -ne 0) { throw "signtool exited with $LASTEXITCODE." }
+          $sig = Get-AuthenticodeSignature -LiteralPath $exe.FullName
+          if ([string]$sig.Status -ne 'Valid') { throw "Universal Authenticode status is $($sig.Status)." }
+          $actual = ([string]$sig.SignerCertificate.Thumbprint -replace '[^A-Fa-f0-9]','').ToUpperInvariant()
+          if ($actual -ne $thumb) { throw "Universal signer thumbprint mismatch: $actual" }
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $final = Join-Path $exe.DirectoryName "AI-Engineering-Control-Plane-Setup-$version.exe"
+          if ($exe.FullName -ne $final) { Move-Item $exe.FullName $final -Force }
+          $evidence = [ordered]@{
+            schema='aecp.authenticode-evidence/v1'
+            file=[IO.Path]::GetFileName($final)
+            sha256=(Get-FileHash $final -Algorithm SHA256).Hash.ToLowerInvariant()
+            signerThumbprint=$actual
+            signerSubject=[string]$sig.SignerCertificate.Subject
+            status=[string]$sig.Status
+            verifiedAt=(Get-Date).ToUniversalTime().ToString('o')
+          }
+          $evidence | ConvertTo-Json -Depth 5 | Out-File -Encoding utf8 release/signed-universal/authenticode-universal.json
+          Remove-Item $certPath -Force -ErrorAction SilentlyContinue
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aecp-signed-universal
+          path: release/signed-universal/**
+          if-no-files-found: error
+          retention-days: 30
+
+  signed-provenance:
+    name: Assemble signed release provenance
+    needs: [build-signed, build-signed-universal]
+    runs-on: windows-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: aecp-signed-*
+          path: signed-assets
+          merge-multiple: true
+      - name: Generate signed checksums and provenance
+        shell: pwsh
+        env:
+          AECP_RELEASE_TAG: ${{ inputs.release_tag }}
+          AECP_SIGNER_THUMBPRINT: ${{ inputs.signer_thumbprint }}
+        run: |
+          $thumb = ($env:AECP_SIGNER_THUMBPRINT -replace '[^A-Fa-f0-9]','').ToUpperInvariant()
+          $assets = Get-ChildItem signed-assets -Recurse -File | Where-Object { $_.Extension -in @('.exe','.blockmap') } | Sort-Object FullName
+          if (-not $assets) { throw 'No signed release assets found.' }
+          $lines=@();$records=@()
+          foreach($asset in $assets){
+            $hash=(Get-FileHash $asset.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            $lines += "$hash  $($asset.Name)"
+            $records += [ordered]@{file=$asset.Name;sha256=$hash;bytes=$asset.Length}
+          }
+          $lines | Out-File -Encoding ascii signed-assets/SHA256SUMS.txt
+          $prov=[ordered]@{
+            schema='aecp.signed-release-provenance/v1'
+            releaseTag=$env:AECP_RELEASE_TAG
+            sourceRef='${{ inputs.source_ref }}'
+            sourceCommit=$env:GITHUB_SHA
+            signerThumbprint=$thumb
+            workflowRunId=$env:GITHUB_RUN_ID
+            signed=$true
+            assets=$records
+            generatedAt=(Get-Date).ToUniversalTime().ToString('o')
+          }
+          $prov|ConvertTo-Json -Depth 6|Out-File -Encoding utf8 signed-assets/SIGNED_RELEASE_PROVENANCE.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aecp-signed-release-bundle
+          path: signed-assets/**
+          if-no-files-found: error
+          retention-days: 30
+
+  publish-signed-release:
+    name: Publish signed GitHub Release
+    if: ${{ inputs.publish_ack }}
+    needs: signed-provenance
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: aecp-signed-release-bundle
+          path: signed-assets
+      - name: Publish owner-authorized signed release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AECP_RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          gh release view $env:AECP_RELEASE_TAG 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $env:AECP_RELEASE_TAG --title "AECP $env:AECP_RELEASE_TAG" --generate-notes
+          }
+          Get-ChildItem signed-assets -Recurse -File | ForEach-Object {
+            gh release upload $env:AECP_RELEASE_TAG $_.FullName --clobber
+          }
