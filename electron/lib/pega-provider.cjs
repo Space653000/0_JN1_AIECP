@@ -1,6 +1,6 @@
 'use strict';
 
-const PEGA_PROVIDER_ID='codex-pega';
+const PEGA_PROVIDER_ID='pega';
 const PEGA_WORKER_ID='codex-pega';
 const PEGA_BASE_URL='https://aiapi.t-cyber.com/v1';
 const PEGA_ENV_KEY='AECP_PEGA_API_KEY';
