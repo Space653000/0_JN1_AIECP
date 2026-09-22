@@ -91,3 +91,18 @@ test('Add Repo is explicit and cannot widen the authorized Workspace boundary', 
   assert.match(app, /addRepository/);
   assert.match(html, /id="addRepoButton"/);
 });
+
+
+test('first-run onboarding seeds one safe read-only task without auto-executing it',()=>{
+  const html=read('ui/index.html');
+  const app=read('ui/app.js');
+  const main=read('electron/main.cjs');
+  assert.match(html,/Safety summary/);
+  assert.match(html,/GREEN = read-only local inspection/);
+  assert.match(html,/RED = push, merge, delete, credentials, system changes/);
+  assert.match(app,/const hadWorkspace = Boolean/);
+  assert.match(app,/!hadWorkspace && state\.tasks\.length === 0/);
+  assert.match(app,/await createSampleTask\(\)/);
+  assert.match(main,/sample:card/);
+  assert.doesNotMatch(app,/!hadWorkspace[\s\S]{0,300}executeTask/);
+});
