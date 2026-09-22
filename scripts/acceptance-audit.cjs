@@ -53,7 +53,8 @@ const requiredFiles=[
  ['event-projection-test','tests/event-projection.test.cjs'],
  ['provider-integration-test','tests/provider-integration.test.cjs'],
  ['e2e-security-recovery','tests/security-recovery-matrix.test.cjs'],
- ['e2e-pairing','tests/remote-pairing.test.cjs']
+ ['e2e-pairing','tests/remote-pairing.test.cjs'],
+ ['delivery-reconciliation-test','tests/delivery-reconciliation.test.cjs']
 ];
 
 function read(file){return fs.readFileSync(path.join(root,file),'utf8');}
@@ -190,6 +191,16 @@ const staticInvariants=[
   {label:'security audit evidence',re:/security-audit\.log/},
   {label:'license audit evidence',re:/artifacts\/license-audit\.json/}
  ]),
+ invariant('delivery-ambiguous-write-reconciliation','electron/lib/delivery.cjs',[
+  {label:'push remote SHA reconciliation',re:/RECONCILED_REMOTE_PUSH/},
+  {label:'remote branch verification',re:/git','ls-remote','--heads'/},
+  {label:'PR post-failure reconciliation',re:/catch\(error\)[\s\S]*existingPR/}
+ ]),
+ invariant('delivery-reconciliation-tests','tests/delivery-reconciliation.test.cjs',[
+  {label:'push ambiguous success test',re:/reconciles ambiguous command failure/},
+  {label:'PR lost response test',re:/reconciles a lost response/},
+  {label:'duplicate PR prevention test',re:/never duplicates an already-open PR/}
+ ]),
  invariant('provider-local-e2e','tests/provider-router.e2e.test.cjs',[
   {label:'fixed local-command E2E',re:/local-command/},
   {label:'successful local evidence',re:/LOCAL_PROVIDER_OK/}
@@ -241,6 +252,7 @@ function run(){
    'tests/event-projection.test.cjs',
    'tests/provider-integration.test.cjs',
    'tests/update-state.test.cjs',
+   'tests/delivery-reconciliation.test.cjs',
    'scripts/license-audit.cjs',
    'scripts/requirements-coverage.cjs',
    'scripts/blueprint-coverage.cjs',
