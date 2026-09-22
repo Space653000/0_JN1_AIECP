@@ -1,6 +1,6 @@
 'use strict';
 
-const systemPrefersLight = window.matchMedia?.('(prefers-color-scheme: light)').matches;
+const systemThemeMedia = window.matchMedia?.('(prefers-color-scheme: light)');
 
 const state = {
   app: null,
@@ -21,7 +21,7 @@ const state = {
   selectedTaskId: null,
   view: 'start',
   engineering: false,
-  theme: localStorage.getItem('aecp-theme') || (systemPrefersLight ? 'light' : 'dark'),
+  theme: ['system', 'dark', 'light'].includes(localStorage.getItem('aecp-theme')) ? localStorage.getItem('aecp-theme') : 'system',
   chatgptOpened: localStorage.getItem('aecp-chatgpt-opened') === '1'
 };
 
@@ -82,6 +82,18 @@ function formatProviderUsage(summary, managedExternally = false) {
   return bits.join(' · ');
 }
 
+function resolvedTheme() {
+  if (state.theme !== 'system') return state.theme;
+  return systemThemeMedia?.matches ? 'light' : 'dark';
+}
+
+function cycleTheme() {
+  const order = ['system', 'dark', 'light'];
+  state.theme = order[(order.indexOf(state.theme) + 1) % order.length];
+  localStorage.setItem('aecp-theme', state.theme);
+  render();
+}
+
 function statusClass(value) {
   if (['DONE', 'PASS', 'READY', 'APPLIED'].includes(value)) return 'ready';
   if (['FAILED', 'BLOCKED', 'BUDGET_EXHAUSTED', 'CANCELLED', 'INTERRUPTED', 'UNAVAILABLE'].includes(value)) return 'bad';
@@ -126,7 +138,9 @@ async function loadAll() {
 }
 
 function render() {
-  document.documentElement.dataset.theme = state.theme;
+  document.documentElement.dataset.theme = resolvedTheme();
+  $('#themeButton').setAttribute('aria-label', `Theme: ${state.theme}`);
+  $('#themeButton').title = `Theme: ${state.theme}`;
   document.body.classList.toggle('engineering-mode', state.engineering);
   $('#modeButton').dataset.i18n = state.engineering ? 'mode.engineering' : 'mode.beginner';
   $('#modeButton').textContent = tr(state.engineering ? 'mode.engineering' : 'mode.beginner', state.engineering ? 'Engineering' : 'Beginner');
@@ -1054,7 +1068,7 @@ function bindEvents() {
   $('#importClipboardButton').addEventListener('click', importFromClipboard);
   $('#sampleButton').addEventListener('click', createSampleTask);
   $('#modeButton').addEventListener('click', () => { state.engineering = !state.engineering; if (!state.engineering && state.view === 'trace') state.view = 'start'; render(); });
-  $('#themeButton').addEventListener('click', () => { state.theme = state.theme === 'dark' ? 'light' : 'dark'; localStorage.setItem('aecp-theme', state.theme); render(); });
+  $('#themeButton').addEventListener('click', cycleTheme);
   $('#languageButton').addEventListener('click', toggleLocale);
   $('#settingsButton').addEventListener('click', openProviderSettings);
   $('#closeProviderButton').addEventListener('click', closeProviderSettings);
@@ -1205,6 +1219,9 @@ function bindEvents() {
 
 async function boot() {
   bindEvents();
+  systemThemeMedia?.addEventListener?.('change', () => {
+    if (state.theme === 'system') render();
+  });
   await loadAll();
 }
 
