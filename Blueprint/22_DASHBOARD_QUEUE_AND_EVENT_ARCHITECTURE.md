@@ -159,9 +159,9 @@ Do not notify on every model token.
 
 ## 12. Mobile-ready design
 
-Desktop Dashboard exposes a compact read-only representation suitable for a future authenticated remote supervision gateway.
+Desktop Dashboard exposes a compact projection backed by the implemented authenticated Remote Gateway. Paired READ_ONLY devices can inspect bounded status/tasks/approvals/events; APPROVAL_ONLY devices may approve/reject only already-existing approval requests. Device revocation and replay protection are enforced.
 
-Remote commands remain a future capability and inherit local policy.
+Remote task submission remains intentionally disabled. Any future expansion inherits the same local policy and cannot widen authority implicitly.
 
 ## 13. Event retention
 
@@ -209,13 +209,13 @@ A novice should answer within one screen:
 8. What happens next?
 
 
-## 17. Runtime status — 2026-09-19
+## 17. Runtime status — 2026-09-22
 
 The Harness Command Center is implemented as a live projection of the durable Control Plane. It currently exposes mission metrics, queue state, approvals, task state, PR/CI status, pause/resume/cancel, emergency STOP ALL and a journaled event stream. Delivery approval is explicitly separated from normal task approval and requires CI success plus human approval.
 
 The Dashboard remains a projection: canonical runtime state lives in the Control Plane, engineering truth remains GitHub, and event/evidence records provide replayable history.
 
-Future dashboard work is limited to deeper GitHub projection, mobile read-only supervision, accessibility hardening and richer evidence/artifact inspection.
+Required dashboard projection, remote read-only supervision foundation and accessibility hardening are implemented and covered by tests. Deeper visual artifact inspection or a dedicated mobile client are optional presentation enhancements, not missing control-plane authority or acceptance requirements.
 
 
 ## Runtime closure update — 2026-09-19
