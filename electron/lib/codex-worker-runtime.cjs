@@ -46,6 +46,7 @@ class CodexWorkerRuntime{
       ...(model?['model = '+tomlString(model)]:[]),
       'approval_policy = "never"',
       'sandbox_mode = "workspace-write"',
+      'cli_auth_credentials_store = "file"',
       ''
     ].join('\n');
     await writeAtomic(path.join(codexHome,'config.toml'),config);
