@@ -4,6 +4,24 @@
 
 Define a vendor-neutral protocol so Claude Code, Codex CLI, Gemini CLI, local models, API providers and future agents cooperate without sharing hidden sessions.
 
+## 1A. Worker identity is separate from engineering role
+
+Planner / Builder / Reviewer remain stable roles. A Worker is the concrete runtime identity selected to perform a role.
+
+Examples:
+
+```text
+role: Builder
+worker: codex-official
+provider: openai-official
+
+role: Builder
+worker: codex-pega
+provider: pega
+```
+
+Role handoff schemas must not encode PEGA/OpenAI-specific state. Worker handoff includes only canonical worker/provider/model/task/worktree/evidence identifiers. Auth/session/CODEX_HOME internals are never passed between workers.
+
 ## 2. Stable roles
 
 | Role | Responsibility | May write code? |
