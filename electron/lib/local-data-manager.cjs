@@ -4,7 +4,7 @@ const fs=require('node:fs/promises');
 const path=require('node:path');
 
 const RESET_FILES=Object.freeze(['state.json','credentials.json','provider-usage.json','restore-request.json']);
-const RESET_DIRS=Object.freeze(['runtime','evidence','autonomy','harness','updates','restore-staging']);
+const RESET_DIRS=Object.freeze(['runtime','evidence','autonomy','harness','workers','updates','restore-staging']);
 
 function owned(root,relative){
   const base=path.resolve(root);
