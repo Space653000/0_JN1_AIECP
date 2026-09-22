@@ -48,3 +48,17 @@ test('Dashboard and shell accessibility provide keyboard focus text status and r
   assert.match(ui,/RUNNING|QUEUED|APPROVAL|TASKS DONE|PROGRESS/);
   assert.match(ui,/READY|FAILED|BLOCKED|HUMAN_REQUIRED|UNKNOWN/);
 });
+
+
+test('Command Center projects canonical Multi-Worker identity, health and isolated cancellation controls', async () => {
+  const dashboard=await fs.readFile(path.join(__dirname,'..','ui','harness-console.js'),'utf8');
+  for(const term of ['Worker Runtime','Provider: ','Model: ','Role: ','Task: ','Runtime: ','Worktree: ','Verify: ','Heartbeat: ','Cancel: ','Health ']){
+    assert.ok(dashboard.includes(term), 'missing dashboard worker field: '+term);
+  }
+  assert.ok(dashboard.includes('snapshot.workers'));
+  assert.ok(dashboard.includes('data-builder-worker'));
+  assert.ok(dashboard.includes('builderWorkers'));
+  assert.ok(dashboard.includes('data-cancel-task'));
+  assert.ok(dashboard.includes('window.aecp.cancelTask'));
+  assert.ok(dashboard.includes('Other workers and tasks will keep running'));
+});
