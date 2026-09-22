@@ -10,6 +10,7 @@ const { pathToFileURL } = require('node:url');
 const { runHarness } = require('./lib/harness.cjs');
 const { ControlPlane } = require('./lib/control-plane.cjs');
 const { ProviderRouter, PROVIDERS } = require('./lib/provider-router.cjs');
+const { ProviderUsageStore } = require('./lib/provider-usage.cjs');
 const { SecurityPolicy } = require('./lib/security-policy.cjs');
 const { migrateState } = require('./lib/state-migration.cjs');
 const { recommendNextAction } = require('./lib/guidance.cjs');
@@ -36,11 +37,11 @@ const {
 const STATE_SCHEMA = 1;
 const UPDATE_REPO = 'Space653000/AI-Engineering-Control-Plane';
 const AGENT_SPECS = Object.freeze([
-  { id: 'codex-cli', name: 'Codex CLI', command: 'codex', args: ['--version'], role: 'coding' },
-  { id: 'claude-code', name: 'Claude Code', command: 'claude', args: ['--version'], role: 'coding' },
-  { id: 'gemini-cli', name: 'Gemini CLI', command: 'gemini', args: ['--version'], role: 'research-coding' },
-  { id: 'opencode', name: 'OpenCode', command: 'opencode', args: ['--version'], role: 'local-agent' },
-  { id: 'ollama', name: 'Local Ollama', command: 'ollama', args: ['--version'], role: 'local-models' }
+  { id: 'codex-cli', providerId: 'codex', name: 'Codex CLI', command: 'codex', args: ['--version'], role: 'coding' },
+  { id: 'claude-code', providerId: 'claude', name: 'Claude Code', command: 'claude', args: ['--version'], role: 'coding' },
+  { id: 'gemini-cli', providerId: 'gemini', name: 'Gemini CLI', command: 'gemini', args: ['--version'], role: 'research-coding' },
+  { id: 'opencode', providerId: 'opencode', name: 'OpenCode', command: 'opencode', args: ['--version'], role: 'local-agent' },
+  { id: 'ollama', providerId: 'ollama', name: 'Local Ollama', command: 'ollama', args: ['--version'], role: 'local-models' }
 ]);
 let mainWindow = null;
 let mcpRuntime = null;
@@ -49,12 +50,18 @@ let autonomyRecord = null;
 let harnessController = null;
 let harnessRecord = null;
 let controlPlane = null;
+let providerUsageStore = null;
 const desktopAdapter = new WindowsDesktopAdapter();
 const windowsUiAdapter = new WindowsUiAdapter();
 const pythonWorker = new PythonWorker();
 
 function dataPath(...parts) {
   return path.join(app.getPath('userData'), ...parts);
+}
+
+function getProviderUsageStore() {
+  if (!providerUsageStore) providerUsageStore = new ProviderUsageStore(dataPath('provider-usage.json'));
+  return providerUsageStore;
 }
 
 async function ensureDataDirs() {
@@ -169,23 +176,28 @@ async function detectTools() {
 }
 
 async function detectAgents() {
+  const usage = await getProviderUsageStore().summaries();
   const agents = [{
     id: 'chatgpt-web',
     name: 'ChatGPT Web',
     role: 'supervisor',
     available: true,
     version: 'Official web',
-    kind: 'web'
+    kind: 'web',
+    usageManagedExternally: true,
+    usage: null
   }];
   for (const spec of AGENT_SPECS) {
     const status = await probe(spec.command, spec.args);
     agents.push({
       id: spec.id,
+      providerId: spec.providerId,
       name: spec.name,
       role: spec.role,
       available: status.available,
       version: status.version,
-      kind: spec.id === 'ollama' ? 'local' : 'cli'
+      kind: spec.id === 'ollama' ? 'local' : 'cli',
+      usage: usage[spec.providerId] || null
     });
   }
   return agents;
@@ -861,7 +873,7 @@ async function buildRuntimeProviderRouter() {
       kind: item.kind
     };
   }
-  return new ProviderRouter(registry);
+  return new ProviderRouter(registry, { metricsSink: (metric) => getProviderUsageStore().append(metric) });
 }
 
 async function refreshRuntimeProviders() {
@@ -950,17 +962,21 @@ async function copyLocalMcpConnection() {
 
 async function publicProviders(state) {
   const secrets = await loadSecrets();
+  const usage = await getProviderUsageStore().summaries();
   return [{
     id: 'chatgpt-web',
     name: 'ChatGPT Web',
     kind: 'human-mediated-web',
     status: 'READY',
     builtIn: true,
+    usageManagedExternally: true,
+    usage: null,
     description: 'Official ChatGPT in your normal browser. No API key required.'
   }].concat(state.providers.map((item) => ({
     ...item,
     status: item.status === 'CONFIGURED' ? 'DEGRADED' : (item.status || 'NOT_CONFIGURED'),
-    hasCredential: Boolean(secrets.values[item.id])
+    hasCredential: Boolean(secrets.values[item.id]),
+    usage: usage[item.id] || null
   })));
 }
 
