@@ -198,6 +198,12 @@ test('Harness persists the complete Goal Loop contract and checkpoint evidence',
 test('Harness stops repeated no-progress attempts before infinite rework',async(t)=>{
   const fixture=await makeRepo('aecp-harness-no-progress-');
   t.after(async()=>fs.rm(fixture.root,{recursive:true,force:true}));
+  await fs.writeFile(path.join(fixture.repo,'package.json'),JSON.stringify({
+    name:'aecp-harness-no-progress',version:'1.0.0',private:true,
+    scripts:{verify:'node -e "process.exit(1)"'}
+  },null,2)+'\n');
+  await exec('git',['add','package.json'],{cwd:fixture.repo});
+  await exec('git',['commit','-m','make verifier fail deterministically'],{cwd:fixture.repo});
   const router={
     capabilities(){return {process:false,network:false,credential:false};},
     async execute(role,_prompt,opts){
