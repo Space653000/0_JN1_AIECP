@@ -158,3 +158,145 @@ test('Harness emits task.accepted only after final patch budgets succeed',async(
   assert.ok(acceptedIndex>reviewIndex);
   assert.match(run.events[acceptedIndex].data.patchSha256,/^[a-f0-9]{64}$/);
 });
+
+
+test('Harness persists the complete Goal Loop contract and checkpoint evidence',async(t)=>{
+  const fixture=await makeRepo('aecp-harness-loop-contract-');
+  t.after(async()=>fs.rm(fixture.root,{recursive:true,force:true}));
+  const run=await runHarness({
+    goal:'Create a small verified file.',
+    done:'Verification passes.',
+    sourceRoot:fixture.repo,
+    runRoot:fixture.runRoot,
+    workspaceId:'ws-test',
+    checkpointEvery:1,
+    maxTasks:1,
+    maxIterations:2,
+    maxTurns:6,
+    providerRouter:fakeRouter(async cwd=>fs.writeFile(path.join(cwd,'loop.txt'),'ok\n')),
+    plannerProvider:'planner',
+    builderProvider:'builder',
+    reviewerProvider:'reviewer',
+    providerNetworkApproved:false,
+    providerCredentialApproved:false
+  });
+  assert.equal(run.state,'DONE',run.error||JSON.stringify(run,null,2));
+  assert.equal(run.loopContract.schema,'aecp.goal-loop/v1');
+  assert.equal(run.loopContract.workspaceId,'ws-test');
+  assert.equal(run.loopContract.definitionOfDone,'Verification passes.');
+  assert.equal(run.loopContract.checkpointEvery,1);
+  assert.equal(run.loopContract.providerPolicy.builder.provider,'builder');
+  assert.equal(run.loopContract.permissionPolicy.highRisk,'HUMAN_REQUIRED');
+  assert.equal(run.loopContract.verificationPolicy.deterministicVerifierAuthoritative,true);
+  assert.ok(run.loopContract.stopConditions.includes('NO_PROGRESS'));
+  assert.ok(run.loopContract.stopConditions.includes('WALL_CLOCK_BUDGET'));
+  assert.ok(run.checkpoints.length>=1);
+  assert.equal(run.checkpoints[0].schema,'aecp.goal-loop-checkpoint/v1');
+  assert.ok(run.events.some(event=>event.type==='loop.checkpoint'));
+});
+
+test('Harness stops repeated no-progress attempts before infinite rework',async(t)=>{
+  const fixture=await makeRepo('aecp-harness-no-progress-');
+  t.after(async()=>fs.rm(fixture.root,{recursive:true,force:true}));
+  const router={
+    capabilities(){return {process:false,network:false,credential:false};},
+    async execute(role,_prompt,opts){
+      if(role==='planner') return {code:0,stdout:JSON.stringify({tasks:[{
+        task_id:'T1',title:'No progress task',objective:'Try boundedly.',acceptance:'Verifier passes.',
+        dependencies:[],risk:'GREEN',verifier:'npm run verify'
+      }]}),stderr:'',timedOut:false,aborted:false};
+      if(role==='builder'){
+        await fs.writeFile(path.join(opts.cwd,'same.txt'),'same\n');
+        return {code:0,stdout:'same',stderr:'',timedOut:false,aborted:false};
+      }
+      throw new Error('reviewer should not run while deterministic verification fails');
+    }
+  };
+  const run=await runHarness({
+    goal:'Stop when repeated attempts make no measurable progress.',
+    done:'Never falsely report completion.',
+    sourceRoot:fixture.repo,
+    runRoot:fixture.runRoot,
+    maxTasks:1,
+    maxIterations:5,
+    maxTurns:10,
+    maxNoProgressAttempts:2,
+    providerRouter:router,
+    plannerProvider:'planner',
+    builderProvider:'builder',
+    reviewerProvider:'reviewer'
+  });
+  assert.equal(run.state,'BLOCKED',run.error||JSON.stringify(run,null,2));
+  assert.match(run.error,/No measurable progress/);
+  assert.equal(run.noProgressAttempts,2);
+  assert.equal(run.tasks[0].state,'READY');
+  assert.equal(run.events.some(event=>event.type==='task.accepted'),false);
+});
+
+test('Harness enforces failed-attempt budget outside the model',async(t)=>{
+  const fixture=await makeRepo('aecp-harness-failed-budget-');
+  t.after(async()=>fs.rm(fixture.root,{recursive:true,force:true}));
+  const router={
+    capabilities(){return {process:false,network:false,credential:false};},
+    async execute(role){
+      if(role==='planner') return {code:0,stdout:JSON.stringify({tasks:[{
+        task_id:'T1',title:'Failing worker',objective:'Stay bounded.',acceptance:'Verifier passes.',
+        dependencies:[],risk:'GREEN',verifier:'npm run verify'
+      }]}),stderr:'',timedOut:false,aborted:false};
+      if(role==='builder') return {code:1,stdout:'',stderr:'worker failed',timedOut:false,aborted:false};
+      throw new Error('unexpected reviewer call');
+    }
+  };
+  const run=await runHarness({
+    goal:'Bound failed attempts.',
+    done:'Stop after the configured failed-attempt budget.',
+    sourceRoot:fixture.repo,
+    runRoot:fixture.runRoot,
+    maxTasks:1,
+    maxIterations:4,
+    maxTurns:10,
+    maxFailedAttempts:1,
+    providerRouter:router,
+    plannerProvider:'planner',
+    builderProvider:'builder',
+    reviewerProvider:'reviewer'
+  });
+  assert.equal(run.state,'BUDGET_EXHAUSTED',run.error||JSON.stringify(run,null,2));
+  assert.equal(run.failedAttempts,1);
+  assert.match(run.error,/Failed-attempt budget exhausted/);
+});
+
+test('Harness enforces optional wall-clock budget before the next provider call',async(t)=>{
+  const fixture=await makeRepo('aecp-harness-wall-clock-');
+  t.after(async()=>fs.rm(fixture.root,{recursive:true,force:true}));
+  const router={
+    capabilities(){return {process:false,network:false,credential:false};},
+    async execute(role){
+      if(role==='planner'){
+        await new Promise(resolve=>setTimeout(resolve,1100));
+        return {code:0,stdout:JSON.stringify({tasks:[{
+          task_id:'T1',title:'Wall clock task',objective:'Respect time.',acceptance:'Verifier passes.',
+          dependencies:[],risk:'GREEN',verifier:'npm run verify'
+        }]}),stderr:'',timedOut:false,aborted:false};
+      }
+      throw new Error('builder must not run after wall-clock expiry');
+    }
+  };
+  const run=await runHarness({
+    goal:'Respect a wall-clock budget.',
+    done:'Stop before Builder after time expires.',
+    sourceRoot:fixture.repo,
+    runRoot:fixture.runRoot,
+    maxTasks:1,
+    maxIterations:2,
+    maxTurns:5,
+    maxWallClockMs:1000,
+    providerRouter:router,
+    plannerProvider:'planner',
+    builderProvider:'builder',
+    reviewerProvider:'reviewer'
+  });
+  assert.equal(run.state,'BUDGET_EXHAUSTED',run.error||JSON.stringify(run,null,2));
+  assert.match(run.error,/Wall-clock budget exhausted/);
+  assert.equal(run.providerCalls,1);
+});
