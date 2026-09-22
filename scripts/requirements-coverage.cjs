@@ -11,7 +11,7 @@ const matrix={
   'R1.1':{classes:['STATIC','TESTED'],evidence:['Blueprint/06_DESKTOP_CHATGPT_INTEGRATION.md','tests/windows-desktop-adapter.test.cjs']},
   'R1.2':{classes:['STATIC','CI'],evidence:['scripts/acceptance-audit.cjs','electron/main.cjs']},
   'R1.3':{classes:['TESTED'],evidence:['tests/path-safety.test.cjs','tests/autonomy.test.cjs']},
-  'R1.4':{classes:['STATIC','CI'],evidence:['electron/main.cjs','scripts/acceptance-audit.cjs']},
+  'R1.4':{classes:['STATIC','CI'],evidence:['electron/main.cjs','scripts/acceptance-audit.cjs','electron/lib/redaction.cjs','tests/redaction.test.cjs']},
   'R1.5':{classes:['TESTED'],evidence:['tests/security-recovery-matrix.test.cjs']},
   'R2.1':{classes:['TESTED'],evidence:['tests/control-plane.test.cjs']},
   'R2.2':{classes:['TESTED'],evidence:['tests/harness.test.cjs','tests/provider-router.test.cjs']},
