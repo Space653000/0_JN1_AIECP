@@ -1,5 +1,7 @@
 # 19 — v0.3 Triple Audit: Bounded Autonomous Execution
 
+> **HISTORICAL AUDIT NOTICE (2026-09-23):** This file preserves the release audit for its named version. Current implementation status and remaining gates are authoritative in `23_IMPLEMENTATION_STATUS.md`; exact-HEAD GitHub Actions evidence overrides historical PASS/DEFERRED wording.
+
 Audit date: 2026-09-18
 
 Audited implementation head: `cdffa97f1d6ca6404af57b69412d0fd03942ad25`
