@@ -1,5 +1,7 @@
 'use strict';
 
+const {canonicalForCompare,isNetworkPath,isWithinRoot}=require('./path-safety.cjs');
+
 const ACTIONS=Object.freeze({READ:'READ',TEST:'TEST',WRITE:'WRITE',EXECUTE:'EXECUTE',NETWORK:'NETWORK',INSTALL:'INSTALL',COMMIT:'COMMIT',PUSH:'PUSH',PR:'PR',MERGE:'MERGE',DELETE:'DELETE',CREDENTIAL:'CREDENTIAL',SYSTEM:'SYSTEM'});
 const RISK=Object.freeze({READ:'GREEN',TEST:'GREEN',WRITE:'YELLOW',EXECUTE:'YELLOW',NETWORK:'YELLOW',INSTALL:'YELLOW',COMMIT:'YELLOW',PUSH:'RED',PR:'YELLOW',MERGE:'RED',DELETE:'RED',CREDENTIAL:'RED',SYSTEM:'RED'});
 const ORDER=Object.freeze({GREEN:0,YELLOW:1,RED:2});
@@ -7,7 +9,8 @@ const normalizeRisk=r=>['GREEN','YELLOW','RED'].includes(r)?r:'RED';
 
 class SecurityPolicy{
  constructor(o={}){
-  this.allowRoots=(o.allowRoots||[]).map(x=>String(x).toLowerCase());
+  this.allowRoots=(o.allowRoots||[]).map(canonicalForCompare);
+  this.allowNetworkPaths=Boolean(o.allowNetworkPaths);
   this.maxRisk=normalizeRisk(o.maxRisk||'YELLOW');
   this.requireApprovalFor=new Set(o.requireApprovalFor||['NETWORK','INSTALL','PUSH','PR','MERGE','DELETE','CREDENTIAL','SYSTEM']);
  }
@@ -22,8 +25,8 @@ class SecurityPolicy{
    r.requiresApproval=true;r.reason='Human approval required by policy.';return r;
   }
   if(path){
-   const p=String(path).toLowerCase();
-   const inside=this.allowRoots.some(root=>p===root||p.startsWith(root+'\\')||p.startsWith(root+'/'));
+   if(isNetworkPath(path)&&!this.allowNetworkPaths){r.reason='UNC/network paths are disabled by policy.';return r;}
+   const inside=this.allowRoots.some(root=>isWithinRoot(root,path));
    if(!inside){r.reason='Path is outside the configured allowlist.';return r;}
   }
   r.allowed=true;r.reason='Policy permits action.';return r;
