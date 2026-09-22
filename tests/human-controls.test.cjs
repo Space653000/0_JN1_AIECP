@@ -50,14 +50,18 @@ test('human pause cancel and emergency stop controls remain authoritative',()=>{
   assert.match(consoleUi,/cancelMission\(r\.id\)/);
 });
 
-test('Execution Mode recommendation is factual and keeps Full MCP gated on remote readiness',()=>{
+test('Execution Mode recommendation is factual and never promotes generic MCP endpoint health to Official Full MCP',()=>{
   const app=read('ui/app.js');
   assert.match(app,/Web Safe Bridge/);
   assert.match(app,/Local Autonomous/);
   assert.match(app,/Official Full MCP/);
   assert.match(app,/ready:\s*status\.localWorkers\.length\s*>\s*0/);
-  assert.match(app,/ready:\s*Boolean\(status\.remoteMcp\)/);
-  assert.match(app,/End-to-end tunnel\/app health must still pass before write mode is enabled/);
+  assert.match(app,/const officialMcpReady = false/);
+  assert.match(app,/ready:\s*status\.officialMcpReady/);
+  assert.match(app,/Remote MCP endpoint health passed, but Official Full MCP is still externally gated/);
+  assert.match(app,/This alone never makes Official Full MCP ready/);
+  assert.match(app,/const recommended = localWorkers\.length \? 'local-autonomous' : 'web-safe'/);
+  assert.doesNotMatch(app,/recommended\s*=\s*remoteMcp\s*\?/);
   assert.match(app,/No ChatGPT DOM scraping/);
 });
 
