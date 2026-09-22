@@ -41,6 +41,8 @@ class ControlPlane {
     this.scheduler=null;
     this.persistQueue=Promise.resolve();
     this.persistSequence=0;
+    this.shuttingDown=false;
+    this.maintenanceTask=null;
     this.policy=new SecurityPolicy({allowRoots:[this.rootDir]});
     this.locks=new LockManager(path.join(this.rootDir,'locks'));
     this.evidence=new EvidenceManager(path.join(this.rootDir,'evidence'));
@@ -288,6 +290,7 @@ class ControlPlane {
   async heartbeat(){for(const run of Object.values(this.state.runs||{})){for(const taskId of run.taskIds||[]){const t=this.state.tasks[taskId];if(t?.state==='RUNNING'&&t.lease){t.lease.expiresAt=new Date(Date.now()+15*60*1000).toISOString();t.heartbeatAt=now();}}}await this.persist();}
 
   async schedulerTick(){
+    if(this.shuttingDown) return;
     for(const run of Object.values(this.state.runs)){
       if(!['QUEUED','RUNNING'].includes(run.state)) continue;
       if(run.state==='QUEUED') run.state='RUNNING';
@@ -297,13 +300,15 @@ class ControlPlane {
       for(const task of queued) this.executeTask(run,task).catch(()=>{});
     }
     await this.persist();
-    if(!this.lastMaintenanceAt || Date.now()-this.lastMaintenanceAt>60000){this.lastMaintenanceAt=Date.now();const worktrees=[]; for(const run of Object.values(this.state.runs||{})){ if(!TERMINAL.has(run.state)) continue; for(const taskId of run.taskIds||[]){const t=this.state.tasks[taskId]; if(t?.result?.worktree) worktrees.push({worktree:t.result.worktree,repoRoot:t.delivery?.taskRoot||run.sourceRoot});}} const repoRoots=[...new Set(Object.values(this.state.runs||{}).map(r=>r.sourceRoot).filter(Boolean))];
+    if(!this.shuttingDown && (!this.lastMaintenanceAt || Date.now()-this.lastMaintenanceAt>60000)){this.lastMaintenanceAt=Date.now();const worktrees=[]; for(const run of Object.values(this.state.runs||{})){ if(!TERMINAL.has(run.state)) continue; for(const taskId of run.taskIds||[]){const t=this.state.tasks[taskId]; if(t?.result?.worktree) worktrees.push({worktree:t.result.worktree,repoRoot:t.delivery?.taskRoot||run.sourceRoot});}} const repoRoots=[...new Set(Object.values(this.state.runs||{}).map(r=>r.sourceRoot).filter(Boolean))];
       const dependencyDue=!this.lastDependencyScanAt || Date.now()-this.lastDependencyScanAt>6*60*60*1000;
-      this.maintenance?.run({worktrees,driftRoots:repoRoots,dependencyRoots:dependencyDue?repoRoots:[],dependencyScan:dependencyDue}).then(r=>{if(dependencyDue)this.lastDependencyScanAt=Date.now();return this.event('maintenance.completed',{data:r,idempotencyKey:'maintenance:'+Math.floor(Date.now()/60000)})}).catch(e=>this.event('maintenance.failed',{error:String(e.message||e)}));}
+      const maintenance=this.maintenance?.run({worktrees,driftRoots:repoRoots,dependencyRoots:dependencyDue?repoRoots:[],dependencyScan:dependencyDue}).then(r=>{if(dependencyDue)this.lastDependencyScanAt=Date.now();return this.event('maintenance.completed',{data:r,idempotencyKey:'maintenance:'+Math.floor(Date.now()/60000)})}).catch(e=>this.event('maintenance.failed',{error:String(e.message||e)}));
+      if(maintenance){this.maintenanceTask=maintenance;maintenance.finally(()=>{if(this.maintenanceTask===maintenance)this.maintenanceTask=null;}).catch(()=>{});}
+    }
   }
 
   schedule(){
-    if(this.scheduler) return;
+    if(this.shuttingDown||this.scheduler) return;
     this.scheduler=setInterval(()=>{this.schedulerTick().catch(()=>{});this.heartbeat().catch(()=>{});},1000);
     this.scheduler.unref?.();
     this.schedulerTick().catch(()=>{});
@@ -462,7 +467,18 @@ class ControlPlane {
   }
   async getRun(id){return this.state.runs[id]||null;}
   async getTask(id){return this.state.tasks[id]||null;}
-  async shutdown(){if(this.scheduler)clearInterval(this.scheduler);for(const c of this.controllers.values())c.abort();this.controllers.clear();await this.remote?.stop();await this.webhook?.stop();await this.persist();}
+  async shutdown(){
+    this.shuttingDown=true;
+    if(this.scheduler){clearInterval(this.scheduler);this.scheduler=null;}
+    for(const c of this.controllers.values())c.abort();
+    this.controllers.clear();
+    await this.remote?.stop();
+    await this.webhook?.stop();
+    await this.persist();
+    const maintenance=this.maintenanceTask;
+    if(maintenance) await maintenance.catch(()=>{});
+    await this.persist();
+  }
 }
 
 module.exports={ControlPlane,STATES,TERMINAL,RISK};
