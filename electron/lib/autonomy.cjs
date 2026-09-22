@@ -4,6 +4,7 @@ const crypto = require('node:crypto');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
+const { resolveKnownCommand } = require('./command-resolver.cjs');
 const { redactSensitive } = require('./redaction.cjs');
 const { makeExecutionContract, validateExecutionContract } = require('./execution-contract.cjs');
 
@@ -23,18 +24,6 @@ const AUTONOMOUS_WORKERS = Object.freeze({
   opencode: { id: 'opencode', label: 'OpenCode', command: 'opencode', safety: 'permission-scoped' },
   'codex-cli': { id: 'codex-cli', label: 'Codex CLI', command: 'codex', safety: 'workspace-write-sandbox' }
 });
-
-function platformCommand(command) {
-  const value = String(command || '');
-  if (process.platform !== 'win32') return value;
-  const fixed = {
-    npm: 'npm.cmd',
-    npx: 'npx.cmd',
-    pnpm: 'pnpm.cmd',
-    yarn: 'yarn.cmd'
-  };
-  return fixed[value.toLowerCase()] || value;
-}
 
 function clampInteger(value, min, max, fallback) {
   const parsed = Number.parseInt(String(value ?? ''), 10);
@@ -230,7 +219,8 @@ function runProcess(command, args, options = {}) {
   } = options;
 
   return new Promise((resolve, reject) => {
-    const child = spawn(platformCommand(command), args, {
+    const resolved = resolveKnownCommand(command, args);
+    const child = spawn(resolved.command, resolved.args, {
       cwd,
       env: { ...process.env, ...env },
       windowsHide: true,
