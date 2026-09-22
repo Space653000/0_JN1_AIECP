@@ -49,6 +49,8 @@ No provider adapter may bypass SecurityPolicy. Provider selection changes the mo
 
 Source/unit checks and GitHub CI are repository-verifiable. Windows packaging/install smoke can also be repository-verifiable through GitHub Windows runners and is accepted only from the exact PR HEAD. `Local Ollama smoke` and `Canonical Harness E2E with Ollama` require an environment containing the actual Ollama/model artifacts; deterministic adapter tests must not be presented as real-model execution evidence.
 
+The repository includes `.github/workflows/provider-environment.yml` plus `scripts/provider-environment-verify.cjs` for this external evidence. It runs only on a dedicated `self-hosted + Windows + aecp-provider` runner, checks out an explicit source ref, and can verify: raw Ollama smoke, OpenCode+Ollama real file edit, fixed local/company command smoke, and a canonical Ollama Planner → OpenCode/Ollama Builder → deterministic Verify → Ollama Reviewer Harness loop. Evidence is emitted as `aecp.provider-environment-evidence/v1` and intentionally stores hashes/state/metrics rather than prompt or response bodies.
+
 ## Security invariant
 
-Local model execution does not grant shell, filesystem, network, credential, GitHub, merge, or system privileges. Those remain controlled by the same Control Plane policy and explicit approval gates used by cloud providers.
+Local model execution does not grant shell, filesystem, network, credential, GitHub, merge, or system privileges. Those remain controlled by the same Control Plane policy and explicit approval gates used by cloud providers. The real-provider evidence fixture runs in temporary directories and uses the same deny-first OpenCode policy; it is evidence of provider execution, not authority expansion.
