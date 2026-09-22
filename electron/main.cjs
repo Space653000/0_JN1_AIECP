@@ -15,6 +15,7 @@ const { clearEvidence, removeWorkspaceBinding, clearCredentials, resetActiveStat
 const { assertWithinRoot } = require('./lib/path-safety.cjs');
 const { redactSensitive } = require('./lib/redaction.cjs');
 const { SecurityPolicy } = require('./lib/security-policy.cjs');
+const { makeExecutionContract, updateExecutionContract } = require('./lib/execution-contract.cjs');
 const { normalizeWorkspacePolicy, compileWorkspacePolicy, editableActions } = require('./lib/workspace-policy.cjs');
 const { migrateState } = require('./lib/state-migration.cjs');
 const { recommendNextAction } = require('./lib/guidance.cjs');
@@ -394,6 +395,25 @@ async function startAutonomy(payload) {
 
   const runId = makeRunId();
   const runRoot = dataPath('autonomy', 'runs', runId);
+  const executionContract = makeExecutionContract({
+    goal: spec.goal,
+    done: spec.done,
+    workspaceId: workspace.id,
+    workspaceRoot: workspace.rootPath,
+    permissionPolicy: {
+      mode: 'LOCAL_AUTONOMOUS',
+      workspaceWrite: 'isolated-worktree-only',
+      applyToWorkspace: 'explicit-user-approval',
+      network: 'worker-policy',
+      highRisk: 'HUMAN_REQUIRED'
+    },
+    taskIds: [runId],
+    resultCapsuleRef: `local://autonomy/${runId}/run.json`,
+    evidenceRef: `local://autonomy/${runId}/verified.patch`,
+    traceRef: `local://autonomy/${runId}/run.json`,
+    transport: 'local-autonomous',
+    worker: spec.workerId
+  });
   const controller = new AbortController();
   autonomyController = controller;
   autonomyRecord = {
@@ -413,6 +433,7 @@ async function startAutonomy(payload) {
     maxPatchBytes: spec.maxPatchBytes,
     maxChangedFiles: spec.maxChangedFiles,
     currentIteration: 0,
+    executionContract,
     startedAt: new Date().toISOString()
   };
   await fsp.mkdir(runRoot, { recursive: true });
@@ -423,6 +444,7 @@ async function startAutonomy(payload) {
     sourceRoot: workspace.rootPath,
     runRoot,
     spec,
+    executionContract,
     signal: controller.signal,
     onEvent: async (event) => {
       const current = await readJson(path.join(runRoot, 'run.json'), autonomyRecord);
@@ -918,6 +940,11 @@ async function runTask(taskId) {
       facts: output.facts
     });
     task.resultHash = hashJson(task.result);
+    task.executionContract = updateExecutionContract(task.executionContract, {
+      resultCapsuleRef: `local://evidence/${task.id}/result.json`,
+      evidenceRef: `local://evidence/${task.id}/evidence.json`,
+      traceRef: `local://evidence/${task.id}/trace.jsonl`
+    });
     task.updatedAt = new Date().toISOString();
     await persistTask(task, output.evidence);
     await appendTrace(task.id, 'task.completed', { status: 'PASS', resultHash: task.resultHash });
@@ -933,6 +960,11 @@ async function runTask(taskId) {
       verification: { status: 'FAIL', method: 'operation-success', expected: true, actual: false },
       evidenceRef: `local://evidence/${task.id}`,
       facts: []
+    });
+    task.executionContract = updateExecutionContract(task.executionContract, {
+      resultCapsuleRef: `local://evidence/${task.id}/result.json`,
+      evidenceRef: `local://evidence/${task.id}/evidence.json`,
+      traceRef: `local://evidence/${task.id}/trace.jsonl`
     });
     task.updatedAt = new Date().toISOString();
     await persistTask(task, { error: error.message });
@@ -1520,8 +1552,9 @@ function registerIpc() {
     const state = await loadState();
     const workspace = getCurrentWorkspace(state);
     if (!workspace) throw new Error('Choose a Workspace before importing a task.');
+    const taskId = makeTaskId();
     const task = {
-      id: makeTaskId(),
+      id: taskId,
       workspaceId: workspace.id,
       title: card.title,
       goal: card.goal,
@@ -1529,6 +1562,24 @@ function registerIpc() {
       risk: 'GREEN',
       riskReason: 'Preview Command Cards expose read-only local capabilities only.',
       card,
+      executionContract: makeExecutionContract({
+        goal: card.goal,
+        done: 'The requested read-only operation succeeds and produces verified local evidence.',
+        workspaceId: workspace.id,
+        workspaceRoot: workspace.rootPath,
+        permissionPolicy: {
+          mode: 'WEB_SAFE_BRIDGE',
+          localCapabilities: [card.action.type],
+          escalation: 'explicit-user-action'
+        },
+        taskIds: [taskId],
+        commandCardRef: `local://evidence/${taskId}/task.json`,
+        resultCapsuleRef: `local://evidence/${taskId}/result.json`,
+        evidenceRef: `local://evidence/${taskId}/evidence.json`,
+        traceRef: `local://evidence/${taskId}/trace.jsonl`,
+        transport: 'web-safe-bridge',
+        worker: 'fixed-read-only-adapter'
+      }),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
