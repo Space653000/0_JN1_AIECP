@@ -26,7 +26,7 @@ const state = {
 };
 
 const $ = (selector) => document.querySelector(selector);
-const $ = (selector) => [...document.querySelectorAll(selector)];
+const selectAll = (selector) => [...document.querySelectorAll(selector)];
 const tr = (key, fallback = '') => window.AECPI18N?.t(key, fallback) || fallback || key;
 let providerFocusReturn = null;
 
@@ -161,7 +161,7 @@ function renderTools() {
 }
 
 function renderTabs() {
-  $('.view-tab').forEach((button) => {
+  selectAll('.view-tab').forEach((button) => {
     const active = button.dataset.view === state.view;
     button.classList.toggle('active', active);
     button.setAttribute('aria-selected', active ? 'true' : 'false');
@@ -922,7 +922,7 @@ function bindEvents() {
   $('#settingsButton').addEventListener('click', openProviderSettings);
   $('#closeProviderButton').addEventListener('click', closeProviderSettings);
   $('#cancelProviderButton').addEventListener('click', closeProviderSettings);
-  $$('.view-tab').forEach((button) => button.addEventListener('click', () => setView(button.dataset.view)));
+  selectAll('.view-tab').forEach((button) => button.addEventListener('click', () => setView(button.dataset.view)));
 
   $('#providerForm').addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -950,7 +950,7 @@ function bindEvents() {
       return;
     }
     if ((event.key === 'ArrowLeft' || event.key === 'ArrowRight') && event.target?.classList?.contains('view-tab')) {
-      const tabs = $('.view-tab').filter((tab) => !tab.classList.contains('engineering-only') || state.engineering);
+      const tabs = selectAll('.view-tab').filter((tab) => !tab.classList.contains('engineering-only') || state.engineering);
       const current = tabs.indexOf(event.target);
       const delta = event.key === 'ArrowRight' ? 1 : -1;
       const target = tabs[(current + delta + tabs.length) % tabs.length];
