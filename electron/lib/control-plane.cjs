@@ -20,6 +20,7 @@ const { RemoteGateway } = require('./remote-gateway.cjs');
 const { GitHubWebhookReceiver } = require('./github-webhook.cjs');
 const { recommend: recommendRecovery } = require('./failure-recovery.cjs');
 const { audit: auditAdapters } = require('./adapter-security-audit.cjs');
+const { acceptedTaskEvidence, validateAcceptedTaskEvidence } = require('./accepted-evidence.cjs');
 
 const SCHEMA='aecp.control-plane/v1';
 const STATES=Object.freeze(['PLANNING','QUEUED','RUNNING','VERIFYING','REVIEWING','REWORK','DONE','BLOCKED','HUMAN_REQUIRED','FAILED','CANCELLED','PAUSED']);
@@ -367,8 +368,23 @@ class ControlPlane {
           this.monitorDeliveryCI(run,task).catch(async e=>{task.ciError=String(e.message||e);await this.event('delivery.ci_monitor_error',{runId:run.id,taskId:task.id,error:task.ciError});});
         }catch(e){task.deliveryError=String(e.message||e);await this.event('delivery.blocked',{runId:run.id,taskId:task.id,error:task.deliveryError});}
       }
-      if(result.state==='DONE' && result.patch) { task.evidence=await this.evidence.write(run.id,task.id+'-result.json',{task,result}); }
-      if(result.state==='DONE') { task.phase='COMPLETED'; task.resultCapsule=await this.contextBus.write('result',{runId:run.id,taskId:task.id,state:task.state,evidence:task.evidence||null,verification:result.tasks}); }
+      if(result.state==='DONE' && result.patch) {
+        task.evidence=await this.evidence.write(run.id,task.id+'-result.json',{task,result});
+        const accepted=acceptedTaskEvidence({run,task,result});
+        const acceptedCheck=validateAcceptedTaskEvidence(accepted);
+        if(!acceptedCheck.ok) throw Object.assign(new Error('Accepted-task evidence is incomplete: '+acceptedCheck.errors.join(', ')),{code:'EVIDENCE_INCOMPLETE'});
+        task.acceptedEvidence=await this.evidence.write(run.id,task.id+'-accepted-evidence.json',accepted);
+        const manifestItems=[
+          {type:'task-result',file:task.evidence.file},
+          {type:'accepted-task',file:task.acceptedEvidence.file},
+          {type:'harness-record',file:path.join(result.runRoot,'harness.json')},
+          {type:'verified-patch',file:result.patch.file}
+        ];
+        const eventFile=path.join(this.evidence.root,run.id,'events.jsonl');
+        try{await fs.access(eventFile);manifestItems.push({type:'event-journal',file:eventFile});}catch{}
+        task.evidenceManifest=await this.evidence.manifest(run.id,manifestItems);
+      }
+      if(result.state==='DONE') { task.phase='COMPLETED'; task.resultCapsule=await this.contextBus.write('result',{runId:run.id,taskId:task.id,state:task.state,evidence:task.evidenceManifest||task.evidence||null,verification:result.tasks}); }
       if(task.state==='HUMAN_REQUIRED') await this.requestApproval(run,task,'Harness requested human approval.');
       await this.event('task.finished',{runId:run.id,taskId:task.id,state:task.state});
     }catch(e){
