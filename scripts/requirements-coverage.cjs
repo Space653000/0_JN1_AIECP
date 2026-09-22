@@ -45,7 +45,7 @@ const matrix={
   'R7.1':{classes:['CI'],evidence:['.github/workflows/ci.yml']},
   'R7.2':{classes:['CI','ENVIRONMENT'],evidence:['.github/workflows/ci.yml']},
   'R7.3':{classes:['CI'],evidence:['.github/workflows/release.yml','scripts/validate-store-package.ps1']},
-  'R7.4':{classes:['STATIC','OWNER/EXTERNAL'],evidence:['Blueprint/08_ROADMAP_ACCEPTANCE.md','Blueprint/23_IMPLEMENTATION_STATUS.md']},
+  'R7.4':{classes:['STATIC','TESTED','OWNER/EXTERNAL'],evidence:['electron/lib/authenticode.cjs','tests/authenticode.test.cjs','.github/workflows/signed-release.yml','Blueprint/08_ROADMAP_ACCEPTANCE.md','Blueprint/23_IMPLEMENTATION_STATUS.md']},
   'R7.5':{classes:['TESTED'],evidence:['tests/human-controls.test.cjs','Blueprint/00_MASTER_BLUEPRINT.md']},
   'R8.1':{classes:['TESTED'],evidence:['tests/human-controls.test.cjs']},
   'R8.2':{classes:['STATIC','TESTED'],evidence:['ui/app.js','tests/i18n-accessibility.test.cjs']},
