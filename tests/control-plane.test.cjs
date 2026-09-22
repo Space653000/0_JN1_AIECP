@@ -370,7 +370,7 @@ test('scheduler isolates mutating work by task worktree instead of serializing t
       maxIterations:3,
       providers:{planner:'claude',builder:'codex',reviewer:'claude'},
       models:{planner:null,builder:null,reviewer:null},
-      providerApprovals:{network:false,credential:false}
+      providerApprovals:{network:true,credential:false}
     };
     const taskA={id:'task-a',runId:run.id,state:'RUNNING',resources:{repositories:[workspace]}};
     const taskB={id:'task-b',runId:run.id,state:'QUEUED',risk:'YELLOW',priority:50,attempts:0,dependencies:[],resources:{repositories:[workspace]}};
