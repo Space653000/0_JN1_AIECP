@@ -23,7 +23,7 @@ const matrix={
   '13_TRIPLE_AUDIT.md':{type:'HISTORICAL',evidence:['Blueprint/23_IMPLEMENTATION_STATUS.md']},
   '14_GUIDED_UX_AND_GOAL_LOOP.md':{type:'FUNCTIONAL',evidence:['electron/lib/guidance.cjs','electron/lib/harness.cjs','ui/app.js','tests/guidance.test.cjs','tests/human-controls.test.cjs','tests/harness-bounds.test.cjs']},
   '15_SELF_EVOLUTION_PRIVATE_UPDATE_AGENT_INTEROP.md':{type:'FUNCTIONAL',evidence:['electron/lib/update-state.cjs','electron/lib/authenticode.cjs','electron/lib/backup-manager.cjs','tests/update-state.test.cjs','tests/authenticode.test.cjs','tests/backup-manager.test.cjs','.github/workflows/release.yml','.github/workflows/signed-release.yml']},
-  '16_CONSTRAINT_RESOLUTION_DISTRIBUTION_EXECUTION_MODES.md':{type:'FUNCTIONAL',evidence:['.github/workflows/store-package.yml','scripts/validate-store-package.ps1','electron/mcp-server.mjs','electron/lib/autonomy.cjs','tests/autonomy.test.cjs','tests/human-controls.test.cjs','tests/mcp-server.test.cjs']},
+  '16_CONSTRAINT_RESOLUTION_DISTRIBUTION_EXECUTION_MODES.md':{type:'FUNCTIONAL',evidence:['.github/workflows/store-package.yml','scripts/validate-store-package.ps1','electron/mcp-server.mjs','electron/lib/execution-contract.cjs','electron/lib/autonomy.cjs','electron/lib/harness.cjs','electron/lib/control-plane.cjs','tests/execution-contract.test.cjs','tests/autonomy.test.cjs','tests/human-controls.test.cjs','tests/mcp-server.test.cjs']},
   '17_V0_2_TRIPLE_AUDIT.md':{type:'HISTORICAL',evidence:['Blueprint/23_IMPLEMENTATION_STATUS.md']},
   '18_BOUNDED_AUTONOMOUS_EXECUTION.md':{type:'FUNCTIONAL',evidence:['electron/lib/autonomy.cjs','tests/autonomy.test.cjs']},
   '19_V0_3_TRIPLE_AUDIT.md':{type:'HISTORICAL',evidence:['Blueprint/23_IMPLEMENTATION_STATUS.md']},
