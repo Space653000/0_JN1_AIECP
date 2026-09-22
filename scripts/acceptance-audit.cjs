@@ -16,6 +16,7 @@ const requiredFiles=[
  ['adapter-security-audit','electron/lib/adapter-security-audit.cjs'],
  ['failure-recovery','electron/lib/failure-recovery.cjs'],
  ['event-ledger','electron/lib/event-ledger.cjs'],
+ ['event-projection','electron/lib/event-projection.cjs'],
  ['evidence-manager','electron/lib/evidence-manager.cjs'],
  ['resource-manager','electron/lib/resource-manager.cjs'],
  ['lock-manager','electron/lib/lock-manager.cjs'],
@@ -38,6 +39,8 @@ const requiredFiles=[
  ['universal-bootstrap-project','release/universal-bootstrap/UniversalBootstrap.csproj'],
  ['e2e-canonical','tests/canonical-loop.e2e.test.cjs'],
  ['e2e-provider','tests/provider-router.e2e.test.cjs'],
+ ['event-projection-test','tests/event-projection.test.cjs'],
+ ['provider-integration-test','tests/provider-integration.test.cjs'],
  ['e2e-security-recovery','tests/security-recovery-matrix.test.cjs'],
  ['e2e-pairing','tests/remote-pairing.test.cjs']
 ];
@@ -118,6 +121,17 @@ const staticInvariants=[
  ]),
  invariant('canonical-loop-e2e','tests/canonical-loop.e2e.test.cjs',[
   {label:'canonical deterministic test',re:/canonical loop/i}
+ ]),
+ invariant('event-materialization','electron/lib/control-plane.cjs',[
+  {label:'projectEvents imported',re:/projectEvents/},
+  {label:'event projection exposed',re:/eventProjection=projectEvents/}
+ ]),
+ invariant('provider-selection-ui','ui/app.js',[
+  {label:'planner selector',re:/harnessPlannerProvider/},
+  {label:'builder selector',re:/harnessBuilderProvider/},
+  {label:'reviewer selector',re:/harnessReviewerProvider/},
+  {label:'network approval',re:/providerNetworkApproved/},
+  {label:'credential approval',re:/providerCredentialApproved/}
  ])
 ];
 
