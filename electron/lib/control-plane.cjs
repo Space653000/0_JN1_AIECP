@@ -48,7 +48,13 @@ class ControlPlane {
     this.ledger=new EventLedger(this.eventFile+'.ledger');
     this.resources=new ResourceManager(path.join(this.rootDir,'resources'));
     this.maintenance=null;
-    this.remote=new RemoteGateway({status:()=>this.status(),replay:(runId,limit)=>this.replay(runId,limit),...remoteOptions});
+    this.remote=new RemoteGateway({
+      ...remoteOptions,
+      status:()=>this.status(),
+      replay:(runId,limit)=>this.replay(runId,limit),
+      approve:(approvalId,ctx)=>this.approve(approvalId,{by:'remote:'+String(ctx?.deviceId||'device'),note:'Remote paired approval',idempotencyKey:ctx?.requestId}),
+      reject:(approvalId,ctx)=>this.reject(approvalId,{by:'remote:'+String(ctx?.deviceId||'device'),note:'Remote paired rejection',idempotencyKey:ctx?.requestId})
+    });
     this.webhook=new GitHubWebhookReceiver({secret:process.env.AECP_GITHUB_WEBHOOK_SECRET,port:Number(process.env.AECP_GITHUB_WEBHOOK_PORT||0),onEvent:(e)=>this.ingestExternalEvent(e)});
   }
 
@@ -236,10 +242,13 @@ class ControlPlane {
     await this.persist(); await this.event('mission.cancelled',{runId:id}); return run;
   }
 
-  async approve(id,{by='human',note=''}={}){
+  async approve(id,{by='human',note='',idempotencyKey=null}={}){
     const a=this.state.approvals[id]; if(!a) throw new Error('Approval not found.');
-    if(a.state!=='WAITING') throw new Error('Approval is not waiting.');
-    a.state='APPROVED'; a.decidedAt=now(); a.decidedBy=by; a.note=note;
+    if(a.state!=='WAITING'){
+      if(idempotencyKey&&a.decisionIdempotencyKey===idempotencyKey&&a.state==='APPROVED') return a;
+      throw new Error('Approval is not waiting.');
+    }
+    a.state='APPROVED'; a.decidedAt=now(); a.decidedBy=by; a.note=note; a.decisionIdempotencyKey=idempotencyKey||null;
     const run=this.state.runs[a.runId];
     if(run && a.action==='NETWORK'){run.providerApprovals||={};run.providerApprovals.network=true;}
     if(run && a.action==='CREDENTIAL'){run.providerApprovals||={};run.providerApprovals.credential=true;}
@@ -255,9 +264,13 @@ class ControlPlane {
     this.schedule(); return a;
   }
 
-  async reject(id,{by='human',note='Rejected'}={}){
+  async reject(id,{by='human',note='Rejected',idempotencyKey=null}={}){
     const a=this.state.approvals[id]; if(!a) throw new Error('Approval not found.');
-    a.state='REJECTED';a.decidedAt=now();a.decidedBy=by;a.note=note;
+    if(a.state!=='WAITING'){
+      if(idempotencyKey&&a.decisionIdempotencyKey===idempotencyKey&&a.state==='REJECTED') return a;
+      throw new Error('Approval is not waiting.');
+    }
+    a.state='REJECTED';a.decidedAt=now();a.decidedBy=by;a.note=note;a.decisionIdempotencyKey=idempotencyKey||null;
     const task=this.state.tasks[a.taskId]; if(task) task.state='BLOCKED';
     const run=this.state.runs[a.runId]; if(run&&!a.taskId){run.state='BLOCKED';run.blockedAt=now();run.blockReason=note;}
     await this.persist(); await this.event('approval.rejected',{runId:a.runId,taskId:a.taskId,approvalId:id});
