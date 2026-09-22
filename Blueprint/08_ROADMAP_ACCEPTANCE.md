@@ -200,8 +200,10 @@ P5 desktop capability is implemented only within its intended boundary: general 
 
 P6 supervision boundary is implemented: loopback-first Remote Gateway, short-lived one-time pairing, READ_ONLY and APPROVAL_ONLY device scopes, revocation, request-id replay protection, encrypted TLS transport for explicitly enabled non-loopback binding, and read-only task/result projection. APPROVAL_ONLY can decide only existing approvals; remote task submission remains intentionally disabled by design.
 
-Distribution software-side acceptance includes x64/ARM64 packaging, universal architecture selection, Windows-runner install/uninstall smoke gates, SHA-256 verification, updater transaction/first-boot/rollback foundations, backup/restore, localization/accessibility tests and dependency/license/security gates. These are accepted only when **AECP CI + AECP Security + AECP Packaging pass on the exact PR HEAD**.
+Distribution software-side acceptance includes x64/ARM64 packaging, universal architecture selection, Windows-runner install/uninstall plus baseline→upgrade→rollback smoke gates, Store AppX x64/ARM64 manifest validation, SHA-256/provenance, updater transaction/first-boot/rollback, backup/restore, localization/accessibility, dependency/license/security and owner-gated signed-release preparation. These are accepted only from successful exact-HEAD GitHub Actions, including the non-publishing `Build and Release` PR dry-run.
 
 The remaining items that repository code must not fabricate are **EXTERNAL OWNER GATE** operations: production Authenticode/code-signing identity, Microsoft Store publisher/certification/submission, real third-party/provider credentials for provider-specific production claims, and optional public/LAN deployment identity/domain/TLS ownership.
 
 GitHub Actions PR workflows must explicitly checkout `pull_request.head.sha`; testing only the synthetic PR merge ref is not sufficient evidence for the exact-head acceptance rule.
+
+Canonical verification also runs `scripts/roadmap-gate-audit.cjs`, which parses every normative P0–P7 Deliverable/Acceptance/Required bullet in this file, classifies repository-verifiable vs bounded-security vs owner-required items, and emits `artifacts/roadmap-gates.json`. Any unclassified phase or missing repository evidence fails verification.
