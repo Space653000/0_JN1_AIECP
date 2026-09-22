@@ -105,6 +105,19 @@ const staticInvariants=[
   {label:'patch byte budget',re:/maxPatchBytes/},
   {label:'changed file budget',re:/maxChangedFiles/}
  ]),
+ invariant('autonomy-crash-resume','electron/lib/autonomy.cjs',[
+  {label:'resume record',re:/resumeRecord/},
+  {label:'interrupted-only resume',re:/Only an INTERRUPTED autonomous run can resume/},
+  {label:'immutable persisted spec',re:/cannot change the persisted run specification/},
+  {label:'same source HEAD',re:/Workspace HEAD changed since the interrupted autonomous run/},
+  {label:'same persisted worktree',re:/Persisted autonomous worktree/}
+ ]),
+ invariant('autonomy-crash-resume-ui','electron/main.cjs',[
+  {label:'persist interrupted state',re:/record\.state = 'INTERRUPTED'/},
+  {label:'resume IPC',re:/autonomy:resume/},
+  {label:'resume function',re:/async function resumeAutonomy/}
+ ]),
+
  invariant('local-data-governance','electron/lib/local-data-manager.cjs',[
   {label:'clear evidence',re:/async function clearEvidence/},
   {label:'remove Workspace binding',re:/function removeWorkspaceBinding/},
