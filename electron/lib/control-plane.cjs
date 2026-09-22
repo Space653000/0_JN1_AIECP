@@ -21,6 +21,7 @@ const { GitHubWebhookReceiver } = require('./github-webhook.cjs');
 const { recommend: recommendRecovery } = require('./failure-recovery.cjs');
 const { audit: auditAdapters } = require('./adapter-security-audit.cjs');
 const { acceptedTaskEvidence, validateAcceptedTaskEvidence } = require('./accepted-evidence.cjs');
+const { redactSensitive } = require('./redaction.cjs');
 
 const SCHEMA='aecp.control-plane/v1';
 const STATES=Object.freeze(['PLANNING','QUEUED','RUNNING','VERIFYING','REVIEWING','REWORK','DONE','BLOCKED','HUMAN_REQUIRED','FAILED','CANCELLED','PAUSED']);
@@ -81,7 +82,7 @@ class ControlPlane {
 
   async persist(){
     this.state.updatedAt=now();
-    const payload=JSON.stringify(this.state,null,2);
+    const payload=JSON.stringify(redactSensitive(this.state),null,2);
     const tmp=this.file+'.tmp-'+process.pid+'-'+(++this.persistSequence);
     const write=async()=>{
       await fs.writeFile(tmp,payload,'utf8');
@@ -93,7 +94,7 @@ class ControlPlane {
   }
 
   async event(type,data={}){
-    const e={schema:'aecp.event/v1',id:uid('evt'),at:now(),type,correlationId:data.correlationId||data.runId||null,...data};
+    const e=redactSensitive({schema:'aecp.event/v1',id:uid('evt'),at:now(),type,correlationId:data.correlationId||data.runId||null,...data});
     const ledger=await this.ledger.append({...e,idempotencyKey:data.idempotencyKey||null});
     if(ledger.duplicate) return e;
     await fs.appendFile(this.eventFile,JSON.stringify(e)+'\n','utf8');
