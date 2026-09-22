@@ -784,6 +784,35 @@ async function restoreBackup() {
   if (result?.ok) toast('Restore staged and verified. AECP will restart to apply it.');
 }
 
+async function clearEvidenceData() {
+  const result = await safe(() => window.aecp.clearEvidence());
+  if (!result) return;
+  toast('AECP evidence cleared. Workspace files were not touched.');
+  await loadAll();
+}
+
+async function removeWorkspaceBindingData() {
+  const result = await safe(() => window.aecp.removeWorkspaceBinding());
+  if (!result) return;
+  toast(result.removed ? 'Workspace binding removed. Original project files remain untouched.' : 'No Workspace binding to remove.');
+  await loadAll();
+}
+
+async function clearCredentialData() {
+  const result = await safe(() => window.aecp.clearStoredCredentials());
+  if (!result) return;
+  toast('Stored AECP credentials cleared.');
+  await loadAll();
+}
+
+async function resetLocalStateData() {
+  const result = await safe(() => window.aecp.resetLocalState());
+  if (!result) return;
+  toast('AECP local state reset. Workspace/project files remain untouched.');
+  closeProviderSettings();
+  await loadAll();
+}
+
 async function chooseWorkspace() {
   const workspace = await safe(() => window.aecp.selectWorkspace());
   if (!workspace) return;
@@ -1007,6 +1036,10 @@ function bindEvents() {
   $('#rollbackUpdateButton').addEventListener('click', rollbackUpdate);
   $('#exportBackupButton').addEventListener('click', exportBackup);
   $('#restoreBackupButton').addEventListener('click', restoreBackup);
+  $('#clearEvidenceButton').addEventListener('click', clearEvidenceData);
+  $('#removeWorkspaceBindingButton').addEventListener('click', removeWorkspaceBindingData);
+  $('#clearCredentialsButton').addEventListener('click', clearCredentialData);
+  $('#resetLocalStateButton').addEventListener('click', resetLocalStateData);
   $('#connectGitHubButton').addEventListener('click', connectGitHub);
   $('#openReleasesButton').addEventListener('click', () => safe(() => window.aecp.openReleases()));
   $('#importClipboardButton').addEventListener('click', importFromClipboard);
