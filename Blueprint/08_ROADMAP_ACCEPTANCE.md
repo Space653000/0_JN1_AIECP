@@ -148,9 +148,9 @@ Acceptance:
 Deliverables:
 - authenticated Remote Gateway or supported official integration
 - device pairing/revocation
-- encrypted task transport
+- encrypted supervision/status/approval transport
 - replay protection
-- remote task/result status
+- remote task/result status as a read-only projection; remote task submission remains intentionally disabled
 
 Acceptance:
 - no public inbound port by default
@@ -198,7 +198,7 @@ P4.7 core software acceptance is implemented: durable queue/scheduler, dependenc
 
 P5 desktop capability is implemented only within its intended boundary: general Windows UI Automation is read-only, browser/ChatGPT automation-tree inspection is deny-by-default, and state-changing window docking requires SYSTEM approval. Arbitrary GUI control is not exposed.
 
-P6 supervision foundation is implemented: loopback-first Remote Gateway, short-lived one-time pairing, READ_ONLY and APPROVAL_ONLY device scopes, revocation, request-id replay protection, and TLS requirement for any explicitly enabled non-loopback binding. APPROVAL_ONLY can decide only existing approvals; remote task submission remains disabled.
+P6 supervision boundary is implemented: loopback-first Remote Gateway, short-lived one-time pairing, READ_ONLY and APPROVAL_ONLY device scopes, revocation, request-id replay protection, encrypted TLS transport for explicitly enabled non-loopback binding, and read-only task/result projection. APPROVAL_ONLY can decide only existing approvals; remote task submission remains intentionally disabled by design.
 
 Distribution software-side acceptance includes x64/ARM64 packaging, universal architecture selection, Windows-runner install/uninstall smoke gates, SHA-256 verification, updater transaction/first-boot/rollback foundations, backup/restore, localization/accessibility tests and dependency/license/security gates. These are accepted only when **AECP CI + AECP Security + AECP Packaging pass on the exact PR HEAD**.
 
