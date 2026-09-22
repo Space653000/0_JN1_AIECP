@@ -48,10 +48,10 @@ const matrix={
   'R7.4':{classes:['STATIC','TESTED','OWNER/EXTERNAL'],evidence:['electron/lib/authenticode.cjs','tests/authenticode.test.cjs','.github/workflows/signed-release.yml','Blueprint/08_ROADMAP_ACCEPTANCE.md','Blueprint/23_IMPLEMENTATION_STATUS.md']},
   'R7.5':{classes:['TESTED'],evidence:['tests/human-controls.test.cjs','Blueprint/00_MASTER_BLUEPRINT.md']},
   'R8.1':{classes:['TESTED'],evidence:['tests/human-controls.test.cjs']},
-  'R8.2':{classes:['STATIC','TESTED'],evidence:['ui/app.js','tests/i18n-accessibility.test.cjs','electron/lib/execution-contract.cjs','tests/execution-contract.test.cjs']},
+  'R8.2':{classes:['STATIC','TESTED'],evidence:['ui/app.js','ui/harness-console.js','tests/i18n-accessibility.test.cjs','tests/dashboard-acceptance.test.cjs','electron/lib/execution-contract.cjs','tests/execution-contract.test.cjs']},
   'R8.3':{classes:['TESTED'],evidence:['tests/human-controls.test.cjs']},
-  'R8.4':{classes:['STATIC','TESTED'],evidence:['ui/app.js','tests/human-controls.test.cjs']},
-  'R8.5':{classes:['TESTED'],evidence:['tests/human-controls.test.cjs','tests/control-plane.test.cjs']}
+  'R8.4':{classes:['STATIC','TESTED'],evidence:['ui/app.js','ui/harness-console.js','tests/human-controls.test.cjs','tests/dashboard-acceptance.test.cjs']},
+  'R8.5':{classes:['TESTED'],evidence:['tests/human-controls.test.cjs','tests/control-plane.test.cjs','tests/dashboard-acceptance.test.cjs']}
 };
 
 const body=fs.readFileSync(requirementsFile,'utf8');
