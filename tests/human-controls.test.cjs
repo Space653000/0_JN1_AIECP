@@ -115,3 +115,18 @@ test('mutating local runtimes are mutually exclusive rather than racing the same
   assert.match(main,/startAutonomy[\s\S]*if \(harnessController\) throw new Error\('Stop the active Harness run before starting bounded autonomy\.'/);
   assert.match(main,/startAutonomy[\s\S]*controlPlane\?\.hasActiveWork/);
 });
+
+
+test('Goal Loop exposes complete bounded budgets and passes them to Harness',()=>{
+  const app=read('ui/app.js');
+  for(const id of ['loopIterations','loopTurns','loopFailures','loopWallMinutes','loopProviderCost','loopLocalComputeMinutes','loopCheckpoint']){
+    assert.match(app,new RegExp('id="' + id + '"'));
+  }
+  assert.match(app,/maxProviderReportedCost/);
+  assert.match(app,/maxLocalComputeMs/);
+  assert.match(app,/PROVIDER_COST_BUDGET/);
+  assert.match(app,/LOCAL_COMPUTE_BUDGET/);
+  assert.match(app,/Maximum agent\/tool turns/);
+  assert.match(app,/Provider-reported cost budget/);
+  assert.match(app,/Local compute budget/);
+});
