@@ -51,6 +51,29 @@ Source/unit checks and GitHub CI are repository-verifiable. Windows packaging/in
 
 The repository includes `.github/workflows/provider-environment.yml` plus `scripts/provider-environment-verify.cjs` for this external evidence. It runs only on a dedicated `self-hosted + Windows + aecp-provider` runner, checks out an explicit source ref, and can verify: raw Ollama smoke, OpenCode+Ollama real file edit, fixed local/company command smoke, and a canonical Ollama Planner → OpenCode/Ollama Builder → deterministic Verify → Ollama Reviewer Harness loop. Evidence is emitted as `aecp.provider-environment-evidence/v1` and intentionally stores hashes/state/metrics rather than prompt or response bodies.
 
+## OFFICIAL / PEGA Worker environment verification extension
+
+Repository tests may prove Worker isolation, Provider Adapter routing, worktree locking, cancellation isolation, Dashboard projection and mock/loopback API compatibility.
+
+They may **not** claim real PEGA success without an actual environment run against:
+
+`https://aiapi.t-cyber.com/v1`
+
+Real PEGA evidence must identify the exact source commit, worker identity, isolated `CODEX_HOME` identity/hash, negotiated API family, actual model identifier, health result, bounded task result and deterministic verifier result. Credentials and prompt/response bodies must not be persisted.
+
+Real OFFICIAL and PEGA Worker runs are separate ENVIRONMENT evidence. One passing does not imply the other passed.
+
+Required environment cases:
+
+1. Codex OFFICIAL starts with its own `CODEX_HOME` and performs a bounded task.
+2. Codex PEGA starts with a different `CODEX_HOME` and performs a bounded task.
+3. PEGA Chat Completions-compatible path is checked when supported.
+4. PEGA Responses-compatible path is checked when supported.
+5. Unsupported API family is reported as capability-unavailable rather than silently remapped.
+6. Both Workers may execute separate tasks concurrently with separate worktrees.
+7. PEGA failure does not terminate OFFICIAL or Web Safe Bridge.
+8. OFFICIAL failure does not terminate PEGA or Web Safe Bridge.
+
 ## Security invariant
 
-Local model execution does not grant shell, filesystem, network, credential, GitHub, merge, or system privileges. Those remain controlled by the same Control Plane policy and explicit approval gates used by cloud providers. The real-provider evidence fixture runs in temporary directories and uses the same deny-first OpenCode policy; it is evidence of provider execution, not authority expansion.
+Local/provider Worker execution does not grant shell, filesystem, network, credential, GitHub, merge, or system privileges. Those remain controlled by the same Control Plane policy and explicit approval gates used by cloud providers. The real-provider evidence fixture runs in temporary directories and uses the same deny-first policy; it is evidence of provider execution, not authority expansion.
