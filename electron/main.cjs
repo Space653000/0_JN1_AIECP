@@ -276,7 +276,7 @@ async function startHarness(payload) {
   const providerRouter = await buildRuntimeProviderRouter();
   const policy = new SecurityPolicy({ allowRoots: [workspace.rootPath, runRoot] });
   void runHarness({
-    ...payload, sourceRoot: workspace.rootPath, runRoot, signal: controller.signal,
+    ...payload, sourceRoot: workspace.rootPath, workspaceId: workspace.id, runRoot, signal: controller.signal,
     providerRouter, policy,
     onEvent: async (event) => {
       harnessRecord = { ...harnessRecord, state: event.state, events: [...(harnessRecord.events || []), event] };
