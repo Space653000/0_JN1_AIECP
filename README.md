@@ -440,13 +440,15 @@ OpenCode 特別適合作為 Local Autonomous worker，因為它可以作為本�
 | Bounded autonomous file modification | ✅ | isolated Git worktree + deterministic verification + verified patch/apply |
 | Harness Planner → Builder → Verify → Reviewer | ✅ | bounded multi-task orchestration with rework and HUMAN_REQUIRED stop states |
 | Durable scheduler / bounded parallel workers | ✅ | persisted queue, leases, recovery, concurrency and locks |
-| GitHub delivery gateway / CI foundation | ✅ foundation | governed GitHub primitives + CI/security workflows; full event callback/auto-merge remains gated |
-| Autonomous Git commit/push | ❌ | v0.3 刻意保持未 commit；push/publish 仍需後續高風險 gate |
-| Arbitrary Windows GUI control | ❌ | 後續 desktop-control adapter |
+| Governed GitHub delivery / CI | ✅ | governed branch/commit/push/Draft PR, exact-HEAD CI feedback, signed webhook ingestion; merge remains human-gated |
+| Unrestricted autonomous publish/merge | ❌ | commit/push/PR only through governed delivery policy; merge/delete/credential/system remain approval-gated |
+| Windows UI Automation (read-only) | ✅ scoped | general Windows UI tree inspection; browser/ChatGPT inspection deny-by-default; window-state changes require SYSTEM approval |
+| Arbitrary Windows GUI control | ❌ | unrestricted desktop control is intentionally not exposed |
 | ChatGPT DOM scraping/injection | ❌ | 不是產品方向 |
-| Role-based provider router | ✅ foundation | Claude/Codex/Gemini/OpenCode/Ollama adapters behind stable roles |
-| Public Remote MCP exposure | ❌ | 不自動把本機暴露到公網 |
-| Mobile remote local execution | ❌ | Roadmap，不是 v0.3.0 功能 |
+| Role-based provider router | ✅ | Claude/Codex/Gemini/OpenCode/Ollama plus fixed local-command/OpenAI-compatible foundations behind stable roles |
+| Remote supervision / pairing | ✅ scoped | READ_ONLY and APPROVAL_ONLY paired devices, revocation and replay-safe approval of existing requests |
+| Public Remote MCP exposure | ❌ | non-loopback requires explicit enablement + TLS; no public inbound port by default |
+| Remote task submission | ❌ | paired remote clients cannot create tasks; this remains intentionally disabled |
 
 ---
 
@@ -649,7 +651,7 @@ The **Blueprint is the product source of truth**. The complete architecture is n
 
 **Blueprint complete:** the target end-state architecture, contracts, security boundaries, UX, event model, multi-repo model, provider abstraction, autonomous loop and acceptance gates are documented.
 
-**Implementation is staged:** v0.3.0 Preview currently provides the safe bridge, workspace/task UI, local detection, bounded isolated-worktree autonomous worker, deterministic verification, evidence and verified-patch apply flow. The v0.3.x runtime now includes a bounded Planner → Builder → Verify → Reviewer orchestration path. It is deliberately sequential and bounded; durable multi-process scheduling, parallel workers, GitHub PR automation and CI-event feedback remain the next hardening stage.
+**Implementation is staged but the governed core loop is now implemented:** v0.3.0 Preview includes the safe bridge, durable Mission/Task scheduler, dependency/resource routing, bounded parallel execution, isolated worktrees, Planner → Builder → deterministic Verify → Reviewer, evidence, governed GitHub branch/commit/push/Draft PR delivery, CI feedback/rework, signed webhook ingestion and human-gated merge. Remaining gates are release trust, real provider/environment evidence, and deliberately restricted remote/public capabilities—not a redesign of the core loop.
 
 ### Canonical end-state loop
 
@@ -690,7 +692,7 @@ The current hardening stage adds the runtime infrastructure required for a gover
 - **EvidenceManager** — hashed evidence files and manifests.
 - **ContextBus** — bounded, expiring Context/Result Capsules so large repositories and logs do not flow through model prompts.
 - **ProviderRouter** — role-based provider selection for Claude, Codex, Gemini, OpenCode and Ollama without making the control plane vendor-dependent.
-- **GitHubGateway** — authenticated branch/commit/push/PR/check/workflow primitives for the future governed delivery loop.
+- **GitHubGateway** — authenticated branch/commit/push/Draft PR/check/workflow primitives used by the governed delivery loop; merge remains explicit human approval.
 - **CI/security workflows** — deterministic verification and dependency/security checks.
 - **Mission activation** — automatic planner decomposition is now part of mission creation; a mission does not enter execution without a generated task plan.
 - **Workspace locking** — concurrent tasks cannot silently mutate the same workspace at the same time.
@@ -699,7 +701,7 @@ The current hardening stage adds the runtime infrastructure required for a gover
 The system still deliberately refuses to make high-risk operations autonomous by default. Push, merge, delete, credential and system-level actions remain approval-gated. This is a safety property, not a missing feature.
 
 
-# Current Engineering Status — 2026-09-19
+# Current Engineering Status — 2026-09-22
 
 > **Implementation truth:** AECP is now a working governed Control Plane prototype. The Blueprint and runtime have been synchronized to the same architecture. A roadmap item is not marked complete until code and verification exist.
 
@@ -725,19 +727,16 @@ The system still deliberately refuses to make high-risk operations autonomous by
 
 ## Current truth / important limitation
 
-The latest observed Security workflow passed. The main CI run was still in progress when this status was recorded; it is deliberately not described as passed until GitHub reports success.
+Workflow status is never frozen into this README. For every change, **AECP CI + AECP Security + AECP Packaging must be read from GitHub Actions for the exact PR HEAD**; documentation alone never promotes a build to PASS.
 
-The current implementation is not yet production-complete. The core control-plane architecture is established; remaining work is hardening and integration rather than redesigning the core concept.
+The current implementation is not yet production-complete. The core control-plane architecture is established; remaining work is evidence, release trust and intentionally gated external capabilities rather than redesigning the core concept.
 
 ## Remaining work
 
 ### P0 — Production correctness
-- crash-safe resume at every execution phase;
-- idempotent external event processing and correlation IDs;
-- complete GitHub workflow/job/log evidence ingestion;
-- no duplicate PRs during all rework/restart paths;
-- security enforcement on every high-risk adapter path;
-- full canonical-loop integration/E2E tests.
+- crash-safe bounded resume, idempotent event handling, PR reuse, CI log evidence and canonical deterministic E2E are implemented;
+- adapter security is covered by the explicit audit matrix and runtime policy gates;
+- remaining proof is exact-HEAD CI plus environment-specific real-provider/release evidence where credentials or external trust are required.
 
 ### P1 — Multi-repository engineering
 - task-to-repository resource graph — implemented;
@@ -749,25 +748,23 @@ The current implementation is not yet production-complete. The core control-plan
 - event deduplication/idempotency ledger — implemented;
 - signed GitHub webhook receiver — implemented and opt-in via secret;
 - commit-SHA CI polling and failed-log evidence — implemented;
-- authenticated GitHub webhook/repository_dispatch receiver — remaining integration; polling remains the safe fallback.
+- authenticated signed GitHub webhook receiver — implemented and opt-in; commit-SHA polling remains the safe fallback when no external webhook transport is configured.
 
 ### P3 — Operations
 - bounded maintenance/garbage-collection scheduler — implemented;
 - expired lock/capsule recovery — implemented;
 - evidence retention — implemented;
-- deeper orphan worktree/drift scans — remaining hardening.
+- orphan worktree cleanup plus dependency/security/Blueprint/documentation drift scans — implemented as bounded maintenance diagnostics; they do not silently mutate dependencies or documentation.
 
 ### P4 — Distribution
-- clean-machine installer tests;
-- signed/trusted release channel;
-- update rollback;
-- Private Microsoft Store lane.
+- x64, ARM64 and universal-bootstrap build plus Windows-runner install/uninstall smoke gates are implemented in repository CI; exact-HEAD Actions determine PASS;
+- updater SHA-256 validation, transaction state, first-boot reconciliation, rollback and backup/restore foundations are implemented and tested;
+- production Authenticode signing and Microsoft Store publication remain EXTERNAL OWNER GATE operations.
 
 ### P5 — Remote supervision
-- local authenticated read-only loopback gateway — implemented;
-- authenticated LAN/device pairing — remaining;
-- mobile read-only dashboard — gateway API is ready, UI/client remains remaining;
-- remote approvals/task submission — intentionally gated until pairing/revocation is implemented.
+- authenticated loopback gateway, one-time pairing, READ_ONLY and APPROVAL_ONLY scopes, device revocation, request-id replay safety and TLS requirement for non-loopback binding are implemented;
+- APPROVAL_ONLY devices may decide only existing approval requests and cannot submit tasks;
+- public Internet deployment/domain/device identity remains an EXTERNAL OWNER GATE; no public inbound port is enabled by default.
 
 For the complete maturity matrix, decisions, non-goals and ordered backlog, see Blueprint/23_IMPLEMENTATION_STATUS.md.
 
@@ -814,13 +811,11 @@ The current implementation also includes: signed GitHub webhook ingestion (opt-i
 
 ### Remaining engineering gates
 
-1. Deeper evidence-driven failure diagnosis and drift/security/documentation maintenance scans.
-2. Complete adapter-by-adapter SecurityPolicy audit.
-3. Full integration/E2E matrix on clean temporary Git repositories and clean Windows environments.
-4. Production code signing, installer smoke/update rollback and release provenance.
-5. Authenticated LAN/mobile pairing; public exposure remains disabled by default.
-6. Windows UI automation and public/remote MCP gateway remain separate capability layers.
-7. Microsoft Store submission requires the publisher account/certificate owned by the operator.
+1. Exact-HEAD AECP CI + Security + Packaging must all pass after the final source/documentation commit.
+2. Real provider execution claims require the corresponding local/company/provider environment and credentials; deterministic adapter tests do not substitute for them.
+3. Production Authenticode signing and Microsoft Store submission require operator-owned trust identities/certificates.
+4. Optional public/LAN deployment requires operator-owned domain/device identity/TLS configuration; remote task submission remains intentionally disabled.
+5. Windows UI Automation stays capability-scoped: read-only general-app inspection is implemented, browser/ChatGPT inspection is deny-by-default, and state-changing docking requires SYSTEM approval.
 
 **Important:** GitHub Actions is the verification authority for the current branch. Documentation is not used to mark a build as passed; only an actual successful run does that.
 
