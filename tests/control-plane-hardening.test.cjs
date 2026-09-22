@@ -72,8 +72,10 @@ test('maintenance manager can recover locks and garbage collect expired capsules
  const {ContextBus}=require('../electron/lib/context-bus.cjs');
  const {EvidenceManager}=require('../electron/lib/evidence-manager.cjs');
  const {MaintenanceManager}=require('../electron/lib/maintenance.cjs');
- const root=await tmp(), locks=new LockManager(path.join(root,'locks'),{leaseMs:1}); await locks.init();
- const l=await locks.acquire('x','owner'); await new Promise(r=>setTimeout(r,5));
+ const root=await tmp(), locks=new LockManager(path.join(root,'locks'),{leaseMs:1000}); await locks.init();
+ await locks.acquire('x','owner');
+ locks.state.locks.x.expiresAt=new Date(Date.now()-1000).toISOString();
+ await locks.persist();
  const bus=new ContextBus(root); await bus.init(); const cap=await bus.write('maintenance',{ok:true},{ttlMs:1}); await new Promise(r=>setTimeout(r,5));
  const evidence=new EvidenceManager(path.join(root,'evidence')); await evidence.init();
  const m=new MaintenanceManager({locks,evidence,contextBus:bus}); const result=await m.run({evidenceRetentionDays:0,maxEvidenceRuns:0});
