@@ -74,6 +74,7 @@ contextBridge.exposeInMainWorld('aecp', Object.freeze({
   getTaskEvidence: (taskId) => call('task:evidence', { taskId }),
   listProviders: () => call('provider:list'),
   listWorkers: () => call('worker:list'),
+  loginOfficialWorker: () => call('worker:login-official'),
   checkProviderHealth: (providerId, options) => call('provider:health', { providerId, ...(options || {}) }),
   saveProvider: (provider) => call('provider:save', provider),
   deleteProvider: (providerId) => call('provider:delete', { providerId }),
