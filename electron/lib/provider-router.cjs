@@ -98,6 +98,7 @@ function modelLooksLocal(model) {
 
 function safeNetworkUrl(value) {
   const url = new URL(String(value || ''));
+  if (url.username || url.password) throw new Error('Provider URL must not contain embedded credentials.');
   const local = ['localhost', '127.0.0.1', '::1'].includes(url.hostname);
   if (url.protocol !== 'https:' && !(url.protocol === 'http:' && local)) throw new Error('Network provider URL must use HTTPS, except loopback development endpoints.');
   return url;
