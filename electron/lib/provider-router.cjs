@@ -11,10 +11,18 @@ const PROVIDERS = Object.freeze({
   ollama: { command: 'ollama', roles: ['planner', 'reviewer', 'general'], mode: 'ollama', network: false, credential: false }
 });
 
-function run(command, args, { cwd, timeoutMs = 180000, signal, env = {}, maxOutputBytes = 4 * 1024 * 1024 } = {}) {
+function run(command, args, { cwd, timeoutMs = 180000, signal, env = {}, maxOutputBytes = 4 * 1024 * 1024, onSpawn = null } = {}) {
   return new Promise((resolve, reject) => {
     const resolved = resolveKnownCommand(command, args);
     const child = spawn(resolved.command, resolved.args, { cwd, env: { ...process.env, ...env }, windowsHide: true, shell: false, stdio: ['ignore', 'pipe', 'pipe'] });
+    const terminate = () => {
+      if (!child?.pid) return;
+      try {
+        if (process.platform === 'win32') spawn('taskkill', ['/PID', String(child.pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' }).unref();
+        else child.kill('SIGTERM');
+      } catch {}
+    };
+    try { if (typeof onSpawn === 'function') onSpawn(child.pid); } catch {}
     let stdout = '', stderr = '', timedOut = false, aborted = false, outputLimitExceeded = false, settled = false, bytes = 0;
     const finishReject = (error) => {
       if (settled) return;
@@ -29,13 +37,13 @@ function run(command, args, { cwd, timeoutMs = 180000, signal, env = {}, maxOutp
       bytes += Buffer.byteLength(text);
       if (bytes > maxOutputBytes) {
         outputLimitExceeded = true;
-        try { child.kill(); } catch {}
+        terminate();
         return;
       }
       if (kind === 'stdout') stdout += text; else stderr += text;
     };
-    const timer = setTimeout(() => { timedOut = true; try { child.kill(); } catch {} }, Math.max(1000, timeoutMs));
-    const abort = () => { aborted = true; try { child.kill(); } catch {} };
+    const timer = setTimeout(() => { timedOut = true; terminate(); }, Math.max(1000, timeoutMs));
+    const abort = () => { aborted = true; terminate(); };
     if (signal) signal.aborted ? abort() : signal.addEventListener('abort', abort, { once: true });
     child.stdout.on('data', b => append('stdout', b));
     child.stderr.on('data', b => append('stderr', b));
@@ -45,7 +53,7 @@ function run(command, args, { cwd, timeoutMs = 180000, signal, env = {}, maxOutp
       settled = true;
       clearTimeout(timer);
       if (signal) signal.removeEventListener('abort', abort);
-      resolve({ code: Number.isInteger(code) ? code : -1, stdout, stderr, timedOut, aborted, outputLimitExceeded });
+      resolve({ code: Number.isInteger(code) ? code : -1, stdout, stderr, timedOut, aborted, outputLimitExceeded, processId: child.pid || null });
     });
   });
 }
