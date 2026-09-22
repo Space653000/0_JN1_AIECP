@@ -12,7 +12,7 @@ function normalizePegaWireApi(value){
   return wire;
 }
 
-function makePegaProvider({model='',wireApi='responses',apiKey='',codexHome=''}={}){
+function makePegaProvider({model='',wireApi='responses',apiKey='',codexHome='',runtimeEnv={}}={}){
   const selectedModel=String(model||'').trim().slice(0,200);
   return {
     id:PEGA_PROVIDER_ID,
@@ -32,6 +32,7 @@ function makePegaProvider({model='',wireApi='responses',apiKey='',codexHome=''}=
     network:true,
     credential:Boolean(apiKey),
     codexHome:String(codexHome||''),
+    runtimeEnv:{...runtimeEnv},
     kind:'codex-worker'
   };
 }
