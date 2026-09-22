@@ -126,3 +126,97 @@ test('bounded runner isolates writes in worktree then applies only after explici
   assert.equal(applied.applied, true);
   assert.equal(normalizeEol(await fs.readFile(path.join(repo, 'value.txt'), 'utf8')), 'changed\n');
 });
+
+
+test('autonomy stops with BUDGET_EXHAUSTED when worker output exceeds the configured bound', async (t) => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'aecp-auto-output-budget-'));
+  const repo = path.join(root, 'repo');
+  const runRoot = path.join(root, 'run');
+  await fs.mkdir(repo, { recursive: true });
+  await exec('git', ['init'], { cwd: repo });
+  await exec('git', ['config', 'user.email', 'test@example.com'], { cwd: repo });
+  await exec('git', ['config', 'user.name', 'AECP Test'], { cwd: repo });
+  await fs.writeFile(path.join(repo, 'value.txt'), 'original\n');
+  await exec('git', ['add', '.'], { cwd: repo });
+  await exec('git', ['commit', '-m', 'base'], { cwd: repo });
+  t.after(async () => fs.rm(root, { recursive: true, force: true }));
+
+  const record = await runBoundedAutonomy({
+    sourceRoot: repo,
+    runRoot,
+    spec: {
+      goal: 'Change value safely.',
+      done: 'Verifier passes.',
+      workerId: 'opencode',
+      verificationProfile: 'npm-test',
+      maxIterations: 2
+    }
+  }, {
+    workerProbe: async () => '1.18.30',
+    runProcess: async () => ({
+      code: -1,
+      signal: null,
+      timedOut: false,
+      aborted: false,
+      outputLimitExceeded: true,
+      stdout: '',
+      stderr: ''
+    })
+  });
+
+  assert.equal(record.state, 'BUDGET_EXHAUSTED');
+  assert.equal(record.iterations[0].verification.reason, 'worker-output-limit');
+  assert.equal(record.maxTurns, record.maxIterations);
+  assert.equal(record.maxOutputBytes, 1024 * 1024);
+});
+
+test('autonomy refuses a verified patch that exceeds changed-file budget', async (t) => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'aecp-auto-file-budget-'));
+  const repo = path.join(root, 'repo');
+  const runRoot = path.join(root, 'run');
+  await fs.mkdir(repo, { recursive: true });
+  await exec('git', ['init'], { cwd: repo });
+  await exec('git', ['config', 'user.email', 'test@example.com'], { cwd: repo });
+  await exec('git', ['config', 'user.name', 'AECP Test'], { cwd: repo });
+  await fs.writeFile(path.join(repo, 'value.txt'), 'original\n');
+  await exec('git', ['add', '.'], { cwd: repo });
+  await exec('git', ['commit', '-m', 'base'], { cwd: repo });
+  t.after(async () => fs.rm(root, { recursive: true, force: true }));
+
+  const fakeProcess = async (_command, _args, options) => {
+    await fs.writeFile(path.join(options.cwd, 'one.txt'), 'one\n');
+    await fs.writeFile(path.join(options.cwd, 'two.txt'), 'two\n');
+    return { code: 0, signal: null, timedOut: false, aborted: false, outputLimitExceeded: false, stdout: 'changed', stderr: '' };
+  };
+
+  const record = await runBoundedAutonomy({
+    sourceRoot: repo,
+    runRoot,
+    spec: {
+      goal: 'Create two files.',
+      done: 'Verifier passes.',
+      workerId: 'opencode',
+      verificationProfile: 'npm-test',
+      maxIterations: 1,
+      maxChangedFiles: 1
+    }
+  }, {
+    workerProbe: async () => '1.18.30',
+    runProcess: fakeProcess,
+    runVerification: async () => ({
+      profile: 'npm-test',
+      label: 'fake',
+      command: 'fake verify',
+      passed: true,
+      code: 0,
+      timedOut: false,
+      aborted: false,
+      outputLimitExceeded: false,
+      stdout: 'PASS',
+      stderr: ''
+    })
+  });
+
+  assert.equal(record.state, 'BUDGET_EXHAUSTED');
+  assert.match(record.error, /Changed-file budget exceeded/);
+});
