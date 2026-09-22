@@ -137,6 +137,24 @@ const staticInvariants=[
   {label:'resume function',re:/async function resumeAutonomy/}
  ]),
 
+ invariant('onboarding-and-accessibility','ui/app.js',[
+  {label:'first Workspace safe sample',re:/!hadWorkspace && state\.tasks\.length === 0[\s\S]*createSampleTask/},
+  {label:'reduced motion preference persistence',re:/aecp-motion/},
+  {label:'reduced motion document state',re:/dataset\.motion = state\.motion/},
+  {label:'Graph governed policy edge',re:/edit-workspace-policy/},
+  {label:'Graph governed repository edge',re:/add-repository-edge/},
+  {label:'Graph governed provider edge',re:/manage-provider-edges/}
+ ]),
+ invariant('onboarding-safety-summary','ui/index.html',[
+  {label:'safety summary',re:/Safety summary/},
+  {label:'GREEN explanation',re:/GREEN = read-only local inspection/},
+  {label:'RED explicit approval explanation',re:/RED = push, merge, delete, credentials, system changes/},
+  {label:'motion selector',re:/id="motionPreference"/}
+ ]),
+ invariant('explicit-reduced-motion','ui/styles.css',[
+  {label:'system reduced motion',re:/prefers-reduced-motion:\s*reduce/},
+  {label:'explicit reduced motion',re:/data-motion="reduced"/}
+ ]),
  invariant('workspace-policy-editor','electron/lib/workspace-policy.cjs',[
   {label:'canonical policy schema',re:/aecp\.workspace-policy\/v1/},
   {label:'RED approvals forced',re:/ALWAYS_APPROVAL_ACTIONS/},
