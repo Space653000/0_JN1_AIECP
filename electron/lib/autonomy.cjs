@@ -383,7 +383,8 @@ async function createPatch({ worktree, runRoot, signal, maxPatchBytes = MAX_PATC
   }
   const patchFile = path.join(runRoot, 'verified.patch');
   await fs.writeFile(patchFile, result.stdout, 'utf8');
-  return { patchFile, bytes, changedFiles };
+  const sha256 = crypto.createHash('sha256').update(result.stdout).digest('hex');
+  return { patchFile, bytes, sha256, changedFiles };
 }
 
 async function applyVerifiedPatch({ sourceRoot, runRecord, signal }) {
@@ -391,8 +392,12 @@ async function applyVerifiedPatch({ sourceRoot, runRecord, signal }) {
   const current = await assertCleanGitRoot(sourceRoot, signal);
   if (current.head !== runRecord.baseHead) throw new Error('Workspace HEAD changed since this autonomous run started. Refusing to apply a stale patch.');
   const patch = await fs.readFile(runRecord.patchFile);
-  if (patch.length > MAX_PATCH_BYTES) throw new Error('Patch exceeds the configured safety limit.');
+  const maxPatchBytes = Math.min(MAX_PATCH_BYTES, Math.max(1024, Number(runRecord.maxPatchBytes || MAX_PATCH_BYTES)));
+  if (patch.length > maxPatchBytes) throw new Error('Patch exceeds the verified run safety limit.');
   if (!patch.length) return { applied: false, reason: 'no-changes' };
+  if (!/^[a-f0-9]{64}$/i.test(String(runRecord.patchSha256 || ''))) throw new Error('Verified patch SHA-256 evidence is missing.');
+  const actualPatchSha256 = crypto.createHash('sha256').update(patch).digest('hex');
+  if (actualPatchSha256.toLowerCase() !== String(runRecord.patchSha256).toLowerCase()) throw new Error('Verified patch changed after verification. Refusing to apply.');
 
   const check = await runProcess('git', ['apply', '--check', runRecord.patchFile], { cwd: sourceRoot, timeoutMs: 30000, signal });
   if (check.code !== 0) throw new Error(`Verified patch no longer applies cleanly: ${(check.stderr || check.stdout).slice(0, 1200)}`);
@@ -544,6 +549,8 @@ async function runBoundedAutonomy(options, deps = {}) {
         const patch = await createPatch({ worktree: record.worktree, runRoot, signal, maxPatchBytes: spec.maxPatchBytes, maxChangedFiles: spec.maxChangedFiles });
         record.patchFile = patch.patchFile;
         record.patchBytes = patch.bytes;
+        record.patchSha256 = patch.sha256;
+        record.patchChangedFiles = patch.changedFiles;
         await emit('run.done', {
           iteration,
           patchBytes: patch.bytes,
