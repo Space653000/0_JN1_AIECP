@@ -316,7 +316,7 @@ async function runHarness(options) {
         const report = safeJson(rr.stdout);
         task.review = report || { result: 'HUMAN_REQUIRED', findings: ['Reviewer did not return valid JSON.'], required_changes: [] };
         if (task.review.result === 'PASS') {
-          task.state = 'DONE'; accepted = true; await emit('task.accepted', { taskId: task.id, iteration }); break;
+          task.state = 'DONE'; accepted = true; await emit('task.review_passed', { taskId: task.id, iteration }); break;
         }
         if (task.review.result === 'HUMAN_REQUIRED') { task.state = 'HUMAN_REQUIRED'; await transition('HUMAN_REQUIRED', { taskId: task.id }); break; }
         review = JSON.stringify(task.review);
@@ -327,6 +327,9 @@ async function runHarness(options) {
     if (record.tasks.every(t => t.state === 'DONE')) {
       record.state = 'VERIFYING'; await emit('run.final_verification', {});
       record.patch = await createPatch(wt.worktree, runRoot, signal, { maxPatchBytes, maxChangedFiles });
+      for (const task of record.tasks) {
+        await emit('task.accepted', { taskId: task.id, iteration: task.iterations, patchSha256: record.patch.sha256 });
+      }
       await transition('DONE', { patch: record.patch });
     } else if (record.tasks.some(t => t.state === 'HUMAN_REQUIRED')) await transition('HUMAN_REQUIRED');
     else await transition('BLOCKED');
