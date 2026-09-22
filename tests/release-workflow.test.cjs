@@ -112,6 +112,25 @@ test('signed release lane is owner-gated and verifies Authenticode provenance', 
   assert.match(workflow, /Signer thumbprint mismatch/);
   assert.match(workflow, /aecp\.authenticode-evidence\/v1/);
   assert.match(workflow, /aecp\.signed-release-provenance\/v1/);
+  assert.equal(count(workflow, /^  signed-provenance:$/gm), 1);
+  assert.equal(count(workflow, /^  publish-signed-release:$/gm), 1);
+  assert.match(workflow, /if \(\$LASTEXITCODE -ne 0 -or \$sourceCommit -notmatch '\^\[0-9a-f\]\{40\}\
+  assert.match(workflow, /sourceCommit=\$sourceCommit/);
+  assert.doesNotMatch(workflow, /sourceCommit=\$env:GITHUB_SHA/);
+  assert.match(workflow, /if:\s*\$\{\{ inputs\.publish_ack \}\}/);
+  assert.doesNotMatch(workflow, /BEGIN (?:RSA )?PRIVATE KEY|BEGIN CERTIFICATE/);
+});
+
+test('updater supports build-time signer pinning without forcing unsigned preview builds', () => {
+  const pkg = JSON.parse(read('package.json'));
+  assert.equal(typeof pkg.aecp.requiredSignerThumbprint, 'string');
+  const main = read('electron/main.cjs');
+  assert.match(main, /verifyAuthenticode/);
+  assert.match(main, /AECP_REQUIRED_SIGNER_THUMBPRINT/);
+  assert.match(main, /packageManifest\?\.aecp\?\.requiredSignerThumbprint/);
+  assert.match(main, /rollbackInstaller[\s\S]*verifyAuthenticode/);
+});
+\)/);
   assert.match(workflow, /ref: \$\{\{ inputs\.source_ref \}\}[\s\S]*git rev-parse HEAD/);
   assert.match(workflow, /sourceCommit=\$sourceCommit/);
   assert.doesNotMatch(workflow, /sourceCommit=\$env:GITHUB_SHA/);
