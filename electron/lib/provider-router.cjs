@@ -4,7 +4,7 @@ const { spawn } = require('node:child_process');
 
 const PROVIDERS = Object.freeze({
   claude: { command: 'claude', roles: ['planner', 'reviewer'], mode: 'cli', network: true, credential: false },
-  codex: { command: 'codex', roles: ['builder'], mode: 'cli', network: false, credential: true },
+  codex: { command: 'codex', roles: ['builder'], mode: 'cli', network: false, credential: false },
   gemini: { command: 'gemini', roles: ['planner', 'reviewer', 'general'], mode: 'cli', network: true, credential: false },
   opencode: { command: 'opencode', roles: ['planner', 'builder', 'reviewer', 'general'], mode: 'cli', network: true, credential: false },
   ollama: { command: 'ollama', roles: ['planner', 'reviewer', 'general'], mode: 'ollama', network: false, credential: false }
