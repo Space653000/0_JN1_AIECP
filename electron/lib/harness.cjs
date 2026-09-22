@@ -425,9 +425,13 @@ async function runHarness(options) {
     if (e?.name === 'AbortError' || signal?.aborted) { record.error = 'Cancelled'; await transition('CANCELLED'); }
     else if (['PROVIDER_CALL_BUDGET_EXHAUSTED','FAILED_ATTEMPT_BUDGET_EXHAUSTED','WALL_CLOCK_BUDGET_EXHAUSTED','PATCH_BUDGET_EXHAUSTED','CHANGED_FILE_BUDGET_EXHAUSTED'].includes(e?.code)) {
       record.error = text(e?.message || e, 4000);
+      const activeTask=(record.tasks||[]).find(task=>!['DONE','HUMAN_REQUIRED','BLOCKED'].includes(task.state));
+      if(activeTask){activeTask.state='BLOCKED';activeTask.stopReason=e.code;}
       await transition('BUDGET_EXHAUSTED', { reason: e.code, error: record.error });
     } else if (e?.code === 'NO_PROGRESS_STOP') {
       record.error = text(e?.message || e, 4000);
+      const activeTask=(record.tasks||[]).find(task=>!['DONE','HUMAN_REQUIRED','BLOCKED'].includes(task.state));
+      if(activeTask){activeTask.state='BLOCKED';activeTask.stopReason=e.code;}
       await transition('BLOCKED', { reason: e.code, error: record.error });
     } else { record.error = text(e?.message || e, 4000); await transition('FAILED', { error: record.error }); }
     return record;
