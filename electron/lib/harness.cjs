@@ -8,6 +8,8 @@ const { ProviderRouter } = require('./provider-router.cjs');
 
 const HARNESS_SCHEMA = 'aecp.harness/v1';
 const MAX_OUTPUT = 1024 * 1024;
+const DEFAULT_MAX_PATCH_BYTES = 8 * 1024 * 1024;
+const DEFAULT_MAX_CHANGED_FILES = 100;
 
 const STATES = Object.freeze([
   'PLANNING', 'READY', 'RUNNING', 'VERIFYING', 'REVIEWING',
@@ -67,10 +69,16 @@ function runProcess(command, args, options = {}) {
       cwd, env: { ...process.env, ...env }, shell: false, windowsHide: true,
       stdio: ['ignore', 'pipe', 'pipe']
     });
-    let stdout = Buffer.alloc(0), stderr = Buffer.alloc(0), timedOut = false, aborted = false;
+    let stdout = Buffer.alloc(0), stderr = Buffer.alloc(0), timedOut = false, aborted = false, outputLimitExceeded = false;
     const append = (buf, chunk) => {
+      if (outputLimitExceeded) return buf;
       const next = Buffer.concat([buf, Buffer.from(chunk)]);
-      return next.length > maxOutputBytes ? next.subarray(next.length - maxOutputBytes) : next;
+      if (next.length > maxOutputBytes) {
+        outputLimitExceeded = true;
+        kill(child);
+        return buf;
+      }
+      return next;
     };
     child.stdout.on('data', c => { stdout = append(stdout, c); });
     child.stderr.on('data', c => { stderr = append(stderr, c); });
@@ -81,7 +89,7 @@ function runProcess(command, args, options = {}) {
     child.on('close', code => {
       clearTimeout(timer);
       if (signal) signal.removeEventListener('abort', abort);
-      resolve({ code: Number.isInteger(code) ? code : -1, timedOut, aborted,
+      resolve({ code: Number.isInteger(code) ? code : -1, timedOut, aborted, outputLimitExceeded,
         stdout: stdout.toString('utf8'), stderr: stderr.toString('utf8') });
     });
   });
@@ -131,8 +139,8 @@ async function makeWorktree(root, runRoot, signal, baseRef = null) {
 
 async function verify(worktree, command, args, signal) {
   const r = await runProcess(command, args, { cwd: worktree, signal, timeoutMs: 180000 });
-  return { passed: r.code === 0 && !r.timedOut && !r.aborted, code: r.code,
-    timedOut: r.timedOut, aborted: r.aborted, command: [command, ...args].join(' '),
+  return { passed: r.code === 0 && !r.timedOut && !r.aborted && !r.outputLimitExceeded, code: r.code,
+    timedOut: r.timedOut, aborted: r.aborted, outputLimitExceeded: Boolean(r.outputLimitExceeded), command: [command, ...args].join(' '),
     stdout: r.stdout.slice(-20000), stderr: r.stderr.slice(-20000) };
 }
 
@@ -196,13 +204,27 @@ async function diffSummary(worktree, signal) {
   return [status, stat].filter(Boolean).join('\n').slice(0, 6000);
 }
 
-async function createPatch(worktree, runRoot, signal) {
+async function createPatch(worktree, runRoot, signal, { maxPatchBytes = DEFAULT_MAX_PATCH_BYTES, maxChangedFiles = DEFAULT_MAX_CHANGED_FILES } = {}) {
   await git(worktree, ['add', '-N', '.'], signal);
-  const r = await runProcess('git', ['diff', '--binary', '--no-ext-diff', 'HEAD'], { cwd: worktree, signal, timeoutMs: 30000, maxOutputBytes: 8 * 1024 * 1024 });
+  const names = await git(worktree, ['diff', '--name-only', 'HEAD'], signal);
+  const changedFiles = names.split(/\r?\n/).map(x => x.trim()).filter(Boolean);
+  if (changedFiles.length > maxChangedFiles) {
+    throw Object.assign(new Error(`Changed-file budget exceeded (${changedFiles.length} > ${maxChangedFiles}).`), { code: 'CHANGED_FILE_BUDGET_EXHAUSTED' });
+  }
+  const r = await runProcess('git', ['diff', '--binary', '--no-ext-diff', 'HEAD'], {
+    cwd: worktree, signal, timeoutMs: 30000, maxOutputBytes: maxPatchBytes + 1
+  });
+  if (r.outputLimitExceeded) {
+    throw Object.assign(new Error(`Patch budget exceeded (maximum ${maxPatchBytes} bytes).`), { code: 'PATCH_BUDGET_EXHAUSTED' });
+  }
   if (r.code !== 0) throw new Error(r.stderr.slice(0, 1500));
+  const bytes = Buffer.byteLength(r.stdout);
+  if (bytes > maxPatchBytes) {
+    throw Object.assign(new Error(`Patch budget exceeded (${bytes} > ${maxPatchBytes}).`), { code: 'PATCH_BUDGET_EXHAUSTED' });
+  }
   const file = path.join(runRoot, 'verified.patch');
   await fs.writeFile(file, r.stdout, 'utf8');
-  return { file, bytes: Buffer.byteLength(r.stdout) };
+  return { file, bytes, changedFiles };
 }
 
 async function runHarness(options) {
@@ -212,6 +234,9 @@ async function runHarness(options) {
   const runRoot = path.resolve(options.runRoot || path.join(root, '.aecp', 'harness', id('run')));
   const maxIterations = bounded(options.maxIterations, 1, 5, 3);
   const maxTasks = bounded(options.maxTasks, 1, 8, 4);
+  const maxTurns = bounded(options.maxTurns, 1, 200, Math.max(3, 1 + (maxTasks * maxIterations * 2)));
+  const maxPatchBytes = bounded(options.maxPatchBytes, 1024, 64 * 1024 * 1024, DEFAULT_MAX_PATCH_BYTES);
+  const maxChangedFiles = bounded(options.maxChangedFiles, 1, 1000, DEFAULT_MAX_CHANGED_FILES);
   const signal = options.signal;
   const event = options.onEvent || (async () => {});
   const providerRouter = options.providerRouter || new ProviderRouter();
@@ -231,15 +256,23 @@ async function runHarness(options) {
   }
   if (!record) record = { schema: HARNESS_SCHEMA, id: options.runId || id('harness'), state: 'PLANNING',
     goal, done, sourceRoot: root, runRoot, maxIterations, maxTasks, tasks: [], events: [], startedAt: new Date().toISOString() };
-  record.maxIterations=maxIterations; record.maxTasks=maxTasks; record.goal=goal; record.done=done; record.sourceRoot=root; record.runRoot=runRoot; record.providers=roleProviders; record.models=roleModels; record.providerApprovals={network:Boolean(options.providerNetworkApproved),credential:Boolean(options.providerCredentialApproved)};
+  record.maxIterations=maxIterations; record.maxTasks=maxTasks; record.maxTurns=maxTurns; record.maxPatchBytes=maxPatchBytes; record.maxChangedFiles=maxChangedFiles; record.providerCalls=Number(record.providerCalls||0); record.goal=goal; record.done=done; record.sourceRoot=root; record.runRoot=runRoot; record.providers=roleProviders; record.models=roleModels; record.providerApprovals={network:Boolean(options.providerNetworkApproved),credential:Boolean(options.providerCredentialApproved)};
   const resumed=Boolean(options.resume && record.plan);
   const persist = async () => { record.updatedAt = new Date().toISOString(); await fs.mkdir(runRoot, { recursive: true }); await fs.writeFile(path.join(runRoot, 'harness.json'), JSON.stringify(record, null, 2)); };
   const emit = async (type, data = {}) => { record.events.push({ at: new Date().toISOString(), type, state: record.state, data }); await persist(); await event(record.events.at(-1)); };
   const transition = async (state, data) => { if (!STATES.includes(state)) throw new Error(`Invalid Harness state: ${state}`); record.state = state; await emit(`state.${state.toLowerCase()}`, data); };
+  const invokeProvider = async (args) => {
+    if (record.providerCalls >= maxTurns) {
+      throw Object.assign(new Error(`Provider call budget exhausted (${record.providerCalls}/${maxTurns}).`), { code: 'PROVIDER_CALL_BUDGET_EXHAUSTED' });
+    }
+    record.providerCalls += 1;
+    await emit('provider.call', { role: args.role, providerId: args.providerId, count: record.providerCalls, maxTurns });
+    return invokeRole(args);
+  };
   try {
     if (!resumed) {
       await transition('PLANNING');
-      const p = await invokeRole({router:providerRouter,role:'planner',prompt:plannerPrompt(goal, done, text(options.context, 8000)),cwd:root,model:roleModels.planner,providerId:roleProviders.planner,policy:options.policy,signal,timeoutMs:180000,executionApproved:Boolean(options.executionApproved),networkApproved:Boolean(options.providerNetworkApproved),credentialApproved:Boolean(options.providerCredentialApproved)});
+      const p = await invokeProvider({router:providerRouter,role:'planner',prompt:plannerPrompt(goal, done, text(options.context, 8000)),cwd:root,model:roleModels.planner,providerId:roleProviders.planner,policy:options.policy,signal,timeoutMs:180000,executionApproved:Boolean(options.executionApproved),networkApproved:Boolean(options.providerNetworkApproved),credentialApproved:Boolean(options.providerCredentialApproved)});
       if (p.code !== 0) throw new Error(`Planner failed: ${(p.stderr || p.stdout).slice(-2000)}`);
       const plan = normalizePlan(safeJson(p.stdout), goal, done, maxTasks);
       record.plan = plan; record.tasks = plan.tasks.map(t => ({ ...t, state: 'READY', iterations: 0 }));
@@ -263,7 +296,7 @@ async function runHarness(options) {
       const resumeIteration = Math.max(1, Math.min(maxIterations, Number(task.iterations) || 1));
       for (let iteration = resumeIteration; iteration <= maxIterations; iteration++) {
         task.iterations = iteration; await transition('RUNNING', { taskId: task.id, iteration });
-        const b = await invokeRole({router:providerRouter,role:'builder',prompt:builderPrompt(task, goal, done, review),cwd:wt.worktree,model:roleModels.builder,providerId:roleProviders.builder,policy:options.policy,signal,timeoutMs:600000,executionApproved:Boolean(options.executionApproved),networkApproved:Boolean(options.providerNetworkApproved),credentialApproved:Boolean(options.providerCredentialApproved)});
+        const b = await invokeProvider({router:providerRouter,role:'builder',prompt:builderPrompt(task, goal, done, review),cwd:wt.worktree,model:roleModels.builder,providerId:roleProviders.builder,policy:options.policy,signal,timeoutMs:600000,executionApproved:Boolean(options.executionApproved),networkApproved:Boolean(options.providerNetworkApproved),credentialApproved:Boolean(options.providerCredentialApproved)});
         task.worker = { code: b.code, timedOut: b.timedOut, stdout: b.stdout.slice(-12000), stderr: b.stderr.slice(-12000) };
         if (b.code !== 0 || b.timedOut) { review = `Worker failed: ${(b.stderr || b.stdout).slice(-4000)}`; await transition('REWORK', { taskId: task.id, reason: 'worker-failed' }); continue; }
         await transition('VERIFYING', { taskId: task.id });
@@ -275,7 +308,7 @@ async function runHarness(options) {
         if (!v.passed) { review = `Deterministic verification failed.\n${v.stderr.slice(-5000)}`; await transition('REWORK', { taskId: task.id, reason: 'verification-failed' }); continue; }
         await transition('REVIEWING', { taskId: task.id });
         const diff = await diffSummary(wt.worktree, signal);
-        const rr = await invokeRole({router:providerRouter,role:'reviewer',prompt:reviewerPrompt(task, goal, done, diff, v),cwd:root,model:roleModels.reviewer,providerId:roleProviders.reviewer,policy:options.policy,signal,timeoutMs:180000,executionApproved:Boolean(options.executionApproved),networkApproved:Boolean(options.providerNetworkApproved),credentialApproved:Boolean(options.providerCredentialApproved)});
+        const rr = await invokeProvider({router:providerRouter,role:'reviewer',prompt:reviewerPrompt(task, goal, done, diff, v),cwd:root,model:roleModels.reviewer,providerId:roleProviders.reviewer,policy:options.policy,signal,timeoutMs:180000,executionApproved:Boolean(options.executionApproved),networkApproved:Boolean(options.providerNetworkApproved),credentialApproved:Boolean(options.providerCredentialApproved)});
         if (rr.code !== 0) { review = `Reviewer failed: ${(rr.stderr || rr.stdout).slice(-3000)}`; continue; }
         const report = safeJson(rr.stdout);
         task.review = report || { result: 'HUMAN_REQUIRED', findings: ['Reviewer did not return valid JSON.'], required_changes: [] };
@@ -290,14 +323,17 @@ async function runHarness(options) {
     }
     if (record.tasks.every(t => t.state === 'DONE')) {
       record.state = 'VERIFYING'; await emit('run.final_verification', {});
-      record.patch = await createPatch(wt.worktree, runRoot, signal);
+      record.patch = await createPatch(wt.worktree, runRoot, signal, { maxPatchBytes, maxChangedFiles });
       await transition('DONE', { patch: record.patch });
     } else if (record.tasks.some(t => t.state === 'HUMAN_REQUIRED')) await transition('HUMAN_REQUIRED');
     else await transition('BLOCKED');
     return record;
   } catch (e) {
     if (e?.name === 'AbortError' || signal?.aborted) { record.error = 'Cancelled'; await transition('CANCELLED'); }
-    else { record.error = text(e?.message || e, 4000); await transition('FAILED', { error: record.error }); }
+    else if (['PROVIDER_CALL_BUDGET_EXHAUSTED','PATCH_BUDGET_EXHAUSTED','CHANGED_FILE_BUDGET_EXHAUSTED'].includes(e?.code)) {
+      record.error = text(e?.message || e, 4000);
+      await transition('BUDGET_EXHAUSTED', { reason: e.code, error: record.error });
+    } else { record.error = text(e?.message || e, 4000); await transition('FAILED', { error: record.error }); }
     return record;
   }
 }
