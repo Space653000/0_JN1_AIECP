@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('aecp', Object.freeze({
   getGuidance: (context) => call('guidance:recommend', context),
   selectWorkspace: () => call('workspace:select'),
   refreshWorkspace: () => call('workspace:refresh'),
+  addRepository: () => call('workspace:add-repo'),
   openWorkspace: () => call('workspace:open'),
   openTerminal: () => call('workspace:terminal'),
   openChatGPT: () => call('chatgpt:open'),
