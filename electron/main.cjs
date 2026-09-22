@@ -1196,6 +1196,33 @@ async function checkProviderHealth(providerId, options = {}) {
   });
 }
 
+async function loginOfficialCodexWorker() {
+  await assertDataOperationIdle();
+  const runtime = getCodexWorkerRuntime();
+  const profile = await runtime.prepareOfficial({ model: String(process.env.AECP_CODEX_OFFICIAL_MODEL || '').trim() || null });
+  const approved = await dialog.showMessageBox(mainWindow, {
+    type: 'question',
+    buttons: ['Cancel', 'Open isolated Codex login'],
+    defaultId: 0,
+    cancelId: 0,
+    noLink: true,
+    title: 'Sign in Codex OFFICIAL?',
+    message: 'Open Codex login for the isolated OFFICIAL Worker?',
+    detail: 'The login process receives only this Worker\'s dedicated CODEX_HOME. Codex stores CLI authentication in that CODEX_HOME/auth.json; PEGA runtime state is not shared.'
+  });
+  if (approved.response !== 1) return { launched: false };
+  const preferred = (await probe('pwsh', ['--version'])).available ? 'pwsh' : 'powershell';
+  const child = spawn(preferred, ['-NoExit', '-Command', 'codex login'], {
+    cwd: profile.codexHome,
+    env: { ...process.env, CODEX_HOME: profile.codexHome },
+    detached: true,
+    stdio: 'ignore',
+    windowsHide: false
+  });
+  child.unref();
+  return { launched: true, workerId: WORKER_IDS.OFFICIAL, providerId: 'openai-official', codexHome: profile.codexHome };
+}
+
 async function getOrCreateLocalMcpToken() {
   if (!safeStorage.isEncryptionAvailable()) throw new Error('OS credential encryption is unavailable; Local MCP cannot start safely.');
   const secrets = await loadSecrets();
@@ -1825,6 +1852,7 @@ function registerIpc() {
 
   ipcMain.handle('provider:list', async () => publicProviders(await loadState()));
   ipcMain.handle('worker:list', async () => (await getWorkerRegistry()).list());
+  ipcMain.handle('worker:login-official', loginOfficialCodexWorker);
   ipcMain.handle('provider:health', async (_event, payload) => checkProviderHealth(payload?.providerId, payload || {}));
   ipcMain.handle('provider:save', async (_event, payload) => saveProvider(payload));
   ipcMain.handle('provider:delete', async (_event, payload) => deleteProvider(payload?.providerId));
