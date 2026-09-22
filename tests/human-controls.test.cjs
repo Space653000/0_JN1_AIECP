@@ -106,3 +106,12 @@ test('first-run onboarding seeds one safe read-only task without auto-executing 
   assert.match(main,/task:sample/);
   assert.doesNotMatch(app,/!hadWorkspace[\s\S]{0,300}executeTask/);
 });
+
+
+test('mutating local runtimes are mutually exclusive rather than racing the same Workspace',()=>{
+  const main=read('electron/main.cjs');
+  assert.match(main,/startHarness[\s\S]*if \(autonomyController\) throw new Error\('Stop the active autonomous run before starting Harness\.'/);
+  assert.match(main,/startHarness[\s\S]*controlPlane\?\.hasActiveWork/);
+  assert.match(main,/startAutonomy[\s\S]*if \(harnessController\) throw new Error\('Stop the active Harness run before starting bounded autonomy\.'/);
+  assert.match(main,/startAutonomy[\s\S]*controlPlane\?\.hasActiveWork/);
+});
