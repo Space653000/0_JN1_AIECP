@@ -257,3 +257,31 @@ textarea:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 
 /* Implementation status / completion gates */
 .hc-status-card{margin-top:16px}.hc-status-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.hc-status-grid>div{display:flex;flex-direction:column;gap:6px;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--panel-2)}.hc-status-grid b{font-size:12px;letter-spacing:.04em}.hc-status-grid small{opacity:.75;line-height:1.4}.hc-pending{margin-top:12px;padding:10px;border-left:3px solid var(--blue);line-height:1.5}@media(max-width:900px){.hc-status-grid{grid-template-columns:1fr 1fr}}@media(max-width:620px){.hc-status-grid{grid-template-columns:1fr}}
+
+/* Accessibility */
+.skip-link{
+  position:fixed;
+  top:8px;
+  left:8px;
+  z-index:10000;
+  transform:translateY(-160%);
+  padding:10px 14px;
+  border-radius:10px;
+  background:var(--panel,#11151b);
+  color:var(--text,#fff);
+  border:2px solid currentColor;
+}
+.skip-link:focus{transform:translateY(0)}
+:where(button,a,input,select,textarea,[tabindex]):focus-visible{
+  outline:3px solid currentColor;
+  outline-offset:3px;
+}
+[role="tab"][aria-selected="true"]{font-weight:700}
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{
+    scroll-behavior:auto !important;
+    animation-duration:0.001ms !important;
+    animation-iteration-count:1 !important;
+    transition-duration:0.001ms !important;
+  }
+}
