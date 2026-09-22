@@ -25,8 +25,8 @@ const { acceptedTaskEvidence, validateAcceptedTaskEvidence } = require('./accept
 const { redactSensitive } = require('./redaction.cjs');
 
 const SCHEMA='aecp.control-plane/v1';
-const STATES=Object.freeze(['PLANNING','QUEUED','RUNNING','VERIFYING','REVIEWING','REWORK','DONE','BLOCKED','HUMAN_REQUIRED','FAILED','CANCELLED','PAUSED']);
-const TERMINAL=new Set(['DONE','BLOCKED','HUMAN_REQUIRED','FAILED','CANCELLED']);
+const STATES=Object.freeze(['PLANNING','QUEUED','RUNNING','VERIFYING','REVIEWING','REWORK','DONE','BLOCKED','BUDGET_EXHAUSTED','HUMAN_REQUIRED','FAILED','CANCELLED','PAUSED']);
+const TERMINAL=new Set(['DONE','BLOCKED','BUDGET_EXHAUSTED','HUMAN_REQUIRED','FAILED','CANCELLED']);
 const RISK={GREEN:0,YELLOW:1,RED:2};
 
 function uid(prefix){return prefix+'-'+Date.now().toString(36)+'-'+crypto.randomBytes(4).toString('hex');}
@@ -471,7 +471,7 @@ class ControlPlane {
     const tasks=(run.taskIds||[]).map(id=>this.state.tasks[id]).filter(Boolean);
     if(!tasks.length) return;
     if(tasks.some(t=>t.state==='HUMAN_REQUIRED')) run.state='HUMAN_REQUIRED';
-    else if(tasks.some(t=>['FAILED','BLOCKED'].includes(t.state))) run.state='BLOCKED';
+    else if(tasks.some(t=>['FAILED','BLOCKED','BUDGET_EXHAUSTED'].includes(t.state))) run.state='BLOCKED';
     else if(tasks.every(t=>t.state==='DONE')) run.state='DONE';
     else return;
     run.finishedAt=now();await this.persist();await this.event('mission.finished',{runId:run.id,state:run.state});
