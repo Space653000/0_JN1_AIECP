@@ -312,3 +312,84 @@ test('Harness enforces optional wall-clock budget before the next provider call'
   assert.match(run.error,/Wall-clock budget exhausted/);
   assert.equal(run.providerCalls,1);
 });
+
+
+test('Harness enforces provider-reported cost budget without estimating missing provider prices',async(t)=>{
+  const fixture=await makeRepo('aecp-harness-provider-cost-');
+  t.after(async()=>fs.rm(fixture.root,{recursive:true,force:true}));
+  const router={
+    capabilities(){return {process:false,network:true,credential:false};},
+    async execute(role){
+      assert.equal(role,'planner');
+      return {
+        code:0,
+        stdout:JSON.stringify({tasks:[{
+          task_id:'T1',title:'Must not dispatch',objective:'Stop on budget.',acceptance:'No builder call.',
+          dependencies:[],risk:'GREEN',verifier:'npm run verify'
+        }]}),
+        stderr:'',
+        timedOut:false,
+        aborted:false,
+        usage:{cost_usd:0.75}
+      };
+    }
+  };
+  const run=await runHarness({
+    goal:'Respect provider-reported cost.',
+    done:'Stop when provider-reported cost exceeds the configured budget.',
+    sourceRoot:fixture.repo,
+    runRoot:fixture.runRoot,
+    maxTasks:1,
+    maxIterations:2,
+    maxTurns:5,
+    maxProviderReportedCost:0.5,
+    providerRouter:router,
+    plannerProvider:'planner',
+    builderProvider:'builder',
+    reviewerProvider:'reviewer'
+  });
+  assert.equal(run.state,'BUDGET_EXHAUSTED',run.error||JSON.stringify(run,null,2));
+  assert.equal(run.providerCalls,1);
+  assert.equal(run.providerReportedCost,0.75);
+  assert.match(run.error,/Provider-reported cost budget exhausted/);
+});
+
+test('Harness enforces local-compute budget using measured local provider time',async(t)=>{
+  const fixture=await makeRepo('aecp-harness-local-compute-');
+  t.after(async()=>fs.rm(fixture.root,{recursive:true,force:true}));
+  const router={
+    capabilities(){return {process:false,network:false,credential:false};},
+    async execute(role){
+      assert.equal(role,'planner');
+      await new Promise(resolve=>setTimeout(resolve,1100));
+      return {
+        code:0,
+        stdout:JSON.stringify({tasks:[{
+          task_id:'T1',title:'Must not dispatch',objective:'Stop on local compute.',acceptance:'No builder call.',
+          dependencies:[],risk:'GREEN',verifier:'npm run verify'
+        }]}),
+        stderr:'',
+        timedOut:false,
+        aborted:false
+      };
+    }
+  };
+  const run=await runHarness({
+    goal:'Respect local compute budget.',
+    done:'Stop when measured local compute exceeds the configured budget.',
+    sourceRoot:fixture.repo,
+    runRoot:fixture.runRoot,
+    maxTasks:1,
+    maxIterations:2,
+    maxTurns:5,
+    maxLocalComputeMs:1000,
+    providerRouter:router,
+    plannerProvider:'planner',
+    builderProvider:'builder',
+    reviewerProvider:'reviewer'
+  });
+  assert.equal(run.state,'BUDGET_EXHAUSTED',run.error||JSON.stringify(run,null,2));
+  assert.equal(run.providerCalls,1);
+  assert.ok(run.localComputeMs>=1000);
+  assert.match(run.error,/Local compute budget exhausted/);
+});
