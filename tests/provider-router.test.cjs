@@ -172,3 +172,91 @@ test('OpenCode local model capability does not require provider network approval
   assert.equal(local.local, true);
   assert.equal(cloud.network, true);
 });
+
+
+test('provider health reports READY for available CLI providers', async () => {
+  const calls=[];
+  const runner=async(command,args)=>{
+    calls.push([command,args]);
+    return {code:0,stdout:'codex 1.2.3\n',stderr:'',timedOut:false,aborted:false};
+  };
+  const router=new ProviderRouter({codex:{command:'codex',roles:['builder'],mode:'cli',network:false,credential:false}},{runner,platform:'win32'});
+  const health=await router.health('codex');
+  assert.equal(health.status,'READY');
+  assert.equal(health.version,'codex 1.2.3');
+  assert.deepEqual(calls[0],['codex',['--version']]);
+});
+
+test('Ollama health is DEGRADED when CLI exists but no explicit model is configured', async () => {
+  const previous=process.env.AECP_OLLAMA_MODEL;
+  delete process.env.AECP_OLLAMA_MODEL;
+  try {
+    const runner=async()=>({code:0,stdout:'ollama version 0.12.0',stderr:'',timedOut:false,aborted:false});
+    const router=new ProviderRouter({ollama:{command:'ollama',roles:['planner'],mode:'ollama',network:false,credential:false}},{runner});
+    const health=await router.health('ollama');
+    assert.equal(health.status,'DEGRADED');
+    assert.match(health.detail,/explicit model/i);
+  } finally {
+    if(previous===undefined) delete process.env.AECP_OLLAMA_MODEL;
+    else process.env.AECP_OLLAMA_MODEL=previous;
+  }
+});
+
+test('provider health does not probe network without explicit NETWORK approval', async () => {
+  let fetched=false;
+  const router=new ProviderRouter({
+    company:{id:'company',mode:'openai-compatible',baseUrl:'https://example.test/v1',defaultModel:'model-a',roles:['planner'],network:true}
+  },{fetchImpl:async()=>{fetched=true;throw new Error('must not run');}});
+  const health=await router.health('company',{networkApproved:false});
+  assert.equal(health.status,'DEGRADED');
+  assert.equal(fetched,false);
+  assert.match(health.detail,/NETWORK approval/i);
+});
+
+test('provider health reports AUTH_REQUIRED for missing or unapproved configured credentials', async () => {
+  const missing=new ProviderRouter({
+    company:{id:'company',mode:'openai-compatible',baseUrl:'https://example.test/v1',defaultModel:'model-a',roles:['planner'],requiresCredential:true,apiKey:''}
+  });
+  assert.equal((await missing.health('company',{networkApproved:true,credentialApproved:true})).status,'AUTH_REQUIRED');
+
+  let fetched=false;
+  const unapproved=new ProviderRouter({
+    company:{id:'company',mode:'openai-compatible',baseUrl:'https://example.test/v1',defaultModel:'model-a',roles:['planner'],requiresCredential:true,apiKey:'secret'}
+  },{fetchImpl:async()=>{fetched=true;return {ok:true,status:200};}});
+  const health=await unapproved.health('company',{networkApproved:true,credentialApproved:false});
+  assert.equal(health.status,'AUTH_REQUIRED');
+  assert.equal(fetched,false);
+});
+
+test('provider health probes approved endpoint and maps HTTP and transport states', async () => {
+  const base={id:'company',mode:'openai-compatible',baseUrl:'https://example.test/v1',defaultModel:'model-a',roles:['planner'],apiKey:'secret',requiresCredential:true};
+  const ready=new ProviderRouter({company:base},{fetchImpl:async(url,opts)=>{
+    assert.equal(url.href,'https://example.test/v1/models');
+    assert.equal(opts.headers.authorization,'Bearer secret');
+    return {ok:true,status:200};
+  }});
+  assert.equal((await ready.health('company',{networkApproved:true,credentialApproved:true})).status,'READY');
+
+  const auth=new ProviderRouter({company:base},{fetchImpl:async()=>({ok:false,status:401})});
+  assert.equal((await auth.health('company',{networkApproved:true,credentialApproved:true})).status,'AUTH_REQUIRED');
+
+  const degraded=new ProviderRouter({company:base},{fetchImpl:async()=>({ok:false,status:503})});
+  assert.equal((await degraded.health('company',{networkApproved:true,credentialApproved:true})).status,'DEGRADED');
+
+  const unavailable=new ProviderRouter({company:base},{fetchImpl:async()=>{throw new Error('connection refused');}});
+  assert.equal((await unavailable.health('company',{networkApproved:true,credentialApproved:true})).status,'UNAVAILABLE');
+});
+
+test('fixed local-command health checks executable discovery without running task text', async () => {
+  const calls=[];
+  const runner=async(command,args)=>{
+    calls.push([command,args]);
+    return {code:0,stdout:'C:\\Tools\\worker.exe\n',stderr:'',timedOut:false,aborted:false};
+  };
+  const router=new ProviderRouter({
+    worker:{command:'C:\\Tools\\worker.exe',args:['--bounded'],roles:['builder'],mode:'local-command'}
+  },{runner,platform:'win32'});
+  const health=await router.health('worker');
+  assert.equal(health.status,'READY');
+  assert.deepEqual(calls[0],['where.exe',['C:\\Tools\\worker.exe']]);
+});
