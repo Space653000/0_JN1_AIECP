@@ -842,18 +842,20 @@ async function buildRuntimeProviderRouter() {
       };
       continue;
     }
-    if (!['api', 'local'].includes(item.kind) || !item.baseUrl || !item.defaultModel) continue;
+    if (!['api', 'local', 'remote-mcp'].includes(item.kind) || !item.baseUrl) continue;
+    if (['api', 'local'].includes(item.kind) && !item.defaultModel) continue;
     let apiKey = '';
     const encrypted = secrets.values?.[item.id];
     if (encrypted && safeStorage.isEncryptionAvailable()) {
       try { apiKey = safeStorage.decryptString(Buffer.from(encrypted, 'base64')); } catch {}
     }
     registry[item.id] = {
-      mode: 'openai-compatible',
+      mode: item.kind === 'remote-mcp' ? 'remote-mcp' : 'openai-compatible',
       baseUrl: item.baseUrl,
-      defaultModel: item.defaultModel,
-      roles: Array.isArray(item.roles) && item.roles.length ? item.roles : ['planner', 'reviewer', 'general'],
+      defaultModel: item.defaultModel || null,
+      roles: item.kind === 'remote-mcp' ? [] : (Array.isArray(item.roles) && item.roles.length ? item.roles : ['planner', 'reviewer', 'general']),
       apiKey,
+      requiresCredential: Boolean(item.credentialRef),
       network: true,
       credential: Boolean(apiKey),
       kind: item.kind
@@ -864,6 +866,22 @@ async function buildRuntimeProviderRouter() {
 
 async function refreshRuntimeProviders() {
   if (controlPlane) controlPlane.providers = await buildRuntimeProviderRouter();
+}
+
+async function checkProviderHealth(providerId, options = {}) {
+  if (providerId === 'chatgpt-web') {
+    return { provider: providerId, status: 'READY', detail: 'Human-mediated official browser session.', checkedAt: new Date().toISOString() };
+  }
+  const state = await loadState();
+  if (!(state.providers || []).some((item) => item.id === providerId)) {
+    return { provider: providerId, status: 'NOT_CONFIGURED', detail: 'Provider is not registered.', checkedAt: new Date().toISOString() };
+  }
+  const router = await buildRuntimeProviderRouter();
+  return router.health(providerId, {
+    networkApproved: Boolean(options.networkApproved),
+    credentialApproved: Boolean(options.credentialApproved),
+    timeoutMs: Math.min(30000, Math.max(1000, Number(options.timeoutMs || 5000)))
+  });
 }
 
 async function getOrCreateLocalMcpToken() {
@@ -939,7 +957,11 @@ async function publicProviders(state) {
     status: 'READY',
     builtIn: true,
     description: 'Official ChatGPT in your normal browser. No API key required.'
-  }].concat(state.providers.map((item) => ({ ...item, hasCredential: Boolean(secrets.values[item.id]) })));
+  }].concat(state.providers.map((item) => ({
+    ...item,
+    status: item.status === 'CONFIGURED' ? 'DEGRADED' : (item.status || 'NOT_CONFIGURED'),
+    hasCredential: Boolean(secrets.values[item.id])
+  })));
 }
 
 async function saveProvider(payload) {
@@ -977,7 +999,7 @@ async function saveProvider(payload) {
     args: kind === 'local-command' ? args : [],
     defaultModel: defaultModel || null,
     roles,
-    status: kind === 'local-command' || kind === 'remote-mcp' || defaultModel ? 'CONFIGURED' : 'NOT_CONFIGURED',
+    status: 'DEGRADED',
     credentialRef: apiKey ? `cred:${id}` : (existing?.credentialRef || null),
     updatedAt: new Date().toISOString()
   };
@@ -1273,6 +1295,7 @@ function registerIpc() {
   });
 
   ipcMain.handle('provider:list', async () => publicProviders(await loadState()));
+  ipcMain.handle('provider:health', async (_event, payload) => checkProviderHealth(payload?.providerId, payload || {}));
   ipcMain.handle('provider:save', async (_event, payload) => saveProvider(payload));
   ipcMain.handle('provider:delete', async (_event, payload) => deleteProvider(payload?.providerId));
 }
