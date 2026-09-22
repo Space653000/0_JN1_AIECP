@@ -51,7 +51,7 @@ test('Dashboard and shell accessibility provide keyboard focus text status and r
 
 
 test('Command Center projects canonical Multi-Worker identity, health and isolated cancellation controls', async () => {
-  const dashboard=await fs.readFile(path.join(__dirname,'..','ui','harness-console.js'),'utf8');
+  const dashboard=read('ui/harness-console.js');
   for(const term of ['Worker Runtime','Provider: ','Model: ','Role: ','Task: ','Runtime: ','Worktree: ','Verify: ','Heartbeat: ','Cancel: ','Health ']){
     assert.ok(dashboard.includes(term), 'missing dashboard worker field: '+term);
   }
