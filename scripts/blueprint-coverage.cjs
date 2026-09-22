@@ -27,7 +27,7 @@ const matrix={
   '17_V0_2_TRIPLE_AUDIT.md':{type:'HISTORICAL',evidence:['Blueprint/23_IMPLEMENTATION_STATUS.md']},
   '18_BOUNDED_AUTONOMOUS_EXECUTION.md':{type:'FUNCTIONAL',evidence:['electron/lib/autonomy.cjs','tests/autonomy.test.cjs']},
   '19_V0_3_TRIPLE_AUDIT.md':{type:'HISTORICAL',evidence:['Blueprint/23_IMPLEMENTATION_STATUS.md']},
-  '20_HARNESS_ENGINEERING_MULTI_AGENT_LOOP.md':{type:'FUNCTIONAL',evidence:['electron/lib/control-plane.cjs','electron/lib/harness.cjs','tests/control-plane.test.cjs','tests/canonical-loop.e2e.test.cjs']},
+  '20_HARNESS_ENGINEERING_MULTI_AGENT_LOOP.md':{type:'FUNCTIONAL',evidence:['electron/lib/control-plane.cjs','electron/lib/harness.cjs','electron/lib/accepted-evidence.cjs','tests/control-plane.test.cjs','tests/canonical-loop.e2e.test.cjs','tests/harness-bounds.test.cjs','tests/accepted-evidence.test.cjs']},
   '21_AGENT_ROLES_AND_HANDOFF_PROTOCOL.md':{type:'FUNCTIONAL',evidence:['electron/lib/provider-router.cjs','electron/lib/harness.cjs','tests/provider-integration.test.cjs']},
   '22_DASHBOARD_QUEUE_AND_EVENT_ARCHITECTURE.md':{type:'FUNCTIONAL',evidence:['electron/lib/event-projection.cjs','ui/harness-console.js','tests/event-projection.test.cjs','tests/i18n-accessibility.test.cjs']},
   '23_IMPLEMENTATION_STATUS.md':{type:'NORMATIVE',evidence:['scripts/acceptance-audit.cjs','scripts/requirements-coverage.cjs','scripts/blueprint-coverage.cjs']},
