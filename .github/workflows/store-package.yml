@@ -58,25 +58,22 @@ jobs:
           node-version: '24'
       - run: npm install --no-audit --no-fund
       - run: npm run verify
-      - name: Build owner-identity Store AppX
+      - name: Apply owner Store identity to package config
         shell: pwsh
         env:
           AECP_STORE_IDENTITY: ${{ inputs.identity_name }}
           AECP_STORE_PUBLISHER: ${{ inputs.publisher }}
           AECP_STORE_PUBLISHER_DISPLAY: ${{ inputs.publisher_display_name }}
         run: |
-          $args = @(
-            'electron-builder',
-            '--win',
-            'appx',
-            '--${{ matrix.arch }}',
-            '--publish',
-            'never',
-            "-c.appx.identityName=$env:AECP_STORE_IDENTITY",
-            "-c.appx.publisher=$env:AECP_STORE_PUBLISHER",
-            "-c.appx.publisherDisplayName=$env:AECP_STORE_PUBLISHER_DISPLAY"
-          )
-          & npx @args
+          node -e "const fs=require('fs');const p=require('./package.json');p.build.appx.identityName=process.env.AECP_STORE_IDENTITY;p.build.appx.publisher=process.env.AECP_STORE_PUBLISHER;p.build.appx.publisherDisplayName=process.env.AECP_STORE_PUBLISHER_DISPLAY;fs.writeFileSync('package.json',JSON.stringify(p,null,2)+'\\n')"
+      - name: Build owner-identity Store AppX
+        shell: pwsh
+        run: |
+          if ('${{ matrix.arch }}' -eq 'x64') {
+            npm run dist:store:x64
+          } else {
+            npm run dist:store:arm64
+          }
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Validate generated Store manifest
         shell: pwsh
