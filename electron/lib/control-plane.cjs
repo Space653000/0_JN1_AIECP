@@ -353,15 +353,111 @@ class ControlPlane {
     await this.persist();
   }
 
+  repositoryLockKeys(run,task){
+    return (task.resources?.repositories||[run.sourceRoot]).map(p=>'repo:'+path.resolve(p).toLowerCase()).sort();
+  }
+
+  async providerHealthForRun(run){
+    const results={};
+    const unique=new Map();
+    for(const role of ['planner','builder','reviewer']){
+      const providerId=run.providers?.[role];
+      if(providerId) unique.set(providerId,{providerId,model:run.models?.[role]||null});
+    }
+    for(const {providerId,model} of unique.values()){
+      const cacheKey=[providerId,model||'',Boolean(run.providerApprovals?.network),Boolean(run.providerApprovals?.credential)].join('|');
+      const cached=this.providerHealthCache.get(cacheKey);
+      if(cached&&Date.now()-cached.at<15000){results[providerId]=cached.value;continue;}
+      let value={provider:providerId,status:'READY',detail:'Provider registration is valid.'};
+      if(typeof this.providers.health==='function'){
+        try{
+          value=await this.providers.health(providerId,{
+            model,
+            networkApproved:Boolean(run.providerApprovals?.network),
+            credentialApproved:Boolean(run.providerApprovals?.credential),
+            timeoutMs:5000
+          });
+        }catch(error){
+          value={provider:providerId,status:'UNAVAILABLE',detail:String(error?.message||error).slice(0,500)};
+        }
+      }
+      this.providerHealthCache.set(cacheKey,{at:Date.now(),value});
+      results[providerId]=value;
+    }
+    return results;
+  }
+
+  schedulerDecision(run,task,{providerHealth={},locks=[]}={}){
+    const reasons=[];
+    const dependenciesReady=(task.dependencies||[]).every(d=>{
+      const dep=(run.taskIds||[]).map(x=>this.state.tasks[x]).find(x=>x?.id===d||x?.title===d);
+      return dep?dep.state==='DONE':true;
+    });
+    if(!dependenciesReady) reasons.push('DEPENDENCY_WAIT');
+
+    const retryRemaining=Math.max(0,Number(run.maxIterations||1)-Number(task.attempts||0));
+    if(retryRemaining<=0) reasons.push('RETRY_BUDGET_EXHAUSTED');
+
+    const repositoryLocks=this.repositoryLockKeys(run,task);
+    const lockConflict=repositoryLocks.find(key=>locks.some(lock=>lock.key===key&&lock.meta?.taskId!==task.id));
+    if(lockConflict) reasons.push('LOCK_BUSY');
+
+    const missingApprovals=this.missingProviderApprovals(run);
+    if(missingApprovals.length) reasons.push('PROVIDER_APPROVAL_REQUIRED');
+    if(!this.adapterSecurity?.ok) reasons.push('ADAPTER_POLICY_BLOCKED');
+
+    const providerStates={};
+    for(const role of ['planner','builder','reviewer']){
+      const providerId=run.providers?.[role];
+      if(!providerId) continue;
+      const health=providerHealth[providerId]||{status:'NOT_CONFIGURED',detail:'Provider health unavailable.'};
+      providerStates[role]={provider:providerId,status:health.status,detail:health.detail||null};
+      if(health.status!=='READY') reasons.push('PROVIDER_'+role.toUpperCase()+'_'+health.status);
+    }
+
+    return {
+      schema:'aecp.scheduler-decision/v1',
+      taskId:task.id,
+      at:now(),
+      eligible:reasons.length===0,
+      reasons:[...new Set(reasons)],
+      priority:schedulerPriority(task.priority),
+      risk:schedulerRisk(task.risk),
+      estimatedCostUnits:schedulerEstimate(task.estimatedCostUnits,1,1000000),
+      estimatedRuntimeMs:schedulerEstimate(task.estimatedRuntimeMs,300000,24*60*60*1000),
+      retryRemaining,
+      repositoryLocks,
+      providerStates
+    };
+  }
+
   async schedulerTick(){
     if(this.shuttingDown) return;
+    await this.locks.recover();
+    const locks=this.locks.list();
     for(const run of Object.values(this.state.runs)){
       if(!['QUEUED','RUNNING'].includes(run.state)) continue;
       if(run.state==='QUEUED') run.state='RUNNING';
       const active=(run.taskIds||[]).map(id=>this.state.tasks[id]).filter(t=>t&&t.state==='RUNNING').length;
       if(active>=run.maxConcurrency) continue;
-      const queued=(run.taskIds||[]).map(id=>this.state.tasks[id]).filter(t=>t&&t.state==='QUEUED' && (t.dependencies||[]).every(d=>{const dep=(run.taskIds||[]).map(x=>this.state.tasks[x]).find(x=>x.id===d||x.title===d);return dep?dep.state==='DONE':true;})).slice(0,run.maxConcurrency-active);
-      for(const task of queued) this.executeTask(run,task).catch(()=>{});
+
+      const providerHealth=await this.providerHealthForRun(run);
+      const candidates=(run.taskIds||[]).map(id=>this.state.tasks[id]).filter(t=>t&&t.state==='QUEUED').map(task=>{
+        const decision=this.schedulerDecision(run,task,{providerHealth,locks});
+        task.schedulerDecision=decision;
+        return {task,decision};
+      });
+      const selected=candidates
+        .filter(item=>item.decision.eligible)
+        .sort((a,b)=>compareSchedulerCandidates(
+          {...a.decision,createdAt:a.task.createdAt,taskId:a.task.id},
+          {...b.decision,createdAt:b.task.createdAt,taskId:b.task.id}
+        ))
+        .slice(0,run.maxConcurrency-active);
+      for(const {task,decision} of selected){
+        await this.event('scheduler.selected',{runId:run.id,taskId:task.id,decision});
+        this.executeTask(run,task).catch(()=>{});
+      }
     }
     await this.persist();
     if(!this.shuttingDown && (!this.lastMaintenanceAt || Date.now()-this.lastMaintenanceAt>60000)){this.lastMaintenanceAt=Date.now();const worktrees=[]; for(const run of Object.values(this.state.runs||{})){ if(!TERMINAL.has(run.state)) continue; for(const taskId of run.taskIds||[]){const t=this.state.tasks[taskId]; if(t?.result?.worktree) worktrees.push({worktree:t.result.worktree,repoRoot:t.delivery?.taskRoot||run.sourceRoot});}} const repoRoots=[...new Set(Object.values(this.state.runs||{}).map(r=>r.sourceRoot).filter(Boolean))];
@@ -370,7 +466,6 @@ class ControlPlane {
       if(maintenance){this.maintenanceTask=maintenance;maintenance.finally(()=>{if(this.maintenanceTask===maintenance)this.maintenanceTask=null;}).catch(()=>{});}
     }
   }
-
   schedule(){
     if(this.shuttingDown||this.scheduler) return;
     this.scheduler=setInterval(()=>{this.schedulerTick().catch(()=>{});this.heartbeat().catch(()=>{});},1000);
