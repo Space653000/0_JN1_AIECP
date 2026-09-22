@@ -77,6 +77,6 @@ test('Harness patch includes SHA-256 and privacy-safe Worker command metadata',(
   const harness=fs.readFileSync(path.join(__dirname,'..','electron','lib','harness.cjs'),'utf8');
   assert.match(harness,/crypto\.createHash\('sha256'\)\.update\(r\.stdout\)/);
   assert.match(harness,/record\.blueprintVersion/);
-  assert.match(harness,/command:\s*b\.command \|\| b\.provider/);
+  assert.match(harness,/command:\s*b\.command\s*\|\|\s*b\.provider/);
   assert.match(harness,/changedFiles/);
 });
