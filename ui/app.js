@@ -293,6 +293,72 @@ function loadLoopConfig() {
   }
 }
 
+const LOOP_PRESETS = Object.freeze({
+  research: {
+    label: 'Research',
+    goal: 'Research the stated engineering question, compare alternatives, identify uncertainty, and produce evidence-backed findings.',
+    done: 'Decision criteria are explicitly answered, material alternatives are compared, uncertainties are recorded, and each conclusion is supported by evidence.',
+    maxIterations: 8,
+    checkpointEvery: 2
+  },
+  build: {
+    label: 'Build',
+    goal: 'Implement the requested engineering change through inspect → plan → edit → build → test → review.',
+    done: 'The requested behavior is implemented, deterministic verification passes, evidence is recorded, and no unresolved acceptance criterion remains.',
+    maxIterations: 6,
+    checkpointEvery: 1
+  },
+  debug: {
+    label: 'Debug',
+    goal: 'Reproduce the failure, form and test bounded hypotheses, change one variable at a time, and preserve diagnostic evidence.',
+    done: 'The root cause is demonstrated, the fix is verified against the reproduction, regression coverage exists, and relevant evidence is preserved.',
+    maxIterations: 8,
+    checkpointEvery: 1
+  },
+  review: {
+    label: 'Review',
+    goal: 'Review the current change for correctness, architecture, security, accessibility, and regression risk.',
+    done: 'Diff and tests are inspected, material findings are resolved or explicitly gated, and the reviewer returns PASS, REWORK, or HUMAN_REQUIRED with evidence.',
+    maxIterations: 4,
+    checkpointEvery: 1
+  },
+  optimization: {
+    label: 'Optimization',
+    goal: 'Establish a measurable baseline, propose bounded improvements, benchmark them, and retain only verified gains.',
+    done: 'The target metric is reached or the budget is exhausted; retained changes show measurable improvement without violating correctness or policy constraints.',
+    maxIterations: 8,
+    checkpointEvery: 2
+  },
+  release: {
+    label: 'Release',
+    goal: 'Prepare the current source for release through version verification, test matrix, packaging, integrity/provenance checks, and governed publication gates.',
+    done: 'Required CI/package evidence passes on the exact source commit, release artifacts and hashes/provenance are complete, and any signing/Store/publish owner gates are explicitly satisfied or HUMAN_REQUIRED.',
+    maxIterations: 5,
+    checkpointEvery: 1
+  }
+});
+
+function applyLoopPreset(id) {
+  const preset = LOOP_PRESETS[id];
+  if (!preset) return false;
+  const current = loadLoopConfig();
+  const next = {
+    ...current,
+    preset: id,
+    goal: preset.goal,
+    done: preset.done,
+    maxIterations: preset.maxIterations,
+    checkpointEvery: preset.checkpointEvery
+  };
+  localStorage.setItem('aecp-goal-loop', JSON.stringify(next));
+  const setValue = (selector, value) => { const node = $(selector); if (node) node.value = String(value); };
+  setValue('#loopGoal', next.goal);
+  setValue('#loopDone', next.done);
+  setValue('#loopIterations', next.maxIterations);
+  setValue('#loopCheckpoint', next.checkpointEvery);
+  return true;
+}
+
 const HARNESS_AGENT_PROVIDER = Object.freeze({
   'claude-code': { id: 'claude', roles: ['planner', 'reviewer'], network: true },
   'codex-cli': { id: 'codex', roles: ['builder'], network: false },
@@ -336,6 +402,9 @@ function renderLoop(host) {
     <p class="muted">Define the outcome once. AECP keeps the same Goal/Done/Evidence contract while the transport can evolve from Web Safe Bridge to a governed Local Autonomous worker or an official Full MCP connection.</p>
     ${executionModeCards()}
     <form id="goalLoopForm" class="provider-form">
+      <div class="task-actions loop-presets" role="group" aria-label="Goal Loop presets">
+        ${Object.entries(LOOP_PRESETS).map(([id,preset]) => `<button class="secondary-button" type="button" data-action="apply-loop-preset" data-preset="${esc(id)}">${esc(preset.label)}</button>`).join('')}
+      </div>
       <div class="form-grid">
         <label class="wide">Goal<textarea id="loopGoal" rows="3" placeholder="Example: Make the application install and complete its first safe task with no technical setup required.">${esc(config.goal || '')}</textarea></label>
         <label class="wide">Definition of Done<textarea id="loopDone" rows="3" placeholder="Use measurable acceptance criteria, not 'looks good'.">${esc(config.done || '')}</textarea></label>
@@ -974,6 +1043,9 @@ function bindEvents() {
       if (action === 'open-chatgpt') await openChatGPT();
       if (action === 'sample-task') await createSampleTask();
       if (action === 'show-loop') setView('loop');
+      if (action === 'apply-loop-preset') {
+        if (applyLoopPreset(actionNode.dataset.preset)) toast(`Goal Loop preset applied: ${LOOP_PRESETS[actionNode.dataset.preset]?.label || actionNode.dataset.preset}.`);
+      }
       if (action === 'copy-loop-prompt') await copyGoalLoopPrompt();
       if (action === 'start-autonomy') await startAutonomy();
       if (action === 'start-harness') await startHarness();
