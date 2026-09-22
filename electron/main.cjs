@@ -13,6 +13,7 @@ const { ProviderRouter, PROVIDERS } = require('./lib/provider-router.cjs');
 const { ProviderUsageStore } = require('./lib/provider-usage.cjs');
 const { clearEvidence, removeWorkspaceBinding, clearCredentials, resetActiveState } = require('./lib/local-data-manager.cjs');
 const { assertWithinRoot } = require('./lib/path-safety.cjs');
+const { redactSensitive } = require('./lib/redaction.cjs');
 const { SecurityPolicy } = require('./lib/security-policy.cjs');
 const { migrateState } = require('./lib/state-migration.cjs');
 const { recommendNextAction } = require('./lib/guidance.cjs');
@@ -119,7 +120,7 @@ async function saveState(state) {
   if (state?.__aecpReadOnlyRecovery || state?.recovery?.mode === 'READ_ONLY_RECOVERY') {
     throw new Error('AECP local state is in read-only recovery mode because it was created by a newer schema.');
   }
-  await writeJsonAtomic(dataPath('state.json'), state);
+  await writeJsonAtomic(dataPath('state.json'), redactSensitive(state));
 }
 
 function getCurrentWorkspace(state) {
@@ -784,7 +785,7 @@ async function appendTrace(taskId, type, data = {}, severity = 'info') {
     const existing = await fsp.readFile(traceFile, 'utf8');
     seq = existing.split(/\r?\n/).filter(Boolean).length + 1;
   } catch {}
-  const event = { schema: 'aecp.trace/v1', taskId, seq, at: new Date().toISOString(), type, severity, data };
+  const event = redactSensitive({ schema: 'aecp.trace/v1', taskId, seq, at: new Date().toISOString(), type, severity, data });
   await fsp.appendFile(traceFile, `${JSON.stringify(event)}\n`, 'utf8');
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('task:event', event);
   return event;
@@ -793,9 +794,9 @@ async function appendTrace(taskId, type, data = {}, severity = 'info') {
 async function persistTask(task, evidence = null) {
   const dir = dataPath('evidence', task.id);
   await fsp.mkdir(dir, { recursive: true });
-  await writeJsonAtomic(path.join(dir, 'task.json'), task);
-  if (evidence) await writeJsonAtomic(path.join(dir, 'evidence.json'), evidence);
-  if (task.result) await writeJsonAtomic(path.join(dir, 'result.json'), task.result);
+  await writeJsonAtomic(path.join(dir, 'task.json'), redactSensitive(task));
+  if (evidence) await writeJsonAtomic(path.join(dir, 'evidence.json'), redactSensitive(evidence));
+  if (task.result) await writeJsonAtomic(path.join(dir, 'result.json'), redactSensitive(task.result));
 }
 
 async function executeReadOnlyTask(task, workspace) {
