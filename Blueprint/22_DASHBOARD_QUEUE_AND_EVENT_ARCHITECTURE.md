@@ -68,20 +68,39 @@ CI: pending
 
 ## 5. Agent view
 
-Each agent card shows:
+Each Worker/agent card shows canonical runtime projection:
 
 ~~~text
-Claude-01
-Role: Reviewer
-State: WAITING
-Task: TASK-023-B
+Codex OFFICIAL
+Provider: OpenAI
+Model: <actual configured model>
+Role: Builder
+Task: TASK-023-A
+State: RUNNING
+Runtime: 00:12:31
+Repository: control-plane
+Worktree: <task-scoped worktree>
+Verify: PENDING
 Health: READY
-Provider: Claude Code
-Version: detected
-Workspace: control-plane
 ~~~
 
-No fake status is allowed. If the process cannot be verified, show UNKNOWN.
+~~~text
+Codex PEGA
+Provider: PEGA
+Model: <actual configured model>
+Role: Builder
+Task: TASK-023-B
+State: RUNNING
+Runtime: 00:08:04
+Repository: control-plane
+Worktree: <different task-scoped worktree>
+Verify: PASS
+Health: READY
+~~~
+
+Required fields are Worker name, Provider, Model, Role, Task, State, Runtime, Repository, Worktree, Verify state, Health and heartbeat/cancel state.
+
+No fake status is allowed. If process/provider/model/runtime state cannot be verified, show UNKNOWN. Dashboard must never infer state independently of the canonical Control Plane/Harness record.
 
 ## 6. Run timeline
 
