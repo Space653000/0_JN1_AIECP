@@ -176,3 +176,28 @@ test('rejecting a run-level provider approval blocks the mission without provide
     await fs.rm(root, { recursive: true, force: true });
   }
 });
+
+test('ControlPlane makes remote approval decisions idempotent by request id', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'aecp-remote-approval-'));
+  const cp = new ControlPlane({ rootDir: root });
+  await cp.init();
+  try {
+    cp.state.runs.r1 = { id: 'r1', state: 'HUMAN_REQUIRED', taskIds: [], events: [] };
+    cp.state.approvals.a1 = { id: 'a1', runId: 'r1', taskId: null, state: 'WAITING', risk: 'RED', reason: 'Approve network', action: 'NETWORK', createdAt: new Date().toISOString() };
+    await cp.persist();
+
+    const first = await cp.approve('a1', { by: 'remote:phone', note: 'Approve', idempotencyKey: 'approve-a1-001' });
+    const replay = await cp.approve('a1', { by: 'remote:phone', note: 'Approve', idempotencyKey: 'approve-a1-001' });
+    assert.equal(first.state, 'APPROVED');
+    assert.equal(replay.state, 'APPROVED');
+    assert.equal(replay.decisionIdempotencyKey, 'approve-a1-001');
+
+    await assert.rejects(
+      () => cp.approve('a1', { by: 'remote:other', note: 'Different replay', idempotencyKey: 'approve-a1-002' }),
+      /Approval is not waiting/
+    );
+  } finally {
+    await cp.shutdown();
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
