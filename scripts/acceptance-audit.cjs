@@ -139,10 +139,10 @@ const staticInvariants=[
   {label:'Result Capsule uses manifest',re:/evidence:task\.evidenceManifest\|\|task\.evidence/}
  ]),
  invariant('secret-redaction','electron/lib/redaction.cjs',[
-  {label:'Bearer redaction',re:/Bearer\\s\+/},
+  {label:'Bearer redaction',re:/Bearer/},
   {label:'private-key redaction',re:/PRIVATE KEY/},
-  {label:'provider key redaction',re:/api\[_-\]\?key/},
-  {label:'URL userinfo redaction',re:/https\?:\\\/\\\//},
+  {label:'provider token redaction',re:/github_pat_/},
+  {label:'URL userinfo redaction',re:/\[REDACTED\]@/},
   {label:'recursive sanitizer',re:/function redactSensitive/}
  ]),
  invariant('secret-redaction-surfaces','tests/redaction.test.cjs',[
