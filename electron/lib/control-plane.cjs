@@ -31,7 +31,7 @@ function now(){return new Date().toISOString();}
 function clamp(n,min,max,d){const x=Number(n);return Number.isFinite(x)?Math.max(min,Math.min(max,x)):d;}
 
 class ControlPlane {
-  constructor({rootDir, emit=async()=>{}, providerRouter=null}={}) {
+  constructor({rootDir, emit=async()=>{}, providerRouter=null, remoteOptions={}}={}) {
     this.rootDir=path.resolve(rootDir);
     this.file=path.join(this.rootDir,'control-plane.json');
     this.eventFile=path.join(this.rootDir,'events.jsonl');
@@ -48,7 +48,7 @@ class ControlPlane {
     this.ledger=new EventLedger(this.eventFile+'.ledger');
     this.resources=new ResourceManager(path.join(this.rootDir,'resources'));
     this.maintenance=null;
-    this.remote=new RemoteGateway({status:()=>this.status(),replay:(runId,limit)=>this.replay(runId,limit)});
+    this.remote=new RemoteGateway({status:()=>this.status(),replay:(runId,limit)=>this.replay(runId,limit),...remoteOptions});
     this.webhook=new GitHubWebhookReceiver({secret:process.env.AECP_GITHUB_WEBHOOK_SECRET,port:Number(process.env.AECP_GITHUB_WEBHOOK_PORT||0),onEvent:(e)=>this.ingestExternalEvent(e)});
   }
 
@@ -429,6 +429,9 @@ class ControlPlane {
   async gitLocal(cwd,args){return await new Promise((resolve,reject)=>{const p=spawn('git',args,{cwd,windowsHide:true,stdio:['ignore','pipe','pipe']});let o='',e='';p.stdout.on('data',b=>o+=b);p.stderr.on('data',b=>e+=b);p.on('error',reject);p.on('close',code=>code===0?resolve(o.trim()):reject(new Error((e||o).slice(-3000))));});}
   async detectRepo(cwd){try{const out=await new Promise((resolve,reject)=>{const p=spawn('gh',['repo','view','--json','nameWithOwner','-q','.nameWithOwner'],{cwd,windowsHide:true,stdio:['ignore','pipe','pipe']});let o='',e='';p.stdout.on('data',b=>o+=b);p.stderr.on('data',b=>e+=b);p.on('error',reject);p.on('close',code=>code===0?resolve(o.trim()):reject(new Error(e||'gh repo view failed')));});return out||null;}catch{return null;}}
   async status(){const s=this.snapshot();s.remote=this.remote?.info()||{enabled:false};s.webhook=this.webhook?.info()||{enabled:false};s.resources=this.resources.state;s.adapterSecurity=this.adapterSecurity||auditAdapters();s.eventProjection=projectEvents(await this.listEvents(5000));return s;}
+  createRemotePairing(){return this.remote.pairing.create()}
+  listRemoteDevices(){return this.remote.listDevices()}
+  revokeRemoteDevice(deviceId){return this.remote.revokeDeviceId(deviceId)}
   async scanResources(root){return this.resources.scan(root)}
   async ingestExternalEvent(event){const key=event?.idempotencyKey||event?.externalId;if(!key)throw new Error('External event requires idempotencyKey or externalId.');const r=await this.ledger.append({type:'external.received',...event,idempotencyKey:key});if(r.duplicate)return{duplicate:true};await this.event('external.correlated',{externalId:event.externalId||null,correlationId:event.correlationId||null,idempotencyKey:key});return{duplicate:false};}
   async gc(){const removed=await this.contextBus.gc();await this.locks.recover();await this.event('maintenance.gc',{removedCapsules:removed});return{removedCapsules:removed};}
