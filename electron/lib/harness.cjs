@@ -35,6 +35,18 @@ function id(prefix) {
   return `${prefix}-${Date.now().toString(36)}-${crypto.randomBytes(3).toString('hex')}`;
 }
 
+function platformCommand(command) {
+  const value = String(command || '');
+  if (process.platform !== 'win32') return value;
+  const fixed = {
+    npm: 'npm.cmd',
+    npx: 'npx.cmd',
+    pnpm: 'pnpm.cmd',
+    yarn: 'yarn.cmd'
+  };
+  return fixed[value.toLowerCase()] || value;
+}
+
 function text(value, max = 12000) {
   return String(value ?? '').trim().slice(0, max);
 }
@@ -84,7 +96,7 @@ function safeJson(raw) {
 function runProcess(command, args, options = {}) {
   const { cwd, env = {}, timeoutMs = 120000, signal, maxOutputBytes = MAX_OUTPUT } = options;
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, {
+    const child = spawn(platformCommand(command), args, {
       cwd, env: { ...process.env, ...env }, shell: false, windowsHide: true,
       stdio: ['ignore', 'pipe', 'pipe']
     });
