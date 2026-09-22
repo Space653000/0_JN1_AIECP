@@ -18,6 +18,8 @@ const requiredFiles=[
  ['event-ledger','electron/lib/event-ledger.cjs'],
  ['event-projection','electron/lib/event-projection.cjs'],
  ['evidence-manager','electron/lib/evidence-manager.cjs'],
+ ['accepted-evidence-test','tests/accepted-evidence.test.cjs'],
+ ['accepted-evidence','electron/lib/accepted-evidence.cjs'],
  ['resource-manager','electron/lib/resource-manager.cjs'],
  ['lock-manager','electron/lib/lock-manager.cjs'],
  ['context-bus','electron/lib/context-bus.cjs'],
@@ -116,6 +118,23 @@ const staticInvariants=[
   {label:'Workspace unbind IPC',re:/data:remove-workspace/},
   {label:'credential clear IPC',re:/data:clear-credentials/},
   {label:'state reset IPC',re:/data:reset-state/}
+ ]),
+ invariant('accepted-task-evidence','electron/lib/accepted-evidence.cjs',[
+  {label:'accepted evidence schema',re:/aecp\.accepted-task-evidence\/v1/},
+  {label:'Blueprint version',re:/blueprintVersion/},
+  {label:'Plan id',re:/planId/},
+  {label:'agents/models',re:/agents:[\s\S]*models:/},
+  {label:'base/final commit',re:/baseCommit[\s\S]*finalCommit/},
+  {label:'commands and exit codes',re:/commands[\s\S]*exitCode/},
+  {label:'verifier result',re:/verifierResults/},
+  {label:'review result',re:/reviewResults/},
+  {label:'patch hash and changed files',re:/patch:[\s\S]*sha256[\s\S]*changedFiles/}
+ ]),
+ invariant('accepted-task-evidence-manifest','electron/lib/control-plane.cjs',[
+  {label:'evidence validation',re:/validateAcceptedTaskEvidence/},
+  {label:'fail closed incomplete evidence',re:/EVIDENCE_INCOMPLETE/},
+  {label:'SHA manifest',re:/evidenceManifest=await this\.evidence\.manifest/},
+  {label:'Result Capsule uses manifest',re:/evidence:task\.evidenceManifest\|\|task\.evidence/}
  ]),
  invariant('canonical-provider-routing','electron/lib/harness.cjs',[
   {label:'ProviderRouter imported',re:/ProviderRouter/},
