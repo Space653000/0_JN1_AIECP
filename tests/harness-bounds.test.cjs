@@ -229,7 +229,8 @@ test('Harness stops repeated no-progress attempts before infinite rework',async(
   assert.equal(run.state,'BLOCKED',run.error||JSON.stringify(run,null,2));
   assert.match(run.error,/No measurable progress/);
   assert.equal(run.noProgressAttempts,2);
-  assert.equal(run.tasks[0].state,'READY');
+  assert.equal(run.tasks[0].state,'BLOCKED');
+  assert.equal(run.tasks[0].stopReason,'NO_PROGRESS_STOP');
   assert.equal(run.events.some(event=>event.type==='task.accepted'),false);
 });
 
