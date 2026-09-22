@@ -6,6 +6,7 @@ const fs = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
 const { ControlPlane, STATES, TERMINAL } = require('../electron/lib/control-plane.cjs');
+const { WorkerRegistry } = require('../electron/lib/worker-registry.cjs');
 
 test('ControlPlane persists state and event journal', async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'aecp-control-'));
@@ -480,6 +481,81 @@ test('heartbeat renews task-owned lock leases with the task id', async () => {
     assert.ok(Date.parse(renewed.expiresAt)>before);
     assert.ok(Date.parse(cp.state.tasks['task-renew'].lockLeases[0].expiresAt)>=Date.parse(renewed.expiresAt));
   } finally {
+    await cp.shutdown();
+    await fs.rm(root,{recursive:true,force:true});
+  }
+});
+
+
+test('ControlPlane builder pool assigns distinct idle workers without provider-name special cases', async () => {
+  const root=await fs.mkdtemp(path.join(os.tmpdir(),'aecp-worker-pool-'));
+  const runtime=path.join(root,'runtime');
+  const workspace=path.join(root,'workspace');
+  await fs.mkdir(workspace,{recursive:true});
+  const workers=new WorkerRegistry(path.join(root,'workers'));
+  await workers.init();
+  await workers.register({id:'worker-a',name:'Worker A',providerId:'provider-a',providerName:'Provider A',runtime:'codex-cli',role:'builder',codexHome:path.join(root,'home-a')});
+  await workers.register({id:'worker-b',name:'Worker B',providerId:'provider-b',providerName:'Provider B',runtime:'codex-cli',role:'builder',codexHome:path.join(root,'home-b')});
+  const router={
+    resolve(role,provider){
+      const allowed={planner:['plan'],builder:['fallback','provider-a','provider-b'],reviewer:['review']};
+      return allowed[role]?.includes(provider)?{id:provider}:null;
+    },
+    capabilities(){return {process:true,network:false,credential:false};},
+    async health(provider){return {provider,status:'READY'};}
+  };
+  const cp=new ControlPlane({rootDir:runtime,providerRouter:router,workerRegistry:workers});
+  await cp.init();
+  try{
+    const run=await cp.createMission({
+      goal:'Parallel workers',
+      done:'Two tasks can be assigned independently',
+      sourceRoot:workspace,
+      autoStart:false,
+      providers:{planner:'plan',builder:'fallback',reviewer:'review'},
+      builderWorkers:['worker-a','worker-b']
+    });
+    assert.deepEqual(run.builderWorkers,['worker-a','worker-b']);
+    const t1=await cp.enqueueTask(run,{title:'A',objective:'A',acceptance:'PASS',dependencies:[],risk:'GREEN'});
+    const t2=await cp.enqueueTask(run,{title:'B',objective:'B',acceptance:'PASS',dependencies:[],risk:'GREEN'});
+    const health={plan:{status:'READY'},review:{status:'READY'},'provider-a':{status:'READY'},'provider-b':{status:'READY'}};
+    const reserved=new Set();
+    const d1=cp.schedulerDecision(run,t1,{providerHealth:health,locks:[],reservedWorkers:reserved});
+    assert.equal(d1.eligible,true);
+    assert.ok(['worker-a','worker-b'].includes(d1.selectedWorkerId));
+    reserved.add(d1.selectedWorkerId);
+    const d2=cp.schedulerDecision(run,t2,{providerHealth:health,locks:[],reservedWorkers:reserved});
+    assert.equal(d2.eligible,true);
+    assert.notEqual(d2.selectedWorkerId,d1.selectedWorkerId);
+    assert.equal(d1.selectedBuilderProvider,workers.get(d1.selectedWorkerId).providerId);
+    assert.equal(d2.selectedBuilderProvider,workers.get(d2.selectedWorkerId).providerId);
+  }finally{
+    await cp.shutdown();
+    await fs.rm(root,{recursive:true,force:true});
+  }
+});
+
+test('ControlPlane worker pool reports WORKER_BUSY without falling back to a different authority path', async () => {
+  const root=await fs.mkdtemp(path.join(os.tmpdir(),'aecp-worker-busy-'));
+  const workers=new WorkerRegistry(path.join(root,'workers'));
+  await workers.init();
+  await workers.register({id:'worker-only',providerId:'provider-worker',runtime:'codex-cli',role:'builder',codexHome:path.join(root,'home')});
+  await workers.acquire('worker-only',{runId:'other',taskId:'other-task'});
+  const router={
+    resolve(role,provider){return role==='builder'&&provider==='provider-worker'||role==='builder'&&provider==='fallback'||role==='planner'&&provider==='plan'||role==='reviewer'&&provider==='review'?{id:provider}:null;},
+    capabilities(){return {process:true,network:false,credential:false};}
+  };
+  const cp=new ControlPlane({rootDir:path.join(root,'runtime'),providerRouter:router,workerRegistry:workers});
+  await cp.init();
+  try{
+    const run={id:'run',state:'RUNNING',sourceRoot:root,taskIds:['task'],maxIterations:3,providers:{planner:'plan',builder:'fallback',reviewer:'review'},models:{planner:null,builder:null,reviewer:null},builderWorkers:['worker-only'],providerApprovals:{network:false,credential:false}};
+    const task={id:'task',runId:'run',state:'QUEUED',risk:'GREEN',priority:50,attempts:0,dependencies:[],resources:{repositories:[root]}};
+    cp.state.runs.run=run;cp.state.tasks.task=task;
+    const decision=cp.schedulerDecision(run,task,{providerHealth:{plan:{status:'READY'},review:{status:'READY'},'provider-worker':{status:'READY'}},locks:[]});
+    assert.equal(decision.eligible,false);
+    assert.ok(decision.reasons.includes('WORKER_BUSY'));
+    assert.equal(decision.selectedWorkerId,null);
+  }finally{
     await cp.shutdown();
     await fs.rm(root,{recursive:true,force:true});
   }
