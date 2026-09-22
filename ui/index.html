@@ -176,6 +176,18 @@
         </div>
         <div class="modal-actions"><button type="button" id="cancelProviderButton" class="secondary-button" data-i18n="cancel">Cancel</button><button type="submit" class="primary-button" data-i18n="saveProvider">Save provider</button></div>
       </form>
+      <section class="handoff-card" aria-labelledby="localDataTitle">
+        <div class="section-title"><h3 id="localDataTitle">Local data controls</h3><span class="status safe">Workspace files protected</span></div>
+        <p class="muted">These controls affect only AECP-owned local state. Removing a Workspace binding or resetting AECP never deletes the original project folder.</p>
+        <div class="button-row">
+          <button id="clearEvidenceButton" class="secondary-button" type="button">Clear evidence</button>
+          <button id="removeWorkspaceBindingButton" class="secondary-button" type="button">Remove Workspace binding</button>
+        </div>
+        <div class="button-row">
+          <button id="clearCredentialsButton" class="secondary-button" type="button">Clear stored credentials</button>
+          <button id="resetLocalStateButton" class="secondary-button" type="button">Reset AECP local state</button>
+        </div>
+      </section>
     </div>
   </div>
 
