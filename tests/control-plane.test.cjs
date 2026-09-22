@@ -182,8 +182,9 @@ test('ControlPlane makes remote approval decisions idempotent by request id', as
   const cp = new ControlPlane({ rootDir: root });
   await cp.init();
   try {
-    cp.state.runs.r1 = { id: 'r1', state: 'HUMAN_REQUIRED', taskIds: [], events: [] };
-    cp.state.approvals.a1 = { id: 'a1', runId: 'r1', taskId: null, state: 'WAITING', risk: 'RED', reason: 'Approve network', action: 'NETWORK', createdAt: new Date().toISOString() };
+    cp.state.runs.r1 = { id: 'r1', state: 'HUMAN_REQUIRED', taskIds: ['t1'], events: [] };
+    cp.state.tasks.t1 = { id: 't1', runId: 'r1', state: 'HUMAN_REQUIRED', lease: null };
+    cp.state.approvals.a1 = { id: 'a1', runId: 'r1', taskId: 't1', state: 'WAITING', risk: 'RED', reason: 'Approve existing task action', action: 'SYSTEM', createdAt: new Date().toISOString() };
     await cp.persist();
 
     const first = await cp.approve('a1', { by: 'remote:phone', note: 'Approve', idempotencyKey: 'approve-a1-001' });
