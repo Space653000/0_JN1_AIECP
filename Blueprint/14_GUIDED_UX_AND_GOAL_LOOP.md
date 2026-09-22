@@ -192,12 +192,16 @@ Done requires evidence tied to measurable acceptance criteria, for example:
 
 A loop must be bounded.
 
-Supported budgets should include:
-- maximum iterations
-- optional wall-clock budget
-- optional provider-cost budget for API providers
-- optional local compute budget
-- optional maximum failed attempts
+Supported budgets include:
+- maximum iterations;
+- maximum agent/tool turns;
+- optional wall-clock budget;
+- optional provider-reported cost budget for providers that return numeric cost metadata (AECP does not invent pricing when a provider does not report it);
+- optional local compute budget measured from local provider execution plus deterministic verifier time;
+- optional maximum failed attempts;
+- patch-byte and changed-file hard limits for write-capable Harness execution.
+
+All enforced runtime budgets terminate as `BUDGET_EXHAUSTED`; they are persisted in the Goal Loop contract and exposed in the Goal Loop / Harness Command Center controls.
 
 ### 5.5 Checkpoints
 
