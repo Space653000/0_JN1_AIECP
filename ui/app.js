@@ -577,12 +577,13 @@ function renderGraph(host) {
   const providers = state.providers || [];
   const tools = state.tools.filter((tool) => tool.available);
   host.innerHTML = `<div class="graph-canvas">
-    <div class="graph-center"><div class="graph-node"><strong>${esc(workspace.name)}</strong><small>WORKSPACE · policy boundary</small></div></div>
+    <div class="graph-center"><div class="graph-node"><strong>${esc(workspace.name)}</strong><small>WORKSPACE · policy boundary</small><div class="task-actions"><button class="secondary-button engineering-only" type="button" data-action="edit-workspace-policy">Edit policy edge</button></div></div></div>
     <div class="graph-branches">
-      <div class="graph-branch"><div class="graph-branch-label">REPOSITORIES</div>${repos.map((repo) => `<div class="graph-node"><strong>${esc(repo.name)}</strong><small>${esc(repo.branch)} · ${repo.dirty ? 'dirty' : 'clean'}</small></div>`).join('') || '<div class="graph-node"><strong>None</strong><small>No repository detected</small></div>'}</div>
-      <div class="graph-branch"><div class="graph-branch-label">PROVIDERS</div>${providers.map((provider) => `<div class="graph-node"><strong>${esc(provider.name)}</strong><small>${esc(provider.kind)} · ${esc(provider.status)}</small></div>`).join('')}</div>
+      <div class="graph-branch"><div class="graph-branch-label">REPOSITORIES</div><div class="task-actions"><button class="secondary-button engineering-only" type="button" data-action="add-repository-edge">Add repository binding</button></div>${repos.map((repo) => `<div class="graph-node"><strong>${esc(repo.name)}</strong><small>${esc(repo.branch)} · ${repo.dirty ? 'dirty' : 'clean'}</small></div>`).join('') || '<div class="graph-node"><strong>None</strong><small>No repository detected</small></div>'}</div>
+      <div class="graph-branch"><div class="graph-branch-label">PROVIDERS</div><div class="task-actions"><button class="secondary-button engineering-only" type="button" data-action="manage-provider-edges">Manage provider bindings</button></div>${providers.map((provider) => `<div class="graph-node"><strong>${esc(provider.name)}</strong><small>${esc(provider.kind)} · ${esc(provider.status)}</small></div>`).join('')}</div>
       <div class="graph-branch"><div class="graph-branch-label">LOCAL TOOLS</div>${tools.slice(0, 8).map((tool) => `<div class="graph-node"><strong>${esc(tool.name)}</strong><small>${esc(tool.version)}</small></div>`).join('') || '<div class="graph-node"><strong>Detecting</strong><small>No tools available</small></div>'}</div>
     </div>
+    <div class="privacy-note"><strong>Graph mutations are governed</strong><p>Editing a binding routes through validated Workspace, Provider, or Policy commands. The graph itself cannot grant permissions.</p></div>
   </div>`;
 }
 
@@ -1218,6 +1219,12 @@ function bindEvents() {
       const action = actionNode.dataset.action;
       const taskId = actionNode.dataset.taskId;
       if (action === 'choose-workspace') await chooseWorkspace();
+      if (action === 'edit-workspace-policy') {
+        await openProviderSettings();
+        $('#policyMaxRisk')?.focus();
+      }
+      if (action === 'add-repository-edge') await addRepository();
+      if (action === 'manage-provider-edges') await openProviderSettings();
       if (action === 'open-chatgpt') await openChatGPT();
       if (action === 'sample-task') await createSampleTask();
       if (action === 'show-loop') setView('loop');
