@@ -150,6 +150,14 @@ jobs:
         with:
           name: aecp-universal-installer
           path: release-assets/universal
+      - name: Generate release-wide SHA256 manifest
+        shell: pwsh
+        run: |
+          $lines = Get-ChildItem release-assets -Recurse -Filter '*.exe' | Sort-Object Name | ForEach-Object {
+            $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()
+            "$hash  $($_.Name)"
+          }
+          $lines | Out-File -Encoding ascii release-assets/SHA256SUMS.txt
       - shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
