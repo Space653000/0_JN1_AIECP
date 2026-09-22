@@ -481,6 +481,7 @@ function renderLoop(host) {
       </div>
       <div class="task-actions">
         <button class="primary-button" data-action="start-autonomy" type="button" ${['PREPARING','RUNNING','VERIFYING','CANCELLING'].includes(state.autonomyStatus?.state) ? 'disabled' : ''}>Start autonomous run</button>
+        <button class="secondary-button" data-action="resume-autonomy" type="button" ${state.autonomyStatus?.state === 'INTERRUPTED' && state.autonomyStatus?.spec ? '' : 'disabled'}>Resume interrupted run</button>
         <button class="secondary-button" data-action="cancel-autonomy" type="button" ${['PREPARING','RUNNING','VERIFYING'].includes(state.autonomyStatus?.state) ? '' : 'disabled'}>Cancel</button>
         <button class="secondary-button" data-action="open-autonomy-worktree" type="button" ${state.autonomyStatus?.worktree ? '' : 'disabled'}>Open worktree</button>
         <button class="primary-button" data-action="apply-autonomy" type="button" ${state.autonomyStatus?.state === 'DONE' ? '' : 'disabled'}>Apply verified changes</button>
@@ -995,6 +996,14 @@ async function startAutonomy() {
   toast('Bounded autonomous run started in an isolated worktree.');
 }
 
+async function resumeAutonomy() {
+  const result = await safe(() => window.aecp.resumeAutonomy());
+  if (!result) return;
+  state.autonomyStatus = result;
+  renderControl();
+  toast('Interrupted autonomous run resumed from its persisted checkpoint.');
+}
+
 async function cancelAutonomy() {
   const result = await safe(() => window.aecp.cancelAutonomy());
   if (result) { state.autonomyStatus = result; renderControl(); toast('Cancellation requested.'); }
@@ -1130,6 +1139,7 @@ function bindEvents() {
       }
       if (action === 'copy-loop-prompt') await copyGoalLoopPrompt();
       if (action === 'start-autonomy') await startAutonomy();
+      if (action === 'resume-autonomy') await resumeAutonomy();
       if (action === 'start-harness') await startHarness();
       if (action === 'cancel-harness') await cancelHarness();
       if (action === 'cancel-autonomy') await cancelAutonomy();
