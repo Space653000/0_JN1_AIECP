@@ -239,6 +239,9 @@ async function runHarness(options) {
   const maxTasks = bounded(options.maxTasks, 1, 8, 4);
   const checkpointEvery = bounded(options.checkpointEvery, 1, maxIterations, 1);
   const maxTurns = bounded(options.maxTurns, 1, 200, Math.max(3, 1 + (maxTasks * maxIterations * 2)));
+  const maxFailedAttempts = bounded(options.maxFailedAttempts, 1, 20, maxTasks * maxIterations);
+  const maxNoProgressAttempts = bounded(options.maxNoProgressAttempts, 1, 5, 2);
+  const maxWallClockMs = options.maxWallClockMs == null ? null : bounded(options.maxWallClockMs, 1000, 24 * 60 * 60 * 1000, null);
   const maxPatchBytes = bounded(options.maxPatchBytes, 1024, 64 * 1024 * 1024, DEFAULT_MAX_PATCH_BYTES);
   const maxChangedFiles = bounded(options.maxChangedFiles, 1, 1000, DEFAULT_MAX_CHANGED_FILES);
   const signal = options.signal;
@@ -260,7 +263,7 @@ async function runHarness(options) {
   }
   if (!record) record = { schema: HARNESS_SCHEMA, id: options.runId || id('harness'), state: 'PLANNING',
     goal, done, sourceRoot: root, runRoot, maxIterations, maxTasks, tasks: [], events: [], startedAt: new Date().toISOString() };
-  record.maxIterations=maxIterations; record.maxTasks=maxTasks; record.checkpointEvery=checkpointEvery; record.maxTurns=maxTurns; record.maxPatchBytes=maxPatchBytes; record.maxChangedFiles=maxChangedFiles; record.providerCalls=Number(record.providerCalls||0); record.goal=goal; record.done=done; record.sourceRoot=root; record.runRoot=runRoot; record.providers=roleProviders; record.models=roleModels; record.providerApprovals={network:Boolean(options.providerNetworkApproved),credential:Boolean(options.providerCredentialApproved)};
+  record.maxIterations=maxIterations; record.maxTasks=maxTasks; record.checkpointEvery=checkpointEvery; record.maxTurns=maxTurns; record.maxFailedAttempts=maxFailedAttempts; record.maxNoProgressAttempts=maxNoProgressAttempts; record.maxWallClockMs=maxWallClockMs; record.maxPatchBytes=maxPatchBytes; record.maxChangedFiles=maxChangedFiles; record.providerCalls=Number(record.providerCalls||0); record.failedAttempts=Number(record.failedAttempts||0); record.noProgressAttempts=Number(record.noProgressAttempts||0); record.goal=goal; record.done=done; record.sourceRoot=root; record.runRoot=runRoot; record.providers=roleProviders; record.models=roleModels; record.providerApprovals={network:Boolean(options.providerNetworkApproved),credential:Boolean(options.providerCredentialApproved)};
   record.checkpoints=Array.isArray(record.checkpoints)?record.checkpoints:[];
   record.loopContract={
     schema:'aecp.goal-loop/v1',
@@ -288,6 +291,9 @@ async function runHarness(options) {
     stopConditions:Array.isArray(options.stopConditions)&&options.stopConditions.length?options.stopConditions:[
       'DONE_VERIFIED',
       'MAX_ITERATIONS',
+      'MAX_FAILED_ATTEMPTS',
+      'NO_PROGRESS',
+      'WALL_CLOCK_BUDGET',
       'PROVIDER_CALL_BUDGET',
       'OUTPUT_OR_PATCH_BUDGET',
       'PERMISSION_UNAVAILABLE',
@@ -323,7 +329,26 @@ async function runHarness(options) {
     await emit('loop.checkpoint', capsule);
     return capsule;
   };
+  const assertRuntimeBudget = () => {
+    if (maxWallClockMs != null && Date.now() - Date.parse(record.startedAt) >= maxWallClockMs) {
+      throw Object.assign(new Error(`Wall-clock budget exhausted (${maxWallClockMs} ms).`), { code: 'WALL_CLOCK_BUDGET_EXHAUSTED' });
+    }
+    if (record.failedAttempts >= maxFailedAttempts) {
+      throw Object.assign(new Error(`Failed-attempt budget exhausted (${record.failedAttempts}/${maxFailedAttempts}).`), { code: 'FAILED_ATTEMPT_BUDGET_EXHAUSTED' });
+    }
+  };
+  const noteFailedAttempt = () => { record.failedAttempts += 1; };
+  const observeProgress = (summary) => {
+    const fingerprint = crypto.createHash('sha256').update(String(summary||'')).digest('hex');
+    if (record.lastProgressFingerprint === fingerprint) record.noProgressAttempts += 1;
+    else record.noProgressAttempts = 0;
+    record.lastProgressFingerprint = fingerprint;
+    if (record.noProgressAttempts >= maxNoProgressAttempts) {
+      throw Object.assign(new Error(`No measurable progress across ${record.noProgressAttempts + 1} consecutive attempts.`), { code: 'NO_PROGRESS_STOP' });
+    }
+  };
   const invokeProvider = async (args) => {
+    assertRuntimeBudget();
     if (record.providerCalls >= maxTurns) {
       throw Object.assign(new Error(`Provider call budget exhausted (${record.providerCalls}/${maxTurns}).`), { code: 'PROVIDER_CALL_BUDGET_EXHAUSTED' });
     }
@@ -360,24 +385,26 @@ async function runHarness(options) {
         task.iterations = iteration; await transition('RUNNING', { taskId: task.id, iteration });
         const b = await invokeProvider({router:providerRouter,role:'builder',prompt:builderPrompt(task, goal, done, review),cwd:wt.worktree,model:roleModels.builder,providerId:roleProviders.builder,policy:options.policy,signal,timeoutMs:600000,executionApproved:Boolean(options.executionApproved),networkApproved:Boolean(options.providerNetworkApproved),credentialApproved:Boolean(options.providerCredentialApproved)});
         task.worker = { provider: b.provider || roleProviders.builder, model: b.model || roleModels.builder || null, command: b.command || b.provider || roleProviders.builder, code: b.code, timedOut: b.timedOut, aborted: Boolean(b.aborted), outputLimitExceeded: Boolean(b.outputLimitExceeded), stdout: b.stdout.slice(-12000), stderr: b.stderr.slice(-12000) };
-        if (b.code !== 0 || b.timedOut) { review = `Worker failed: ${(b.stderr || b.stdout).slice(-4000)}`; await transition('REWORK', { taskId: task.id, reason: 'worker-failed' }); await checkpoint(task, iteration, 'NEXT_ITERATION', review); continue; }
+        if (b.code !== 0 || b.timedOut) { noteFailedAttempt(); review = `Worker failed: ${(b.stderr || b.stdout).slice(-4000)}`; await transition('REWORK', { taskId: task.id, reason: 'worker-failed' }); await checkpoint(task, iteration, 'NEXT_ITERATION', review); continue; }
         await transition('VERIFYING', { taskId: task.id });
         const verifier = task.verifier === 'npm test'
           ? ['npm', ['test']] : ['npm', ['run', 'verify']];
         assertProcessPolicy(options.policy, wt.worktree, Boolean(options.executionApproved));
         const v = await verify(wt.worktree, verifier[0], verifier[1], signal);
         task.verification = v;
-        if (!v.passed) { review = `Deterministic verification failed.\n${v.stderr.slice(-5000)}`; await transition('REWORK', { taskId: task.id, reason: 'verification-failed' }); await checkpoint(task, iteration, iteration===maxIterations?'STOP':'NEXT_ITERATION', review); continue; }
+        if (!v.passed) { noteFailedAttempt(); observeProgress(await diffSummary(wt.worktree, signal)); review = `Deterministic verification failed.\n${v.stderr.slice(-5000)}`; await transition('REWORK', { taskId: task.id, reason: 'verification-failed' }); await checkpoint(task, iteration, iteration===maxIterations?'STOP':'NEXT_ITERATION', review); continue; }
         await transition('REVIEWING', { taskId: task.id });
         const diff = await diffSummary(wt.worktree, signal);
         const rr = await invokeProvider({router:providerRouter,role:'reviewer',prompt:reviewerPrompt(task, goal, done, diff, v),cwd:root,model:roleModels.reviewer,providerId:roleProviders.reviewer,policy:options.policy,signal,timeoutMs:180000,executionApproved:Boolean(options.executionApproved),networkApproved:Boolean(options.providerNetworkApproved),credentialApproved:Boolean(options.providerCredentialApproved)});
-        if (rr.code !== 0) { review = `Reviewer failed: ${(rr.stderr || rr.stdout).slice(-3000)}`; continue; }
+        if (rr.code !== 0) { noteFailedAttempt(); review = `Reviewer failed: ${(rr.stderr || rr.stdout).slice(-3000)}`; continue; }
         const report = safeJson(rr.stdout);
         task.review = report || { result: 'HUMAN_REQUIRED', findings: ['Reviewer did not return valid JSON.'], required_changes: [] };
         if (task.review.result === 'PASS') {
           task.state = 'DONE'; accepted = true; await emit('task.review_passed', { taskId: task.id, iteration }); await checkpoint(task, iteration, 'CONTINUE', diff); break;
         }
         if (task.review.result === 'HUMAN_REQUIRED') { task.state = 'HUMAN_REQUIRED'; await transition('HUMAN_REQUIRED', { taskId: task.id }); await checkpoint(task, iteration, 'ASK_USER', diff); break; }
+        noteFailedAttempt();
+        observeProgress(diff);
         review = JSON.stringify(task.review);
         await transition('REWORK', { taskId: task.id, reason: 'review-rework' });
         await checkpoint(task, iteration, iteration===maxIterations?'STOP':'NEXT_ITERATION', diff);
@@ -396,9 +423,12 @@ async function runHarness(options) {
     return record;
   } catch (e) {
     if (e?.name === 'AbortError' || signal?.aborted) { record.error = 'Cancelled'; await transition('CANCELLED'); }
-    else if (['PROVIDER_CALL_BUDGET_EXHAUSTED','PATCH_BUDGET_EXHAUSTED','CHANGED_FILE_BUDGET_EXHAUSTED'].includes(e?.code)) {
+    else if (['PROVIDER_CALL_BUDGET_EXHAUSTED','FAILED_ATTEMPT_BUDGET_EXHAUSTED','WALL_CLOCK_BUDGET_EXHAUSTED','PATCH_BUDGET_EXHAUSTED','CHANGED_FILE_BUDGET_EXHAUSTED'].includes(e?.code)) {
       record.error = text(e?.message || e, 4000);
       await transition('BUDGET_EXHAUSTED', { reason: e.code, error: record.error });
+    } else if (e?.code === 'NO_PROGRESS_STOP') {
+      record.error = text(e?.message || e, 4000);
+      await transition('BLOCKED', { reason: e.code, error: record.error });
     } else { record.error = text(e?.message || e, 4000); await transition('FAILED', { error: record.error }); }
     return record;
   }
