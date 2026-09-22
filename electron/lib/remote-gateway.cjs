@@ -11,9 +11,11 @@ function isLoopbackHost(host){return LOOPBACK_HOSTS.has(String(host||'').toLower
 function validTls(tls){return Boolean(tls && ((tls.key&&tls.cert)||tls.pfx))}
 
 class RemoteGateway{
- constructor({status,replay,port=0,host='127.0.0.1',allowRemote=false,tls=null}={}){
+ constructor({status,replay,approve,reject,port=0,host='127.0.0.1',allowRemote=false,tls=null}={}){
   this.status=status;
   this.replay=replay;
+  this.approve=approve;
+  this.reject=reject;
   this.port=port;
   this.host=String(host||'127.0.0.1');
   this.allowRemote=Boolean(allowRemote);
@@ -37,7 +39,7 @@ class RemoteGateway{
     });
     res.end(JSON.stringify(data));
    };
-   if(req.method!=='GET'){send(405,{error:'read-only'});return}
+   if(!['GET','POST'].includes(req.method||'')){send(405,{error:'method not allowed'});return}
    const scheme=validTls(this.tls)?'https':'http';
    const url=new URL(req.url,`${scheme}://${this.host}`);
    const auth=req.headers.authorization||'';
@@ -47,7 +49,9 @@ class RemoteGateway{
 
    if(url.pathname==='/pair/start'){
     if(!local){send(401,{error:'bootstrap authorization required'});return}
-    send(200,this.pairing.create());return;
+    try{send(200,this.pairing.create(url.searchParams.get('scope')||'READ_ONLY'))}
+    catch(e){send(400,{error:String(e.message||e)})}
+    return;
    }
    if(url.pathname==='/pair/claim'){
     try{send(200,this.pairing.claim(url.searchParams.get('code'),url.searchParams.get('device')))}
@@ -55,6 +59,23 @@ class RemoteGateway{
     return;
    }
    if(!local&&!paired){send(401,{error:'unauthorized'});return}
+
+   if(req.method==='POST'){
+    const match=url.pathname.match(/^\/api\/approvals\/([^/]+)\/(approve|reject)$/);
+    if(!match){send(405,{error:'approval-only remote actions'});return}
+    if(!local&&paired?.scope!=='APPROVAL_ONLY'){send(403,{error:'approval scope required'});return}
+    const requestId=String(req.headers['x-aecp-request-id']||'').trim();
+    if(!/^[A-Za-z0-9._:-]{8,128}$/.test(requestId)){send(400,{error:'x-aecp-request-id is required for replay-safe approval actions'});return}
+    const approvalId=decodeURIComponent(match[1]);
+    const action=match[2];
+    const callback=action==='approve'?this.approve:this.reject;
+    if(typeof callback!=='function'){send(503,{error:'approval action unavailable'});return}
+    try{
+     const result=await callback(approvalId,{requestId,deviceId:paired?.deviceId||'bootstrap',scope:paired?.scope||'BOOTSTRAP'});
+     send(200,{ok:true,approval:result});
+    }catch(e){send(409,{error:String(e.message||e)})}
+    return;
+   }
 
    try{
     if(url.pathname==='/health'){send(200,{ok:true,readOnly:true,secure:validTls(this.tls)});return}
@@ -89,7 +110,8 @@ class RemoteGateway{
    protocol:validTls(this.tls)?'https':'http',
    secure:validTls(this.tls),
    remoteEnabled:!isLoopbackHost(this.host),
-   readOnly:true,
+   readOnly:false,
+   remoteActions:'approval-only',
    tokenPresent:true,
    pairing:true,
    token:includeSecret?this.token:undefined
