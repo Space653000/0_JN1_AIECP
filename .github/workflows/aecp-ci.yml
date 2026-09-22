@@ -39,5 +39,6 @@ jobs:
             artifacts/npm-verify.log
             artifacts/license-audit.json
             artifacts/requirements-coverage.json
+            artifacts/blueprint-coverage.json
           if-no-files-found: error
           retention-days: 14
