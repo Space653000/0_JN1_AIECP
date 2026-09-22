@@ -304,7 +304,7 @@ class ProviderRouter {
     if (provider.mode === 'openai-compatible') return executeOpenAICompatible(provider, role, prompt, opts);
     let providerVersion = opts.providerVersion || '';
     if (provider.id === 'opencode' && !providerVersion) {
-      const versionResult = await run(provider.command, ['--version'], { cwd: opts.cwd, timeoutMs: 5000, signal: opts.signal, maxOutputBytes: 4096 });
+      const versionResult = await this.runner(provider.command, ['--version'], { cwd: opts.cwd, timeoutMs: 5000, signal: opts.signal, maxOutputBytes: 4096 });
       if (versionResult.code !== 0) throw new Error('Unable to determine OpenCode version for bounded permission policy.');
       providerVersion = versionResult.stdout || versionResult.stderr;
     }
