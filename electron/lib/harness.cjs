@@ -237,6 +237,7 @@ async function runHarness(options) {
   const runRoot = path.resolve(options.runRoot || path.join(root, '.aecp', 'harness', id('run')));
   const maxIterations = bounded(options.maxIterations, 1, 5, 3);
   const maxTasks = bounded(options.maxTasks, 1, 8, 4);
+  const checkpointEvery = bounded(options.checkpointEvery, 1, maxIterations, 1);
   const maxTurns = bounded(options.maxTurns, 1, 200, Math.max(3, 1 + (maxTasks * maxIterations * 2)));
   const maxPatchBytes = bounded(options.maxPatchBytes, 1024, 64 * 1024 * 1024, DEFAULT_MAX_PATCH_BYTES);
   const maxChangedFiles = bounded(options.maxChangedFiles, 1, 1000, DEFAULT_MAX_CHANGED_FILES);
@@ -259,11 +260,69 @@ async function runHarness(options) {
   }
   if (!record) record = { schema: HARNESS_SCHEMA, id: options.runId || id('harness'), state: 'PLANNING',
     goal, done, sourceRoot: root, runRoot, maxIterations, maxTasks, tasks: [], events: [], startedAt: new Date().toISOString() };
-  record.maxIterations=maxIterations; record.maxTasks=maxTasks; record.maxTurns=maxTurns; record.maxPatchBytes=maxPatchBytes; record.maxChangedFiles=maxChangedFiles; record.providerCalls=Number(record.providerCalls||0); record.goal=goal; record.done=done; record.sourceRoot=root; record.runRoot=runRoot; record.providers=roleProviders; record.models=roleModels; record.providerApprovals={network:Boolean(options.providerNetworkApproved),credential:Boolean(options.providerCredentialApproved)};
+  record.maxIterations=maxIterations; record.maxTasks=maxTasks; record.checkpointEvery=checkpointEvery; record.maxTurns=maxTurns; record.maxPatchBytes=maxPatchBytes; record.maxChangedFiles=maxChangedFiles; record.providerCalls=Number(record.providerCalls||0); record.goal=goal; record.done=done; record.sourceRoot=root; record.runRoot=runRoot; record.providers=roleProviders; record.models=roleModels; record.providerApprovals={network:Boolean(options.providerNetworkApproved),credential:Boolean(options.providerCredentialApproved)};
+  record.checkpoints=Array.isArray(record.checkpoints)?record.checkpoints:[];
+  record.loopContract={
+    schema:'aecp.goal-loop/v1',
+    goal,
+    definitionOfDone:done,
+    maxIterations,
+    checkpointEvery,
+    workspaceId:options.workspaceId||record.loopContract?.workspaceId||null,
+    providerPolicy:options.providerPolicy||{
+      planner:{provider:roleProviders.planner,model:roleModels.planner},
+      builder:{provider:roleProviders.builder,model:roleModels.builder},
+      reviewer:{provider:roleProviders.reviewer,model:roleModels.reviewer}
+    },
+    permissionPolicy:options.permissionPolicy||{
+      executionApproved:Boolean(options.executionApproved),
+      networkApproved:Boolean(options.providerNetworkApproved),
+      credentialApproved:Boolean(options.providerCredentialApproved),
+      highRisk:'HUMAN_REQUIRED'
+    },
+    verificationPolicy:options.verificationPolicy||{
+      deterministicVerifierAuthoritative:true,
+      reviewerRequired:true,
+      workerSelfPassForbidden:true
+    },
+    stopConditions:Array.isArray(options.stopConditions)&&options.stopConditions.length?options.stopConditions:[
+      'DONE_VERIFIED',
+      'MAX_ITERATIONS',
+      'PROVIDER_CALL_BUDGET',
+      'OUTPUT_OR_PATCH_BUDGET',
+      'PERMISSION_UNAVAILABLE',
+      'HUMAN_APPROVAL_REQUIRED',
+      'PROVIDER_UNAVAILABLE',
+      'VERIFICATION_UNRESOLVED',
+      'USER_CANCELLED'
+    ]
+  };
   const resumed=Boolean(options.resume && record.plan);
   const persist = async () => { record.updatedAt = new Date().toISOString(); await fs.mkdir(runRoot, { recursive: true }); await fs.writeFile(path.join(runRoot, 'harness.json'), JSON.stringify(redactSensitive(record), null, 2)); };
   const emit = async (type, data = {}) => { record.events.push({ at: new Date().toISOString(), type, state: record.state, data }); await persist(); await event(record.events.at(-1)); };
   const transition = async (state, data) => { if (!STATES.includes(state)) throw new Error(`Invalid Harness state: ${state}`); record.state = state; await emit(`state.${state.toLowerCase()}`, data); };
+  const checkpoint = async (task, iteration, recommendation, changesSinceLastCheckpoint = '') => {
+    if (iteration % checkpointEvery !== 0 && recommendation === 'NEXT_ITERATION') return null;
+    const capsule = {
+      schema:'aecp.goal-loop-checkpoint/v1',
+      goal,
+      currentIteration:iteration,
+      taskId:task?.id||null,
+      completedEvidence:(record.tasks||[]).filter(item=>item.verification?.passed).map(item=>({
+        taskId:item.id,
+        verifier:item.verification?.command||null,
+        passed:Boolean(item.verification?.passed),
+        review:item.review?.result||null
+      })),
+      unresolvedUncertainty:task?.review?.required_changes||[],
+      currentRisks:[task?.risk].filter(Boolean),
+      changesSinceLastCheckpoint:text(changesSinceLastCheckpoint,6000),
+      recommendation
+    };
+    record.checkpoints.push(capsule);
+    await emit('loop.checkpoint', capsule);
+    return capsule;
+  };
   const invokeProvider = async (args) => {
     if (record.providerCalls >= maxTurns) {
       throw Object.assign(new Error(`Provider call budget exhausted (${record.providerCalls}/${maxTurns}).`), { code: 'PROVIDER_CALL_BUDGET_EXHAUSTED' });
@@ -301,14 +360,14 @@ async function runHarness(options) {
         task.iterations = iteration; await transition('RUNNING', { taskId: task.id, iteration });
         const b = await invokeProvider({router:providerRouter,role:'builder',prompt:builderPrompt(task, goal, done, review),cwd:wt.worktree,model:roleModels.builder,providerId:roleProviders.builder,policy:options.policy,signal,timeoutMs:600000,executionApproved:Boolean(options.executionApproved),networkApproved:Boolean(options.providerNetworkApproved),credentialApproved:Boolean(options.providerCredentialApproved)});
         task.worker = { provider: b.provider || roleProviders.builder, model: b.model || roleModels.builder || null, command: b.command || b.provider || roleProviders.builder, code: b.code, timedOut: b.timedOut, aborted: Boolean(b.aborted), outputLimitExceeded: Boolean(b.outputLimitExceeded), stdout: b.stdout.slice(-12000), stderr: b.stderr.slice(-12000) };
-        if (b.code !== 0 || b.timedOut) { review = `Worker failed: ${(b.stderr || b.stdout).slice(-4000)}`; await transition('REWORK', { taskId: task.id, reason: 'worker-failed' }); continue; }
+        if (b.code !== 0 || b.timedOut) { review = `Worker failed: ${(b.stderr || b.stdout).slice(-4000)}`; await transition('REWORK', { taskId: task.id, reason: 'worker-failed' }); await checkpoint(task, iteration, 'NEXT_ITERATION', review); continue; }
         await transition('VERIFYING', { taskId: task.id });
         const verifier = task.verifier === 'npm test'
           ? ['npm', ['test']] : ['npm', ['run', 'verify']];
         assertProcessPolicy(options.policy, wt.worktree, Boolean(options.executionApproved));
         const v = await verify(wt.worktree, verifier[0], verifier[1], signal);
         task.verification = v;
-        if (!v.passed) { review = `Deterministic verification failed.\n${v.stderr.slice(-5000)}`; await transition('REWORK', { taskId: task.id, reason: 'verification-failed' }); continue; }
+        if (!v.passed) { review = `Deterministic verification failed.\n${v.stderr.slice(-5000)}`; await transition('REWORK', { taskId: task.id, reason: 'verification-failed' }); await checkpoint(task, iteration, iteration===maxIterations?'STOP':'NEXT_ITERATION', review); continue; }
         await transition('REVIEWING', { taskId: task.id });
         const diff = await diffSummary(wt.worktree, signal);
         const rr = await invokeProvider({router:providerRouter,role:'reviewer',prompt:reviewerPrompt(task, goal, done, diff, v),cwd:root,model:roleModels.reviewer,providerId:roleProviders.reviewer,policy:options.policy,signal,timeoutMs:180000,executionApproved:Boolean(options.executionApproved),networkApproved:Boolean(options.providerNetworkApproved),credentialApproved:Boolean(options.providerCredentialApproved)});
@@ -316,11 +375,12 @@ async function runHarness(options) {
         const report = safeJson(rr.stdout);
         task.review = report || { result: 'HUMAN_REQUIRED', findings: ['Reviewer did not return valid JSON.'], required_changes: [] };
         if (task.review.result === 'PASS') {
-          task.state = 'DONE'; accepted = true; await emit('task.review_passed', { taskId: task.id, iteration }); break;
+          task.state = 'DONE'; accepted = true; await emit('task.review_passed', { taskId: task.id, iteration }); await checkpoint(task, iteration, 'CONTINUE', diff); break;
         }
-        if (task.review.result === 'HUMAN_REQUIRED') { task.state = 'HUMAN_REQUIRED'; await transition('HUMAN_REQUIRED', { taskId: task.id }); break; }
+        if (task.review.result === 'HUMAN_REQUIRED') { task.state = 'HUMAN_REQUIRED'; await transition('HUMAN_REQUIRED', { taskId: task.id }); await checkpoint(task, iteration, 'ASK_USER', diff); break; }
         review = JSON.stringify(task.review);
         await transition('REWORK', { taskId: task.id, reason: 'review-rework' });
+        await checkpoint(task, iteration, iteration===maxIterations?'STOP':'NEXT_ITERATION', diff);
       }
       if (!accepted && task.state !== 'HUMAN_REQUIRED') { task.state = 'BLOCKED'; await transition('BLOCKED', { taskId: task.id, reason: 'iteration-budget-exhausted' }); break; }
     }
