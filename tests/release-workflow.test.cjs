@@ -14,6 +14,8 @@ test('release workflow is structurally unique and gated by real smoke evidence',
   assert.match(workflow, /pull_request:[\s\S]*branches:\s*\[main\]/);
   assert.match(workflow, /pull_request\.head\.sha \|\| github\.sha/);
   assert.match(workflow, /cancel-in-progress:\s*true/);
+  assert.match(workflow, /verify:[\s\S]*timeout-minutes:\s*45/);
+  assert.match(workflow, /provenance:[\s\S]*timeout-minutes:\s*45/);
 
   for (const job of [
     'verify',
@@ -38,7 +40,9 @@ test('release workflow is structurally unique and gated by real smoke evidence',
   assert.match(workflow, /build-store-test:[\s\S]*dist:store:x64[\s\S]*dist:store:arm64/);
   assert.match(workflow, /validate-store-package\.ps1/);
   assert.match(workflow, /provenance:[\s\S]*aecp\.release-provenance\/v1/);
-  assert.match(workflow, /sourceCommit=\$env:GITHUB_SHA/);
+  assert.match(workflow, /\$sourceCommit = \(git rev-parse HEAD\)\.Trim\(\)/);
+  assert.match(workflow, /sourceCommit=\$sourceCommit/);
+  assert.doesNotMatch(workflow, /sourceCommit=\$env:GITHUB_SHA/);
   assert.match(workflow, /SHA256SUMS\.txt/);
   assert.match(workflow, /Get-FileHash[^\n\r]*SHA256/);
   assert.match(workflow, /publish-release:\r?\n\s+if: startsWith\(github\.ref, 'refs\/tags\/v'\)\r?\n\s+needs:\s+provenance/);
@@ -108,6 +112,9 @@ test('signed release lane is owner-gated and verifies Authenticode provenance', 
   assert.match(workflow, /Signer thumbprint mismatch/);
   assert.match(workflow, /aecp\.authenticode-evidence\/v1/);
   assert.match(workflow, /aecp\.signed-release-provenance\/v1/);
+  assert.match(workflow, /ref: \$\{\{ inputs\.source_ref \}\}[\s\S]*git rev-parse HEAD/);
+  assert.match(workflow, /sourceCommit=\$sourceCommit/);
+  assert.doesNotMatch(workflow, /sourceCommit=\$env:GITHUB_SHA/);
   assert.match(workflow, /if:\s*\$\{\{ inputs\.publish_ack \}\}/);
   assert.doesNotMatch(workflow, /BEGIN (?:RSA )?PRIVATE KEY|BEGIN CERTIFICATE/);
 });
