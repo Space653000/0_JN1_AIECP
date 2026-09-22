@@ -728,7 +728,9 @@ The system still deliberately refuses to make high-risk operations autonomous by
 - CI failure → bounded Task REWORK; CI success → approval gate.
 - Human-gated PR merge; merge is blocked without CI PASS + explicit human approval.
 - Live Harness Command Center with Mission Queue, Task Board, Approval Queue, PR/CI state, event stream and STOP ALL.
+- Guided Goal Loop presets for Research / Build / Debug / Review / Optimization / Release, with editable Goal/Done/budget values and unchanged approval boundaries.
 - CI and security workflows plus automated syntax/unit/infrastructure verification.
+- Canonical verification includes R1–R8 requirements coverage, Blueprint 00–24 evidence coverage, and phase-by-phase P0–P7 roadmap-gate coverage; artifacts are retained by CI.
 
 ## Current truth / important limitation
 
@@ -826,7 +828,7 @@ The current implementation also includes: signed GitHub webhook ingestion (opt-i
 4. **Optional public/LAN deployment:** user-owned domain/device identity/TLS configuration remains EXTERNAL OWNER GATE; remote task submission remains intentionally disabled.
 5. **Windows UI boundary:** read-only general-app inspection is implemented, browser/ChatGPT inspection is deny-by-default, and state-changing docking requires SYSTEM approval.
 
-**Important:** GitHub Actions is the verification authority for the current branch. Documentation is not used to mark a build as passed; only an actual successful run does that.
+**Important:** GitHub Actions is the verification authority for the current branch. Documentation is not used to mark a build as passed; only successful exact-HEAD runs do that. The canonical evidence bundle includes `requirements-coverage.json`, `blueprint-coverage.json`, `roadmap-gates.json`, license audit output and the verification log.
 
 
 ## Production-gate closure status
