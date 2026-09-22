@@ -16,6 +16,7 @@ const { recommendNextAction } = require('./lib/guidance.cjs');
 
 const { parseCommandCard, makeTaskId, makeResultCapsule, hashJson } = require('./lib/protocol.cjs');
 const { compareVersions, versionFromTag, selectHighestRelease, selectInstallerAsset } = require('./lib/version.cjs');
+const { createUpdateTransaction, transitionUpdate, reconcileFirstBoot } = require('./lib/update-state.cjs');
 const {
   AUTONOMOUS_WORKERS,
   VERIFICATION_PROFILES,
@@ -521,32 +522,106 @@ async function checkForUpdate() {
   };
 }
 
+async function readUpdateTransaction() {
+  return readJson(dataPath('updates', 'update-state.json'), null);
+}
+
+async function writeUpdateTransaction(transaction) {
+  await writeJsonAtomic(dataPath('updates', 'update-state.json'), transaction);
+  return transaction;
+}
+
+async function verifyDownloadedInstaller(dir, assetName) {
+  const manifest = await fsp.readFile(path.join(dir, 'SHA256SUMS.txt'), 'utf8');
+  const line = manifest.split(/\r?\n/).find((item) => item.trim().endsWith(assetName));
+  if (!line) throw new Error('SHA256SUMS.txt does not contain the selected installer.');
+  const expected = line.trim().split(/\s+/)[0].toLowerCase();
+  if (!/^[a-f0-9]{64}$/.test(expected)) throw new Error('SHA256SUMS.txt contains an invalid digest.');
+  const installer = path.join(dir, assetName);
+  const actual = crypto.createHash('sha256').update(await fsp.readFile(installer)).digest('hex').toLowerCase();
+  if (expected !== actual) throw new Error('Downloaded installer failed SHA-256 verification.');
+  return { installer, sha256: actual };
+}
+
+async function downloadVerifiedReleaseInstaller(tagName, version, dir) {
+  const viewed = await execFixed('gh', [
+    'release', 'view', tagName, '--repo', UPDATE_REPO, '--json', 'assets'
+  ], undefined, 15000);
+  const release = JSON.parse(viewed.stdout || '{}');
+  const assetName = selectInstallerAsset(release.assets, version, process.arch);
+  if (!assetName) throw new Error(`Release ${tagName} does not contain a compatible AECP installer.`);
+  await fsp.rm(dir, { recursive: true, force: true });
+  await fsp.mkdir(dir, { recursive: true });
+  await execFixed('gh', [
+    'release', 'download', tagName, '--repo', UPDATE_REPO,
+    '--pattern', assetName, '--pattern', 'SHA256SUMS.txt',
+    '--dir', dir, '--clobber'
+  ], undefined, 120000);
+  return { assetName, ...(await verifyDownloadedInstaller(dir, assetName)) };
+}
+
+async function retainRollbackInstaller(currentVersion) {
+  const tagName = `v${currentVersion}`;
+  const dir = dataPath('updates', 'rollback', tagName);
+  try {
+    const retained = await downloadVerifiedReleaseInstaller(tagName, currentVersion, dir);
+    return { tagName, ...retained };
+  } catch {
+    return null;
+  }
+}
+
+async function getUpdateTransactionStatus() {
+  return await readUpdateTransaction();
+}
+
+async function reconcileUpdateTransaction() {
+  const transaction = await readUpdateTransaction();
+  if (!transaction) return null;
+  const reconciled = reconcileFirstBoot(transaction, app.getVersion());
+  if (JSON.stringify(reconciled) !== JSON.stringify(transaction)) await writeUpdateTransaction(reconciled);
+  return reconciled;
+}
+
 async function applyUpdate() {
   const update = await checkForUpdate();
   if (!update.connected) throw new Error('Connect GitHub before applying a private update.');
   if (!update.available) throw new Error('No newer AECP Release is available.');
   if (!update.assetName) throw new Error('The Release does not contain a compatible AECP installer.');
-  const dir = dataPath('updates', update.tagName);
-  await fsp.rm(dir, { recursive: true, force: true });
-  await fsp.mkdir(dir, { recursive: true });
-  await execFixed('gh', [
-    'release', 'download', update.tagName, '--repo', UPDATE_REPO,
-    '--pattern', update.assetName, '--pattern', 'SHA256SUMS.txt',
-    '--dir', dir, '--clobber'
-  ], undefined, 120000);
 
-  const manifest = await fsp.readFile(path.join(dir, 'SHA256SUMS.txt'), 'utf8');
-  const line = manifest.split(/\r?\n/).find((item) => item.trim().endsWith(update.assetName));
-  if (!line) throw new Error('SHA256SUMS.txt does not contain the selected installer.');
-  const expected = line.trim().split(/\s+/)[0].toLowerCase();
-  const installer = path.join(dir, update.assetName);
-  const actual = crypto.createHash('sha256').update(await fsp.readFile(installer)).digest('hex').toLowerCase();
-  if (expected !== actual) throw new Error('Downloaded installer failed SHA-256 verification.');
+  const targetDir = dataPath('updates', 'target', update.tagName);
+  const target = await downloadVerifiedReleaseInstaller(update.tagName, update.latestVersion, targetDir);
+  const rollback = await retainRollbackInstaller(update.currentVersion);
 
-  const child = spawn(installer, ['/S'], { detached: true, stdio: 'ignore', windowsHide: false });
+  let transaction = createUpdateTransaction({
+    currentVersion: update.currentVersion,
+    targetVersion: update.latestVersion,
+    targetInstaller: target.installer,
+    targetSha256: target.sha256,
+    rollbackInstaller: rollback?.installer || null,
+    rollbackSha256: rollback?.sha256 || null
+  });
+  transaction = transitionUpdate(transaction, 'INSTALLING', { tagName: update.tagName, assetName: target.assetName });
+  await writeUpdateTransaction(transaction);
+
+  const child = spawn(target.installer, ['/S'], { detached: true, stdio: 'ignore', windowsHide: false });
   child.unref();
   setTimeout(() => app.quit(), 700);
-  return { ok: true, tagName: update.tagName, assetName: update.assetName };
+  return { ok: true, tagName: update.tagName, assetName: target.assetName, rollbackPrepared: Boolean(rollback) };
+}
+
+async function rollbackUpdate() {
+  const transaction = await readUpdateTransaction();
+  if (!transaction || transaction.state !== 'ROLLBACK_REQUIRED') throw new Error('No rollback-required update is available.');
+  if (!transaction.rollbackInstaller || !transaction.rollbackSha256) throw new Error('A verified previous installer was not retained; automatic rollback is unavailable.');
+  const actual = crypto.createHash('sha256').update(await fsp.readFile(transaction.rollbackInstaller)).digest('hex').toLowerCase();
+  if (actual !== String(transaction.rollbackSha256).toLowerCase()) throw new Error('Retained rollback installer failed SHA-256 verification.');
+  const rolling = transitionUpdate(transaction, 'ROLLING_BACK');
+  await writeUpdateTransaction(rolling);
+  const child = spawn(transaction.rollbackInstaller, ['/S'], { detached: true, stdio: 'ignore', windowsHide: false });
+  child.unref();
+  setTimeout(() => app.quit(), 700);
+  return { ok: true, targetVersion: transaction.currentVersion };
 }
 
 function redactRemote(remote) {
@@ -1017,7 +1092,9 @@ function registerIpc() {
   ipcMain.handle('github:connection', githubConnection);
   ipcMain.handle('github:connect', connectGitHub);
   ipcMain.handle('update:check', checkForUpdate);
+  ipcMain.handle('update:status', getUpdateTransactionStatus);
   ipcMain.handle('update:apply', applyUpdate);
+  ipcMain.handle('update:rollback', rollbackUpdate);
   ipcMain.handle('update:open-release', async () => {
     await shell.openExternal(`https://github.com/${UPDATE_REPO}/releases`);
     return true;
@@ -1133,6 +1210,7 @@ async function createMainWindow() {
 
 app.whenReady().then(async () => {
   await ensureDataDirs();
+  await reconcileUpdateTransaction();
   await initControlPlane();
   registerIpc();
   await createMainWindow();
