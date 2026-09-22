@@ -5,6 +5,7 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
 const { ProviderRouter } = require('./provider-router.cjs');
+const { redactSensitive } = require('./redaction.cjs');
 
 const HARNESS_SCHEMA = 'aecp.harness/v1';
 const MAX_OUTPUT = 1024 * 1024;
@@ -260,7 +261,7 @@ async function runHarness(options) {
     goal, done, sourceRoot: root, runRoot, maxIterations, maxTasks, tasks: [], events: [], startedAt: new Date().toISOString() };
   record.maxIterations=maxIterations; record.maxTasks=maxTasks; record.maxTurns=maxTurns; record.maxPatchBytes=maxPatchBytes; record.maxChangedFiles=maxChangedFiles; record.providerCalls=Number(record.providerCalls||0); record.goal=goal; record.done=done; record.sourceRoot=root; record.runRoot=runRoot; record.providers=roleProviders; record.models=roleModels; record.providerApprovals={network:Boolean(options.providerNetworkApproved),credential:Boolean(options.providerCredentialApproved)};
   const resumed=Boolean(options.resume && record.plan);
-  const persist = async () => { record.updatedAt = new Date().toISOString(); await fs.mkdir(runRoot, { recursive: true }); await fs.writeFile(path.join(runRoot, 'harness.json'), JSON.stringify(record, null, 2)); };
+  const persist = async () => { record.updatedAt = new Date().toISOString(); await fs.mkdir(runRoot, { recursive: true }); await fs.writeFile(path.join(runRoot, 'harness.json'), JSON.stringify(redactSensitive(record), null, 2)); };
   const emit = async (type, data = {}) => { record.events.push({ at: new Date().toISOString(), type, state: record.state, data }); await persist(); await event(record.events.at(-1)); };
   const transition = async (state, data) => { if (!STATES.includes(state)) throw new Error(`Invalid Harness state: ${state}`); record.state = state; await emit(`state.${state.toLowerCase()}`, data); };
   const invokeProvider = async (args) => {
