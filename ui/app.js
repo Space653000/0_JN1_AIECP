@@ -660,6 +660,16 @@ async function rollbackUpdate() {
   if (result?.ok) toast('Rollback verified. AECP will close and reinstall the previous version.');
 }
 
+async function exportBackup() {
+  const result = await safe(() => window.aecp.exportBackup());
+  if (result?.path) toast(`Backup exported: ${result.fileCount} files, credentials excluded.`);
+}
+
+async function restoreBackup() {
+  const result = await safe(() => window.aecp.restoreBackup());
+  if (result?.ok) toast('Restore staged and verified. AECP will restart to apply it.');
+}
+
 async function chooseWorkspace() {
   const workspace = await safe(() => window.aecp.selectWorkspace());
   if (!workspace) return;
@@ -863,6 +873,8 @@ function bindEvents() {
   $('#checkUpdateButton').addEventListener('click', checkUpdate);
   $('#applyUpdateButton').addEventListener('click', applyUpdate);
   $('#rollbackUpdateButton').addEventListener('click', rollbackUpdate);
+  $('#exportBackupButton').addEventListener('click', exportBackup);
+  $('#restoreBackupButton').addEventListener('click', restoreBackup);
   $('#connectGitHubButton').addEventListener('click', connectGitHub);
   $('#openReleasesButton').addEventListener('click', () => safe(() => window.aecp.openReleases()));
   $('#importClipboardButton').addEventListener('click', importFromClipboard);
