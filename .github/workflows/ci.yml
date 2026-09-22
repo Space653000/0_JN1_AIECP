@@ -14,6 +14,7 @@ concurrency:
 jobs:
   package-windows:
     name: Package Windows ${{ matrix.arch }}
+    timeout-minutes: 45
     runs-on: windows-latest
     strategy:
       fail-fast: false
@@ -83,6 +84,7 @@ jobs:
 
   package-windows-auto:
     name: Package Windows Auto Detect (x64 + ARM64)
+    timeout-minutes: 45
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -110,6 +112,7 @@ jobs:
   package-universal-bootstrap:
     name: Package Universal Bootstrap
     needs: package-windows
+    timeout-minutes: 45
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -193,6 +196,7 @@ jobs:
 
   package-store:
     name: Package Store AppX ${{ matrix.arch }}
+    timeout-minutes: 45
     runs-on: windows-latest
     strategy:
       fail-fast: false
@@ -236,6 +240,7 @@ jobs:
 
   package-upgrade-baseline:
     name: Package upgrade baseline ${{ matrix.arch }}
+    timeout-minutes: 45
     runs-on: windows-latest
     strategy:
       fail-fast: false
