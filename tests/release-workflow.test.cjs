@@ -94,3 +94,30 @@ test('Store package validator requires identity, architecture, publisher and run
   assert.match(validator, /runFullTrust/);
   assert.match(validator, /Get-FileHash.*SHA256/);
 });
+
+
+test('signed release lane is owner-gated and verifies Authenticode provenance', () => {
+  const workflow = read('.github/workflows/signed-release.yml');
+  assert.match(workflow, /workflow_dispatch:/);
+  assert.match(workflow, /source_ref:/);
+  assert.match(workflow, /signer_thumbprint:/);
+  assert.match(workflow, /publish_ack:/);
+  assert.match(workflow, /secrets\.AECP_CODESIGN_PFX_BASE64/);
+  assert.match(workflow, /secrets\.AECP_CODESIGN_PASSWORD/);
+  assert.match(workflow, /Get-AuthenticodeSignature/);
+  assert.match(workflow, /Signer thumbprint mismatch/);
+  assert.match(workflow, /aecp\.authenticode-evidence\/v1/);
+  assert.match(workflow, /aecp\.signed-release-provenance\/v1/);
+  assert.match(workflow, /if:\s*\$\{\{ inputs\.publish_ack \}\}/);
+  assert.doesNotMatch(workflow, /BEGIN (?:RSA )?PRIVATE KEY|BEGIN CERTIFICATE/);
+});
+
+test('updater supports build-time signer pinning without forcing unsigned preview builds', () => {
+  const pkg = JSON.parse(read('package.json'));
+  assert.equal(typeof pkg.aecp.requiredSignerThumbprint, 'string');
+  const main = read('electron/main.cjs');
+  assert.match(main, /verifyAuthenticode/);
+  assert.match(main, /AECP_REQUIRED_SIGNER_THUMBPRINT/);
+  assert.match(main, /packageManifest\?\.aecp\?\.requiredSignerThumbprint/);
+  assert.match(main, /rollbackInstaller[\s\S]*verifyAuthenticode/);
+});
