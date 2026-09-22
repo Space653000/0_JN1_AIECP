@@ -1,5 +1,8 @@
 # 13 — Triple Blueprint Audit
 
+> **HISTORICAL AUDIT NOTICE (2026-09-23):** This document records the v0.1 audit at that point in time. `DEFERRED` statements below are historical and must not be used as current implementation status. Current status is authoritative in `23_IMPLEMENTATION_STATUS.md`, with exact-HEAD Actions evidence required for PASS.
+
+
 Audit date: 2026-09-18
 
 Audited branch: `feat/initial-blueprint-and-mvp`
