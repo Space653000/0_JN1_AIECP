@@ -322,6 +322,7 @@ async function initControlPlane() {
   controlPlane = new ControlPlane({
     rootDir: dataPath('runtime'),
     providerRouter: await buildRuntimeProviderRouter(),
+    workerRegistry: await getWorkerRegistry(),
     policyConfig: compileWorkspacePolicy(workspace?.policy || {}),
     remoteOptions: await buildRemoteGatewayOptions(),
     emit: async (event) => {
@@ -1472,6 +1473,9 @@ async function resetAecpLocalState() {
   harnessRecord = null;
   autonomyRecord = null;
   providerUsageStore = null;
+  workerRegistry = null;
+  workerRegistryInit = null;
+  codexWorkerRuntime = null;
   await ensureDataDirs();
   await saveState(defaultState());
   return result;
@@ -1815,6 +1819,7 @@ function registerIpc() {
   });
 
   ipcMain.handle('provider:list', async () => publicProviders(await loadState()));
+  ipcMain.handle('worker:list', async () => (await getWorkerRegistry()).list());
   ipcMain.handle('provider:health', async (_event, payload) => checkProviderHealth(payload?.providerId, payload || {}));
   ipcMain.handle('provider:save', async (_event, payload) => saveProvider(payload));
   ipcMain.handle('provider:delete', async (_event, payload) => deleteProvider(payload?.providerId));
