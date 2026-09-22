@@ -35,10 +35,11 @@ const phaseAssertions={
   ],
   'P2':[
     ['tests/path-safety.test.cjs',/rejects sibling\/outside path/,'Workspace path rejection'],
-    ['tests/harness.test.cjs',/Verifier|verification/i,'deterministic verification']
+    ['electron/lib/harness.cjs',/async function verify\(worktree, command, args, signal\)/,'deterministic verification']
   ],
   'P3':[
-    ['tests/control-plane-infrastructure.test.cjs',/resource manager discovers a git repository/,'repository discovery/resource binding'],
+    ['electron/lib/resource-manager.cjs',/async scan\(root\)/,'repository discovery'],
+    ['electron/lib/resource-manager.cjs',/bindTask\(task,/,'task resource binding'],
     ['tests/autonomy.test.cjs',/isolates writes in worktree/,'isolated worktree mutation']
   ],
   'P4':[
