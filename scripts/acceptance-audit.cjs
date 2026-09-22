@@ -101,6 +101,22 @@ const staticInvariants=[
   {label:'patch byte budget',re:/maxPatchBytes/},
   {label:'changed file budget',re:/maxChangedFiles/}
  ]),
+ invariant('local-data-governance','electron/lib/local-data-manager.cjs',[
+  {label:'clear evidence',re:/async function clearEvidence/},
+  {label:'remove Workspace binding',re:/function removeWorkspaceBinding/},
+  {label:'clear credentials',re:/async function clearCredentials/},
+  {label:'reset active state',re:/async function resetActiveState/},
+  {label:'preserve pre-restore',re:/preserved:\['pre-restore'\]/},
+  {label:'Workspace untouched declaration',re:/workspaceFilesTouched:false/}
+ ]),
+ invariant('local-data-ui-and-guard','electron/main.cjs',[
+  {label:'active work guard',re:/assertDataOperationIdle/},
+  {label:'native confirmation',re:/confirmDataOperation/},
+  {label:'evidence IPC',re:/data:clear-evidence/},
+  {label:'Workspace unbind IPC',re:/data:remove-workspace/},
+  {label:'credential clear IPC',re:/data:clear-credentials/},
+  {label:'state reset IPC',re:/data:reset-state/}
+ ]),
  invariant('canonical-provider-routing','electron/lib/harness.cjs',[
   {label:'ProviderRouter imported',re:/ProviderRouter/},
   {label:'planner provider routed',re:/plannerProvider/},
