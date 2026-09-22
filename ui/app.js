@@ -241,11 +241,16 @@ function executionModeStatus() {
     ['codex-cli', 'claude-code', 'gemini-cli', 'opencode', 'ollama'].includes(agent.id) && agent.available
   );
   const remoteMcp = state.providers.find((provider) =>
-    provider.kind === 'remote-mcp' && ['CONFIGURED', 'READY'].includes(provider.status)
+    provider.kind === 'remote-mcp' && ['DEGRADED', 'READY'].includes(provider.status)
   );
+  const remoteMcpEndpointHealthy = remoteMcp?.status === 'READY';
   const localMcpRunning = Boolean(state.mcpStatus?.running);
-  const recommended = remoteMcp ? 'official-mcp' : (localWorkers.length ? 'local-autonomous' : 'web-safe');
-  return { localWorkers, remoteMcp, localMcpRunning, recommended };
+  // A reachable MCP endpoint is not proof that an official ChatGPT workspace/tunnel,
+  // policy-gated write tool, and same-task result path all work end-to-end.
+  // Until that external/product acceptance gate is completed, E3 must remain not-ready.
+  const officialMcpReady = false;
+  const recommended = localWorkers.length ? 'local-autonomous' : 'web-safe';
+  return { localWorkers, remoteMcp, remoteMcpEndpointHealthy, localMcpRunning, officialMcpReady, recommended };
 }
 
 function executionModeCards() {
@@ -268,12 +273,14 @@ function executionModeCards() {
     {
       id: 'official-mcp',
       name: 'Official Full MCP',
-      ready: Boolean(status.remoteMcp),
-      detail: status.remoteMcp
-        ? 'Remote MCP provider configured. End-to-end tunnel/app health must still pass before write mode is enabled.'
-        : (status.localMcpRunning
-          ? 'Local MCP is running read-only. Add a supported ChatGPT app/tunnel to complete the official path.'
-          : 'Requires a supported ChatGPT workspace plus a configured MCP app/tunnel. No ChatGPT DOM scraping.')
+      ready: status.officialMcpReady,
+      detail: status.remoteMcpEndpointHealthy
+        ? 'Remote MCP endpoint health passed, but Official Full MCP is still externally gated until a supported ChatGPT workspace/tunnel, policy-gated write tool, same-task result return, disconnect fallback, and no-DOM-automation checks all pass end-to-end.'
+        : (status.remoteMcp
+          ? 'Remote MCP endpoint is configured but has not passed endpoint health. Official Full MCP also requires separate end-to-end ChatGPT connector/tunnel acceptance.'
+          : (status.localMcpRunning
+            ? 'Local MCP is running read-only. This alone never makes Official Full MCP ready; a supported ChatGPT app/tunnel and full end-to-end acceptance are still required.'
+            : 'External verification required: supported ChatGPT workspace/tunnel + read/write policy + same-task result flow. No ChatGPT DOM scraping.'))
     }
   ];
   return `<div class="execution-mode-grid">${modes.map((mode) => `
