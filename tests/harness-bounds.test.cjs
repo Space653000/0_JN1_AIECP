@@ -98,8 +98,10 @@ test('Harness refuses DONE when changed-file budget is exceeded after verified r
     reviewerProvider:'reviewer'
   });
   assert.equal(run.tasks[0].state,'DONE', run.error || JSON.stringify(run, null, 2));
-  assert.equal(run.state,'BUDGET_EXHAUSTED');
+  assert.equal(run.state,'BUDGET_EXHAUSTED', run.error || JSON.stringify(run, null, 2));
   assert.match(run.error,/Changed-file budget exceeded/);
+  assert.ok(run.events.some(event=>event.type==='task.review_passed'));
+  assert.equal(run.events.some(event=>event.type==='task.accepted'),false);
 });
 
 test('Harness refuses DONE when verified patch exceeds maxPatchBytes',async(t)=>{
@@ -124,4 +126,35 @@ test('Harness refuses DONE when verified patch exceeds maxPatchBytes',async(t)=>
   });
   assert.equal(run.state,'BUDGET_EXHAUSTED', run.error || JSON.stringify(run, null, 2));
   assert.match(run.error,/Patch budget exceeded/);
+  assert.ok(run.events.some(event=>event.type==='task.review_passed'));
+  assert.equal(run.events.some(event=>event.type==='task.accepted'),false);
+});
+
+
+test('Harness emits task.accepted only after final patch budgets succeed',async(t)=>{
+  const fixture=await makeRepo('aecp-harness-accept-after-patch-');
+  t.after(async()=>fs.rm(fixture.root,{recursive:true,force:true}));
+  const run=await runHarness({
+    goal:'Create one small verified file.',
+    done:'Verification passes.',
+    sourceRoot:fixture.repo,
+    runRoot:fixture.runRoot,
+    maxTasks:1,
+    maxIterations:1,
+    maxTurns:5,
+    maxChangedFiles:5,
+    maxPatchBytes:64*1024,
+    providerRouter:fakeRouter(async cwd=>{
+      await fs.writeFile(path.join(cwd,'small.txt'),'small\n');
+    }),
+    plannerProvider:'planner',
+    builderProvider:'builder',
+    reviewerProvider:'reviewer'
+  });
+  assert.equal(run.state,'DONE', run.error || JSON.stringify(run,null,2));
+  const reviewIndex=run.events.findIndex(event=>event.type==='task.review_passed');
+  const acceptedIndex=run.events.findIndex(event=>event.type==='task.accepted');
+  assert.ok(reviewIndex>=0);
+  assert.ok(acceptedIndex>reviewIndex);
+  assert.match(run.events[acceptedIndex].data.patchSha256,/^[a-f0-9]{64}$/);
 });
