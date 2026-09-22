@@ -148,3 +148,10 @@ test('all GitHub workflows have unique top-level job ids', () => {
     assert.equal(ids.length, new Set(ids).size, name + ' contains duplicate top-level job ids');
   }
 });
+
+
+test('installer explicitly preserves AECP user data on uninstall', () => {
+  const pkg = JSON.parse(read('package.json'));
+  assert.equal(pkg.build.nsis.perMachine, false);
+  assert.equal(pkg.build.nsis.deleteAppDataOnUninstall, false);
+});
