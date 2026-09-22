@@ -619,6 +619,15 @@ async function applyUpdate() {
   if (result?.ok) toast('Update verified. AECP will close and install the new version.');
 }
 
+async function rollbackUpdate() {
+  const tx = state.updateTransaction;
+  if (!(tx?.state === 'ROLLBACK_REQUIRED' && tx?.rollbackInstaller && tx?.rollbackSha256)) return;
+  if (!confirm(`Reinstall the retained, SHA-256 verified AECP v${tx.currentVersion} rollback package?`)) return;
+  toast('Verifying retained rollback installer…');
+  const result = await safe(() => window.aecp.rollbackUpdate());
+  if (result?.ok) toast('Rollback verified. AECP will close and reinstall the previous version.');
+}
+
 async function chooseWorkspace() {
   const workspace = await safe(() => window.aecp.selectWorkspace());
   if (!workspace) return;
