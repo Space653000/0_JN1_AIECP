@@ -32,6 +32,43 @@ Type: `local`
 
 Best for bounded, high-volume preprocessing rather than mandatory central reasoning.
 
+## 2A. Provider versus Worker
+
+AECP formally separates **Provider** from **Worker**.
+
+- Provider = intelligence/API/model source and its capability, health, credential and usage contract.
+- Worker = a concrete isolated execution process that receives a governed Task through Harness.
+
+Canonical workers introduced by the Multi-Worker extension:
+
+```yaml
+codex-official:
+  provider: openai-official
+  runtime: codex-cli
+  codex_home: dedicated
+
+codex-pega:
+  provider: pega
+  runtime: codex-cli
+  codex_home: dedicated
+```
+
+The two workers must never share `CODEX_HOME`, auth, session or runtime state.
+
+### PEGA Provider Adapter
+
+PEGA is a normal Provider Adapter, not a Harness special case.
+
+```yaml
+id: pega
+kind: api
+base_url: https://aiapi.t-cyber.com/v1
+```
+
+The adapter must negotiate and verify the API family actually available in the environment, including Chat Completions-compatible and Responses-compatible behavior where supported. Unsupported capability combinations fail closed.
+
+No PEGA-specific branch is permitted in Task/Mission/Queue/Harness state-machine logic. Future company/OpenAI/Gemini/Qwen/local providers must remain swappable through the same abstraction.
+
 ## 3. Adapter interface
 
 Runtime contract:
