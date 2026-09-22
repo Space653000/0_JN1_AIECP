@@ -29,9 +29,9 @@ No GitHub credentials required.
 
 If `gh` is installed/authenticated, AECP may offer explicit operations through `gh`, always respecting risk policy.
 
-### Level 2 — GitHub API adapter (future)
+### Level 2 — Optional direct GitHub API adapter
 
-OAuth/GitHub App/token integration with scoped permissions. Credentials live in secure storage and actions are capability-limited.
+The canonical governed delivery path currently uses authenticated Git/`gh` primitives plus signed webhook/CI correlation. A future direct OAuth/GitHub App adapter is optional rather than required; if added, credentials must remain securely stored and every action capability-limited.
 
 ## 4. Multi-repo task
 
@@ -49,11 +49,9 @@ A Task declares a set of resource bindings:
 
 Harness acquires locks in deterministic sorted order to avoid deadlocks.
 
-## 5. Worktree-per-task direction
+## 5. Worktree-per-task execution
 
-Coding tasks should eventually default to:
-
-`repo/.aecp-worktrees/<task-id>` or a configurable external worktree root.
+Governed coding tasks use isolated worktrees, with a task-scoped worktree root managed by the Harness rather than mutating the user's main checkout directly.
 
 Benefits:
 - parallel tasks do not edit the same checkout;
@@ -61,7 +59,7 @@ Benefits:
 - rollback/cleanup is easier;
 - user main workspace remains undisturbed.
 
-Bootstrap release may operate in-place only after showing Git clean/dirty state and requiring approval for writes.
+Safe Bridge/read-only inspection may use the selected checkout directly. Governed Builder mutation uses the isolated worktree path and re-validates source HEAD/dirty state before applying verified changes.
 
 ## 6. Git operation risk
 
@@ -91,7 +89,7 @@ Write lock granularity: repository. Read tasks can share. Cross-repo tasks acqui
 
 ## 8. GitHub project/issue relationship
 
-Optional future integration can link Task ID ↔ issue/PR/project item. AECP's canonical task state remains local; GitHub is a synchronized external projection, not the only source of truth.
+Optional issue/Project-item synchronization may be added later, but it is not part of the normative engineering loop. Current governed delivery links Task/Run state to branch, Draft PR, commit SHA and CI evidence; GitHub remains engineering Source of Truth while Harness owns runtime queue/locks/heartbeats.
 
 ## 9. Evidence
 
