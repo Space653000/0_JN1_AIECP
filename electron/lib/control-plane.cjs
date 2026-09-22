@@ -331,7 +331,27 @@ class ControlPlane {
     return a;
   }
 
-  async heartbeat(){for(const run of Object.values(this.state.runs||{})){for(const taskId of run.taskIds||[]){const t=this.state.tasks[taskId];if(t?.state==='RUNNING'&&t.lease){t.lease.expiresAt=new Date(Date.now()+15*60*1000).toISOString();t.heartbeatAt=now();}}}await this.persist();}
+  async heartbeat(){
+    for(const run of Object.values(this.state.runs||{})){
+      for(const taskId of run.taskIds||[]){
+        const t=this.state.tasks[taskId];
+        if(t?.state!=='RUNNING'||!t.lease) continue;
+        t.lease.expiresAt=new Date(Date.now()+15*60*1000).toISOString();
+        t.heartbeatAt=now();
+        for(const lock of t.lockLeases||[]){
+          try{
+            const renewed=await this.locks.renew(lock.key,t.id,lock.token);
+            lock.expiresAt=renewed.expiresAt;
+          }catch(error){
+            t.lockRenewError=String(error?.message||error).slice(0,1000);
+            this.controllers.get(t.id)?.abort();
+            await this.event('task.lock_lost',{runId:run.id,taskId:t.id,key:lock.key,error:t.lockRenewError});
+          }
+        }
+      }
+    }
+    await this.persist();
+  }
 
   async schedulerTick(){
     if(this.shuttingDown) return;
@@ -374,13 +394,14 @@ class ControlPlane {
   async executeTask(run,task){
     if(task.state!=='QUEUED'||run.state!=='RUNNING') return;
     task.state='RUNNING';task.phase='PREPARE';task.attempts++;task.startedAt=now();
-    task.lease={id:uid('lease'),owner:process.pid,expiresAt:new Date(Date.now()+15*60*1000).toISOString()};
+    task.lease={id:uid('lease'),owner:task.id,processId:process.pid,expiresAt:new Date(Date.now()+15*60*1000).toISOString()};
     const taskRoot=path.resolve(task.resources?.repositories?.[0]||run.sourceRoot);
     const subRoot=path.join(this.rootDir,'runs',run.id,task.id);
     const lockKeys=[...(task.resources?.repositories||[run.sourceRoot]).map(p=>'repo:'+path.resolve(p).toLowerCase()),'worktree:'+subRoot.toLowerCase()].sort();
     const locks=[];
-    try { for(const key of lockKeys) locks.push(await this.locks.acquire(key,String(process.pid),{meta:{runId:run.id,taskId:task.id}})); } catch(e) { for(const x of locks){try{await this.locks.release(x.key,String(process.pid),x.token)}catch{}} task.state='QUEUED'; task.lease=null; await this.event('task.waiting_for_lock',{runId:run.id,taskId:task.id,error:String(e.message||e)}); return; }
-    await this.persist();await this.event('task.claimed',{runId:run.id,taskId:task.id,lease:task.lease});
+    try { for(const key of lockKeys) locks.push(await this.locks.acquire(key,task.id,{meta:{runId:run.id,taskId:task.id}})); } catch(e) { for(const x of locks){try{await this.locks.release(x.key,task.id,x.token)}catch{}} task.state='QUEUED'; task.lease=null; await this.event('task.waiting_for_lock',{runId:run.id,taskId:task.id,error:String(e.message||e)}); return; }
+    task.lockLeases=locks.map(x=>({key:x.key,token:x.token,expiresAt:x.expiresAt}));
+    await this.persist();await this.event('task.claimed',{runId:run.id,taskId:task.id,lease:task.lease,locks:task.lockLeases});
     const controller=new AbortController();this.controllers.set(task.id,controller);
     const runPolicy=this.policyForRun(run);
     const roleConfig=this.normalizeRoleConfig(run.providers,run.models);
@@ -452,7 +473,7 @@ class ControlPlane {
         task.state=controller.signal.aborted?'CANCELLED':'FAILED';task.recovery=recommendRecovery({error:task.error,phase:task.phase});await this.event('task.failed',{runId:run.id,taskId:task.id,error:task.error,recovery:task.recovery});if(task.recovery.autoEligible && task.attempts < run.maxIterations){task.state='REWORK';task.reworkReason=task.recovery.reason;task.reworkAt=now();await this.persist();await this.event('task.recovery_rework',{runId:run.id,taskId:task.id,attempt:task.attempts,recovery:task.recovery});task.state='QUEUED';}
       }
     }finally{
-      this.controllers.delete(task.id); for(const x of locks){try{await this.locks.release(x.key,String(process.pid),x.token);}catch{}} await this.persist();this.finalizeRun(run).catch(()=>{});this.schedule();
+      this.controllers.delete(task.id); for(const x of locks){try{await this.locks.release(x.key,task.id,x.token);}catch{}} task.lockLeases=[]; await this.persist();this.finalizeRun(run).catch(()=>{});this.schedule();
     }
   }
 
