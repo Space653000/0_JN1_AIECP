@@ -4,6 +4,7 @@ const crypto = require('node:crypto');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
+const { redactSensitive } = require('./redaction.cjs');
 
 const AUTONOMY_SCHEMA = 'aecp.autonomous/v1';
 const MAX_OUTPUT_BYTES = 1024 * 1024;
@@ -442,7 +443,7 @@ async function runBoundedAutonomy(options, deps = {}) {
   const persist = async () => {
     record.updatedAt = new Date().toISOString();
     await fs.mkdir(runRoot, { recursive: true });
-    await fs.writeFile(path.join(runRoot, 'run.json'), JSON.stringify(record, null, 2) + '\n', 'utf8');
+    await fs.writeFile(path.join(runRoot, 'run.json'), JSON.stringify(redactSensitive(record), null, 2) + '\n', 'utf8');
   };
   const emit = async (type, data = {}) => {
     await persist();
