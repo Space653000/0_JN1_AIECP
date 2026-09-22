@@ -143,14 +143,14 @@ async function executeOpenAICompatible(provider, role, prompt, opts = {}) {
       signal: controller.signal
     });
     const raw = await response.text();
-    if (!response.ok) return { code: 1, stdout: '', stderr: `HTTP ${response.status}: ${raw.slice(-4000)}`, timedOut: false, aborted: false, provider: provider.id, model, usage: null };
+    if (!response.ok) return { code: 1, stdout: '', stderr: `HTTP ${response.status}: ${raw.slice(-4000)}`, timedOut: false, aborted: false, provider: provider.id, model, command: 'openai-compatible', usage: null };
     let parsed;
     try { parsed = JSON.parse(raw); } catch { throw new Error('Network provider returned invalid JSON.'); }
     const output = parsed?.choices?.[0]?.message?.content ?? parsed?.output_text ?? parsed?.response ?? parsed?.result;
     if (typeof output !== 'string') throw new Error('Network provider response does not contain assistant text.');
-    return { code: 0, stdout: output, stderr: '', timedOut: false, aborted: false, provider: provider.id, model, usage: parsed?.usage || null };
+    return { code: 0, stdout: output, stderr: '', timedOut: false, aborted: false, provider: provider.id, model, command: 'openai-compatible', usage: parsed?.usage || null };
   } catch (error) {
-    if (error?.name === 'AbortError') return { code: -1, stdout: '', stderr: timedOut ? 'Network provider timed out.' : 'Network provider aborted.', timedOut, aborted: !timedOut, provider: provider.id, model, usage: null };
+    if (error?.name === 'AbortError') return { code: -1, stdout: '', stderr: timedOut ? 'Network provider timed out.' : 'Network provider aborted.', timedOut, aborted: !timedOut, provider: provider.id, model, command: 'openai-compatible', usage: null };
     throw error;
   } finally {
     clearTimeout(timeout);
@@ -337,7 +337,7 @@ class ProviderRouter {
         const spec = this.commandSpec(provider.id, role, prompt, { ...opts, providerVersion });
         selectedModel = spec.model || selectedModel;
         const env = { ...(spec.env || {}), ...(opts.env || {}) };
-        result = { ...await this.runner(spec.command, spec.args, { ...opts, env }), provider: spec.provider, model: spec.model };
+        result = { ...await this.runner(spec.command, spec.args, { ...opts, env }), provider: spec.provider, model: spec.model, command: spec.command };
       }
       await this.recordMetric({
         schema: 'aecp.provider-usage/v1',
