@@ -491,15 +491,15 @@ OpenCode 特別適合作為 Local Autonomous worker，因為它可以作為本�
 
 - **ChatGPT Web** — 不需 API key，使用 Safe Bridge
 
-架構已預留：
+Provider Registry / Router 現在支援：
 
-- API Provider
-- Local Provider
-- Remote MCP Provider
+- API Provider（明確設定的 OpenAI-compatible endpoint）
+- Local Provider（Ollama / OpenCode / fixed local-command）
+- Remote MCP Provider metadata / readiness foundation
 
-如果未來輸入 API key，AECP 使用 Electron/Windows OS-backed `safeStorage` 保存；plaintext 不寫進 project repository。
+輸入 API key 時，AECP 使用 Electron/Windows OS-backed `safeStorage` 保存；plaintext 不寫進 project repository。
 
-**v0.3.0 尚未呼叫這些外部 API。** Provider Registry 先建立是為了未來換模型時不用重寫 Local Harness。
+**v0.3.0 已具備受治理的 Provider execution foundation。** 固定 CLI/local-command、Ollama/OpenCode 與明確設定的 OpenAI-compatible API adapter 可由同一個 Provider Router 執行；API/Remote health 或 credential-backed live probe 仍需明確 NETWORK/CREDENTIAL approval。實際第三方帳號、公司端點或本機模型的 production claim 仍必須由真實環境 evidence 證明。
 
 ---
 
@@ -513,7 +513,7 @@ OpenCode 特別適合作為 Local Autonomous worker，因為它可以作為本�
 - 任意控制 Windows GUI
 - scrape / automate ChatGPT DOM
 - 規避 ChatGPT usage limit
-- 實際呼叫已保存的外部 API provider
+- 未經 NETWORK/CREDENTIAL approval 就呼叫外部 API provider
 - 自動把本地 MCP server 暴露到 Internet
 - 提供手機遠端本地施工
 
