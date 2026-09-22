@@ -29,6 +29,7 @@ contextBridge.exposeInMainWorld('aecp', Object.freeze({
   startMission: (runId) => call('control-plane:start', { runId }),
   pauseMission: (runId) => call('control-plane:pause', { runId }),
   cancelMission: (runId) => call('control-plane:cancel', { runId }),
+  cancelTask: (runId, taskId) => call('control-plane:cancel-task', { runId, taskId }),
   approveMissionAction: (approvalId, note) => call('control-plane:approve', { approvalId, note }),
   approveDelivery: (p)=>ipcRenderer.invoke('control-plane:approve-delivery',p),
     rejectMissionAction: (approvalId, note) => call('control-plane:reject', { approvalId, note }),
