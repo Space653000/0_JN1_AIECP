@@ -77,6 +77,10 @@ test('Store packaging is repository-verifiable but submission remains owner-gate
   assert.match(store, /publisher:/);
   assert.match(store, /private_audience_ack:/);
   assert.match(store, /ExpectedPublisher/);
+  assert.match(store, /p\.build\.appx\.identityName=process\.env\.AECP_STORE_IDENTITY/);
+  assert.match(store, /npm run dist:store:x64/);
+  assert.match(store, /npm run dist:store:arm64/);
+  assert.doesNotMatch(store, /-c\.appx\./);
   assert.match(store, /submittedToPartnerCenter=\$false/);
   assert.doesNotMatch(store, /PartnerCenter\\.|Submit-ToStore|StoreBroker|winget submit/i);
 });
