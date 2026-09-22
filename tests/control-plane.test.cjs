@@ -352,3 +352,135 @@ test('ControlPlane hasActiveWork guards local-data mutation only while missions 
     await fs.rm(root, { recursive: true, force: true });
   }
 });
+
+
+test('scheduler decision blocks a conflicting repository writer and records explainable reasons', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'aecp-scheduler-lock-'));
+  const workspace = path.join(root, 'workspace');
+  await fs.mkdir(workspace, { recursive: true });
+  const cp = new ControlPlane({ rootDir: path.join(root, 'runtime') });
+  await cp.init();
+  try {
+    const run = {
+      id:'run-lock',
+      state:'RUNNING',
+      sourceRoot:workspace,
+      taskIds:['task-a','task-b'],
+      maxIterations:3,
+      providers:{planner:'claude',builder:'codex',reviewer:'claude'},
+      models:{planner:null,builder:null,reviewer:null},
+      providerApprovals:{network:false,credential:false}
+    };
+    const task = {
+      id:'task-b',
+      runId:run.id,
+      state:'QUEUED',
+      risk:'YELLOW',
+      priority:50,
+      attempts:0,
+      dependencies:[],
+      resources:{repositories:[workspace]}
+    };
+    cp.state.runs[run.id]=run;
+    cp.state.tasks['task-a']={id:'task-a',runId:run.id,state:'RUNNING',resources:{repositories:[workspace]}};
+    cp.state.tasks['task-b']=task;
+    const key='repo:'+path.resolve(workspace).toLowerCase();
+    await cp.locks.acquire(key,'task-a',{meta:{runId:run.id,taskId:'task-a'}});
+    const decision=cp.schedulerDecision(run,task,{
+      locks:cp.locks.list(),
+      providerHealth:{
+        claude:{status:'READY'},
+        codex:{status:'READY'}
+      }
+    });
+    assert.equal(decision.eligible,false);
+    assert.ok(decision.reasons.includes('LOCK_BUSY'));
+    assert.equal(decision.schema,'aecp.scheduler-decision/v1');
+    assert.deepEqual(decision.repositoryLocks,[key]);
+  } finally {
+    await cp.shutdown();
+    await fs.rm(root,{recursive:true,force:true});
+  }
+});
+
+test('scheduler decision blocks unavailable providers and exhausted retries', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'aecp-scheduler-provider-'));
+  const cp = new ControlPlane({ rootDir: path.join(root, 'runtime') });
+  await cp.init();
+  try {
+    const run={
+      id:'run-provider',
+      state:'RUNNING',
+      sourceRoot:root,
+      taskIds:['task-1'],
+      maxIterations:2,
+      providers:{planner:'claude',builder:'codex',reviewer:'claude'},
+      models:{planner:null,builder:null,reviewer:null},
+      providerApprovals:{network:false,credential:false}
+    };
+    const task={id:'task-1',runId:run.id,state:'QUEUED',risk:'GREEN',priority:70,attempts:2,dependencies:[],resources:{repositories:[root]}};
+    cp.state.runs[run.id]=run;cp.state.tasks[task.id]=task;
+    const decision=cp.schedulerDecision(run,task,{
+      locks:[],
+      providerHealth:{claude:{status:'READY'},codex:{status:'UNAVAILABLE',detail:'not installed'}}
+    });
+    assert.equal(decision.eligible,false);
+    assert.ok(decision.reasons.includes('RETRY_BUDGET_EXHAUSTED'));
+    assert.ok(decision.reasons.includes('PROVIDER_BUILDER_UNAVAILABLE'));
+    assert.equal(decision.retryRemaining,0);
+  } finally {
+    await cp.shutdown();
+    await fs.rm(root,{recursive:true,force:true});
+  }
+});
+
+test('scheduler candidate ordering is deterministic by priority risk cost runtime then age', () => {
+  const { compareSchedulerCandidates } = require('../electron/lib/control-plane.cjs');
+  const items=[
+    {taskId:'late',priority:50,risk:1,estimatedCostUnits:1,estimatedRuntimeMs:100,createdAt:'2026-01-02T00:00:00Z'},
+    {taskId:'high-risk',priority:80,risk:2,estimatedCostUnits:1,estimatedRuntimeMs:100,createdAt:'2026-01-01T00:00:00Z'},
+    {taskId:'high-safe-expensive',priority:80,risk:0,estimatedCostUnits:2,estimatedRuntimeMs:100,createdAt:'2026-01-01T00:00:00Z'},
+    {taskId:'high-safe-cheap',priority:80,risk:0,estimatedCostUnits:1,estimatedRuntimeMs:200,createdAt:'2026-01-01T00:00:00Z'},
+    {taskId:'high-safe-cheap-fast',priority:80,risk:0,estimatedCostUnits:1,estimatedRuntimeMs:50,createdAt:'2026-01-01T00:00:00Z'}
+  ];
+  items.sort(compareSchedulerCandidates);
+  assert.deepEqual(items.map(x=>x.taskId),[
+    'high-safe-cheap-fast',
+    'high-safe-cheap',
+    'high-safe-expensive',
+    'high-risk',
+    'late'
+  ]);
+});
+
+test('heartbeat renews task-owned lock leases with the task id', async () => {
+  const root=await fs.mkdtemp(path.join(os.tmpdir(),'aecp-task-lock-renew-'));
+  const cp=new ControlPlane({rootDir:path.join(root,'runtime')});
+  await cp.init();
+  try{
+    const workspace=path.join(root,'workspace');
+    await fs.mkdir(workspace,{recursive:true});
+    const run={id:'run-renew',state:'RUNNING',taskIds:['task-renew'],sourceRoot:workspace};
+    cp.state.runs[run.id]=run;
+    const key='repo:'+path.resolve(workspace).toLowerCase();
+    const lock=await cp.locks.acquire(key,'task-renew',{leaseMs:1000,meta:{runId:run.id,taskId:'task-renew'}});
+    cp.state.tasks['task-renew']={
+      id:'task-renew',
+      runId:run.id,
+      state:'RUNNING',
+      lease:{id:'lease',owner:'task-renew',processId:process.pid,expiresAt:new Date(Date.now()+1000).toISOString()},
+      lockLeases:[{key,token:lock.token,expiresAt:lock.expiresAt}]
+    };
+    const before=Date.parse(lock.expiresAt);
+    await new Promise(resolve=>setTimeout(resolve,5));
+    await cp.heartbeat();
+    const renewed=cp.locks.list().find(x=>x.key===key);
+    assert.equal(renewed.owner,'task-renew');
+    assert.equal(renewed.meta.taskId,'task-renew');
+    assert.ok(Date.parse(renewed.expiresAt)>before);
+    assert.ok(Date.parse(cp.state.tasks['task-renew'].lockLeases[0].expiresAt)>=Date.parse(renewed.expiresAt));
+  } finally {
+    await cp.shutdown();
+    await fs.rm(root,{recursive:true,force:true});
+  }
+});
