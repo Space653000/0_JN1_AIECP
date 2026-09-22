@@ -908,7 +908,14 @@ async function copyGoalLoopPrompt() {
     toast('Goal and Definition of Done are both required.', 'error');
     return;
   }
-  const config = { goal, done, maxIterations, checkpointEvery };
+  const config = {
+    goal, done, maxIterations, checkpointEvery,
+    workspaceId: state.data?.currentWorkspace?.id || null,
+    providerPolicy: { supervisor: 'chatgpt-web', worker: 'explicit-command-card', reviewer: 'chatgpt-web' },
+    permissionPolicy: { mode: 'WEB_SAFE_BRIDGE', localCapabilities: ['inspect-workspace','git-status'], escalation: 'explicit-user-action' },
+    verificationPolicy: { resultCapsuleRequired: true, modelSelfPassForbidden: true },
+    stopConditions: ['DONE_VERIFIED','MAX_ITERATIONS','NO_PROGRESS','PERMISSION_UNAVAILABLE','HUMAN_APPROVAL_REQUIRED','PROVIDER_UNAVAILABLE','VERIFICATION_UNRESOLVED','USER_CANCELLED']
+  };
   localStorage.setItem('aecp-goal-loop', JSON.stringify(config));
   const prompt = `AECP_GOAL_LOOP_V1\n\nYou are the reasoning supervisor for an AI Engineering Control Plane Goal Loop.\n\nGOAL\n${goal}\n\nDEFINITION OF DONE\n${done}\n\nLOOP BUDGET\nMaximum iterations: ${maxIterations}\nCheckpoint every: ${checkpointEvery} iteration(s)\n\nOPERATING CONTRACT\n1. Work in this cycle: RESEARCH -> PLAN -> ACT -> VERIFY -> REFLECT.\n2. Do not declare completion from confidence alone. Completion requires evidence against the Definition of Done.\n3. Choose the smallest high-value next action; avoid repeating an action that produced no progress.\n4. At each checkpoint summarize: progress, evidence, unresolved risks, and whether direction should change.\n5. Stop with one state only: DONE, BLOCKED, NEEDS_APPROVAL, or NEXT_ITERATION.\n6. For AECP v0.3 Web Safe Bridge, when local inspection is needed output exactly one aecp.task/v1 Command Card using only supported read-only actions (inspect-workspace or git-status). Do not invent shell/file-write privileges. Wait for the AECP Result Capsule before claiming that local action succeeded.\n7. If the goal requires a capability not available in this preview, design the next governed adapter or implementation step instead of pretending it executed.\n\nStart at iteration 1. First determine the highest-value uncertainty or action needed to move toward Done.`;
   const ok = await safe(() => window.aecp.writeClipboard(prompt));
@@ -959,7 +966,7 @@ async function startHarness() {
   localStorage.setItem('aecp-goal-loop', JSON.stringify(config));
 
   const result = await safe(() => window.aecp.startHarness({
-    goal, done, maxTasks: 4, maxIterations: config.maxIterations,
+    goal, done, maxTasks: 4, maxIterations: config.maxIterations, checkpointEvery: config.checkpointEvery,
     plannerProvider, builderProvider, reviewerProvider,
     plannerModel: config.plannerModel || null,
     builderModel: config.builderModel || null,
