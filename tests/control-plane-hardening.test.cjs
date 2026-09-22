@@ -36,15 +36,20 @@ test('security policy requires approval for merge and rejects outside root',()=>
  assert.equal(p.check({action:'WRITE',path:'C:\\other',approved:true}).allowed,false);
 });
 
-test('remote gateway is loopback and read-only',async()=>{
+test('remote gateway is loopback-first with bounded approval-only actions',async()=>{
  const gateway=new RemoteGateway({status:async()=>({ok:true}),replay:async()=>[]});
  const info=await gateway.start();
- assert.equal(info.host,'127.0.0.1'); assert.equal(info.readOnly,true);
  const http=require('node:http');
  const request=(pathName,headers={})=>new Promise((resolve,reject)=>{const req=http.request({host:'127.0.0.1',port:info.port,path:pathName,headers},res=>{let d='';res.on('data',b=>d+=b);res.on('end',()=>resolve({status:res.statusCode,body:d}))});req.on('error',reject);req.end()});
- const denied=await request('/api/status'); assert.equal(denied.status,401);
- const ok=await request('/api/status',{authorization:'Bearer '+info.token}); assert.equal(ok.status,200);
- await gateway.stop();
+ try{
+  assert.equal(info.host,'127.0.0.1');
+  assert.equal(info.remoteEnabled,false);
+  assert.equal(info.remoteActions,'approval-only');
+  const denied=await request('/api/status'); assert.equal(denied.status,401);
+  const ok=await request('/api/status',{authorization:'Bearer '+info.token}); assert.equal(ok.status,200);
+ } finally {
+  await gateway.stop();
+ }
 });
 
 
