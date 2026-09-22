@@ -5,15 +5,15 @@ const assert = require('node:assert/strict');
 const { ProviderRouter, PROVIDERS } = require('../electron/lib/provider-router.cjs');
 
 test('provider registry exposes vendor-neutral roles including Ollama', () => {
-  assert.deepEqual(PROVIDERS.ollama.roles, ['planner', 'builder', 'reviewer', 'general']);
+  assert.deepEqual(PROVIDERS.ollama.roles, ['planner', 'reviewer', 'general']);
   assert.equal(PROVIDERS.ollama.mode, 'ollama');
 });
 
 test('Ollama command spec is local and requires an explicit model', () => {
   const router = new ProviderRouter();
-  const spec = router.commandSpec('ollama', 'builder', 'do work', { model: 'qwen3-coder:30b', cwd: 'C:\\repo' });
+  const spec = router.commandSpec('ollama', 'reviewer', 'review work', { model: 'qwen3-coder:30b', cwd: 'C:\\repo' });
   assert.equal(spec.command, 'ollama');
-  assert.deepEqual(spec.args, ['run', 'qwen3-coder:30b', 'do work']);
+  assert.deepEqual(spec.args, ['run', 'qwen3-coder:30b', 'review work']);
   assert.equal(spec.provider, 'ollama');
   assert.equal(spec.model, 'qwen3-coder:30b');
   assert.equal(spec.cwd, 'C:\\repo');
@@ -36,7 +36,7 @@ test('Ollama without a model is rejected instead of silently selecting one', () 
   const previous = process.env.AECP_OLLAMA_MODEL;
   delete process.env.AECP_OLLAMA_MODEL;
   try {
-    assert.throws(() => new ProviderRouter().commandSpec('ollama', 'builder', 'work'), /requires a model/);
+    assert.throws(() => new ProviderRouter().commandSpec('ollama', 'reviewer', 'work'), /requires a model/);
   } finally {
     if (previous !== undefined) process.env.AECP_OLLAMA_MODEL = previous;
   }
@@ -64,4 +64,8 @@ test('fixed local-command provider uses only its registered executable and argum
 test('unknown provider mode is rejected', () => {
   const registry = { local: { command: 'worker', roles: ['builder'], mode: 'unknown-mode' } };
   assert.throws(() => new ProviderRouter(registry).commandSpec('local', 'builder', 'work'), /Unsupported provider mode/);
+});
+
+test('raw Ollama is not exposed as a mutating builder', () => {
+  assert.throws(() => new ProviderRouter().commandSpec('ollama', 'builder', 'edit files', { model: 'qwen3-coder:30b' }), /No provider for role: builder/);
 });
