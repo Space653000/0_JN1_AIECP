@@ -26,6 +26,8 @@ test('Codex OFFICIAL and PEGA worker homes are physically distinct and secrets s
     });
     assert.notEqual(path.resolve(official.codexHome), path.resolve(pega.codexHome));
     assert.equal(official.env.CODEX_HOME, official.codexHome);
+    const officialConfig = await fs.readFile(path.join(official.codexHome, 'config.toml'), 'utf8');
+    assert.match(officialConfig, /cli_auth_credentials_store = "file"/);
     assert.equal(pega.env.CODEX_HOME, pega.codexHome);
     assert.equal(pega.env.AECP_PEGA_API_KEY, 'TOP_SECRET_TEST_KEY');
     const config = await fs.readFile(path.join(pega.codexHome, 'config.toml'), 'utf8');
