@@ -122,6 +122,20 @@ const staticInvariants=[
   {label:'patch budget input',re:/hcPatchMiB/},
   {label:'wall clock budget input',re:/hcWallMinutes/}
  ]),
+ invariant('goal-loop-complete-budgets','electron/lib/harness.cjs',[
+  {label:'turn budget',re:/maxTurns/},
+  {label:'wall-clock budget',re:/maxWallClockMs/},
+  {label:'provider-reported cost budget',re:/maxProviderReportedCost/},
+  {label:'local compute budget',re:/maxLocalComputeMs/},
+  {label:'provider cost terminal code',re:/PROVIDER_COST_BUDGET_EXHAUSTED/},
+  {label:'local compute terminal code',re:/LOCAL_COMPUTE_BUDGET_EXHAUSTED/}
+ ]),
+ invariant('goal-loop-budget-ui','ui/app.js',[
+  {label:'max turns input',re:/loopTurns/},
+  {label:'provider cost input',re:/loopProviderCost/},
+  {label:'local compute input',re:/loopLocalComputeMinutes/},
+  {label:'budget pass through',re:/maxProviderReportedCost:\s*config\.maxProviderReportedCost/}
+ ]),
  invariant('harness-hard-budgets','electron/lib/harness.cjs',[
   {label:'provider call budget',re:/PROVIDER_CALL_BUDGET_EXHAUSTED/},
   {label:'patch byte budget',re:/PATCH_BUDGET_EXHAUSTED/},
