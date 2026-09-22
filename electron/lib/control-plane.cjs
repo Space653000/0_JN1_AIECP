@@ -105,7 +105,7 @@ class ControlPlane {
   }
 
   snapshot(){
-    return {schema:SCHEMA,updatedAt:this.state?.updatedAt,runs:Object.values(this.state?.runs||{}),tasks:Object.values(this.state?.tasks||{}),agents:Object.values(this.state?.agents||{}),approvals:Object.values(this.state?.approvals||{}),locks:Object.values(this.state?.locks||{})};
+    return redactSensitive({schema:SCHEMA,updatedAt:this.state?.updatedAt,runs:Object.values(this.state?.runs||{}),tasks:Object.values(this.state?.tasks||{}),agents:Object.values(this.state?.agents||{}),approvals:Object.values(this.state?.approvals||{}),locks:Object.values(this.state?.locks||{})});
   }
 
   policyForRun(run){
@@ -486,8 +486,8 @@ class ControlPlane {
   async listEvents(limit=500){
     try{const lines=(await fs.readFile(this.eventFile,'utf8')).trim().split(/\r?\n/).filter(Boolean);return lines.slice(-clamp(limit,1,5000,500)).map(x=>JSON.parse(x));}catch(e){if(e.code==='ENOENT')return[];throw e;}
   }
-  async getRun(id){return this.state.runs[id]||null;}
-  async getTask(id){return this.state.tasks[id]||null;}
+  async getRun(id){return redactSensitive(this.state.runs[id]||null);}
+  async getTask(id){return redactSensitive(this.state.tasks[id]||null);}
   async shutdown(){
     this.shuttingDown=true;
     if(this.scheduler){clearInterval(this.scheduler);this.scheduler=null;}
