@@ -32,6 +32,14 @@ class PairingManager{
   if(!d)return false;
   d.revoked=true;return true;
  }
+ revokeDeviceId(deviceId){
+  const id=String(deviceId||'');
+  let changed=false;
+  for(const d of this.devices.values()){
+   if(d.deviceId===id&&!d.revoked){d.revoked=true;changed=true;}
+  }
+  return changed;
+ }
  list(){
   this.gc();
   return [...this.devices.values()].map(d=>({deviceId:d.deviceId,scope:d.scope,createdAt:d.createdAt,expiresAt:new Date(d.expiresAt).toISOString(),revoked:d.revoked}));
