@@ -58,6 +58,7 @@ const requiredFiles=[
  ['update-state-test','tests/update-state.test.cjs'],
  ['e2e-canonical','tests/canonical-loop.e2e.test.cjs'],
  ['e2e-provider','tests/provider-router.e2e.test.cjs'],
+ ['harness-bounds-test','tests/harness-bounds.test.cjs'],
  ['e2e-provider-network','tests/provider-network.e2e.test.cjs'],
  ['event-projection-test','tests/event-projection.test.cjs'],
  ['provider-integration-test','tests/provider-integration.test.cjs'],
@@ -81,6 +82,24 @@ const staticInvariants=[
   {label:'nodeIntegration false',re:/nodeIntegration:\s*false/},
   {label:'sandbox true',re:/sandbox:\s*true/},
   {label:'safeStorage credential protection',re:/safeStorage\.(?:encryptString|decryptString)/}
+ ]),
+ invariant('harness-hard-budgets','electron/lib/harness.cjs',[
+  {label:'provider call budget',re:/PROVIDER_CALL_BUDGET_EXHAUSTED/},
+  {label:'patch byte budget',re:/PATCH_BUDGET_EXHAUSTED/},
+  {label:'changed-file budget',re:/CHANGED_FILE_BUDGET_EXHAUSTED/},
+  {label:'output limit kill',re:/outputLimitExceeded[\s\S]*kill\(child\)/},
+  {label:'budget terminal state',re:/BUDGET_EXHAUSTED/}
+ ]),
+ invariant('harness-hard-budget-tests','tests/harness-bounds.test.cjs',[
+  {label:'maxTurns test',re:/maxTurns is exhausted/},
+  {label:'changed file budget test',re:/changed-file budget is exceeded/},
+  {label:'patch budget test',re:/patch exceeds maxPatchBytes/}
+ ]),
+ invariant('autonomy-hard-budgets','electron/lib/autonomy.cjs',[
+  {label:'max turns',re:/maxTurns:\s*maxIterations/},
+  {label:'output byte budget',re:/maxOutputBytes/},
+  {label:'patch byte budget',re:/maxPatchBytes/},
+  {label:'changed file budget',re:/maxChangedFiles/}
  ]),
  invariant('canonical-provider-routing','electron/lib/harness.cjs',[
   {label:'ProviderRouter imported',re:/ProviderRouter/},
