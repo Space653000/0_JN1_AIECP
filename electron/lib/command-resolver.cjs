@@ -35,8 +35,8 @@ function parseNodeCmdShim(cmdPath,{read=fs.readFileSync,exists=fs.existsSync,nod
   const shimDir=path.win32.dirname(String(cmdPath));
   const matches=[...source.matchAll(/["']?%dp0%\\([^"'\r\n]+?\.js)["']?/ig)];
   if(!matches.length)return null;
-  const relative=matches.at(-1)[1].replace(/\\/g,path.sep);
-  const script=path.resolve(shimDir,relative);
+  const relative=matches.at(-1)[1];
+  const script=path.win32.resolve(shimDir,relative);
   if(!exists(script))return null;
   const localNode=path.win32.join(shimDir,'node.exe');
   const node=firstExisting([localNode,nodeExecutable],exists);
