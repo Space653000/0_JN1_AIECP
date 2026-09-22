@@ -454,6 +454,16 @@ async function runHarness(options) {
     }
     let wt;
     if (record.worktree && await fs.stat(record.worktree).then(()=>true).catch(()=>false)) wt={worktree:record.worktree,baseHead:record.baseHead};
+    else if(options.preparedWorktree){
+      const expected=await canonicalPathForCompare(path.join(runRoot,'worktree'));
+      const actual=await canonicalPathForCompare(options.preparedWorktree);
+      if(actual!==expected) throw new Error('Prepared worktree must be the task-scoped Harness worktree.');
+      const stat=await fs.stat(actual).catch(()=>null);
+      if(!stat?.isDirectory()) throw new Error('Prepared worktree does not exist.');
+      const top=await canonicalPathForCompare(await git(actual,['rev-parse','--show-toplevel'],signal));
+      if(top!==actual) throw new Error('Prepared worktree is not a Git worktree root.');
+      wt={worktree:actual,baseHead:options.preparedBaseHead||await git(actual,['rev-parse','HEAD'],signal)};
+    }
     else wt=await makeWorktree(root, runRoot, signal, options.baseRef || record.baseHead || null);
     record.worktree = wt.worktree; record.baseHead = record.baseHead || wt.baseHead; record.blueprintVersion = options.blueprintVersion || record.blueprintVersion || record.baseHead;
     for (const task of record.tasks) {
@@ -536,4 +546,4 @@ async function runHarness(options) {
   }
 }
 
-module.exports = { HARNESS_SCHEMA, STATES, ROLES, DEFAULT_ROLE_PROVIDERS, cli, invokeRole, runHarness, safeJson, normalizePlan };
+module.exports = { HARNESS_SCHEMA, STATES, ROLES, DEFAULT_ROLE_PROVIDERS, cli, invokeRole, runHarness, prepareWorktree: makeWorktree, safeJson, normalizePlan };
