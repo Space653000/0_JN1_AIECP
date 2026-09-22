@@ -75,6 +75,15 @@
           <div class="provider-symbol" aria-hidden="true">AI</div>
           <div><h3>Official ChatGPT</h3><p>Opens in your normal browser. AECP does not inject, scrape, or modify chatgpt.com.</p></div>
           <button id="openChatGPTButton" class="primary-button full" type="button">Open official ChatGPT</button>
+          <div class="form-grid">
+            <label class="wide">Browser window<select id="browserWindowSelect"><option value="">Detect browser windows</option></select></label>
+          </div>
+          <div class="button-row">
+            <button id="refreshBrowserWindowsButton" class="secondary-button" type="button">Detect windows</button>
+            <button id="dockBrowserLeftButton" class="secondary-button" type="button" disabled>Dock left</button>
+            <button id="dockBrowserRightButton" class="secondary-button" type="button" disabled>Dock right</button>
+          </div>
+          <small class="muted">AECP uses only the browser process ID/window handle for docking. It does not read the page title or ChatGPT DOM.</small>
         </section>
 
         <section class="handoff-card">
