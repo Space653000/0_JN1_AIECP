@@ -69,3 +69,62 @@ test('unknown provider mode is rejected', () => {
 test('raw Ollama is not exposed as a mutating builder', () => {
   assert.throws(() => new ProviderRouter().commandSpec('ollama', 'builder', 'edit files', { model: 'qwen3-coder:30b' }), /No provider for role: builder/);
 });
+
+test('Claude planner and reviewer run in plan-only permission mode', () => {
+  const router = new ProviderRouter();
+  const spec = router.commandSpec('claude', 'planner', 'plan safely', { cwd: 'C:\\repo' });
+  assert.ok(spec.args.includes('--permission-mode'));
+  assert.ok(spec.args.includes('plan'));
+  assert.ok(spec.args.includes('--max-turns'));
+});
+
+test('Gemini is read-only for Harness roles and is not a builder', () => {
+  const router = new ProviderRouter();
+  const spec = router.commandSpec('gemini', 'reviewer', 'review safely', { cwd: 'C:\\repo' });
+  assert.ok(spec.args.includes('--approval-mode'));
+  assert.ok(spec.args.includes('plan'));
+  assert.throws(() => router.commandSpec('gemini', 'builder', 'edit files'), /No provider for role: builder/);
+});
+
+test('OpenCode builder receives deny-first v1 permissions', () => {
+  const router = new ProviderRouter();
+  const spec = router.commandSpec('opencode', 'builder', 'edit only the worktree', {
+    model: 'ollama/qwen3-coder:30b',
+    cwd: 'C:\\repo',
+    providerVersion: '1.18.30'
+  });
+  assert.ok(spec.args.includes('--auto'));
+  const config = JSON.parse(spec.env.OPENCODE_CONFIG_CONTENT);
+  assert.equal(config.permission['*'], 'deny');
+  assert.equal(config.permission.edit, 'allow');
+  assert.equal(config.permission.external_directory, 'deny');
+  assert.equal(config.permission.bash['*'], 'deny');
+});
+
+test('OpenCode builder receives deny-first v2 permissions', () => {
+  const router = new ProviderRouter();
+  const spec = router.commandSpec('opencode', 'builder', 'edit only the worktree', {
+    model: 'ollama/qwen3-coder:30b',
+    cwd: 'C:\\repo',
+    providerVersion: '2.1.0'
+  });
+  assert.equal(spec.args.includes('--auto'), false);
+  const config = JSON.parse(spec.env.OPENCODE_CONFIG_CONTENT);
+  assert.ok(config.permissions.some((rule) => rule.action === 'external_directory' && rule.effect === 'deny'));
+  assert.ok(config.permissions.some((rule) => rule.action === 'shell' && rule.resource === '*' && rule.effect === 'deny'));
+  assert.ok(config.permissions.some((rule) => rule.action === 'edit' && rule.effect === 'allow'));
+  assert.ok(config.permissions.some((rule) => rule.action === 'execute' && rule.effect === 'deny'));
+});
+
+test('OpenCode local models do not request model-network approval but cloud models do', () => {
+  const router = new ProviderRouter();
+  assert.equal(router.capabilities('builder', 'opencode', { model: 'ollama/qwen3-coder:30b' }).network, false);
+  assert.equal(router.capabilities('builder', 'opencode', { model: 'openai/gpt-code' }).network, true);
+});
+
+test('built-in CLI authentication is not exposed to AECP as a credential capability', () => {
+  const router = new ProviderRouter();
+  assert.equal(router.capabilities('builder', 'codex').credential, false);
+  assert.equal(router.capabilities('planner', 'claude').credential, false);
+  assert.equal(router.capabilities('reviewer', 'gemini').credential, false);
+});
