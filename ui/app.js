@@ -64,8 +64,8 @@ function formatTime(iso) {
 
 function statusClass(value) {
   if (['DONE', 'PASS', 'READY', 'APPLIED'].includes(value)) return 'ready';
-  if (['FAILED', 'BLOCKED', 'BUDGET_EXHAUSTED', 'CANCELLED', 'INTERRUPTED'].includes(value)) return 'bad';
-  if (['PREPARING', 'RUNNING', 'VERIFYING', 'WAITING_USER', 'CANCELLING'].includes(value)) return 'warn';
+  if (['FAILED', 'BLOCKED', 'BUDGET_EXHAUSTED', 'CANCELLED', 'INTERRUPTED', 'UNAVAILABLE'].includes(value)) return 'bad';
+  if (['PREPARING', 'RUNNING', 'VERIFYING', 'WAITING_USER', 'CANCELLING', 'DEGRADED', 'AUTH_REQUIRED'].includes(value)) return 'warn';
   return 'neutral';
 }
 
@@ -576,7 +576,11 @@ async function renderEvidence(host) {
 
 function renderProviders() {
   const host = $('#providerList');
-  host.innerHTML = state.providers.map((provider) => `<div class="provider-item"><div><strong>${esc(provider.name)}</strong><small>${esc(provider.kind)} · ${esc(provider.status)}${provider.hasCredential ? ' · credential stored' : ''}${provider.defaultModel ? ` · model ${esc(provider.defaultModel)}` : ''}${provider.baseUrl ? ` · ${esc(provider.baseUrl)}` : ''}</small></div>${provider.builtIn ? '<span class="status ready">Built in</span>' : `<button class="secondary-button" data-delete-provider="${esc(provider.id)}" type="button">Remove</button>`}</div>`).join('');
+  host.innerHTML = state.providers.map((provider) => {
+    const detail = provider.healthDetail ? `<small>${esc(provider.healthDetail)}</small>` : '';
+    const controls = `<div class="task-actions"><button class="secondary-button" data-provider-health="${esc(provider.id)}" type="button">Check health</button>${provider.builtIn ? '' : `<button class="secondary-button" data-delete-provider="${esc(provider.id)}" type="button">Remove</button>`}</div>`;
+    return `<div class="provider-item"><div><strong>${esc(provider.name)}</strong><small>${esc(provider.kind)} · <span class="status ${statusClass(provider.status)}">${esc(provider.status)}</span>${provider.hasCredential ? ' · credential stored' : ''}${provider.defaultModel ? ` · model ${esc(provider.defaultModel)}` : ''}${provider.baseUrl ? ` · ${esc(provider.baseUrl)}` : ''}</small>${detail}</div>${controls}</div>`;
+  }).join('');
 }
 
 function renderAgents() {
@@ -1061,6 +1065,43 @@ function bindEvents() {
     const agentNode = event.target.closest('[data-agent-id]');
     if (agentNode) {
       await launchAgent(agentNode.dataset.agentId);
+      return;
+    }
+    const healthNode = event.target.closest('[data-provider-health]');
+    if (healthNode) {
+      const id = healthNode.dataset.providerHealth;
+      const provider = state.providers.find((item) => item.id === id);
+      if (!provider) return;
+      let networkApproved = false;
+      let credentialApproved = false;
+      if (['api', 'local', 'remote-mcp'].includes(provider.kind)) {
+        networkApproved = confirm('Check this provider endpoint now? This performs a bounded health request using the configured URL.');
+        if (!networkApproved) {
+          const result = await safe(() => window.aecp.checkProviderHealth(id, { networkApproved: false }), null);
+          if (result) {
+            Object.assign(provider, { status: result.status, healthDetail: result.detail, healthCheckedAt: result.checkedAt });
+            renderProviders();
+          }
+          return;
+        }
+      }
+      if (provider.hasCredential) {
+        credentialApproved = confirm('This health check needs the OS-protected provider credential. Allow credential use for this one bounded probe?');
+        if (!credentialApproved) {
+          const result = await safe(() => window.aecp.checkProviderHealth(id, { networkApproved, credentialApproved: false }), null);
+          if (result) {
+            Object.assign(provider, { status: result.status, healthDetail: result.detail, healthCheckedAt: result.checkedAt });
+            renderProviders();
+          }
+          return;
+        }
+      }
+      const result = await safe(() => window.aecp.checkProviderHealth(id, { networkApproved, credentialApproved }), null);
+      if (result) {
+        Object.assign(provider, { status: result.status, healthDetail: result.detail, healthCheckedAt: result.checkedAt });
+        renderProviders();
+        toast(`${provider.name}: ${result.status}`, result.status === 'READY' ? 'info' : (result.status === 'UNAVAILABLE' ? 'error' : 'info'));
+      }
       return;
     }
     const deleteNode = event.target.closest('[data-delete-provider]');
