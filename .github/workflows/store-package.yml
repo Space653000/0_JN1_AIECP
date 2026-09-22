@@ -1,0 +1,145 @@
+name: AECP Store Package
+
+on:
+  workflow_dispatch:
+    inputs:
+      identity_name:
+        description: Partner Center Package/Identity/Name
+        required: true
+        type: string
+      publisher:
+        description: Partner Center Package/Identity/Publisher
+        required: true
+        type: string
+      publisher_display_name:
+        description: Partner Center publisher display name
+        required: true
+        type: string
+      private_audience_ack:
+        description: Confirm this workflow only prepares artifacts and does not submit to Partner Center
+        required: true
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  validate-inputs:
+    name: Validate Store owner inputs
+    runs-on: windows-latest
+    steps:
+      - name: Validate required Store identity values
+        shell: pwsh
+        env:
+          AECP_STORE_IDENTITY: ${{ inputs.identity_name }}
+          AECP_STORE_PUBLISHER: ${{ inputs.publisher }}
+          AECP_STORE_PUBLISHER_DISPLAY: ${{ inputs.publisher_display_name }}
+          AECP_STORE_ACK: ${{ inputs.private_audience_ack }}
+        run: |
+          if ($env:AECP_STORE_ACK -ne 'true') { throw 'Owner acknowledgement is required.' }
+          if ($env:AECP_STORE_IDENTITY -notmatch '^[A-Za-z0-9.-]{3,50}$') { throw 'Store identity name is invalid.' }
+          if ([string]::IsNullOrWhiteSpace($env:AECP_STORE_PUBLISHER)) { throw 'Store publisher is required.' }
+          if ([string]::IsNullOrWhiteSpace($env:AECP_STORE_PUBLISHER_DISPLAY)) { throw 'Store publisher display name is required.' }
+
+  build-store:
+    name: Build Store AppX ${{ matrix.arch }}
+    needs: validate-inputs
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x64, arm64]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm install --no-audit --no-fund
+      - run: npm run verify
+      - name: Build owner-identity Store AppX
+        shell: pwsh
+        env:
+          AECP_STORE_IDENTITY: ${{ inputs.identity_name }}
+          AECP_STORE_PUBLISHER: ${{ inputs.publisher }}
+          AECP_STORE_PUBLISHER_DISPLAY: ${{ inputs.publisher_display_name }}
+        run: |
+          $args = @(
+            'electron-builder',
+            '--win',
+            'appx',
+            '--${{ matrix.arch }}',
+            '--publish',
+            'never',
+            "-c.appx.identityName=$env:AECP_STORE_IDENTITY",
+            "-c.appx.publisher=$env:AECP_STORE_PUBLISHER",
+            "-c.appx.publisherDisplayName=$env:AECP_STORE_PUBLISHER_DISPLAY"
+          )
+          & npx @args
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Validate generated Store manifest
+        shell: pwsh
+        env:
+          AECP_STORE_IDENTITY: ${{ inputs.identity_name }}
+          AECP_STORE_PUBLISHER: ${{ inputs.publisher }}
+        run: |
+          $package = Get-ChildItem release -Filter '*.appx' -Recurse | Where-Object { $_.Name -match '-${{ matrix.arch }}-' } | Select-Object -First 1
+          if (-not $package) { throw 'Store AppX artifact not found.' }
+          ./scripts/validate-store-package.ps1 -PackagePath $package.FullName -ExpectedArchitecture '${{ matrix.arch }}' -ExpectedIdentityName $env:AECP_STORE_IDENTITY -ExpectedPublisher $env:AECP_STORE_PUBLISHER -EvidencePath "release/store-evidence-${{ matrix.arch }}.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aecp-store-owner-${{ matrix.arch }}
+          path: |
+            release/*.appx
+            release/store-evidence-${{ matrix.arch }}.json
+          if-no-files-found: error
+          retention-days: 30
+
+  submission-bundle:
+    name: Assemble Store submission bundle
+    needs: build-store
+    runs-on: windows-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: aecp-store-owner-*
+          path: store-assets
+          merge-multiple: true
+      - name: Generate Store checksums and provenance
+        shell: pwsh
+        env:
+          AECP_STORE_IDENTITY: ${{ inputs.identity_name }}
+          AECP_STORE_PUBLISHER: ${{ inputs.publisher }}
+          AECP_STORE_PUBLISHER_DISPLAY: ${{ inputs.publisher_display_name }}
+        run: |
+          $packages = Get-ChildItem store-assets -Filter '*.appx' -Recurse | Sort-Object Name
+          if ($packages.Count -ne 2) { throw "Expected 2 Store packages, found $($packages.Count)." }
+          $records = @()
+          $lines = @()
+          foreach ($package in $packages) {
+            $hash = (Get-FileHash $package.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            $lines += "$hash  $($package.Name)"
+            $records += [ordered]@{ file=$package.Name; sha256=$hash; bytes=$package.Length }
+          }
+          $lines | Out-File -Encoding ascii store-assets/SHA256SUMS-store.txt
+          $provenance = [ordered]@{
+            schema='aecp.store-provenance/v1'
+            sourceCommit=$env:GITHUB_SHA
+            repository=$env:GITHUB_REPOSITORY
+            workflowRunId=$env:GITHUB_RUN_ID
+            identityName=$env:AECP_STORE_IDENTITY
+            publisher=$env:AECP_STORE_PUBLISHER
+            publisherDisplayName=$env:AECP_STORE_PUBLISHER_DISPLAY
+            privateAudiencePrepared=$true
+            submittedToPartnerCenter=$false
+            packages=$records
+            generatedAt=(Get-Date).ToUniversalTime().ToString('o')
+          }
+          $provenance | ConvertTo-Json -Depth 6 | Out-File -Encoding utf8 store-assets/STORE_PROVENANCE.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aecp-store-submission-bundle
+          path: store-assets/**
+          if-no-files-found: error
+          retention-days: 30
