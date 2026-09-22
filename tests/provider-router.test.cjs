@@ -128,3 +128,47 @@ test('built-in CLI authentication is not exposed to AECP as a credential capabil
   assert.equal(router.capabilities('planner', 'claude').credential, false);
   assert.equal(router.capabilities('reviewer', 'gemini').credential, false);
 });
+
+test('Claude planner and reviewer run in read-only plan permission mode', () => {
+  const router = new ProviderRouter();
+  const planner = router.commandSpec('claude', 'planner', 'plan safely', { cwd: 'C:\\repo' });
+  const reviewer = router.commandSpec('claude', 'reviewer', 'review safely', { cwd: 'C:\\repo' });
+  for (const spec of [planner, reviewer]) {
+    assert.ok(spec.args.includes('--permission-mode'));
+    assert.ok(spec.args.includes('plan'));
+    assert.ok(spec.args.includes('--max-turns'));
+  }
+});
+
+test('Gemini is reasoning-only in Harness and uses plan approval mode', () => {
+  const router = new ProviderRouter();
+  assert.throws(() => router.commandSpec('gemini', 'builder', 'edit files', { cwd: 'C:\\repo' }), /No provider for role: builder/);
+  const spec = router.commandSpec('gemini', 'reviewer', 'review only', { cwd: 'C:\\repo' });
+  assert.deepEqual(spec.args.slice(0, 2), ['--approval-mode', 'plan']);
+});
+
+test('OpenCode builder receives deny-first inline policy and explicit worktree directory', () => {
+  const router = new ProviderRouter();
+  const spec = router.commandSpec('opencode', 'builder', 'edit safely', {
+    cwd: 'C:\\repo',
+    model: 'ollama/qwen3-coder:30b',
+    providerVersion: '1.18.30'
+  });
+  assert.ok(spec.args.includes('--auto'));
+  assert.ok(spec.args.includes('--dir'));
+  assert.ok(spec.args.includes('C:\\repo'));
+  const policy = JSON.parse(spec.env.OPENCODE_CONFIG_CONTENT);
+  assert.equal(policy.permission['*'], 'deny');
+  assert.equal(policy.permission.external_directory, 'deny');
+  assert.equal(policy.permission.bash['*'], 'deny');
+  assert.equal(policy.permission.webfetch, 'deny');
+});
+
+test('OpenCode local model capability does not require provider network approval', () => {
+  const router = new ProviderRouter();
+  const local = router.capabilities('builder', 'opencode', { model: 'ollama/qwen3-coder:30b' });
+  const cloud = router.capabilities('builder', 'opencode', { model: 'anthropic/claude-sonnet' });
+  assert.equal(local.network, false);
+  assert.equal(local.local, true);
+  assert.equal(cloud.network, true);
+});
