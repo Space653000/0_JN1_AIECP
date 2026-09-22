@@ -283,6 +283,8 @@ Every autonomous run requires:
 - stop conditions;
 - risk policy.
 
+The current Harness and bounded Autonomy runtime enforce these as process-side limits rather than prompt suggestions. Provider-call exhaustion, worker-output overflow, patch-byte overflow and changed-file overflow terminate as `BUDGET_EXHAUSTED`; oversized output is killed rather than silently truncated into an apparently successful run.
+
 There is never an implicit infinite loop.
 
 ## 8. Queue
@@ -753,7 +755,7 @@ The implementation acceptance matrix requires:
 10. GitHub CI results return as correlated events.
 11. Dashboard shows canonical Harness state.
 12. Restart recovers or safely interrupts in-flight tasks.
-13. No loop runs without finite budget/timeout.
+13. No loop runs without finite iteration/provider-call/output/patch/file-count budgets and process timeouts.
 14. No agent can grant itself permissions.
 15. Human approval protects configured high-risk operations.
 16. Provider can be changed without rewriting Task state.
