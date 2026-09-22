@@ -424,6 +424,12 @@ async function runBoundedAutonomy(options, deps = {}) {
 
   const resumeRecord = options.resumeRecord && options.resumeRecord.schema === AUTONOMY_SCHEMA ? options.resumeRecord : null;
   if (resumeRecord && resumeRecord.state !== 'INTERRUPTED') throw new Error('Only an INTERRUPTED autonomous run can resume.');
+  if (resumeRecord && !resumeRecord.spec) throw new Error('Interrupted run predates crash-safe resume metadata and cannot be resumed safely.');
+  if (resumeRecord) {
+    const persistedSpec = validateAutonomySpec(resumeRecord.spec);
+    const immutableKeys = ['goal','done','workerId','verificationProfile','maxIterations','iterationTimeoutSeconds','checkpointEvery','maxPatchBytes','maxChangedFiles','model'];
+    if (immutableKeys.some((key) => persistedSpec[key] !== spec[key])) throw new Error('Autonomous resume cannot change the persisted run specification.');
+  }
   if (resumeRecord && normalizePathForCompare(resumeRecord.sourceRoot) !== normalizePathForCompare(sourceRoot)) throw new Error('Resume sourceRoot does not match the persisted run.');
   if (resumeRecord && normalizePathForCompare(resumeRecord.runRoot) !== normalizePathForCompare(runRoot)) throw new Error('Resume runRoot does not match the persisted run.');
   const runId = resumeRecord?.id || options.runId || makeRunId();
