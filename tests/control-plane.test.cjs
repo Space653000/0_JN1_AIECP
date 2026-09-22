@@ -355,7 +355,7 @@ test('ControlPlane hasActiveWork guards local-data mutation only while missions 
 });
 
 
-test('scheduler decision blocks a conflicting repository writer and records explainable reasons', async () => {
+test('scheduler isolates mutating work by task worktree instead of serializing the whole repository', async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'aecp-scheduler-lock-'));
   const workspace = path.join(root, 'workspace');
   await fs.mkdir(workspace, { recursive: true });
@@ -372,32 +372,34 @@ test('scheduler decision blocks a conflicting repository writer and records expl
       models:{planner:null,builder:null,reviewer:null},
       providerApprovals:{network:false,credential:false}
     };
-    const task = {
-      id:'task-b',
-      runId:run.id,
-      state:'QUEUED',
-      risk:'YELLOW',
-      priority:50,
-      attempts:0,
-      dependencies:[],
-      resources:{repositories:[workspace]}
-    };
+    const taskA={id:'task-a',runId:run.id,state:'RUNNING',resources:{repositories:[workspace]}};
+    const taskB={id:'task-b',runId:run.id,state:'QUEUED',risk:'YELLOW',priority:50,attempts:0,dependencies:[],resources:{repositories:[workspace]}};
     cp.state.runs[run.id]=run;
-    cp.state.tasks['task-a']={id:'task-a',runId:run.id,state:'RUNNING',resources:{repositories:[workspace]}};
-    cp.state.tasks['task-b']=task;
-    const key='repo:'+path.resolve(workspace).toLowerCase();
-    await cp.locks.acquire(key,'task-a',{meta:{runId:run.id,taskId:'task-a'}});
-    const decision=cp.schedulerDecision(run,task,{
+    cp.state.tasks['task-a']=taskA;
+    cp.state.tasks['task-b']=taskB;
+    const keyA=cp.taskMutationLockKeys(run,taskA)[0];
+    const keyB=cp.taskMutationLockKeys(run,taskB)[0];
+    assert.notEqual(keyA,keyB);
+    assert.match(keyA,/^worktree:/);
+    assert.match(cp.gitAdminLockKey(workspace),/^git-admin:/);
+    await cp.locks.acquire(keyA,'task-a',{meta:{runId:run.id,taskId:'task-a'}});
+    const decision=cp.schedulerDecision(run,taskB,{
       locks:cp.locks.list(),
-      providerHealth:{
-        claude:{status:'READY'},
-        codex:{status:'READY'}
-      }
+      providerHealth:{claude:{status:'READY'},codex:{status:'READY'}}
     });
-    assert.equal(decision.eligible,false);
-    assert.ok(decision.reasons.includes('LOCK_BUSY'));
+    assert.equal(decision.eligible,true);
+    assert.equal(decision.reasons.includes('LOCK_BUSY'),false);
     assert.equal(decision.schema,'aecp.scheduler-decision/v1');
-    assert.deepEqual(decision.repositoryLocks,[key]);
+    assert.deepEqual(decision.repositoryLocks,[keyB]);
+
+    const conflict=await cp.locks.acquire(keyB,'other-task',{meta:{runId:run.id,taskId:'other-task'}});
+    const blocked=cp.schedulerDecision(run,taskB,{
+      locks:cp.locks.list(),
+      providerHealth:{claude:{status:'READY'},codex:{status:'READY'}}
+    });
+    assert.equal(blocked.eligible,false);
+    assert.ok(blocked.reasons.includes('LOCK_BUSY'));
+    await cp.locks.release(keyB,'other-task',conflict.token);
   } finally {
     await cp.shutdown();
     await fs.rm(root,{recursive:true,force:true});
