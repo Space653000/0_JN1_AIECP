@@ -86,7 +86,7 @@ Acceptance:
 - local worker detection is factual
 - changing execution mode never changes Workspace permissions implicitly
 - Full MCP mode requires end-to-end connector/tunnel health before write capability is enabled
-- Local Autonomous mode must enforce iteration/time/permission limits outside the model
+- Local Autonomous mode must enforce iteration/turn/output/patch/file-count/time/permission limits outside the model
 
 ## P4.6 — Bounded autonomous execution
 
@@ -202,7 +202,7 @@ P6 supervision boundary is implemented: loopback-first Remote Gateway, short-liv
 
 Distribution software-side acceptance includes x64/ARM64 packaging, universal architecture selection, Windows-runner install/uninstall plus baseline→upgrade→rollback smoke gates, Store AppX x64/ARM64 manifest validation, SHA-256/provenance, updater transaction/first-boot/rollback, backup/restore, localization/accessibility, dependency/license/security and owner-gated signed-release preparation. These are accepted only from successful exact-HEAD GitHub Actions, including the non-publishing `Build and Release` PR dry-run.
 
-The remaining items that repository code must not fabricate are **EXTERNAL OWNER GATE** operations: production Authenticode/code-signing identity, Microsoft Store publisher/certification/submission, real third-party/provider credentials for provider-specific production claims, and optional public/LAN deployment identity/domain/TLS ownership.
+The remaining items that repository code must not fabricate are **EXTERNAL OWNER GATE** operations: production Authenticode/code-signing identity, Microsoft Store publisher/certification/submission, real third-party/local provider runtime/model artifacts or credentials for provider-specific production claims, and optional public/LAN deployment identity/domain/TLS ownership.
 
 GitHub Actions PR workflows must explicitly checkout `pull_request.head.sha`; testing only the synthetic PR merge ref is not sufficient evidence for the exact-head acceptance rule.
 
