@@ -225,7 +225,8 @@ async function createPatch(worktree, runRoot, signal, { maxPatchBytes = DEFAULT_
   }
   const file = path.join(runRoot, 'verified.patch');
   await fs.writeFile(file, r.stdout, 'utf8');
-  return { file, bytes, changedFiles };
+  const sha256 = crypto.createHash('sha256').update(r.stdout).digest('hex');
+  return { file, bytes, sha256, changedFiles };
 }
 
 async function runHarness(options) {
@@ -284,7 +285,7 @@ async function runHarness(options) {
     let wt;
     if (record.worktree && await fs.stat(record.worktree).then(()=>true).catch(()=>false)) wt={worktree:record.worktree,baseHead:record.baseHead};
     else wt=await makeWorktree(root, runRoot, signal, options.baseRef || record.baseHead || null);
-    record.worktree = wt.worktree; record.baseHead = record.baseHead || wt.baseHead;
+    record.worktree = wt.worktree; record.baseHead = record.baseHead || wt.baseHead; record.blueprintVersion = options.blueprintVersion || record.blueprintVersion || record.baseHead;
     for (const task of record.tasks) {
       if (signal?.aborted) throw Object.assign(new Error('Harness cancelled.'), { name: 'AbortError' });
       if (task.state === 'DONE') continue;
@@ -298,7 +299,7 @@ async function runHarness(options) {
       for (let iteration = resumeIteration; iteration <= maxIterations; iteration++) {
         task.iterations = iteration; await transition('RUNNING', { taskId: task.id, iteration });
         const b = await invokeProvider({router:providerRouter,role:'builder',prompt:builderPrompt(task, goal, done, review),cwd:wt.worktree,model:roleModels.builder,providerId:roleProviders.builder,policy:options.policy,signal,timeoutMs:600000,executionApproved:Boolean(options.executionApproved),networkApproved:Boolean(options.providerNetworkApproved),credentialApproved:Boolean(options.providerCredentialApproved)});
-        task.worker = { code: b.code, timedOut: b.timedOut, stdout: b.stdout.slice(-12000), stderr: b.stderr.slice(-12000) };
+        task.worker = { provider: b.provider || roleProviders.builder, model: b.model || roleModels.builder || null, command: b.command || b.provider || roleProviders.builder, code: b.code, timedOut: b.timedOut, aborted: Boolean(b.aborted), outputLimitExceeded: Boolean(b.outputLimitExceeded), stdout: b.stdout.slice(-12000), stderr: b.stderr.slice(-12000) };
         if (b.code !== 0 || b.timedOut) { review = `Worker failed: ${(b.stderr || b.stdout).slice(-4000)}`; await transition('REWORK', { taskId: task.id, reason: 'worker-failed' }); continue; }
         await transition('VERIFYING', { taskId: task.id });
         const verifier = task.verifier === 'npm test'
