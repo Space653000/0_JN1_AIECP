@@ -56,6 +56,7 @@ const requiredFiles=[
  ['store-metadata','release/store/store-metadata.template.json'],
  ['store-readme','release/store/README.md'],
  ['human-controls-test','tests/human-controls.test.cjs'],
+ ['dashboard-acceptance-test','tests/dashboard-acceptance.test.cjs'],
  ['universal-bootstrap-source','release/universal-bootstrap/Program.cs'],
  ['universal-bootstrap-project','release/universal-bootstrap/UniversalBootstrap.csproj'],
  ['update-state','electron/lib/update-state.cjs'],
@@ -152,6 +153,11 @@ const staticInvariants=[
   {label:'resume function',re:/async function resumeAutonomy/}
  ]),
 
+ invariant('dashboard-novice-acceptance','tests/dashboard-acceptance.test.cjs',[
+  {label:'eight novice questions',re:/eight Blueprint 22 novice questions/},
+  {label:'authoritative controls',re:/authoritative human controls/},
+  {label:'accessibility acceptance',re:/keyboard focus text status and reduced motion/}
+ ]),
  invariant('onboarding-and-accessibility','ui/app.js',[
   {label:'first Workspace safe sample',re:/!hadWorkspace && state\.tasks\.length === 0[\s\S]*createSampleTask/},
   {label:'reduced motion preference persistence',re:/aecp-motion/},
