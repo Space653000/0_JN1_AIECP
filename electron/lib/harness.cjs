@@ -6,6 +6,7 @@ const path = require('node:path');
 const { spawn } = require('node:child_process');
 const { ProviderRouter } = require('./provider-router.cjs');
 const { redactSensitive } = require('./redaction.cjs');
+const { makeExecutionContract, updateExecutionContract, validateExecutionContract } = require('./execution-contract.cjs');
 
 const HARNESS_SCHEMA = 'aecp.harness/v1';
 const MAX_OUTPUT = 1024 * 1024;
@@ -265,6 +266,27 @@ async function runHarness(options) {
     goal, done, sourceRoot: root, runRoot, maxIterations, maxTasks, tasks: [], events: [], startedAt: new Date().toISOString() };
   record.maxIterations=maxIterations; record.maxTasks=maxTasks; record.checkpointEvery=checkpointEvery; record.maxTurns=maxTurns; record.maxFailedAttempts=maxFailedAttempts; record.maxNoProgressAttempts=maxNoProgressAttempts; record.maxWallClockMs=maxWallClockMs; record.maxPatchBytes=maxPatchBytes; record.maxChangedFiles=maxChangedFiles; record.providerCalls=Number(record.providerCalls||0); record.failedAttempts=Number(record.failedAttempts||0); record.noProgressAttempts=Number(record.noProgressAttempts||0); record.goal=goal; record.done=done; record.sourceRoot=root; record.runRoot=runRoot; record.providers=roleProviders; record.models=roleModels; record.providerApprovals={network:Boolean(options.providerNetworkApproved),credential:Boolean(options.providerCredentialApproved)};
   record.checkpoints=Array.isArray(record.checkpoints)?record.checkpoints:[];
+  const suppliedExecutionContract = options.executionContract || record.executionContract || null;
+  if (suppliedExecutionContract && !validateExecutionContract(suppliedExecutionContract).ok) throw new Error('Invalid canonical execution contract.');
+  record.executionContract = suppliedExecutionContract || makeExecutionContract({
+    goal,
+    done,
+    workspaceId: options.workspaceId || null,
+    workspaceRoot: root,
+    permissionPolicy: options.permissionPolicy || {
+      mode: 'FULL_HARNESS',
+      executionApproved: Boolean(options.executionApproved),
+      networkApproved: Boolean(options.providerNetworkApproved),
+      credentialApproved: Boolean(options.providerCredentialApproved),
+      highRisk: 'HUMAN_REQUIRED'
+    },
+    taskIds: (record.tasks || []).map(task => task.id),
+    resultCapsuleRef: `local://harness/${record.id}/harness.json`,
+    evidenceRef: `local://harness/${record.id}/verified.patch`,
+    traceRef: `local://harness/${record.id}/harness.json`,
+    transport: 'full-harness',
+    worker: roleProviders.builder
+  });
   record.loopContract={
     schema:'aecp.goal-loop/v1',
     goal,
@@ -363,6 +385,9 @@ async function runHarness(options) {
       if (p.code !== 0) throw new Error(`Planner failed: ${(p.stderr || p.stdout).slice(-2000)}`);
       const plan = normalizePlan(safeJson(p.stdout), goal, done, maxTasks);
       record.plan = plan; record.tasks = plan.tasks.map(t => ({ ...t, state: 'READY', iterations: 0 }));
+      record.executionContract = updateExecutionContract(record.executionContract, {
+        taskIds: record.tasks.map(task => task.id)
+      });
       await transition('READY', { taskCount: record.tasks.length });
     } else {
       record.state='READY'; await emit('run.resumed',{taskCount:record.tasks.length});
@@ -414,6 +439,12 @@ async function runHarness(options) {
     if (record.tasks.every(t => t.state === 'DONE')) {
       record.state = 'VERIFYING'; await emit('run.final_verification', {});
       record.patch = await createPatch(wt.worktree, runRoot, signal, { maxPatchBytes, maxChangedFiles });
+      record.executionContract = updateExecutionContract(record.executionContract, {
+        taskIds: record.tasks.map(task => task.id),
+        resultCapsuleRef: `local://harness/${record.id}/harness.json`,
+        evidenceRef: `local://harness/${record.id}/verified.patch`,
+        traceRef: `local://harness/${record.id}/harness.json`
+      });
       for (const task of record.tasks) {
         await emit('task.accepted', { taskId: task.id, iteration: task.iterations, patchSha256: record.patch.sha256 });
       }
