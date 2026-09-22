@@ -126,6 +126,15 @@
           <button id="sampleButton" class="secondary-button full" type="button">Create safe sample task</button>
         </section>
 
+        <section class="handoff-card">
+          <div class="section-title"><h3>Local Backup</h3><span class="status safe">Secrets excluded</span></div>
+          <p class="muted">Export state, runtime and evidence with per-file SHA-256. Provider credentials are never included. Restore is staged and keeps a pre-restore copy.</p>
+          <div class="button-row">
+            <button id="exportBackupButton" class="secondary-button" type="button">Export backup</button>
+            <button id="restoreBackupButton" class="secondary-button" type="button">Restore backup</button>
+          </div>
+        </section>
+
         <section class="privacy-note"><strong>Local-first</strong><p>Repository details, tool status, traces, and evidence remain on this computer unless you explicitly copy/share them.</p></section>
       </aside>
     </main>
