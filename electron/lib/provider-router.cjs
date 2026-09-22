@@ -193,8 +193,9 @@ class ProviderRouter {
       }
       if (provider.mode === 'codex-cli') {
         if (!provider.codexHome) return result('NOT_CONFIGURED', 'Isolated CODEX_HOME is missing.');
-        if (provider.requiresCredential && !provider.apiKey) return result('AUTH_REQUIRED', 'Worker credential is not configured.', { workerId: provider.workerId || providerId, codexHome: provider.codexHome });
         if (provider.baseUrl && !provider.defaultModel) return result('NOT_CONFIGURED', 'Custom Codex worker requires an explicit model.', { workerId: provider.workerId || providerId, codexHome: provider.codexHome });
+        if (provider.requiresCredential && !provider.apiKey) return result('AUTH_REQUIRED', 'Worker credential is not configured.', { workerId: provider.workerId || providerId, codexHome: provider.codexHome });
+        if (provider.requiresAuthFiles && !provider.authPresent) return result('AUTH_REQUIRED', 'Codex OFFICIAL isolated CODEX_HOME requires authentication.', { workerId: provider.workerId || providerId, codexHome: provider.codexHome });
         return result('READY', 'Codex CLI and isolated worker runtime are configured.', {
           version: (probe.stdout || probe.stderr || '').split(/\r?\n/)[0],
           workerId: provider.workerId || providerId,
