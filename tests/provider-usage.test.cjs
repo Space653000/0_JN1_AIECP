@@ -23,7 +23,7 @@ test('provider usage normalization stores only whitelisted metadata',()=>{
       cost_usd:0.01,
       prompt:'DO_NOT_STORE',
       response:'DO_NOT_STORE',
-      nested:{input_tokens:7,secret:'DO_NOT_STORE'}
+      token_details:{input_tokens:7,secret:'DO_NOT_STORE'}
     },
     prompt:'TOP SECRET',
     response:'TOP SECRET',
@@ -34,7 +34,7 @@ test('provider usage normalization stores only whitelisted metadata',()=>{
     completion_tokens:5,
     total_tokens:15,
     cost_usd:0.01,
-    nested:{input_tokens:7}
+    token_details:{input_tokens:7}
   });
   const serialized=JSON.stringify(metric);
   assert.doesNotMatch(serialized,/DO_NOT_STORE|TOP SECRET|sk-secret/);
