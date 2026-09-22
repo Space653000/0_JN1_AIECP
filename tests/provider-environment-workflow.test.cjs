@@ -63,3 +63,39 @@ test('real provider evidence persists hashes and states instead of model prompt 
   assert.doesNotMatch(script,/evidence\.checks\.push\([^\n]*stdout/);
   assert.doesNotMatch(script,/evidence\.checks\.push\([^\n]*stderr/);
 });
+
+
+test('real provider workflow has separate OFFICIAL PEGA and concurrent Codex environment evidence modes',()=>{
+  const workflow=read('.github/workflows/provider-environment.yml');
+  const script=read('scripts/provider-environment-verify.cjs');
+  for(const mode of ['codex-official','codex-pega','multi-codex']){
+    assert.ok(workflow.includes('- '+mode));
+    assert.ok(script.includes("'"+mode+"'"));
+  }
+  assert.match(workflow,/AECP_PROVIDER_VERIFY_OFFICIAL_MODEL/);
+  assert.match(workflow,/AECP_PROVIDER_VERIFY_PEGA_MODEL/);
+  assert.match(workflow,/AECP_PROVIDER_VERIFY_PEGA_WIRE_API/);
+  assert.match(workflow,/AECP_PROVIDER_VERIFY_CODEX_ROOT/);
+  assert.match(workflow,/secrets\.AECP_PEGA_API_KEY/);
+  assert.match(script,/codex-official\.real-smoke/);
+  assert.match(script,/codex-pega\.real-smoke/);
+  assert.match(script,/codex\.multi-worker-real-concurrency/);
+  assert.match(script,/OFFICIAL_AUTH_REQUIRED/);
+  assert.match(script,/PEGA_AUTH_REQUIRED/);
+  assert.match(script,/distinctCodexHomes/);
+  assert.match(script,/distinctProcesses/);
+  assert.match(script,/spawnDeltaMs/);
+  assert.doesNotMatch(script,/pegaApiKey.*checks\.push/);
+});
+
+test('real PEGA evidence is executed through the governed Codex worker adapter and never stored as a mock PASS',()=>{
+  const script=read('scripts/provider-environment-verify.cjs');
+  assert.match(script,/PEGA_BASE_URL/);
+  assert.match(script,/makePegaProvider/);
+  assert.match(script,/provider:PEGA_PROVIDER_ID/);
+  assert.match(script,/credentialApproved:true/);
+  assert.match(script,/wireApi:pegaWireApi/);
+  assert.match(script,/outputSha256/);
+  assert.match(script,/codexHomeSha256/);
+  assert.doesNotMatch(script,/status:'PASS'.*PEGA_BASE_URL/);
+});
