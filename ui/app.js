@@ -1211,6 +1211,7 @@ function bindEvents() {
       kind: $('#providerKindInput').value,
       baseUrl: $('#providerUrlInput').value,
       defaultModel: $('#providerModelInput').value,
+      wireApi: $('#providerWireApiInput')?.value || 'responses',
       command: $('#providerCommandInput').value,
       args: $('#providerArgsInput').value,
       apiKey: $('#providerKeyInput').value
@@ -1288,7 +1289,7 @@ function bindEvents() {
       if (!provider) return;
       let networkApproved = false;
       let credentialApproved = false;
-      if (['api', 'local', 'remote-mcp'].includes(provider.kind)) {
+      if (['api', 'local', 'remote-mcp', 'codex-worker'].includes(provider.kind)) {
         networkApproved = confirm('Check this provider endpoint now? This performs a bounded health request using the configured URL.');
         if (!networkApproved) {
           const result = await safe(() => window.aecp.checkProviderHealth(id, { networkApproved: false }), null);
