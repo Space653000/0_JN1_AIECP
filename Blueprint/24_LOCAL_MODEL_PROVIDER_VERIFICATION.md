@@ -45,7 +45,7 @@ No provider adapter may bypass SecurityPolicy. Provider selection changes the mo
 | Canonical Harness E2E with Ollama | Planner → Builder → Verify → Reviewer runs with a local model |
 | Clean Windows E2E | Packaged application performs the same flow on a clean machine |
 
-The first two levels are repository-verifiable. The remaining levels require an environment containing Ollama/model artifacts and therefore must not be represented as completed without execution evidence.
+Source/unit checks and GitHub CI are repository-verifiable. Windows packaging/install smoke can also be repository-verifiable through GitHub Windows runners and is accepted only from the exact PR HEAD. `Local Ollama smoke` and `Canonical Harness E2E with Ollama` require an environment containing the actual Ollama/model artifacts; deterministic adapter tests must not be presented as real-model execution evidence.
 
 ## Security invariant
 
