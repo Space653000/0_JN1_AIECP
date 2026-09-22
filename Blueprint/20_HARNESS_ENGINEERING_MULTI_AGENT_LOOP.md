@@ -722,11 +722,11 @@ evidence
 
 The Harness is the trust boundary.
 
-## 25. Remote/mobile future
+## 25. Remote/mobile supervision
 
-A future phone/browser interface submits Goal, Workspace, Task policy and Approval, then receives state, current agent, current step, test result, review, evidence and approval requests.
+The software-side Remote Gateway is implemented with one-time pairing, READ_ONLY and APPROVAL_ONLY scopes, revocation, request-id replay protection and TLS requirements for explicitly enabled non-loopback binding. Remote clients can inspect bounded state/evidence and decide already-existing approval requests. **Remote task submission remains intentionally disabled** until a separate acceptance gate explicitly authorizes it.
 
-It must not require ChatGPT Web DOM automation.
+No remote path requires or permits ChatGPT Web DOM automation.
 
 ## 26. Maturity model
 
@@ -739,7 +739,7 @@ It must not require ChatGPT Web DOM automation.
 
 ## 27. Acceptance criteria
 
-The implementation must eventually demonstrate:
+The implementation acceptance matrix requires:
 
 1. Goal becomes durable Plan and Task graph.
 2. Harness dispatches a task without manual copy/paste between Claude and Codex.
@@ -758,7 +758,7 @@ The implementation must eventually demonstrate:
 15. Human approval protects configured high-risk operations.
 16. Provider can be changed without rewriting Task state.
 17. Official ChatGPT Web remains untouched.
-18. External API providers can be attached later through adapters.
+18. External/OpenAI-compatible providers can be attached through adapters without changing Task state; actual provider credentials/environment remain explicit approval/evidence requirements.
 19. Repository knowledge is legible to agents.
 20. Every accepted task has reproducible evidence.
 
@@ -769,11 +769,11 @@ The implementation must eventually demonstrate:
 The model supplies intelligence. The Harness supplies discipline. Git supplies history. CI supplies deterministic validation. Dashboard supplies visibility. The human remains the final authority.
 
 
-## 29. Implementation status — 2026-09-19
+## 29. Implementation status — 2026-09-22
 
 The Planner → Queue → Builder → Verify → Reviewer loop is now a real bounded runtime rather than a design-only concept. It has durable task state, leases, heartbeat, recovery, evidence, policy/locks, GitHub delivery and CI feedback. CI failure can automatically return a task to bounded rework; CI success can advance it toward a human approval gate.
 
-The remaining work is hardening: authenticated external event correlation, complete crash-safe resume, multi-repository scheduling, full adapter policy enforcement and E2E validation.
+The repository-verifiable hardening items listed above are implemented: signed/idempotent external events, crash-safe bounded resume, repository-per-task scheduling, explicit adapter policy audit, canonical deterministic E2E and Windows release/install/rollback evidence. Remaining claims are limited to real provider/environment evidence and owner-controlled production trust/deployment gates.
 
 
 ## Runtime closure update — 2026-09-19
