@@ -448,6 +448,11 @@ function renderLoop(host) {
         <label class="wide">Goal<textarea id="loopGoal" rows="3" placeholder="Example: Make the application install and complete its first safe task with no technical setup required.">${esc(config.goal || '')}</textarea></label>
         <label class="wide">Definition of Done<textarea id="loopDone" rows="3" placeholder="Use measurable acceptance criteria, not 'looks good'.">${esc(config.done || '')}</textarea></label>
         <label>Maximum iterations<input id="loopIterations" type="number" min="1" max="50" value="${esc(config.maxIterations || 10)}"></label>
+        <label>Maximum agent/tool turns<input id="loopTurns" type="number" min="1" max="200" value="${esc(config.maxTurns || 20)}"></label>
+        <label>Maximum failed attempts<input id="loopFailures" type="number" min="1" max="20" value="${esc(config.maxFailedAttempts || 8)}"></label>
+        <label>Wall-clock minutes (optional)<input id="loopWallMinutes" type="number" min="1" max="1440" value="${esc(config.maxWallClockMinutes || '')}" placeholder="No limit"></label>
+        <label>Provider-reported cost (optional)<input id="loopProviderCost" type="number" min="0.000001" step="0.000001" value="${esc(config.maxProviderReportedCost || '')}" placeholder="No limit"></label>
+        <label>Local compute minutes (optional)<input id="loopLocalComputeMinutes" type="number" min="1" max="1440" value="${esc(config.maxLocalComputeMinutes || '')}" placeholder="No limit"></label>
         <label>Checkpoint every N iterations<input id="loopCheckpoint" type="number" min="1" max="10" value="${esc(config.checkpointEvery || 2)}"></label>
         ${(() => { const p=harnessProviderSelect('planner',config.plannerProvider); return `<label>Planner<select id="harnessPlannerProvider">${p.html}</select></label><label>Planner model<input id="harnessPlannerModel" maxlength="200" value="${esc(config.plannerModel || '')}" placeholder="Optional; required for raw Ollama"></label>`; })()}
         ${(() => { const p=harnessProviderSelect('builder',config.builderProvider); return `<label>Builder<select id="harnessBuilderProvider">${p.html}</select></label><label>Builder model<input id="harnessBuilderModel" maxlength="200" value="${esc(config.builderModel || '')}" placeholder="Example: ollama/qwen3-coder:30b for OpenCode"></label>`; })()}
@@ -980,21 +985,29 @@ async function copyGoalLoopPrompt() {
   const goal = $('#loopGoal')?.value.trim() || '';
   const done = $('#loopDone')?.value.trim() || '';
   const maxIterations = Math.max(1, Math.min(50, Number($('#loopIterations')?.value || 10)));
+  const maxTurns = Math.max(1, Math.min(200, Number($('#loopTurns')?.value || 20)));
+  const maxFailedAttempts = Math.max(1, Math.min(20, Number($('#loopFailures')?.value || 8)));
+  const wallMinutesRaw = Number($('#loopWallMinutes')?.value || 0);
+  const providerCostRaw = Number($('#loopProviderCost')?.value || 0);
+  const localComputeMinutesRaw = Number($('#loopLocalComputeMinutes')?.value || 0);
+  const maxWallClockMinutes = wallMinutesRaw > 0 ? Math.min(1440, wallMinutesRaw) : null;
+  const maxProviderReportedCost = providerCostRaw > 0 ? providerCostRaw : null;
+  const maxLocalComputeMinutes = localComputeMinutesRaw > 0 ? Math.min(1440, localComputeMinutesRaw) : null;
   const checkpointEvery = Math.max(1, Math.min(10, Number($('#loopCheckpoint')?.value || 2)));
   if (!goal || !done) {
     toast('Goal and Definition of Done are both required.', 'error');
     return;
   }
   const config = {
-    goal, done, maxIterations, checkpointEvery,
+    goal, done, maxIterations, maxTurns, maxFailedAttempts, maxWallClockMinutes, maxProviderReportedCost, maxLocalComputeMinutes, checkpointEvery,
     workspaceId: state.data?.currentWorkspace?.id || null,
     providerPolicy: { supervisor: 'chatgpt-web', worker: 'explicit-command-card', reviewer: 'chatgpt-web' },
     permissionPolicy: { mode: 'WEB_SAFE_BRIDGE', localCapabilities: ['inspect-workspace','git-status'], escalation: 'explicit-user-action' },
     verificationPolicy: { resultCapsuleRequired: true, modelSelfPassForbidden: true },
-    stopConditions: ['DONE_VERIFIED','MAX_ITERATIONS','NO_PROGRESS','PERMISSION_UNAVAILABLE','HUMAN_APPROVAL_REQUIRED','PROVIDER_UNAVAILABLE','VERIFICATION_UNRESOLVED','USER_CANCELLED']
+    stopConditions: ['DONE_VERIFIED','MAX_ITERATIONS','MAX_FAILED_ATTEMPTS','NO_PROGRESS','WALL_CLOCK_BUDGET','PROVIDER_CALL_BUDGET','PROVIDER_COST_BUDGET','LOCAL_COMPUTE_BUDGET','PERMISSION_UNAVAILABLE','HUMAN_APPROVAL_REQUIRED','PROVIDER_UNAVAILABLE','VERIFICATION_UNRESOLVED','USER_CANCELLED']
   };
   localStorage.setItem('aecp-goal-loop', JSON.stringify(config));
-  const prompt = `AECP_GOAL_LOOP_V1\n\nYou are the reasoning supervisor for an AI Engineering Control Plane Goal Loop.\n\nGOAL\n${goal}\n\nDEFINITION OF DONE\n${done}\n\nLOOP BUDGET\nMaximum iterations: ${maxIterations}\nCheckpoint every: ${checkpointEvery} iteration(s)\n\nOPERATING CONTRACT\n1. Work in this cycle: RESEARCH -> PLAN -> ACT -> VERIFY -> REFLECT.\n2. Do not declare completion from confidence alone. Completion requires evidence against the Definition of Done.\n3. Choose the smallest high-value next action; avoid repeating an action that produced no progress.\n4. At each checkpoint summarize: progress, evidence, unresolved risks, and whether direction should change.\n5. Stop with one state only: DONE, BLOCKED, NEEDS_APPROVAL, or NEXT_ITERATION.\n6. For AECP v0.3 Web Safe Bridge, when local inspection is needed output exactly one aecp.task/v1 Command Card using only supported read-only actions (inspect-workspace or git-status). Do not invent shell/file-write privileges. Wait for the AECP Result Capsule before claiming that local action succeeded.\n7. If the goal requires a capability not available in this preview, design the next governed adapter or implementation step instead of pretending it executed.\n\nStart at iteration 1. First determine the highest-value uncertainty or action needed to move toward Done.`;
+  const prompt = `AECP_GOAL_LOOP_V1\n\nYou are the reasoning supervisor for an AI Engineering Control Plane Goal Loop.\n\nGOAL\n${goal}\n\nDEFINITION OF DONE\n${done}\n\nLOOP BUDGET\nMaximum iterations: ${maxIterations}\nMaximum agent/tool turns: ${maxTurns}\nMaximum failed attempts: ${maxFailedAttempts}\nWall-clock budget: ${maxWallClockMinutes == null ? 'not set' : maxWallClockMinutes + ' minute(s)'}\nProvider-reported cost budget: ${maxProviderReportedCost == null ? 'not set' : maxProviderReportedCost}\nLocal compute budget: ${maxLocalComputeMinutes == null ? 'not set' : maxLocalComputeMinutes + ' minute(s)'}\nCheckpoint every: ${checkpointEvery} iteration(s)\n\nOPERATING CONTRACT\n1. Work in this cycle: RESEARCH -> PLAN -> ACT -> VERIFY -> REFLECT.\n2. Do not declare completion from confidence alone. Completion requires evidence against the Definition of Done.\n3. Choose the smallest high-value next action; avoid repeating an action that produced no progress.\n4. At each checkpoint summarize: progress, evidence, unresolved risks, and whether direction should change.\n5. Stop with one state only: DONE, BLOCKED, NEEDS_APPROVAL, or NEXT_ITERATION.\n6. For AECP v0.3 Web Safe Bridge, when local inspection is needed output exactly one aecp.task/v1 Command Card using only supported read-only actions (inspect-workspace or git-status). Do not invent shell/file-write privileges. Wait for the AECP Result Capsule before claiming that local action succeeded.\n7. If the goal requires a capability not available in this preview, design the next governed adapter or implementation step instead of pretending it executed.\n\nStart at iteration 1. First determine the highest-value uncertainty or action needed to move toward Done.`;
   const ok = await safe(() => window.aecp.writeClipboard(prompt));
   if (ok) toast('Goal Loop prompt copied. Paste it into ChatGPT and keep returning verified Result Capsules.');
 }
@@ -1031,9 +1044,17 @@ async function startHarness() {
   if (needsNetwork && !confirm('This Harness run will allow the selected cloud-backed CLI/API providers to use network access for model inference. Local worktree/tool network remains separately restricted. Allow for this run?')) return;
   if (needsCredential && !confirm('This Harness run will use an OS-protected provider credential for the selected endpoint. Allow credential use for this run?')) return;
 
+  const wallMinutes = Number($('#loopWallMinutes')?.value || 0);
+  const providerCost = Number($('#loopProviderCost')?.value || 0);
+  const localComputeMinutes = Number($('#loopLocalComputeMinutes')?.value || 0);
   const config = {
     goal, done,
     maxIterations: Math.max(1, Math.min(5, Number($('#loopIterations')?.value || 3))),
+    maxTurns: Math.max(1, Math.min(200, Number($('#loopTurns')?.value || 20))),
+    maxFailedAttempts: Math.max(1, Math.min(20, Number($('#loopFailures')?.value || 8))),
+    maxWallClockMs: wallMinutes > 0 ? Math.min(1440, wallMinutes) * 60 * 1000 : null,
+    maxProviderReportedCost: providerCost > 0 ? providerCost : null,
+    maxLocalComputeMs: localComputeMinutes > 0 ? Math.min(1440, localComputeMinutes) * 60 * 1000 : null,
     checkpointEvery: Math.max(1, Math.min(10, Number($('#loopCheckpoint')?.value || 2))),
     plannerProvider, builderProvider, reviewerProvider,
     plannerModel,
@@ -1043,7 +1064,7 @@ async function startHarness() {
   localStorage.setItem('aecp-goal-loop', JSON.stringify(config));
 
   const result = await safe(() => window.aecp.startHarness({
-    goal, done, maxTasks: 4, maxIterations: config.maxIterations, checkpointEvery: config.checkpointEvery,
+    goal, done, maxTasks: 4, maxIterations: config.maxIterations, maxTurns: config.maxTurns, maxFailedAttempts: config.maxFailedAttempts, maxWallClockMs: config.maxWallClockMs, maxProviderReportedCost: config.maxProviderReportedCost, maxLocalComputeMs: config.maxLocalComputeMs, checkpointEvery: config.checkpointEvery,
     plannerProvider, builderProvider, reviewerProvider,
     plannerModel: config.plannerModel || null,
     builderModel: config.builderModel || null,
