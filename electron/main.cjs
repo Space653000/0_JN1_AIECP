@@ -21,6 +21,8 @@ const { PythonWorker } = require('./lib/python-worker.cjs');
 const { parseCommandCard, makeTaskId, makeResultCapsule, hashJson } = require('./lib/protocol.cjs');
 const { compareVersions, versionFromTag, selectHighestRelease, selectInstallerAsset } = require('./lib/version.cjs');
 const { createUpdateTransaction, transitionUpdate, reconcileFirstBoot } = require('./lib/update-state.cjs');
+const { verifyAuthenticode } = require('./lib/authenticode.cjs');
+const packageManifest = require('../package.json');
 const {
   AUTONOMOUS_WORKERS,
   VERIFICATION_PROFILES,
@@ -553,6 +555,10 @@ async function writeUpdateTransaction(transaction) {
   return transaction;
 }
 
+function requiredSignerThumbprint() {
+  return String(process.env.AECP_REQUIRED_SIGNER_THUMBPRINT || packageManifest?.aecp?.requiredSignerThumbprint || '').trim();
+}
+
 async function verifyDownloadedInstaller(dir, assetName) {
   const manifest = await fsp.readFile(path.join(dir, 'SHA256SUMS.txt'), 'utf8');
   const line = manifest.split(/\r?\n/).find((item) => item.trim().endsWith(assetName));
@@ -562,7 +568,8 @@ async function verifyDownloadedInstaller(dir, assetName) {
   const installer = path.join(dir, assetName);
   const actual = crypto.createHash('sha256').update(await fsp.readFile(installer)).digest('hex').toLowerCase();
   if (expected !== actual) throw new Error('Downloaded installer failed SHA-256 verification.');
-  return { installer, sha256: actual };
+  const signature = await verifyAuthenticode(installer, { requiredThumbprint: requiredSignerThumbprint() });
+  return { installer, sha256: actual, signature };
 }
 
 async function downloadVerifiedReleaseInstaller(tagName, version, dir) {
@@ -620,8 +627,10 @@ async function applyUpdate() {
     targetVersion: update.latestVersion,
     targetInstaller: target.installer,
     targetSha256: target.sha256,
+    targetSignerThumbprint: target.signature?.signerThumbprint || null,
     rollbackInstaller: rollback?.installer || null,
-    rollbackSha256: rollback?.sha256 || null
+    rollbackSha256: rollback?.sha256 || null,
+    rollbackSignerThumbprint: rollback?.signature?.signerThumbprint || null
   });
   transaction = transitionUpdate(transaction, 'INSTALLING', { tagName: update.tagName, assetName: target.assetName });
   await writeUpdateTransaction(transaction);
@@ -638,6 +647,7 @@ async function rollbackUpdate() {
   if (!transaction.rollbackInstaller || !transaction.rollbackSha256) throw new Error('A verified previous installer was not retained; automatic rollback is unavailable.');
   const actual = crypto.createHash('sha256').update(await fsp.readFile(transaction.rollbackInstaller)).digest('hex').toLowerCase();
   if (actual !== String(transaction.rollbackSha256).toLowerCase()) throw new Error('Retained rollback installer failed SHA-256 verification.');
+  await verifyAuthenticode(transaction.rollbackInstaller, { requiredThumbprint: requiredSignerThumbprint() });
   const rolling = transitionUpdate(transaction, 'ROLLING_BACK');
   await writeUpdateTransaction(rolling);
   const child = spawn(transaction.rollbackInstaller, ['/S'], { detached: true, stdio: 'ignore', windowsHide: false });
