@@ -287,7 +287,12 @@ class ControlPlane {
     const run=this.state.runs[a.runId];
     if(run && a.action==='NETWORK'){run.providerApprovals||={};run.providerApprovals.network=true;}
     if(run && a.action==='CREDENTIAL'){run.providerApprovals||={};run.providerApprovals.credential=true;}
-    const task=this.state.tasks[a.taskId]; if(task){task.lease=null;if(!task.delivery?.pr) task.state='QUEUED'; else task.state='HUMAN_REQUIRED';}
+    const task=this.state.tasks[a.taskId];
+    if(task && a.action){
+      task.approvedActions=Array.isArray(task.approvedActions)?task.approvedActions:[];
+      if(!task.approvedActions.includes(a.action)) task.approvedActions.push(a.action);
+    }
+    if(task){task.lease=null;if(!task.delivery?.pr) task.state='QUEUED'; else task.state='HUMAN_REQUIRED';}
     await this.persist(); await this.event('approval.approved',{runId:a.runId,taskId:a.taskId,approvalId:id});
     if(run && !a.taskId && ['NETWORK','CREDENTIAL'].includes(a.action)){
       run.waitingFor=null;
@@ -367,8 +372,8 @@ class ControlPlane {
     const roleConfig=this.normalizeRoleConfig(run.providers,run.models);
     run.providers=roleConfig.providers; run.models=roleConfig.models;
     try{
-      const policyCheck=runPolicy.check({action:'WRITE',path:subRoot});
-      if(!policyCheck.allowed) throw Object.assign(new Error(policyCheck.reason),{code:policyCheck.requiresApproval?'APPROVAL_REQUIRED':'POLICY_DENIED'});
+      const policyCheck=runPolicy.check({action:'WRITE',path:subRoot,approved:Boolean(task.approvedActions?.includes('WRITE'))});
+      if(!policyCheck.allowed) throw Object.assign(new Error(policyCheck.reason),{code:policyCheck.requiresApproval?'APPROVAL_REQUIRED':'POLICY_DENIED',policy:policyCheck});
       if(!this.adapterSecurity.ok) throw new Error('Adapter security audit failed; autonomous execution is blocked.');
       task.phase='EXECUTING'; await this.persist();
       let baseRef=null;
@@ -386,7 +391,7 @@ class ControlPlane {
         transport:'control-plane-harness',
         worker:run.providers.builder
       });
-      const result=await runHarness({goal:run.goal+'\nTask: '+task.title,done:task.acceptance||run.done,context:run.context+'\nOBJECTIVE: '+task.objective,sourceRoot:taskRoot,runRoot:subRoot,baseRef,maxTasks:1,maxIterations:run.maxIterations,workspaceId:run.workspaceId||null,executionContract:task.executionContract,signal:controller.signal,policy:runPolicy,providerRouter:this.providers,plannerProvider:run.providers.planner,builderProvider:run.providers.builder,reviewerProvider:run.providers.reviewer,plannerModel:run.models.planner,builderModel:run.models.builder,reviewerModel:run.models.reviewer,providerNetworkApproved:Boolean(run.providerApprovals?.network),providerCredentialApproved:Boolean(run.providerApprovals?.credential),resume:Boolean(task.resume),onEvent:async e=>{task.lastEvent=e;task.updatedAt=now();await this.evidence.appendEvent(run.id,e).catch(()=>{});await this.persist();await this.emit({schema:'aecp.event/v1',type:'task.event',at:now(),runId:run.id,taskId:task.id,data:e});}});
+      const result=await runHarness({goal:run.goal+'\nTask: '+task.title,done:task.acceptance||run.done,context:run.context+'\nOBJECTIVE: '+task.objective,sourceRoot:taskRoot,runRoot:subRoot,baseRef,maxTasks:1,maxIterations:run.maxIterations,workspaceId:run.workspaceId||null,executionContract:task.executionContract,signal:controller.signal,policy:runPolicy,providerRouter:this.providers,plannerProvider:run.providers.planner,builderProvider:run.providers.builder,reviewerProvider:run.providers.reviewer,plannerModel:run.models.planner,builderModel:run.models.builder,reviewerModel:run.models.reviewer,executionApproved:Boolean(task.approvedActions?.includes('EXECUTE')),providerNetworkApproved:Boolean(run.providerApprovals?.network),providerCredentialApproved:Boolean(run.providerApprovals?.credential),resume:Boolean(task.resume),onEvent:async e=>{task.lastEvent=e;task.updatedAt=now();await this.evidence.appendEvent(run.id,e).catch(()=>{});await this.persist();await this.emit({schema:'aecp.event/v1',type:'task.event',at:now(),runId:run.id,taskId:task.id,data:e});}});
       task.phase='VERIFYING'; await this.persist(); task.result=result;task.state=result.state==='DONE'?'DONE':result.state;task.lease=null;task.resume=false;task.finishedAt=now();
       if(task.state==='DONE' && run.delivery){
         task.phase='DELIVERY'; await this.persist();
@@ -422,7 +427,7 @@ class ControlPlane {
         task.evidenceManifest=await this.evidence.manifest(run.id,manifestItems);
       }
       if(result.state==='DONE') { task.phase='COMPLETED'; task.resultCapsule=await this.contextBus.write('result',{runId:run.id,taskId:task.id,state:task.state,evidence:task.evidenceManifest||task.evidence||null,verification:result.tasks}); }
-      if(task.state==='HUMAN_REQUIRED') await this.requestApproval(run,task,'Harness requested human approval.');
+      if(task.state==='HUMAN_REQUIRED') await this.requestApproval(run,task,'Harness requested human approval.',result.requiredAction||null);
       await this.event('task.finished',{runId:run.id,taskId:task.id,state:task.state});
     }catch(e){
       task.error=String(e.message||e);task.lease=null;
