@@ -6,6 +6,7 @@ const crypto = require('node:crypto');
 const { spawn } = require('node:child_process');
 const { runHarness, safeJson, DEFAULT_ROLE_PROVIDERS, invokeRole } = require('./harness.cjs');
 const { SecurityPolicy } = require('./security-policy.cjs');
+const { compileWorkspacePolicy } = require('./workspace-policy.cjs');
 const { LockManager } = require('./lock-manager.cjs');
 const { EvidenceManager } = require('./evidence-manager.cjs');
 const { ContextBus } = require('./context-bus.cjs');
@@ -33,7 +34,7 @@ function now(){return new Date().toISOString();}
 function clamp(n,min,max,d){const x=Number(n);return Number.isFinite(x)?Math.max(min,Math.min(max,x)):d;}
 
 class ControlPlane {
-  constructor({rootDir, emit=async()=>{}, providerRouter=null, remoteOptions={}}={}) {
+  constructor({rootDir, emit=async()=>{}, providerRouter=null, remoteOptions={}, policyConfig={}}={}) {
     this.rootDir=path.resolve(rootDir);
     this.file=path.join(this.rootDir,'control-plane.json');
     this.eventFile=path.join(this.rootDir,'events.jsonl');
@@ -45,7 +46,8 @@ class ControlPlane {
     this.persistSequence=0;
     this.shuttingDown=false;
     this.maintenanceTask=null;
-    this.policy=new SecurityPolicy({allowRoots:[this.rootDir]});
+    this.policyConfig=compileWorkspacePolicy(policyConfig);
+    this.policy=new SecurityPolicy({allowRoots:[this.rootDir],...this.policyConfig});
     this.locks=new LockManager(path.join(this.rootDir,'locks'));
     this.evidence=new EvidenceManager(path.join(this.rootDir,'evidence'));
     this.contextBus=new ContextBus(this.rootDir);
@@ -110,7 +112,13 @@ class ControlPlane {
 
   policyForRun(run){
     const roots=[this.rootDir,run?.sourceRoot,...(run?.repositoryPaths||[])].filter(Boolean).map(x=>path.resolve(String(x)));
-    return new SecurityPolicy({allowRoots:[...new Set(roots)]});
+    return new SecurityPolicy({allowRoots:[...new Set(roots)],...this.policyConfig});
+  }
+
+  setPolicyConfig(config={}){
+    this.policyConfig=compileWorkspacePolicy(config);
+    this.policy=new SecurityPolicy({allowRoots:[this.rootDir],...this.policyConfig});
+    return {...this.policyConfig};
   }
 
   normalizeRoleConfig(providers={},models={}){
