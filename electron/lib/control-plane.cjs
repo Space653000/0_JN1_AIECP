@@ -39,6 +39,8 @@ class ControlPlane {
     this.state=null;
     this.controllers=new Map();
     this.scheduler=null;
+    this.persistQueue=Promise.resolve();
+    this.persistSequence=0;
     this.policy=new SecurityPolicy({allowRoots:[this.rootDir]});
     this.locks=new LockManager(path.join(this.rootDir,'locks'));
     this.evidence=new EvidenceManager(path.join(this.rootDir,'evidence'));
@@ -76,9 +78,15 @@ class ControlPlane {
 
   async persist(){
     this.state.updatedAt=now();
-    const tmp=this.file+'.tmp-'+process.pid;
-    await fs.writeFile(tmp,JSON.stringify(this.state,null,2),'utf8');
-    await fs.rename(tmp,this.file);
+    const payload=JSON.stringify(this.state,null,2);
+    const tmp=this.file+'.tmp-'+process.pid+'-'+(++this.persistSequence);
+    const write=async()=>{
+      await fs.writeFile(tmp,payload,'utf8');
+      await fs.rename(tmp,this.file);
+    };
+    const operation=this.persistQueue.then(write,write);
+    this.persistQueue=operation.catch(()=>{});
+    return operation;
   }
 
   async event(type,data={}){
