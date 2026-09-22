@@ -196,7 +196,9 @@ class ProviderRouter {
         if (provider.baseUrl && !provider.defaultModel) return result('NOT_CONFIGURED', 'Custom Codex worker requires an explicit model.', { workerId: provider.workerId || providerId, codexHome: provider.codexHome });
         if (provider.requiresCredential && !provider.apiKey) return result('AUTH_REQUIRED', 'Worker credential is not configured.', { workerId: provider.workerId || providerId, codexHome: provider.codexHome });
         if (provider.requiresAuthFiles && !provider.authPresent) return result('AUTH_REQUIRED', 'Codex OFFICIAL isolated CODEX_HOME requires authentication.', { workerId: provider.workerId || providerId, codexHome: provider.codexHome });
-        return result('READY', 'Codex CLI and isolated worker runtime are configured.', {
+        if (provider.network && !opts.networkApproved) return result('DEGRADED', 'Codex worker is configured, but live network use is not approved.', { workerId: provider.workerId || providerId, codexHome: provider.codexHome, model: opts.model || provider.defaultModel || null, wireApi: provider.wireApi || null });
+        if (provider.requiresCredential && !opts.credentialApproved) return result('DEGRADED', 'Codex worker credential is configured, but credential use is not approved.', { workerId: provider.workerId || providerId, codexHome: provider.codexHome, model: opts.model || provider.defaultModel || null, wireApi: provider.wireApi || null });
+        return result('READY', 'Codex CLI and isolated worker runtime are approved for this run.', {
           version: (probe.stdout || probe.stderr || '').split(/\r?\n/)[0],
           workerId: provider.workerId || providerId,
           workerName: provider.workerName || providerId,
