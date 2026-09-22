@@ -55,7 +55,7 @@ const matrix={
 };
 
 const body=fs.readFileSync(requirementsFile,'utf8');
-const ids=[...body.matchAll(/^-s+**(Rd+.d+)**/gm)].map(m=>m[1]);
+const ids=[...body.matchAll(/^-\s+\*\*(R\d+\.\d+)\*\*/gm)].map(m=>m[1]);
 const unique=[...new Set(ids)];
 const missingMappings=unique.filter(id=>!matrix[id]);
 const staleMappings=Object.keys(matrix).filter(id=>!unique.includes(id));
