@@ -72,6 +72,36 @@ Provider {
 }
 ```
 
+### Worker
+
+A Worker is a concrete isolated runtime identity, not a Provider alias.
+
+```ts
+Worker {
+  id: string
+  name: string
+  providerId: string
+  model?: string
+  role: 'planner'|'builder'|'reviewer'|'general'
+  runtime: string
+  processId?: number
+  codexHome?: string
+  taskId?: string
+  runId?: string
+  runtimeState: string
+  repository?: string
+  worktree?: string
+  verificationState?: string
+  startedAt?: string
+  heartbeatAt?: string
+  timeoutAt?: string
+  cancelState?: string
+  evidenceRefs: string[]
+}
+```
+
+Initial canonical Builder Workers are `codex-official` and `codex-pega`. Their `codexHome`, auth/session/runtime storage and process environments are distinct. Secrets are not part of the public Worker projection.
+
 ### Evidence
 
 Metadata references files stored under AECP user data, never arbitrary public URLs by default.
