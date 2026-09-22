@@ -14,6 +14,7 @@ const { SecurityPolicy } = require('./lib/security-policy.cjs');
 const { migrateState } = require('./lib/state-migration.cjs');
 const { recommendNextAction } = require('./lib/guidance.cjs');
 const { WindowsDesktopAdapter } = require('./lib/windows-desktop-adapter.cjs');
+const { WindowsUiAdapter } = require('./lib/windows-ui-adapter.cjs');
 
 const { parseCommandCard, makeTaskId, makeResultCapsule, hashJson } = require('./lib/protocol.cjs');
 const { compareVersions, versionFromTag, selectHighestRelease, selectInstallerAsset } = require('./lib/version.cjs');
@@ -45,6 +46,7 @@ let harnessController = null;
 let harnessRecord = null;
 let controlPlane = null;
 const desktopAdapter = new WindowsDesktopAdapter();
+const windowsUiAdapter = new WindowsUiAdapter();
 
 function dataPath(...parts) {
   return path.join(app.getPath('userData'), ...parts);
@@ -1109,6 +1111,8 @@ function registerIpc() {
 
   ipcMain.handle('agents:list', detectAgents);
   ipcMain.handle('agents:launch', async (_event, payload) => launchAgent(payload?.agentId));
+  ipcMain.handle('desktop:list-windows', async () => windowsUiAdapter.listWindows());
+  ipcMain.handle('desktop:inspect-ui', async (_event,payload) => windowsUiAdapter.inspect(payload?.pid,{maxNodes:payload?.maxNodes||120,allowBrowser:false}));
   ipcMain.handle('desktop:list-browser-windows', async () => desktopAdapter.listBrowserWindows());
   ipcMain.handle('desktop:dock-browser', async (_event,payload) => {
     const pid=Number(payload?.pid);
