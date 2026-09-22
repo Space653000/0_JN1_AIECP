@@ -7,6 +7,7 @@ const { spawn } = require('node:child_process');
 const { runHarness, safeJson, DEFAULT_ROLE_PROVIDERS, invokeRole } = require('./harness.cjs');
 const { SecurityPolicy } = require('./security-policy.cjs');
 const { compileWorkspacePolicy } = require('./workspace-policy.cjs');
+const { makeExecutionContract, updateExecutionContract } = require('./execution-contract.cjs');
 const { LockManager } = require('./lock-manager.cjs');
 const { EvidenceManager } = require('./evidence-manager.cjs');
 const { ContextBus } = require('./context-bus.cjs');
@@ -216,16 +217,30 @@ class ControlPlane {
     const tasks=Array.isArray(plan?.tasks)?plan.tasks.slice(0,run.maxTasks):[];
     if(!tasks.length) throw new Error('Planner returned no tasks.');
     for(const item of tasks) await this.enqueueTask(run,{title:String(item.title||'Task'),objective:String(item.objective||''),acceptance:String(item.acceptance||run.done),dependencies:Array.isArray(item.dependencies)?item.dependencies:[],risk:['GREEN','YELLOW','RED'].includes(item.risk)?item.risk:'YELLOW',repositories:Array.isArray(item.repositories)?item.repositories:[]});
+    run.executionContract=updateExecutionContract(run.executionContract,{taskIds:[...(run.taskIds||[])]});
     run.plannedAt=now();run.plan=plan;await this.persist();await this.event('mission.planned',{runId:run.id,taskCount:tasks.length});
     return tasks;
   }
 
-  async createMission({goal,done,sourceRoot,context='',maxTasks=8,maxIterations=5,maxConcurrency=2,autoStart=true,autoResume=true,delivery=false,githubRepo=null,providers={},models={},providerApprovals={}}){
+  async createMission({goal,done,sourceRoot,workspaceId=null,context='',maxTasks=8,maxIterations=5,maxConcurrency=2,autoStart=true,autoResume=true,delivery=false,githubRepo=null,providers={},models={},providerApprovals={}}){
     if(!goal||!done) throw new Error('Goal and Definition of Done are required.');
     if(!sourceRoot) throw new Error('Mission sourceRoot is required.');
     const roleConfig=this.normalizeRoleConfig(providers,models);
     const id=uid('mission');
-    const run={id,schema:'aecp.mission/v1',goal,done,sourceRoot:path.resolve(sourceRoot),context,maxTasks:clamp(maxTasks,1,8,8),maxIterations:clamp(maxIterations,1,5,5),maxConcurrency:clamp(maxConcurrency,1,8,2),autoResume:Boolean(autoResume),delivery:Boolean(delivery),githubRepo:githubRepo||null,providers:roleConfig.providers,models:roleConfig.models,providerApprovals:{network:Boolean(providerApprovals?.network),credential:Boolean(providerApprovals?.credential)},state:'QUEUED',createdAt:now(),updatedAt:now(),taskIds:[],events:[]};
+    const executionContract=makeExecutionContract({
+      goal,
+      done,
+      workspaceId,
+      workspaceRoot:path.resolve(sourceRoot),
+      permissionPolicy:{mode:'CONTROL_PLANE_MISSION',...this.policyConfig,highRisk:'HUMAN_REQUIRED'},
+      taskIds:[],
+      resultCapsuleRef:`local://control-plane/${id}/control-plane.json`,
+      evidenceRef:`local://control-plane/${id}/evidence`,
+      traceRef:`local://control-plane/${id}/events.jsonl`,
+      transport:'control-plane-harness',
+      worker:roleConfig.providers.builder
+    });
+    const run={id,schema:'aecp.mission/v1',goal,done,sourceRoot:path.resolve(sourceRoot),workspaceId:workspaceId||null,context,maxTasks:clamp(maxTasks,1,8,8),maxIterations:clamp(maxIterations,1,5,5),maxConcurrency:clamp(maxConcurrency,1,8,2),autoResume:Boolean(autoResume),delivery:Boolean(delivery),githubRepo:githubRepo||null,providers:roleConfig.providers,models:roleConfig.models,providerApprovals:{network:Boolean(providerApprovals?.network),credential:Boolean(providerApprovals?.credential)},executionContract,state:'QUEUED',createdAt:now(),updatedAt:now(),taskIds:[],events:[]};
     this.state.runs[id]=run;
     await this.persist();
     await this.event('mission.created',{runId:id,state:run.state,goal});
@@ -358,7 +373,20 @@ class ControlPlane {
       task.phase='EXECUTING'; await this.persist();
       let baseRef=null;
       if(task.delivery?.branch){await this.gitLocal(taskRoot,['fetch','origin',task.delivery.branch]);baseRef='origin/'+task.delivery.branch;}
-      const result=await runHarness({goal:run.goal+'\nTask: '+task.title,done:task.acceptance||run.done,context:run.context+'\nOBJECTIVE: '+task.objective,sourceRoot:taskRoot,runRoot:subRoot,baseRef,maxTasks:1,maxIterations:run.maxIterations,signal:controller.signal,policy:runPolicy,providerRouter:this.providers,plannerProvider:run.providers.planner,builderProvider:run.providers.builder,reviewerProvider:run.providers.reviewer,plannerModel:run.models.planner,builderModel:run.models.builder,reviewerModel:run.models.reviewer,providerNetworkApproved:Boolean(run.providerApprovals?.network),providerCredentialApproved:Boolean(run.providerApprovals?.credential),resume:Boolean(task.resume),onEvent:async e=>{task.lastEvent=e;task.updatedAt=now();await this.evidence.appendEvent(run.id,e).catch(()=>{});await this.persist();await this.emit({schema:'aecp.event/v1',type:'task.event',at:now(),runId:run.id,taskId:task.id,data:e});}});
+      task.executionContract=task.executionContract||makeExecutionContract({
+        goal:run.goal+'\nTask: '+task.title,
+        done:task.acceptance||run.done,
+        workspaceId:run.workspaceId||run.executionContract?.workspace?.id||null,
+        workspaceRoot:taskRoot,
+        permissionPolicy:{mode:'FULL_HARNESS',...this.policyConfig,networkApproved:Boolean(run.providerApprovals?.network),credentialApproved:Boolean(run.providerApprovals?.credential),highRisk:'HUMAN_REQUIRED'},
+        taskIds:[task.id],
+        resultCapsuleRef:`local://control-plane/${run.id}/${task.id}/harness.json`,
+        evidenceRef:`local://control-plane/${run.id}/${task.id}/verified.patch`,
+        traceRef:`local://control-plane/${run.id}/${task.id}/harness.json`,
+        transport:'control-plane-harness',
+        worker:run.providers.builder
+      });
+      const result=await runHarness({goal:run.goal+'\nTask: '+task.title,done:task.acceptance||run.done,context:run.context+'\nOBJECTIVE: '+task.objective,sourceRoot:taskRoot,runRoot:subRoot,baseRef,maxTasks:1,maxIterations:run.maxIterations,workspaceId:run.workspaceId||null,executionContract:task.executionContract,signal:controller.signal,policy:runPolicy,providerRouter:this.providers,plannerProvider:run.providers.planner,builderProvider:run.providers.builder,reviewerProvider:run.providers.reviewer,plannerModel:run.models.planner,builderModel:run.models.builder,reviewerModel:run.models.reviewer,providerNetworkApproved:Boolean(run.providerApprovals?.network),providerCredentialApproved:Boolean(run.providerApprovals?.credential),resume:Boolean(task.resume),onEvent:async e=>{task.lastEvent=e;task.updatedAt=now();await this.evidence.appendEvent(run.id,e).catch(()=>{});await this.persist();await this.emit({schema:'aecp.event/v1',type:'task.event',at:now(),runId:run.id,taskId:task.id,data:e});}});
       task.phase='VERIFYING'; await this.persist(); task.result=result;task.state=result.state==='DONE'?'DONE':result.state;task.lease=null;task.resume=false;task.finishedAt=now();
       if(task.state==='DONE' && run.delivery){
         task.phase='DELIVERY'; await this.persist();
