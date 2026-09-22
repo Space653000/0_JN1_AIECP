@@ -7,6 +7,8 @@ const crypto=require('node:crypto');
 const {spawn}=require('node:child_process');
 const {ProviderRouter,PROVIDERS}=require('../electron/lib/provider-router.cjs');
 const {runHarness}=require('../electron/lib/harness.cjs');
+const {CodexWorkerRuntime,WORKER_IDS}=require('../electron/lib/codex-worker-runtime.cjs');
+const {PEGA_PROVIDER_ID,PEGA_WORKER_ID,PEGA_BASE_URL,PEGA_ENV_KEY,makePegaProvider}=require('../electron/lib/pega-provider.cjs');
 
 const mode=String(process.env.AECP_PROVIDER_VERIFY_MODE||'').trim();
 const sourceRoot=path.resolve(process.env.GITHUB_WORKSPACE||process.cwd());
@@ -17,7 +19,12 @@ const openCodeModel=modelInput?(/^ollama\//i.test(modelInput)?modelInput:`ollama
 const localCommand=String(process.env.AECP_PROVIDER_VERIFY_LOCAL_COMMAND||'').trim();
 const localArgsRaw=String(process.env.AECP_PROVIDER_VERIFY_LOCAL_ARGS_JSON||'[]').trim();
 const timeoutMs=Math.max(30000,Math.min(60*60*1000,Number(process.env.AECP_PROVIDER_VERIFY_TIMEOUT_MS||900000)));
-const VALID_MODES=new Set(['ollama','opencode-ollama','canonical-local','local-command','all']);
+const officialModel=String(process.env.AECP_PROVIDER_VERIFY_OFFICIAL_MODEL||'').trim();
+const pegaModel=String(process.env.AECP_PROVIDER_VERIFY_PEGA_MODEL||'').trim();
+const pegaWireApi=String(process.env.AECP_PROVIDER_VERIFY_PEGA_WIRE_API||'responses').trim().toLowerCase();
+const pegaApiKey=String(process.env[PEGA_ENV_KEY]||'');
+const codexWorkerRoot=path.resolve(process.env.AECP_PROVIDER_VERIFY_CODEX_ROOT||path.join(os.homedir(),'.aecp-provider-evidence-workers'));
+const VALID_MODES=new Set(['ollama','opencode-ollama','canonical-local','local-command','codex-official','codex-pega','multi-codex','all']);
 
 function sha(value){return crypto.createHash('sha256').update(String(value||'')).digest('hex');}
 function now(){return new Date().toISOString();}
@@ -81,6 +88,56 @@ function localArgs(){
   try{parsed=JSON.parse(localArgsRaw);}catch{throw Object.assign(new Error('Local args must be a JSON array.'),{code:'LOCAL_ARGS_INVALID'});}
   if(!Array.isArray(parsed)||parsed.some(x=>typeof x!=='string'))throw Object.assign(new Error('Local args must be a JSON array of strings.'),{code:'LOCAL_ARGS_INVALID'});
   return parsed.slice(0,32);
+}
+
+
+async function buildRealCodexRouter({official=false,pega=false}={}){
+  const runtime=new CodexWorkerRuntime(codexWorkerRoot);
+  const registry={};
+  const profiles={};
+  if(official){
+    const profile=await runtime.prepareOfficial({model:officialModel||null});
+    const inspection=await runtime.inspect(WORKER_IDS.OFFICIAL);
+    if(!inspection.authPresent)throw Object.assign(new Error('Codex OFFICIAL isolated CODEX_HOME is not authenticated.'),{code:'OFFICIAL_AUTH_REQUIRED'});
+    profiles.official=profile;
+    registry['openai-official']={
+      id:'openai-official',command:'codex',roles:['builder'],mode:'codex-cli',
+      network:true,credential:false,requiresCredential:false,requiresAuthFiles:true,authPresent:true,
+      workerId:WORKER_IDS.OFFICIAL,workerName:'Codex OFFICIAL',providerName:'OpenAI Official',
+      defaultModel:officialModel||null,codexHome:profile.codexHome,runtimeEnv:{...profile.env},kind:'codex-worker'
+    };
+  }
+  if(pega){
+    if(!pegaModel)throw Object.assign(new Error('Explicit PEGA model is required.'),{code:'PEGA_MODEL_REQUIRED'});
+    if(!['responses','chat'].includes(pegaWireApi))throw Object.assign(new Error('PEGA wire API must be responses or chat.'),{code:'PEGA_WIRE_API_INVALID'});
+    if(!pegaApiKey)throw Object.assign(new Error('PEGA credential is required from the environment.'),{code:'PEGA_AUTH_REQUIRED'});
+    const profile=await runtime.prepareCustom({
+      workerId:PEGA_WORKER_ID,workerName:'Codex PEGA',providerId:PEGA_PROVIDER_ID,providerName:'PEGA',
+      baseUrl:PEGA_BASE_URL,model:pegaModel,wireApi:pegaWireApi,envKey:PEGA_ENV_KEY,apiKey:pegaApiKey
+    });
+    profiles.pega=profile;
+    registry[PEGA_PROVIDER_ID]=makePegaProvider({
+      model:pegaModel,wireApi:pegaWireApi,apiKey:pegaApiKey,codexHome:profile.codexHome,runtimeEnv:{...profile.env}
+    });
+  }
+  return {runtime,profiles,router:new ProviderRouter(registry)};
+}
+
+async function codexSmoke(router,{provider,model,workerId,cwd,token,credentialApproved=false,onSpawn=null}){
+  const health=await router.health(provider,{model:model||null,networkApproved:true,credentialApproved,timeoutMs:30000});
+  if(health.status!=='READY')throw Object.assign(new Error('Codex worker health not ready'),{code:'CODEX_'+workerId+'_'+health.status});
+  const result=await router.execute('builder','Reply with exactly this token and nothing else: '+token,{
+    provider,model:model||null,cwd,timeoutMs,networkApproved:true,credentialApproved,onSpawn
+  });
+  if(result.code!==0||!String(result.stdout).includes(token)){
+    throw Object.assign(new Error('Codex worker real smoke token missing'),{code:'CODEX_'+workerId+'_SMOKE_FAILED'});
+  }
+  return {
+    workerId,provider,providerName:result.providerName||health.providerName||provider,
+    model:result.model||model||null,health:health.status,
+    codexHomeSha256:sha(result.codexHome||health.codexHome||''),outputSha256:sha(result.stdout),
+    timedOut:Boolean(result.timedOut),aborted:Boolean(result.aborted)
+  };
 }
 
 async function makeHarnessFixture(){
@@ -180,6 +237,70 @@ async function main(){
       });
       if(result.code!==0||!String(result.stdout).includes(token))throw Object.assign(new Error('Local command smoke token missing'),{code:'LOCAL_COMMAND_SMOKE_FAILED'});
       return {provider:'real-local-command',outputSha256:sha(result.stdout)};
+    });
+  }
+
+
+  if(mode==='codex-official'){
+    await check('codex-official.real-smoke',async()=>{
+      const built=await buildRealCodexRouter({official:true});
+      const temp=await fs.mkdtemp(path.join(os.tmpdir(),'aecp-codex-official-real-'));
+      try{
+        return await codexSmoke(built.router,{
+          provider:'openai-official',model:officialModel||null,workerId:WORKER_IDS.OFFICIAL,cwd:temp,
+          token:'AECP_CODEX_OFFICIAL_REAL_OK',credentialApproved:false
+        });
+      }finally{await fs.rm(temp,{recursive:true,force:true});}
+    });
+  }
+
+  if(mode==='codex-pega'){
+    await check('codex-pega.real-smoke',async()=>{
+      const built=await buildRealCodexRouter({pega:true});
+      const temp=await fs.mkdtemp(path.join(os.tmpdir(),'aecp-codex-pega-real-'));
+      try{
+        const result=await codexSmoke(built.router,{
+          provider:PEGA_PROVIDER_ID,model:pegaModel,workerId:PEGA_WORKER_ID,cwd:temp,
+          token:'AECP_CODEX_PEGA_REAL_OK',credentialApproved:true
+        });
+        return {...result,baseUrlSha256:sha(PEGA_BASE_URL),wireApi:pegaWireApi};
+      }finally{await fs.rm(temp,{recursive:true,force:true});}
+    });
+  }
+
+  if(mode==='multi-codex'){
+    await check('codex.multi-worker-real-concurrency',async()=>{
+      const built=await buildRealCodexRouter({official:true,pega:true});
+      if(path.resolve(built.profiles.official.codexHome)===path.resolve(built.profiles.pega.codexHome)){
+        throw Object.assign(new Error('OFFICIAL and PEGA CODEX_HOME unexpectedly match.'),{code:'CODEX_HOME_NOT_ISOLATED'});
+      }
+      const root=await fs.mkdtemp(path.join(os.tmpdir(),'aecp-codex-multi-real-'));
+      const officialCwd=path.join(root,'official'),pegaCwd=path.join(root,'pega');
+      await Promise.all([fs.mkdir(officialCwd,{recursive:true}),fs.mkdir(pegaCwd,{recursive:true})]);
+      const spawns={};
+      const started=Date.now();
+      try{
+        const results=await Promise.all([
+          codexSmoke(built.router,{
+            provider:'openai-official',model:officialModel||null,workerId:WORKER_IDS.OFFICIAL,cwd:officialCwd,
+            token:'AECP_CODEX_OFFICIAL_PARALLEL_OK',credentialApproved:false,
+            onSpawn:pid=>{spawns.official={pid,at:Date.now()};}
+          }),
+          codexSmoke(built.router,{
+            provider:PEGA_PROVIDER_ID,model:pegaModel,workerId:PEGA_WORKER_ID,cwd:pegaCwd,
+            token:'AECP_CODEX_PEGA_PARALLEL_OK',credentialApproved:true,
+            onSpawn:pid=>{spawns.pega={pid,at:Date.now()};}
+          })
+        ]);
+        if(!spawns.official?.pid||!spawns.pega?.pid||spawns.official.pid===spawns.pega.pid){
+          throw Object.assign(new Error('Distinct concurrent Codex worker processes were not observed.'),{code:'CODEX_PROCESS_ISOLATION_FAILED'});
+        }
+        return {
+          state:'PASS',workers:results,distinctCodexHomes:results[0].codexHomeSha256!==results[1].codexHomeSha256,
+          distinctProcesses:true,spawnDeltaMs:Math.abs(spawns.official.at-spawns.pega.at),
+          durationMs:Date.now()-started,pegaWireApi
+        };
+      }finally{await fs.rm(root,{recursive:true,force:true});}
     });
   }
 
