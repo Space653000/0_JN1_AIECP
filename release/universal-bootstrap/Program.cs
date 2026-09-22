@@ -26,7 +26,13 @@ internal static class Program
         using (var input = Assembly.GetExecutingAssembly().GetManifestResourceStream(name)!)
         using (var output = File.Create(target)) input.CopyTo(output);
 
-        using var child = Process.Start(new ProcessStartInfo { FileName = target, UseShellExecute = true, WorkingDirectory = temp });
+        var forwardedArgs = Environment.GetEnvironmentVariable("AECP_BOOTSTRAP_INSTALL_ARGS") ?? string.Empty;
+        using var child = Process.Start(new ProcessStartInfo {
+            FileName = target,
+            Arguments = forwardedArgs,
+            UseShellExecute = true,
+            WorkingDirectory = temp
+        });
         if (child is null) return 4;
         child.WaitForExit();
         return child.ExitCode;
