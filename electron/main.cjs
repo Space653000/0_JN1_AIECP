@@ -11,6 +11,9 @@ const { runHarness } = require('./lib/harness.cjs');
 const { ControlPlane } = require('./lib/control-plane.cjs');
 const { ProviderRouter, PROVIDERS } = require('./lib/provider-router.cjs');
 const { ProviderUsageStore } = require('./lib/provider-usage.cjs');
+const { CodexWorkerRuntime, WORKER_IDS } = require('./lib/codex-worker-runtime.cjs');
+const { WorkerRegistry } = require('./lib/worker-registry.cjs');
+const { PEGA_PROVIDER_ID, PEGA_WORKER_ID, PEGA_BASE_URL, PEGA_ENV_KEY, makePegaProvider } = require('./lib/pega-provider.cjs');
 const { clearEvidence, removeWorkspaceBinding, clearCredentials, resetActiveState } = require('./lib/local-data-manager.cjs');
 const { assertWithinRoot } = require('./lib/path-safety.cjs');
 const { redactSensitive } = require('./lib/redaction.cjs');
@@ -56,6 +59,9 @@ let harnessController = null;
 let harnessRecord = null;
 let controlPlane = null;
 let providerUsageStore = null;
+let workerRegistry = null;
+let workerRegistryInit = null;
+let codexWorkerRuntime = null;
 const desktopAdapter = new WindowsDesktopAdapter();
 const windowsUiAdapter = new WindowsUiAdapter();
 const pythonWorker = new PythonWorker();
@@ -69,9 +75,40 @@ function getProviderUsageStore() {
   return providerUsageStore;
 }
 
+function getCodexWorkerRuntime() {
+  if (!codexWorkerRuntime) codexWorkerRuntime = new CodexWorkerRuntime(dataPath('workers'));
+  return codexWorkerRuntime;
+}
+
+async function getWorkerRegistry() {
+  if (workerRegistry) return workerRegistry;
+  if (!workerRegistryInit) {
+    const registry = new WorkerRegistry(dataPath('workers'));
+    workerRegistryInit = registry.init().then(() => {
+      workerRegistry = registry;
+      return registry;
+    }).catch((error) => {
+      workerRegistryInit = null;
+      throw error;
+    });
+  }
+  return workerRegistryInit;
+}
+
+function normalizedProviderUrl(value) {
+  try { return new URL(String(value || '')).href.replace(/\/$/, ''); } catch { return ''; }
+}
+
+function decryptProviderSecret(secrets, id) {
+  const encrypted = id ? secrets.values?.[id] : null;
+  if (!encrypted || !safeStorage.isEncryptionAvailable()) return '';
+  try { return safeStorage.decryptString(Buffer.from(encrypted, 'base64')); } catch { return ''; }
+}
+
 async function ensureDataDirs() {
   await fsp.mkdir(dataPath(), { recursive: true });
   await fsp.mkdir(dataPath('evidence'), { recursive: true });
+  await fsp.mkdir(dataPath('workers'), { recursive: true });
 }
 
 function defaultState() {
@@ -1026,7 +1063,85 @@ async function buildRuntimeProviderRouter() {
   const state = await loadState();
   const secrets = await loadSecrets();
   const registry = Object.fromEntries(Object.entries(PROVIDERS).map(([id, provider]) => [id, { ...provider, roles: [...(provider.roles || [])] }]));
+  const runtime = getCodexWorkerRuntime();
+  const workers = await getWorkerRegistry();
+
+  const officialModel = String(process.env.AECP_CODEX_OFFICIAL_MODEL || '').trim().slice(0, 200) || null;
+  const officialProfile = await runtime.prepareOfficial({ model: officialModel });
+  const officialInspection = await runtime.inspect(WORKER_IDS.OFFICIAL);
+  registry['openai-official'] = {
+    id: 'openai-official',
+    command: 'codex',
+    roles: ['builder'],
+    mode: 'codex-cli',
+    network: true,
+    credential: false,
+    requiresCredential: false,
+    requiresAuthFiles: true,
+    authPresent: Boolean(officialInspection.authPresent),
+    workerId: WORKER_IDS.OFFICIAL,
+    workerName: 'Codex OFFICIAL',
+    providerName: 'OpenAI Official',
+    defaultModel: officialModel,
+    codexHome: officialProfile.codexHome,
+    runtimeEnv: { ...officialProfile.env },
+    kind: 'codex-worker'
+  };
+  await workers.register({
+    id: WORKER_IDS.OFFICIAL,
+    name: 'Codex OFFICIAL',
+    providerId: 'openai-official',
+    providerName: 'OpenAI Official',
+    model: officialModel,
+    role: 'builder',
+    runtime: 'codex-cli',
+    codexHome: officialProfile.codexHome
+  });
+
+  const pegaState = (state.providers || []).find((item) =>
+    item.id === PEGA_PROVIDER_ID || normalizedProviderUrl(item.baseUrl) === PEGA_BASE_URL
+  ) || null;
+  const pegaSecretId = pegaState?.id || PEGA_PROVIDER_ID;
+  const pegaApiKey = decryptProviderSecret(secrets, pegaSecretId) || String(process.env[PEGA_ENV_KEY] || '');
+  const pegaModel = String(pegaState?.defaultModel || process.env.AECP_PEGA_MODEL || '').trim().slice(0, 200);
+  const pegaWireApi = String(pegaState?.wireApi || process.env.AECP_PEGA_WIRE_API || 'responses').trim().toLowerCase();
+  const pegaHome = runtime.codexHome(PEGA_WORKER_ID);
+  let pegaRuntimeEnv = { CODEX_HOME: pegaHome };
+  if (pegaApiKey) pegaRuntimeEnv[PEGA_ENV_KEY] = pegaApiKey;
+  if (pegaModel) {
+    const profile = await runtime.prepareCustom({
+      workerId: PEGA_WORKER_ID,
+      workerName: 'Codex PEGA',
+      providerId: PEGA_PROVIDER_ID,
+      providerName: 'PEGA',
+      baseUrl: PEGA_BASE_URL,
+      model: pegaModel,
+      wireApi: pegaWireApi,
+      envKey: PEGA_ENV_KEY,
+      apiKey: pegaApiKey
+    });
+    pegaRuntimeEnv = { ...profile.env };
+  }
+  registry[PEGA_PROVIDER_ID] = makePegaProvider({
+    model: pegaModel,
+    wireApi: pegaWireApi,
+    apiKey: pegaApiKey,
+    codexHome: pegaHome,
+    runtimeEnv: pegaRuntimeEnv
+  });
+  await workers.register({
+    id: PEGA_WORKER_ID,
+    name: 'Codex PEGA',
+    providerId: PEGA_PROVIDER_ID,
+    providerName: 'PEGA',
+    model: pegaModel || null,
+    role: 'builder',
+    runtime: 'codex-cli',
+    codexHome: pegaHome
+  });
+
   for (const item of state.providers || []) {
+    if (item.id === PEGA_PROVIDER_ID || normalizedProviderUrl(item.baseUrl) === PEGA_BASE_URL) continue;
     if (item.kind === 'local-command') {
       if (!item.command) continue;
       registry[item.id] = {
@@ -1043,11 +1158,7 @@ async function buildRuntimeProviderRouter() {
     }
     if (!['api', 'local', 'remote-mcp'].includes(item.kind) || !item.baseUrl) continue;
     if (['api', 'local'].includes(item.kind) && !item.defaultModel) continue;
-    let apiKey = '';
-    const encrypted = secrets.values?.[item.id];
-    if (encrypted && safeStorage.isEncryptionAvailable()) {
-      try { apiKey = safeStorage.decryptString(Buffer.from(encrypted, 'base64')); } catch {}
-    }
+    const apiKey = decryptProviderSecret(secrets, item.id);
     registry[item.id] = {
       mode: item.kind === 'remote-mcp' ? 'remote-mcp' : 'openai-compatible',
       baseUrl: item.baseUrl,
@@ -1072,7 +1183,8 @@ async function checkProviderHealth(providerId, options = {}) {
     return { provider: providerId, status: 'READY', detail: 'Human-mediated official browser session.', checkedAt: new Date().toISOString() };
   }
   const state = await loadState();
-  if (!(state.providers || []).some((item) => item.id === providerId)) {
+  const builtInWorkerProvider = ['openai-official', PEGA_PROVIDER_ID].includes(providerId);
+  if (!builtInWorkerProvider && !(state.providers || []).some((item) => item.id === providerId)) {
     return { provider: providerId, status: 'NOT_CONFIGURED', detail: 'Provider is not registered.', checkedAt: new Date().toISOString() };
   }
   const router = await buildRuntimeProviderRouter();
@@ -1150,7 +1262,18 @@ async function copyLocalMcpConnection() {
 async function publicProviders(state) {
   const secrets = await loadSecrets();
   const usage = await getProviderUsageStore().summaries();
-  return [{
+  const router = await buildRuntimeProviderRouter();
+  const workers = await getWorkerRegistry();
+  const officialWorker = workers.get(WORKER_IDS.OFFICIAL);
+  const pegaWorker = workers.get(PEGA_WORKER_ID);
+  const [officialHealth, pegaHealth] = await Promise.all([
+    router.health('openai-official', { timeoutMs: 5000 }),
+    router.health(PEGA_PROVIDER_ID, { timeoutMs: 5000 })
+  ]);
+  const pegaState = (state.providers || []).find((item) =>
+    item.id === PEGA_PROVIDER_ID || normalizedProviderUrl(item.baseUrl) === PEGA_BASE_URL
+  ) || null;
+  const builtIns = [{
     id: 'chatgpt-web',
     name: 'ChatGPT Web',
     kind: 'human-mediated-web',
@@ -1159,7 +1282,38 @@ async function publicProviders(state) {
     usageManagedExternally: true,
     usage: null,
     description: 'Official ChatGPT in your normal browser. No API key required.'
-  }].concat(state.providers.map((item) => ({
+  }, {
+    id: 'openai-official',
+    name: 'OpenAI Official',
+    kind: 'codex-worker',
+    status: officialHealth.status,
+    statusDetail: officialHealth.detail,
+    builtIn: true,
+    workerId: WORKER_IDS.OFFICIAL,
+    worker: officialWorker,
+    defaultModel: officialWorker?.model || null,
+    hasCredential: Boolean(officialHealth.status !== 'AUTH_REQUIRED'),
+    usage: usage['openai-official'] || null,
+    description: 'Codex OFFICIAL Worker with a dedicated AECP-managed CODEX_HOME.'
+  }, {
+    id: PEGA_PROVIDER_ID,
+    name: 'PEGA',
+    kind: 'codex-worker',
+    status: pegaHealth.status,
+    statusDetail: pegaHealth.detail,
+    builtIn: true,
+    workerId: PEGA_WORKER_ID,
+    worker: pegaWorker,
+    baseUrl: PEGA_BASE_URL,
+    defaultModel: pegaWorker?.model || pegaState?.defaultModel || null,
+    wireApi: process.env.AECP_PEGA_WIRE_API || pegaState?.wireApi || 'responses',
+    hasCredential: Boolean(decryptProviderSecret(secrets, pegaState?.id || PEGA_PROVIDER_ID) || process.env[PEGA_ENV_KEY]),
+    usage: usage[PEGA_PROVIDER_ID] || null,
+    description: 'Codex PEGA Worker with isolated CODEX_HOME and a governed PEGA provider adapter.'
+  }];
+  return builtIns.concat((state.providers || []).filter((item) =>
+    item.id !== PEGA_PROVIDER_ID && normalizedProviderUrl(item.baseUrl) !== PEGA_BASE_URL
+  ).map((item) => ({
     ...item,
     status: item.status === 'CONFIGURED' ? 'DEGRADED' : (item.status || 'NOT_CONFIGURED'),
     hasCredential: Boolean(secrets.values[item.id]),
