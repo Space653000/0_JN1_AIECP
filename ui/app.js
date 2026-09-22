@@ -271,11 +271,11 @@ function loadLoopConfig() {
 }
 
 const HARNESS_AGENT_PROVIDER = Object.freeze({
-  'claude-code': { id: 'claude', roles: ['planner', 'reviewer'] },
-  'codex-cli': { id: 'codex', roles: ['builder'] },
-  'gemini-cli': { id: 'gemini', roles: ['planner', 'builder', 'reviewer'] },
-  'opencode': { id: 'opencode', roles: ['planner', 'builder', 'reviewer'] },
-  'ollama': { id: 'ollama', roles: ['planner', 'reviewer'] }
+  'claude-code': { id: 'claude', roles: ['planner', 'reviewer'], network: true },
+  'codex-cli': { id: 'codex', roles: ['builder'], network: false },
+  'gemini-cli': { id: 'gemini', roles: ['planner', 'reviewer'], network: true },
+  'opencode': { id: 'opencode', roles: ['planner', 'builder', 'reviewer'], network: true },
+  'ollama': { id: 'ollama', roles: ['planner', 'reviewer'], network: false }
 });
 
 function harnessProviderChoices(role) {
@@ -283,12 +283,12 @@ function harnessProviderChoices(role) {
   for (const agent of state.agents || []) {
     const mapped = HARNESS_AGENT_PROVIDER[agent.id];
     if (!mapped || !mapped.roles.includes(role) || !agent.available) continue;
-    choices.push({ id: mapped.id, label: agent.name, kind: agent.kind || 'cli', hasCredential: false });
+    choices.push({ id: mapped.id, label: agent.name, kind: agent.kind || 'cli', hasCredential: false, network: Boolean(mapped.network) });
   }
   for (const provider of state.providers || []) {
     if (!provider || provider.id === 'chatgpt-web' || provider.kind === 'remote-mcp') continue;
     if (!Array.isArray(provider.roles) || !provider.roles.includes(role)) continue;
-    choices.push({ id: provider.id, label: provider.name, kind: provider.kind, hasCredential: Boolean(provider.hasCredential), defaultModel: provider.defaultModel || '' });
+    choices.push({ id: provider.id, label: provider.name, kind: provider.kind, hasCredential: Boolean(provider.hasCredential), defaultModel: provider.defaultModel || '', network: ['api','local'].includes(provider.kind) });
   }
   const seen = new Set();
   return choices.filter((item) => !seen.has(item.id) && seen.add(item.id));
@@ -717,11 +717,26 @@ async function startHarness() {
   const reviewerProvider = $('#harnessReviewerProvider')?.value || '';
   if (!plannerProvider || !builderProvider || !reviewerProvider) { toast('Planner, Builder and Reviewer providers must all be available.', 'error'); return; }
 
-  const selectedIds = new Set([plannerProvider, builderProvider, reviewerProvider]);
+  const plannerModel = $('#harnessPlannerModel')?.value.trim() || '';
+  const builderModel = $('#harnessBuilderModel')?.value.trim() || '';
+  const reviewerModel = $('#harnessReviewerModel')?.value.trim() || '';
+  const roleSelections = [
+    { role: 'planner', provider: plannerProvider, model: plannerModel },
+    { role: 'builder', provider: builderProvider, model: builderModel },
+    { role: 'reviewer', provider: reviewerProvider, model: reviewerModel }
+  ];
+  const localModel = (model) => /^(?:ollama|local|lmstudio|llamacpp)\//i.test(model || '');
+  const selectedIds = new Set(roleSelections.map((item) => item.provider));
   const selectedCustom = (state.providers || []).filter((provider) => selectedIds.has(provider.id));
-  const needsNetwork = selectedCustom.some((provider) => ['api', 'local'].includes(provider.kind));
+  const customNeedsNetwork = selectedCustom.some((provider) => ['api', 'local'].includes(provider.kind));
+  const builtInNeedsNetwork = roleSelections.some((selection) => {
+    const info = [...Object.values(HARNESS_AGENT_PROVIDER)].find((item) => item.id === selection.provider);
+    if (!info?.network) return false;
+    return !(selection.provider === 'opencode' && localModel(selection.model));
+  });
+  const needsNetwork = customNeedsNetwork || builtInNeedsNetwork;
   const needsCredential = selectedCustom.some((provider) => provider.hasCredential);
-  if (needsNetwork && !confirm('This Harness run will send prompts to the selected configured provider endpoint. Allow network access for this run?')) return;
+  if (needsNetwork && !confirm('This Harness run will allow the selected cloud-backed CLI/API providers to use network access for model inference. Local worktree/tool network remains separately restricted. Allow for this run?')) return;
   if (needsCredential && !confirm('This Harness run will use an OS-protected provider credential for the selected endpoint. Allow credential use for this run?')) return;
 
   const config = {
@@ -729,9 +744,9 @@ async function startHarness() {
     maxIterations: Math.max(1, Math.min(5, Number($('#loopIterations')?.value || 3))),
     checkpointEvery: Math.max(1, Math.min(10, Number($('#loopCheckpoint')?.value || 2))),
     plannerProvider, builderProvider, reviewerProvider,
-    plannerModel: $('#harnessPlannerModel')?.value.trim() || '',
-    builderModel: $('#harnessBuilderModel')?.value.trim() || '',
-    reviewerModel: $('#harnessReviewerModel')?.value.trim() || ''
+    plannerModel,
+    builderModel,
+    reviewerModel
   };
   localStorage.setItem('aecp-goal-loop', JSON.stringify(config));
 
