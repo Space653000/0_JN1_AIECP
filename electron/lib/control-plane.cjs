@@ -159,10 +159,10 @@ class ControlPlane {
 
   async recover(){
     for(const run of Object.values(this.state.runs||{})){
-      if(run.state==='RUNNING' && !this.controllers.has(run.id)){
-        run.state='PAUSED'; run.recovery={reason:'process-restart',at:now()};
+      if(['RUNNING','QUEUED'].includes(run.state) && !this.controllers.has(run.id)){
+        run.state='PAUSED';
+        run.recovery={reason:'process-restart',at:now(),requiresExplicitResume:true};
       }
-      if(run.state==='PAUSED' && run.recovery?.reason==='process-restart' && run.autoResume){ run.state='QUEUED'; run.recovery.resumedAt=now(); }
       for(const taskId of run.taskIds||[]){
         const task=this.state.tasks[taskId];
         if(!task||TERMINAL.has(task.state)) continue;
