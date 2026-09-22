@@ -281,7 +281,7 @@ Uses detected local/CLI worker
 Requires supported ChatGPT workspace + MCP tunnel
 ```
 
-Never label E3 as available merely because a local MCP server exists. The end-to-end connector/tunnel health check must pass.
+Never label E3 as available merely because a local MCP server exists **or because a generic Remote MCP endpoint responds successfully**. Endpoint reachability is only one diagnostic. E3 becomes Ready only after the complete Official Full MCP acceptance gate passes against a supported ChatGPT workspace: connector/tunnel health, read tool, policy-gated write tool, same-task result return, disconnected AECP fallback, and no ChatGPT DOM automation. Until that external/product evidence exists, the current UI keeps E3 Not ready and does not auto-recommend it.
 
 ---
 
