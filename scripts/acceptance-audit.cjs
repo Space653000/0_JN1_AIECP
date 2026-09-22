@@ -35,6 +35,8 @@ const requiredFiles=[
  ['electron-main','electron/main.cjs'],
  ['release-workflow','.github/workflows/release.yml'],
  ['packaging-workflow','.github/workflows/ci.yml'],
+ ['store-workflow','.github/workflows/store-package.yml'],
+ ['store-validator','scripts/validate-store-package.ps1'],
  ['universal-bootstrap-source','release/universal-bootstrap/Program.cs'],
  ['universal-bootstrap-project','release/universal-bootstrap/UniversalBootstrap.csproj'],
  ['update-state','electron/lib/update-state.cjs'],
@@ -129,8 +131,29 @@ const staticInvariants=[
   {label:'uninstall verification',re:/still exists after (?:universal bootstrap )?uninstall/}
  ]),
  invariant('release-publication-gate','.github/workflows/release.yml',[
-  {label:'release smoke gate',re:/needs:\s*\[build-fallback, build-auto, build-universal, smoke-install, smoke-universal\]/},
-  {label:'SHA256 generation',re:/Get-FileHash.*SHA256/}
+  {label:'release verify job',re:/^  verify:$/m},
+  {label:'x64 ARM64 smoke',re:/smoke-install:[\s\S]*windows-11-arm/},
+  {label:'universal smoke',re:/smoke-universal:[\s\S]*windows-11-arm/},
+  {label:'upgrade rollback smoke',re:/smoke-upgrade-rollback:[\s\S]*0\.2\.99/},
+  {label:'Store dry-run package',re:/build-store-test:[\s\S]*validate-store-package\.ps1/},
+  {label:'release provenance',re:/aecp\.release-provenance\/v1/},
+  {label:'SHA256 generation',re:/Get-FileHash.*SHA256/},
+  {label:'tag publication after provenance',re:/publish-release:[\s\S]*needs:\s+provenance/}
+ ]),
+ invariant('store-software-lane','.github/workflows/store-package.yml',[
+  {label:'owner identity input',re:/identity_name:/},
+  {label:'owner publisher input',re:/publisher:/},
+  {label:'private audience acknowledgement',re:/private_audience_ack:/},
+  {label:'owner Store build',re:/--win[\s\S]*appx/},
+  {label:'manifest validator',re:/validate-store-package\.ps1/},
+  {label:'Store provenance',re:/aecp\.store-provenance\/v1/},
+  {label:'no fake Store submission',re:/submittedToPartnerCenter=\$false/}
+ ]),
+ invariant('store-package-config','package.json',[
+  {label:'AppX config',re:/"appx"\s*:/},
+  {label:'x64 Store script',re:/"dist:store:x64"/},
+  {label:'ARM64 Store script',re:/"dist:store:arm64"/},
+  {label:'Traditional Chinese Store language',re:/"zh-TW"/}
  ]),
  invariant('provider-local-e2e','tests/provider-router.e2e.test.cjs',[
   {label:'fixed local-command E2E',re:/local-command/},
@@ -187,7 +210,7 @@ function run(){
   exactCommitCIGates:[
    'AECP CI must succeed on the exact commit',
    'AECP Security must succeed on the exact commit',
-   'AECP Packaging must build x64/ARM64, build the universal bootstrap, and pass architecture-specific plus universal clean Windows install/uninstall smoke jobs on the exact commit'
+   'AECP Packaging must build x64/ARM64/universal installers, build and validate x64/ARM64 Store AppX packages, pass install/uninstall smoke, and pass real installer upgrade/rollback smoke on the exact commit'
   ],
   ownerExternalGates:[
    'production Authenticode/code-signing certificate and trusted provenance',
