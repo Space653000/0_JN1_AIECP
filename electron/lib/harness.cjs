@@ -454,6 +454,11 @@ async function runHarness(options) {
     return record;
   } catch (e) {
     if (e?.name === 'AbortError' || signal?.aborted) { record.error = 'Cancelled'; await transition('CANCELLED'); }
+    else if (e?.code === 'APPROVAL_REQUIRED') {
+      record.error = text(e?.message || e, 4000);
+      record.requiredAction = e?.policy?.action || e?.action || null;
+      await transition('HUMAN_REQUIRED', { reason: 'policy-approval-required', action: record.requiredAction, error: record.error });
+    }
     else if (['PROVIDER_CALL_BUDGET_EXHAUSTED','FAILED_ATTEMPT_BUDGET_EXHAUSTED','WALL_CLOCK_BUDGET_EXHAUSTED','PATCH_BUDGET_EXHAUSTED','CHANGED_FILE_BUDGET_EXHAUSTED'].includes(e?.code)) {
       record.error = text(e?.message || e, 4000);
       const activeTask=(record.tasks||[]).find(task=>!['DONE','HUMAN_REQUIRED','BLOCKED'].includes(task.state));
