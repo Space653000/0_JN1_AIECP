@@ -307,6 +307,8 @@ async function latestAutonomyRecord() {
     if (record) {
       if (['PREPARING', 'RUNNING', 'VERIFYING'].includes(record.state) && !autonomyController) {
         record.state = 'INTERRUPTED';
+        record.interruptedAt = new Date().toISOString();
+        await writeJsonAtomic(path.join(root, name, 'run.json'), redactSensitive(record));
       }
       autonomyRecord = record;
       return record;
@@ -400,12 +402,17 @@ async function startAutonomy(payload) {
     verificationProfile: spec.verificationProfile,
     goal: spec.goal,
     done: spec.done,
+    spec,
     maxIterations: spec.maxIterations,
+    maxTurns: spec.maxTurns,
+    maxOutputBytes: spec.maxOutputBytes,
+    maxPatchBytes: spec.maxPatchBytes,
+    maxChangedFiles: spec.maxChangedFiles,
     currentIteration: 0,
     startedAt: new Date().toISOString()
   };
   await fsp.mkdir(runRoot, { recursive: true });
-  await writeJsonAtomic(path.join(runRoot, 'run.json'), autonomyRecord);
+  await writeJsonAtomic(path.join(runRoot, 'run.json'), redactSensitive(autonomyRecord));
 
   void runBoundedAutonomy({
     runId,
@@ -449,6 +456,58 @@ async function cancelAutonomy() {
   if (!autonomyController) return latestAutonomyRecord();
   autonomyController.abort();
   return { ...(await latestAutonomyRecord()), state: 'CANCELLING' };
+}
+
+async function resumeAutonomy() {
+  if (autonomyController) throw new Error('An autonomous run is already active.');
+  const state = await loadState();
+  const workspace = getCurrentWorkspace(state);
+  const interrupted = await latestAutonomyRecord();
+  if (!workspace || !interrupted) throw new Error('No interrupted autonomous run is available.');
+  if (interrupted.state !== 'INTERRUPTED') throw new Error('Only an interrupted autonomous run can resume.');
+  if (!interrupted.spec) throw new Error('This older interrupted run has no crash-safe resume metadata.');
+  if (!(await samePhysicalPath(workspace.rootPath, interrupted.sourceRoot))) throw new Error('The active Workspace is different from the interrupted run.');
+  const resumeRecord = JSON.parse(JSON.stringify(interrupted));
+  const controller = new AbortController();
+  autonomyController = controller;
+  autonomyRecord = { ...interrupted, state: 'PREPARING', resuming: true };
+
+  void runBoundedAutonomy({
+    runId: interrupted.id,
+    sourceRoot: interrupted.sourceRoot,
+    runRoot: interrupted.runRoot,
+    spec: interrupted.spec,
+    resumeRecord,
+    signal: controller.signal,
+    onEvent: async (event) => {
+      const current = await readJson(path.join(interrupted.runRoot, 'run.json'), autonomyRecord);
+      autonomyRecord = current || autonomyRecord;
+      sendAutonomyEvent(event);
+    }
+  }).then((record) => {
+    autonomyRecord = record;
+    sendAutonomyEvent({
+      schema: 'aecp.autonomy.event/v1',
+      runId: record.id,
+      at: new Date().toISOString(),
+      type: 'run.final',
+      state: record.state,
+      data: { worktree: record.worktree || null, patchFile: record.patchFile || null, resumed: true }
+    });
+  }).catch((error) => {
+    autonomyRecord = { ...autonomyRecord, state: 'FAILED', error: String(error?.message || error) };
+    sendAutonomyEvent({
+      schema: 'aecp.autonomy.event/v1',
+      runId: interrupted.id,
+      at: new Date().toISOString(),
+      type: 'run.failed',
+      state: 'FAILED',
+      data: { error: String(error?.message || error), resumed: true }
+    });
+  }).finally(() => {
+    if (autonomyController === controller) autonomyController = null;
+  });
+  return autonomyRecord;
 }
 
 async function openAutonomyWorktree() {
@@ -1330,6 +1389,7 @@ function registerIpc() {
   ipcMain.handle('autonomy:options', autonomyOptions);
   ipcMain.handle('autonomy:status', latestAutonomyRecord);
   ipcMain.handle('autonomy:start', async (_event, payload) => startAutonomy(payload));
+  ipcMain.handle('autonomy:resume', resumeAutonomy);
   ipcMain.handle('autonomy:cancel', cancelAutonomy);
   ipcMain.handle('autonomy:open-worktree', openAutonomyWorktree);
   ipcMain.handle('autonomy:apply', applyAutonomy);
