@@ -83,3 +83,15 @@ test('Engineering Settings exposes canonical policy and a read-only adapter capa
   assert.match(preload,/getAdapterCapabilityMatrix/);
   assert.doesNotMatch(app,/adapterMatrix[^\n]{0,120}(?:save|write|grant)/i);
 });
+
+
+test('Graph edge editing routes only through governed controls',()=>{
+  const app=read('ui/app.js');
+  assert.match(app,/data-action="edit-workspace-policy"/);
+  assert.match(app,/data-action="add-repository-edge"/);
+  assert.match(app,/data-action="manage-provider-edges"/);
+  assert.match(app,/await addRepository\(\)/);
+  assert.match(app,/await openProviderSettings\(\)/);
+  assert.match(app,/Graph mutations are governed/);
+  assert.doesNotMatch(app,/data-action="graph-(?:write|shell|grant|delete)"/);
+});
