@@ -101,3 +101,78 @@ test('ControlPlane rejects a provider that cannot serve the requested role', asy
     await fs.rm(root, { recursive: true, force: true });
   }
 });
+
+test('ControlPlane queues a run-level provider approval before any network-backed mission planning', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'aecp-provider-approval-'));
+  const workspace = path.join(root, 'workspace');
+  await fs.mkdir(workspace, { recursive: true });
+  const router = {
+    resolve(role, provider) {
+      const allowed = { planner: ['cloud-plan'], builder: ['local-build'], reviewer: ['cloud-review'] };
+      return allowed[role]?.includes(provider) ? { id: provider } : null;
+    },
+    capabilities(role, provider) {
+      if (provider === 'cloud-plan' || provider === 'cloud-review') return { process: true, network: true, credential: false };
+      if (provider === 'local-build') return { process: true, network: false, credential: false };
+      return null;
+    },
+    async execute() { throw new Error('Provider execution must not occur before approval.'); }
+  };
+  const cp = new ControlPlane({ rootDir: path.join(root, 'runtime'), providerRouter: router });
+  await cp.init();
+  try {
+    const run = await cp.createMission({
+      goal: 'Require governed provider access',
+      done: 'No provider executes before approval',
+      sourceRoot: workspace,
+      autoStart: true,
+      providers: { planner: 'cloud-plan', builder: 'local-build', reviewer: 'cloud-review' }
+    });
+    assert.equal(run.state, 'HUMAN_REQUIRED');
+    assert.equal(run.waitingFor, 'NETWORK');
+    assert.equal(run.taskIds.length, 0);
+    const waiting = Object.values(cp.state.approvals).filter((a) => a.runId === run.id && a.state === 'WAITING');
+    assert.equal(waiting.length, 1);
+    assert.equal(waiting[0].action, 'NETWORK');
+    assert.equal(waiting[0].taskId, null);
+  } finally {
+    await cp.shutdown();
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+test('rejecting a run-level provider approval blocks the mission without provider execution', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'aecp-provider-reject-'));
+  const workspace = path.join(root, 'workspace');
+  await fs.mkdir(workspace, { recursive: true });
+  const router = {
+    resolve(role, provider) {
+      const allowed = { planner: ['cloud-plan'], builder: ['local-build'], reviewer: ['cloud-review'] };
+      return allowed[role]?.includes(provider) ? { id: provider } : null;
+    },
+    capabilities(_role, provider) {
+      return provider.startsWith('cloud-')
+        ? { process: true, network: true, credential: false }
+        : { process: true, network: false, credential: false };
+    },
+    async execute() { throw new Error('Provider execution must not occur after rejection.'); }
+  };
+  const cp = new ControlPlane({ rootDir: path.join(root, 'runtime'), providerRouter: router });
+  await cp.init();
+  try {
+    const run = await cp.createMission({
+      goal: 'Reject model network access',
+      done: 'Mission is blocked',
+      sourceRoot: workspace,
+      autoStart: true,
+      providers: { planner: 'cloud-plan', builder: 'local-build', reviewer: 'cloud-review' }
+    });
+    const approval = Object.values(cp.state.approvals).find((a) => a.runId === run.id && a.state === 'WAITING');
+    await cp.reject(approval.id, { by: 'human', note: 'No network for this mission' });
+    assert.equal((await cp.getRun(run.id)).state, 'BLOCKED');
+    assert.equal((await cp.getRun(run.id)).blockReason, 'No network for this mission');
+  } finally {
+    await cp.shutdown();
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
