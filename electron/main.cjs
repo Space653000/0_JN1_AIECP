@@ -1044,6 +1044,7 @@ async function saveProvider(payload) {
   let isLoopback = false;
   if (kind !== 'local-command') {
     try { parsedUrl = new URL(baseUrl); } catch { throw new Error('Provider Base URL is invalid.'); }
+    if (parsedUrl.username || parsedUrl.password) throw new Error('Provider Base URL must not contain embedded credentials.');
     isLoopback = ['localhost', '127.0.0.1', '::1'].includes(parsedUrl.hostname);
     if (parsedUrl.protocol !== 'https:' && !(parsedUrl.protocol === 'http:' && isLoopback)) throw new Error('Provider URL must use HTTPS, except localhost development endpoints.');
     if (kind === 'local' && !isLoopback) throw new Error('Local provider URL must resolve to loopback.');
