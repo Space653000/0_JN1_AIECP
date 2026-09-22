@@ -45,6 +45,8 @@ contextBridge.exposeInMainWorld('aecp', Object.freeze({
   inspectWindowUi: (pid, maxNodes=120) => call('desktop:inspect-ui', { pid, maxNodes }),
   listBrowserWindows: () => call('desktop:list-browser-windows'),
   dockBrowserWindow: (pid, side) => call('desktop:dock-browser', { pid, side }),
+  exportBackup: () => call('backup:export'),
+  restoreBackup: () => call('backup:restore'),
   getGitHubConnection: () => call('github:connection'),
   connectGitHub: () => call('github:connect'),
   checkUpdate: () => call('update:check'),
