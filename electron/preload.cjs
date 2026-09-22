@@ -40,6 +40,8 @@ contextBridge.exposeInMainWorld('aecp', Object.freeze({
   copyMcpConnection: () => call('mcp:copy-connection'),
   listAgents: () => call('agents:list'),
   launchAgent: (agentId) => call('agents:launch', { agentId }),
+  listWindows: () => call('desktop:list-windows'),
+  inspectWindowUi: (pid, maxNodes=120) => call('desktop:inspect-ui', { pid, maxNodes }),
   listBrowserWindows: () => call('desktop:list-browser-windows'),
   dockBrowserWindow: (pid, side) => call('desktop:dock-browser', { pid, side }),
   getGitHubConnection: () => call('github:connection'),
