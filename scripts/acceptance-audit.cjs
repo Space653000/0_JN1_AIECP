@@ -137,6 +137,23 @@ const staticInvariants=[
   {label:'resume function',re:/async function resumeAutonomy/}
  ]),
 
+ invariant('workspace-policy-editor','electron/lib/workspace-policy.cjs',[
+  {label:'canonical policy schema',re:/aecp\.workspace-policy\/v1/},
+  {label:'RED approvals forced',re:/ALWAYS_APPROVAL_ACTIONS/},
+  {label:'no RED auto ceiling',re:/\['GREEN','YELLOW'\]/},
+  {label:'canonical compiler',re:/function compileWorkspacePolicy/}
+ ]),
+ invariant('workspace-policy-runtime','electron/main.cjs',[
+  {label:'policy save IPC',re:/policy:save/},
+  {label:'Harness policy compilation',re:/new SecurityPolicy\(\{ allowRoots: \[workspace\.rootPath, runRoot\], \.\.\.compileWorkspacePolicy/},
+  {label:'Control Plane policy update',re:/controlPlane\?\.setPolicyConfig/},
+  {label:'adapter matrix IPC',re:/security:adapter-matrix/}
+ ]),
+ invariant('workspace-policy-ui','ui/app.js',[
+  {label:'policy renderer',re:/renderPolicySettings/},
+  {label:'capability matrix renderer',re:/renderAdapterMatrix/},
+  {label:'policy save action',re:/saveWorkspacePolicySettings/}
+ ]),
  invariant('local-data-governance','electron/lib/local-data-manager.cjs',[
   {label:'clear evidence',re:/async function clearEvidence/},
   {label:'remove Workspace binding',re:/function removeWorkspaceBinding/},
