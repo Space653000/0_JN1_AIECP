@@ -97,7 +97,7 @@ Suggested layout:
       └─ result.json
 ```
 
-Writes use temp-file + rename where practical to reduce corruption risk.
+Writes use temp-file + rename where practical to reduce corruption risk. Provider usage telemetry uses a serialized write queue with unique temp files to avoid concurrent-writer races.
 
 ## 4. Migration
 
@@ -105,12 +105,14 @@ Every persisted document includes `schemaVersion`. Future releases apply explici
 
 ## 5. Data deletion/export
 
-Settings must eventually provide:
-- export configuration (without secrets by default)
-- clear task evidence
-- remove Workspace binding (does not delete original Workspace files)
-- delete stored credentials
-- reset AECP local state
+Settings provides:
+- export configuration/state/runtime/evidence backups with credentials excluded by default;
+- clear AECP task/runtime evidence;
+- remove the current Workspace binding without deleting or modifying original Workspace files;
+- delete stored AECP credentials and the Local MCP bearer;
+- reset AECP active local state while preserving pre-restore safety backups.
+
+Destructive local-data operations require native confirmation and are blocked while Harness, bounded Autonomy, or active Control Plane work is running. The data manager operates only on explicit AECP-owned paths under the application data root.
 
 ## 6. Graph semantics
 
