@@ -90,13 +90,11 @@ function runProcess(command, args, options = {}) {
 function assertProcessPolicy(policy,cwd,approved=false){ if(policy?.assert) policy.assert({action:'EXECUTE',path:cwd,approved}); }
 
 async function invokeRole({router,role,prompt,cwd,model,providerId,policy,signal,timeoutMs,executionApproved=false,networkApproved=false,credentialApproved=false}){
-  const capabilities=router.capabilities(role,providerId);
+  const capabilities=router.capabilities(role,providerId,{model});
   if(!capabilities) throw new Error(`No provider for role: ${role}`);
   if(capabilities.process) assertProcessPolicy(policy,cwd,executionApproved);
-  else {
-    if(capabilities.network && policy?.assert) policy.assert({action:'NETWORK',path:cwd,approved:networkApproved});
-    if(capabilities.credential && policy?.assert) policy.assert({action:'CREDENTIAL',path:cwd,approved:credentialApproved});
-  }
+  if(capabilities.network && policy?.assert) policy.assert({action:'NETWORK',path:cwd,approved:networkApproved});
+  if(capabilities.credential && policy?.assert) policy.assert({action:'CREDENTIAL',path:cwd,approved:credentialApproved});
   return router.execute(role,prompt,{provider:providerId,model,cwd,signal,timeoutMs,networkApproved,credentialApproved,maxOutputBytes:MAX_OUTPUT});
 }
 
