@@ -15,7 +15,7 @@ const phaseEvidence={
   'P2':['electron/lib/security-policy.cjs','tests/path-safety.test.cjs','tests/harness.test.cjs','tests/security-recovery-matrix.test.cjs'],
   'P3':['electron/lib/resource-manager.cjs','electron/lib/lock-manager.cjs','tests/control-plane-infrastructure.test.cjs','tests/autonomy.test.cjs'],
   'P4':['electron/lib/provider-router.cjs','tests/provider-router.test.cjs','tests/provider-integration.test.cjs','tests/provider-network.e2e.test.cjs'],
-  'P4.5':['ui/app.js','tests/human-controls.test.cjs'],
+  'P4.5':['ui/app.js','electron/lib/execution-contract.cjs','tests/human-controls.test.cjs','tests/execution-contract.test.cjs'],
   'P4.6':['electron/lib/autonomy.cjs','tests/autonomy.test.cjs'],
   'P4.7':['electron/lib/control-plane.cjs','electron/lib/harness.cjs','tests/canonical-loop.e2e.test.cjs','tests/control-plane.test.cjs','tests/event-projection.test.cjs','tests/delivery-reconciliation.test.cjs'],
   'P5':['electron/lib/windows-desktop-adapter.cjs','electron/lib/windows-ui-adapter.cjs','electron/lib/python-worker.cjs','tests/windows-desktop-adapter.test.cjs','tests/windows-ui-adapter.test.cjs','tests/python-worker.test.cjs'],
@@ -49,7 +49,9 @@ const phaseAssertions={
   'P4.5':[
     ['tests/human-controls.test.cjs',/Execution Mode recommendation is factual/,'execution mode readiness'],
     ['ui/app.js',/Official Full MCP/,'Full MCP mode card'],
-    ['ui/app.js',/Local Autonomous/,'Local Autonomous mode card']
+    ['ui/app.js',/Local Autonomous/,'Local Autonomous mode card'],
+    ['electron/lib/execution-contract.cjs',/aecp\.execution-contract\/v1/,'canonical cross-mode execution contract'],
+    ['tests/execution-contract.test.cjs',/Safe Bridge Autonomy Harness and Control Plane/,'cross-mode contract integration']
   ],
   'P4.6':[
     ['tests/autonomy.test.cjs',/isolates writes in worktree/,'worktree isolation'],
