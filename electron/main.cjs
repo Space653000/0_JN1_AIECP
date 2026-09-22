@@ -473,7 +473,7 @@ async function applyAutonomy() {
   record.appliedAt = result.applied ? new Date().toISOString() : null;
   record.applyResult = result;
   autonomyRecord = record;
-  await writeJsonAtomic(path.join(record.runRoot, 'run.json'), record);
+  await writeJsonAtomic(path.join(record.runRoot, 'run.json'), redactSensitive(record));
   return record;
 }
 
