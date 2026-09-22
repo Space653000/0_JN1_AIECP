@@ -775,7 +775,7 @@ The model supplies intelligence. The Harness supplies discipline. Git supplies h
 
 The Planner → Queue → Builder → Verify → Reviewer loop is now a real bounded runtime rather than a design-only concept. It has durable task state, leases, heartbeat, recovery, evidence, policy/locks, GitHub delivery and CI feedback. CI failure can automatically return a task to bounded rework; CI success can advance it toward a human approval gate.
 
-The repository-verifiable hardening items listed above are implemented: signed/idempotent external events, crash-safe bounded resume, repository-per-task scheduling, explicit adapter policy audit, canonical deterministic E2E and Windows release/install/rollback evidence. Remaining claims are limited to real provider/environment evidence and owner-controlled production trust/deployment gates.
+The repository-verifiable hardening items listed above are implemented: signed/idempotent external events, crash-safe bounded resume, repository-per-task scheduling, explicit adapter policy audit, canonical deterministic E2E and Windows release/install/rollback evidence. Mission-level hard budgets are durable Control Plane fields and are propagated into each Harness execution: finite provider calls, failed attempts, no-progress attempts, optional wall-clock time, output limits, patch bytes, changed-file count, task count, iteration count and process timeouts. The Command Center exposes the operator-facing budget controls rather than hiding them in model prompts. Remaining claims are limited to real provider/environment evidence and owner-controlled production trust/deployment gates.
 
 
 ## Runtime closure update — 2026-09-19
