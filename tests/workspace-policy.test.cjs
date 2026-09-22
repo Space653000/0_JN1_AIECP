@@ -73,7 +73,7 @@ test('Engineering Settings exposes canonical policy and a read-only adapter capa
   const preload=read('electron/preload.cjs');
   assert.match(html,/Workspace Policy/);
   assert.match(html,/Adapter Capability Matrix/);
-  assert.match(html,/data-policy-action/);
+  assert.match(app,/data-policy-action/);
   assert.match(app,/renderPolicySettings/);
   assert.match(app,/renderAdapterMatrix/);
   assert.match(app,/saveWorkspacePolicySettings/);
