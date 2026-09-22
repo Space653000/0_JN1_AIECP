@@ -14,6 +14,7 @@ const { SecurityPolicy } = require('./lib/security-policy.cjs');
 const { migrateState } = require('./lib/state-migration.cjs');
 const { recommendNextAction } = require('./lib/guidance.cjs');
 const { WindowsDesktopAdapter } = require('./lib/windows-desktop-adapter.cjs');
+const { writeBackup, stageRestore, applyPendingRestore } = require('./lib/backup-manager.cjs');
 const { WindowsUiAdapter } = require('./lib/windows-ui-adapter.cjs');
 
 const { parseCommandCard, makeTaskId, makeResultCapsule, hashJson } = require('./lib/protocol.cjs');
@@ -994,6 +995,41 @@ async function deleteProvider(providerId) {
   return true;
 }
 
+async function exportBackup() {
+  const stamp=new Date().toISOString().replace(/[:.]/g,'-');
+  const chosen=await dialog.showSaveDialog(mainWindow,{
+    title:'Export AECP Backup',
+    defaultPath:`AECP-Backup-${stamp}.aecp-backup.json`,
+    filters:[{name:'AECP Backup',extensions:['json']}]
+  });
+  if(chosen.canceled||!chosen.filePath)return null;
+  return writeBackup(dataPath(),chosen.filePath,{appVersion:app.getVersion()});
+}
+
+async function restoreBackup() {
+  const chosen=await dialog.showOpenDialog(mainWindow,{
+    title:'Restore AECP Backup',
+    properties:['openFile'],
+    filters:[{name:'AECP Backup',extensions:['json']}]
+  });
+  if(chosen.canceled||!chosen.filePaths[0])return null;
+  const approval=await dialog.showMessageBox(mainWindow,{
+    type:'warning',
+    buttons:['Cancel','Validate, stage & restart'],
+    defaultId:0,
+    cancelId:0,
+    noLink:true,
+    title:'Restore AECP backup?',
+    message:'Restore AECP local state from this backup and restart the app?',
+    detail:'The backup is hash-verified and staged first. Provider credentials are intentionally excluded and will not be overwritten. A pre-restore copy is retained locally.'
+  });
+  if(approval.response!==1)return null;
+  const request=await stageRestore(dataPath(),chosen.filePaths[0]);
+  app.relaunch();
+  app.exit(0);
+  return request;
+}
+
 function registerIpc() {
   ipcMain.handle('app:info', async () => ({
     name: 'AI Engineering Control Plane',
@@ -1015,6 +1051,9 @@ function registerIpc() {
       harnessState: harnessRecord?.state || null
     });
   });
+
+  ipcMain.handle('backup:export', exportBackup);
+  ipcMain.handle('backup:restore', restoreBackup);
 
   ipcMain.handle('state:get', async () => {
     const state = await loadState();
@@ -1251,6 +1290,7 @@ async function createMainWindow() {
 
 app.whenReady().then(async () => {
   await ensureDataDirs();
+  await applyPendingRestore(dataPath());
   await reconcileUpdateTransaction();
   if (process.argv.includes('--smoke-test')) {
     process.stdout.write(JSON.stringify({ ok:true, version:app.getVersion(), arch:process.arch })+'\n');
