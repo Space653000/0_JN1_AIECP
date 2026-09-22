@@ -85,7 +85,16 @@ RED:
 
 ## 7. Concurrency
 
-Write lock granularity: repository. Read tasks can share. Cross-repo tasks acquire all write locks before mutation or fail fast with `BLOCKED`.
+Write lock/resource ownership is enforced by Harness/Resource Manager/Lock Manager. Read tasks may share. Cross-repo tasks acquire required write locks in deterministic order or fail fast with `BLOCKED`.
+
+For the OFFICIAL/PEGA Multi-Worker extension:
+
+- two independent tasks may run concurrently in the same repository only through **different isolated Git worktrees**;
+- `codex-official` and `codex-pega` must never be assigned the same mutating worktree concurrently;
+- Worker identity does not weaken repository locking;
+- each task records its Worker, branch, base commit and worktree;
+- cancelling one task removes only that task's runtime/lock ownership;
+- STOP ALL may revoke all active Worker leases.
 
 ## 8. GitHub project/issue relationship
 
