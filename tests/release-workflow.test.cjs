@@ -9,9 +9,9 @@ const root = path.resolve(__dirname, '..');
 
 test('release workflow has valid universal-build dependency references', () => {
   const workflow = fs.readFileSync(path.join(root, '.github/workflows/release.yml'), 'utf8');
-  assert.match(workflow, /build-universal:\n\s+needs:\s+\[build-fallback\]/);
+  assert.match(workflow, /build-universal:\r?\n\s+needs:\s+\[build-fallback\]/);
   assert.match(workflow, /smoke-install:[\s\S]*windows-11-arm/);
-  assert.match(workflow, /publish-release:\n\s+if: startsWith\(github\.ref, 'refs\/tags\/v'\)\n\s+needs:\s+\[build-fallback, build-auto, build-universal, smoke-install\]/);
+  assert.match(workflow, /publish-release:\r?\n\s+if: startsWith\(github\.ref, 'refs\/tags\/v'\)\r?\n\s+needs:\s+\[build-fallback, build-auto, build-universal, smoke-install\]/);
   assert.doesNotMatch(workflow, /needs:\s*\[[^\]]*build-x64[^\]]*\]/);
   assert.doesNotMatch(workflow, /needs:\s*\[[^\]]*build-arm64[^\]]*\]/);
 });
