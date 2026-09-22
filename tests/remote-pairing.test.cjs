@@ -92,3 +92,55 @@ test('TLS remote gateway serves paired read-only status over HTTPS', async (t) =
   await gateway.stop();
  }
 });
+
+test('approval-only paired device can decide existing approvals but cannot submit tasks', async () => {
+ const decisions=[];
+ const gateway=new RemoteGateway({
+  status:async()=>({runs:[],tasks:[],approvals:[{id:'a1',state:'WAITING'}]}),
+  replay:async()=>[],
+  approve:async(id,ctx)=>{decisions.push({action:'approve',id,ctx});return{id,state:'APPROVED'};},
+  reject:async(id,ctx)=>{decisions.push({action:'reject',id,ctx});return{id,state:'REJECTED'};}
+ });
+ const info=await gateway.start();
+ const http=require('node:http');
+ const request=(pathName,{headers={},method='GET'}={})=>new Promise((resolve,reject)=>{
+  const req=http.request({host:'127.0.0.1',port:info.port,path:pathName,headers,method},res=>{
+   let d='';res.on('data',b=>d+=b);res.on('end',()=>resolve({status:res.statusCode,body:JSON.parse(d)}));
+  });req.on('error',reject);req.end();
+ });
+ try{
+  const readPair=await request('/pair/start?scope=READ_ONLY',{headers:{authorization:'Bearer '+info.token}});
+  const readClaim=await request('/pair/claim?code='+readPair.body.code+'&device=read-phone');
+  const readDenied=await request('/api/approvals/a1/approve',{
+   method:'POST',
+   headers:{authorization:'Bearer '+readClaim.body.token,'x-aecp-request-id':'read-attempt-001'}
+  });
+  assert.equal(readDenied.status,403);
+
+  const approvalPair=await request('/pair/start?scope=APPROVAL_ONLY',{headers:{authorization:'Bearer '+info.token}});
+  const approvalClaim=await request('/pair/claim?code='+approvalPair.body.code+'&device=approval-phone');
+  assert.equal(approvalClaim.body.scope,'APPROVAL_ONLY');
+
+  const missingReplayKey=await request('/api/approvals/a1/approve',{
+   method:'POST',
+   headers:{authorization:'Bearer '+approvalClaim.body.token}
+  });
+  assert.equal(missingReplayKey.status,400);
+
+  const approved=await request('/api/approvals/a1/approve',{
+   method:'POST',
+   headers:{authorization:'Bearer '+approvalClaim.body.token,'x-aecp-request-id':'approve-a1-001'}
+  });
+  assert.equal(approved.status,200);
+  assert.equal(approved.body.approval.state,'APPROVED');
+  assert.equal(decisions[0].ctx.deviceId,'approval-phone');
+
+  const taskWrite=await request('/api/tasks',{
+   method:'POST',
+   headers:{authorization:'Bearer '+approvalClaim.body.token,'x-aecp-request-id':'task-write-001'}
+  });
+  assert.equal(taskWrite.status,405);
+ } finally {
+  await gateway.stop();
+ }
+});
