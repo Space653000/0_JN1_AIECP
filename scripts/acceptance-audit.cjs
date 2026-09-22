@@ -13,6 +13,8 @@ const requiredFiles=[
  ['control-plane','electron/lib/control-plane.cjs'],
  ['harness','electron/lib/harness.cjs'],
  ['security-policy','electron/lib/security-policy.cjs'],
+ ['redaction-test','tests/redaction.test.cjs'],
+ ['redaction','electron/lib/redaction.cjs'],
  ['adapter-security-audit','electron/lib/adapter-security-audit.cjs'],
  ['failure-recovery','electron/lib/failure-recovery.cjs'],
  ['event-ledger','electron/lib/event-ledger.cjs'],
@@ -135,6 +137,18 @@ const staticInvariants=[
   {label:'fail closed incomplete evidence',re:/EVIDENCE_INCOMPLETE/},
   {label:'SHA manifest',re:/evidenceManifest=await this\.evidence\.manifest/},
   {label:'Result Capsule uses manifest',re:/evidence:task\.evidenceManifest\|\|task\.evidence/}
+ ]),
+ invariant('secret-redaction','electron/lib/redaction.cjs',[
+  {label:'Bearer redaction',re:/Bearer\\s\+/},
+  {label:'private-key redaction',re:/PRIVATE KEY/},
+  {label:'provider key redaction',re:/api\[_-\]\?key/},
+  {label:'URL userinfo redaction',re:/https\?:\\\/\\\//},
+  {label:'recursive sanitizer',re:/function redactSensitive/}
+ ]),
+ invariant('secret-redaction-surfaces','tests/redaction.test.cjs',[
+  {label:'Evidence persistence test',re:/EvidenceManager and ContextBus persist redacted content/},
+  {label:'Provider URL credential rejection',re:/provider URLs reject embedded credentials/},
+  {label:'Operational persistence test',re:/all operational persistence surfaces use centralized redaction/}
  ]),
  invariant('canonical-provider-routing','electron/lib/harness.cjs',[
   {label:'ProviderRouter imported',re:/ProviderRouter/},
