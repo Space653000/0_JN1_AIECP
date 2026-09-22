@@ -110,7 +110,7 @@ If the user's OpenAI product/account supports the necessary official MCP capabil
 
 ### Mode C — External API Provider (optional)
 
-A Provider Registry can attach API-backed models later. Keys are OS-protected and referenced by opaque credential IDs.
+The Provider Registry can attach explicitly configured API-backed models through the governed Provider Router. Keys are OS-protected and referenced by opaque credential IDs; live network/credential checks require approval and real provider claims require environment evidence.
 
 ### Mode D — Local Provider (optional)
 
@@ -197,7 +197,7 @@ The stable abstraction is the role, not the vendor. Planner, Builder, Reviewer, 
 
 Canonical loop: `Blueprint → Plan → Task Queue → Worker → Verify → Git/CI → Review → Rework or Accept → Next Task`.
 
-All autonomous loops are bounded by iteration, timeout, permission, verifier and evidence gates.
+All autonomous loops are bounded outside the model by finite iteration/provider-call/failed-attempt/no-progress/output/patch/changed-file budgets, process timeouts, optional wall-clock budget, permission gates, deterministic verifier and evidence gates.
 
 ## 12. Technology direction
 
