@@ -632,7 +632,8 @@ function renderProviders() {
   host.innerHTML = state.providers.map((provider) => {
     const detail = provider.healthDetail ? `<small>${esc(provider.healthDetail)}</small>` : '';
     const usage = `<small>${esc(formatProviderUsage(provider.usage, provider.usageManagedExternally))}</small>`;
-    const controls = `<div class="task-actions"><button class="secondary-button" data-provider-health="${esc(provider.id)}" type="button">Check health</button>${provider.builtIn ? '' : `<button class="secondary-button" data-delete-provider="${esc(provider.id)}" type="button">Remove</button>`}</div>`;
+    const login = provider.id === 'openai-official' ? `<button class="secondary-button" data-worker-login-official type="button">Sign in isolated OFFICIAL</button>` : '';
+    const controls = `<div class="task-actions"><button class="secondary-button" data-provider-health="${esc(provider.id)}" type="button">Check health</button>${login}${provider.builtIn ? '' : `<button class="secondary-button" data-delete-provider="${esc(provider.id)}" type="button">Remove</button>`}</div>`;
     return `<div class="provider-item"><div><strong>${esc(provider.name)}</strong><small>${esc(provider.kind)} · <span class="status ${statusClass(provider.status)}">${esc(provider.status)}</span>${provider.hasCredential ? ' · credential stored' : ''}${provider.defaultModel ? ` · model ${esc(provider.defaultModel)}` : ''}${provider.baseUrl ? ` · ${esc(provider.baseUrl)}` : ''}</small>${usage}${detail}</div>${controls}</div>`;
   }).join('');
 }
@@ -1280,6 +1281,12 @@ function bindEvents() {
     const agentNode = event.target.closest('[data-agent-id]');
     if (agentNode) {
       await launchAgent(agentNode.dataset.agentId);
+      return;
+    }
+    const officialLogin = event.target.closest('[data-worker-login-official]');
+    if (officialLogin) {
+      const result = await safe(() => window.aecp.loginOfficialWorker(), null);
+      if (result?.launched) toast('Opened isolated Codex OFFICIAL login. Complete sign-in in that terminal, then Check health.');
       return;
     }
     const healthNode = event.target.closest('[data-provider-health]');
