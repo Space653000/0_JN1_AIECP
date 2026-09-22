@@ -199,6 +199,258 @@ Canonical loop: `Blueprint → Plan → Task Queue → Worker → Verify → Git
 
 All autonomous loops are bounded outside the model by finite iteration/provider-call/failed-attempt/no-progress/output/patch/changed-file budgets, process timeouts, optional wall-clock budget, permission gates, deterministic verifier and evidence gates.
 
+## 11A. Formal Multi-Worker architecture — one AECP, isolated replaceable workers
+
+This is an extension of the existing Harness-first architecture, not a second control plane and not a Dual Codex GUI design.
+
+### Product decision
+
+The long-term operator experience is:
+
+```text
+AECP
+  ↓
+Harness / Control Plane
+  ├─ Codex OFFICIAL Worker
+  ├─ Codex PEGA Worker
+  ├─ Claude Code Planner / Reviewer
+  └─ Future Provider / Worker
+```
+
+The user opens **one AECP**. AECP owns queueing, dependency resolution, worktree assignment, policy, locks, timeout, retry, cancel, verification, evidence and Git/GitHub delivery. Workers are replaceable execution processes.
+
+### Provider is not Worker
+
+AECP treats these as separate entities:
+
+- **Provider** — model/API/intelligence source and its capability/health/credential contract.
+- **Worker** — a concrete process/runtime identity that receives one governed task using one provider configuration.
+
+A Provider may back multiple Workers. A Worker must have one explicit Provider identity at runtime. Task/Mission/Queue schemas remain provider-neutral.
+
+### Codex OFFICIAL Worker
+
+Canonical identity:
+
+```yaml
+worker_id: codex-official
+worker_name: Codex OFFICIAL
+provider_id: openai-official
+runtime: codex-cli
+```
+
+Required isolation:
+
+- dedicated OS process;
+- dedicated `CODEX_HOME`;
+- dedicated config/auth/session/runtime state;
+- dedicated task/run identity;
+- dedicated task-scoped worktree;
+- independent health and cancellation;
+- no PEGA credential/config/session material.
+
+AECP must not implement OFFICIAL/PEGA switching by rewriting one shared `CODEX_HOME`.
+
+### Codex PEGA Worker
+
+Canonical identity:
+
+```yaml
+worker_id: codex-pega
+worker_name: Codex PEGA
+provider_id: pega
+runtime: codex-cli
+base_url: https://aiapi.t-cyber.com/v1
+```
+
+Required isolation is identical to OFFICIAL: separate process, `CODEX_HOME`, config/auth/session/runtime/task state and worktree.
+
+The PEGA Provider Adapter is implemented behind the existing Provider Router abstraction. It must support the API family actually exposed by the PEGA endpoint, including current Chat Completions-compatible and Responses-compatible paths where the environment proves them. Capability negotiation must fail closed; AECP must not assume every OpenAI-compatible endpoint implements every OpenAI API feature.
+
+PEGA-specific endpoint/model/auth logic must not be embedded in Harness, Task, Queue or Mission state machines.
+
+### Worker runtime record
+
+Each active/known worker projects at least:
+
+```yaml
+worker_id:
+worker_name:
+provider_id:
+provider_name:
+model:
+role:
+process_id:
+codex_home:
+task_id:
+run_id:
+runtime_state:
+repository:
+worktree:
+verification_state:
+started_at:
+heartbeat:
+timeout:
+cancel_state:
+evidence_refs:
+```
+
+Secrets themselves are never projected to Dashboard/evidence.
+
+### Multi-worker scheduling
+
+The Harness may dispatch independent READY tasks concurrently to OFFICIAL and PEGA workers.
+
+Example:
+
+```text
+TASK-A → Codex OFFICIAL → worktree A
+TASK-B → Codex PEGA     → worktree B
+```
+
+Required invariants:
+
+1. one mutating Worker owns one task-scoped worktree at a time;
+2. two Workers must never directly write the same worktree concurrently;
+3. same-repository parallel tasks use different isolated Git worktrees;
+4. Resource Manager + Lock Manager + Scheduler enforce ownership;
+5. Worker process/task cancellation is scoped to that Worker/Task;
+6. `STOP ALL` remains the only operator action that intentionally cancels all active workers;
+7. one Worker/Provider becoming unavailable must not make the other Worker or Web Safe Bridge unavailable.
+
+### Completion authority
+
+Neither OFFICIAL nor PEGA may self-declare engineering completion.
+
+Canonical acceptance remains:
+
+```text
+Worker
+  ↓
+Deterministic Verify
+  ↓
+Evidence
+  ↓
+Reviewer
+  ↓
+PASS / REWORK / HUMAN_REQUIRED
+```
+
+A model response is never sufficient proof. Existing bounded autonomy, max-iteration/turn/failure/no-progress/output/patch/file/time budgets, cancel controls, verified-patch policy, explicit apply gate, CI and human-gated merge remain authoritative.
+
+### Dashboard projection
+
+The existing Dashboard/Command Center is extended; no second GUI is created.
+
+For every Worker it must project canonical runtime state:
+
+- Worker name;
+- Provider;
+- actual configured/detected model;
+- Role;
+- Task;
+- State;
+- Runtime;
+- Repository;
+- Worktree;
+- Verify state;
+- Health;
+- Heartbeat/cancel state.
+
+Example only:
+
+```text
+Codex OFFICIAL
+Provider: OpenAI
+Model: <actual configured model>
+Role: Builder
+State: RUNNING
+Task: TASK-xxx
+Worktree: ...
+Verify: PENDING
+Health: READY
+
+Codex PEGA
+Provider: PEGA
+Model: <actual configured model>
+Role: Builder
+State: RUNNING
+Task: TASK-yyy
+Worktree: ...
+Verify: PASS
+Health: READY
+```
+
+UI must show `UNKNOWN` when process/provider/model state cannot be verified.
+
+### Health isolation
+
+OFFICIAL and PEGA have independent health evaluation. Provider health retains the canonical five states:
+
+`NOT_CONFIGURED / READY / DEGRADED / UNAVAILABLE / AUTH_REQUIRED`.
+
+Worker readiness additionally accounts for executable discovery, isolated `CODEX_HOME`, auth/credential readiness, endpoint/model capability, process heartbeat and current task assignment.
+
+A PEGA failure cannot downgrade OFFICIAL health, and an OFFICIAL failure cannot downgrade PEGA health.
+
+### Security and data boundary
+
+Adding PEGA must not lower any existing boundary:
+
+- GitHub remains engineering Source of Truth.
+- Harness/Control Plane state remains runtime truth.
+- Dashboard remains a projection.
+- Provider/Worker cannot bypass SecurityPolicy.
+- Provider configuration cannot widen Workspace permissions.
+- PEGA credentials cannot appear in OFFICIAL `CODEX_HOME`, OFFICIAL process environment, logs/evidence or Git.
+- Worker never selects its own arbitrary executable, Workspace or worktree.
+- High-risk publish/merge/delete/credential/system actions remain human-gated.
+
+### Explicit non-goals
+
+This architecture must **not** create:
+
+- Dual Codex Desktop;
+- Dual Launcher;
+- PowerShell double-launch scripts;
+- two Codex/ChatGPT GUI clones;
+- modifications to Codex Desktop internals;
+- shared-`CODEX_HOME` profile switching presented as isolation;
+- direct Provider-to-Workspace execution that bypasses Harness;
+- a second parallel Control Plane.
+
+### Verification classes
+
+This extension must distinguish:
+
+- **STATIC** — architecture/config invariant exists and is machine-audited;
+- **TESTED** — deterministic isolation/router/scheduler/dashboard tests pass;
+- **CI** — exact commit workflow gates pass, including Windows/ARM64 deterministic coverage;
+- **ENVIRONMENT** — real OFFICIAL/PEGA endpoint/model/auth/process execution evidence exists;
+- **OWNER/EXTERNAL** — owner-supplied credentials/account/trust evidence where required.
+
+Blueprint inclusion alone is never Runtime completion. Mock/loopback API success is never reported as real PEGA ENVIRONMENT success.
+
+### Required acceptance matrix
+
+Repository-verifiable acceptance must eventually prove:
+
+1. `codex-official.CODEX_HOME != codex-pega.CODEX_HOME`;
+2. auth/session/runtime stores are not shared;
+3. two independent tasks may be RUNNING concurrently on OFFICIAL and PEGA;
+4. same repository parallel tasks use distinct worktrees;
+5. conflicting writes to one worktree/resource are rejected by locks;
+6. cancelling one Worker does not cancel the other;
+7. `STOP ALL` cancels all;
+8. PEGA health failure does not break OFFICIAL or Web Safe Bridge;
+9. OFFICIAL health failure does not break PEGA or Web Safe Bridge;
+10. PEGA credential never leaks into OFFICIAL runtime/evidence/Git;
+11. Task/Mission/Queue/Harness state machines do not depend on the literal string `PEGA`;
+12. deterministic verifier remains sole engineering completion authority;
+13. Dashboard projects Worker/Provider/model/task/state/runtime/worktree/verify/health from canonical runtime state;
+14. Windows x64 and ARM64 deterministic tests remain green;
+15. real PEGA `https://aiapi.t-cyber.com/v1` capability/model/auth success is accepted only from ENVIRONMENT evidence.
+
 ## 12. Technology direction
 
 Initial implementation is an Electron desktop application because it enables a fast Windows-first delivery path, strong Chromium isolation controls, native dialog/clipboard/process APIs, and straightforward x64/ARM64 packaging. Electron security requirements are mandatory: context isolation on, Node integration off in renderer, sandboxing on, narrowly-scoped preload API, strict navigation/window-open rules.
