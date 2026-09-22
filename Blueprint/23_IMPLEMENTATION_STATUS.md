@@ -152,7 +152,7 @@ Git / GitHub
 | Full integration/E2E test suite | Repository-verifiable canonical/provider/pairing/security + Windows x64/ARM64/Store/install/upgrade/rollback/Universal smoke implemented; real-provider execution remains environment-specific |
 | Maintenance / garbage collection automation | Implemented bounded scheduler/retention |
 
-## 5. Remaining work — ordered by engineering dependency
+## 5. Closure status — repository work vs external gates
 
 ### P0 — Make the current loop production-correct
 - Crash-safe phase persistence/resume — completed for orphaned execution and pending CI monitoring.
@@ -234,7 +234,7 @@ AECP should not be called production-complete until:
 - mobile/remote controls inherit exactly the same local policy;
 - release artifacts are trusted and rollbackable.
 
-**Bottom line:** the project has moved from a Blueprint-only concept to a real governed Control Plane prototype. The remaining work is now primarily hardening, integration completeness, distribution, and remote supervision—not redefining the core architecture.
+**Bottom line:** the project has moved from a Blueprint-only concept to a governed Control Plane whose repository-verifiable normative requirements are covered by deterministic tests/audits/workflows. Remaining incompleteness is external trust/account/provider/deployment evidence or capabilities intentionally denied by the current security boundary—not an untracked repository implementation backlog.
 
 
 ## Latest hardening completed
@@ -255,13 +255,14 @@ The remaining capabilities that cannot be made genuinely production-complete by 
 
 ## Autonomous hardening record — 2026-09-19
 
-### Engineering work tracked in this tranche
+### Engineering gates closed in this tranche
 1. **Failure Recovery Assistant** — bounded classifier + low-risk auto-rework implemented; richer evidence-driven diagnosis remains bounded by existing authority.
 2. **Adapter Security Audit Matrix** — explicit SecurityPolicy decisions are now required for READ/WRITE/EXECUTE/NETWORK/CREDENTIAL actions.
-3. **Clean E2E Matrix** — temporary-Git infrastructure coverage plus x64/ARM64/universal Windows-runner install/uninstall smoke workflows are implemented; real provider execution still requires its environment.
+3. **Clean E2E Matrix** — temporary-Git infrastructure coverage plus x64/ARM64/Universal Windows-runner install/uninstall, Store package validation and upgrade→rollback smoke workflows are implemented; real provider execution still requires its environment.
 4. **Release Gate** — repository CI proves unsigned x64/ARM64/Universal build/install/uninstall, Store AppX build/manifest validation, SHA-256/provenance, and x64/ARM64 installer upgrade→rollback behavior; signer pinning/signed-release software is implemented, while actual production signing/Store trust remains an owner gate.
 5. **Remote Pairing Gate** — authenticated one-time pairing, read-only credentials and revocation are implemented; LAN/Internet transport remains gated.
 6. **Drift Scans** — scheduled dependency, security, Blueprint/code and documentation consistency scanners are implemented.
+7. **Normative coverage** — R1–R8 requirements coverage, Blueprint 00–24 evidence coverage and P0–P7 phase-by-phase roadmap-gate coverage are canonical `npm verify` gates.
 
 ### Definition of done
 Repository-verifiable engineering completion requires all six software gates, normative requirement/Blueprint coverage and exact-HEAD CI/Security/Packaging/release-dry-run evidence. A separate **Production Trust Ready** claim additionally requires owner-controlled signing/Store/provider/deployment evidence; those external operations are never fabricated by repository tests.
