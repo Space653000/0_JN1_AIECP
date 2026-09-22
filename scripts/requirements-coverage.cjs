@@ -18,7 +18,7 @@ const matrix={
   'R2.3':{classes:['TESTED'],evidence:['tests/autonomy.test.cjs','tests/harness-bounds.test.cjs']},
   'R2.4':{classes:['TESTED'],evidence:['tests/autonomy.test.cjs','tests/harness.test.cjs','tests/harness-bounds.test.cjs']},
   'R2.5':{classes:['TESTED'],evidence:['tests/harness.test.cjs','tests/control-plane.test.cjs','tests/harness-bounds.test.cjs','tests/autonomy.test.cjs']},
-  'R2.6':{classes:['TESTED'],evidence:['tests/control-plane.test.cjs']},
+  'R2.6':{classes:['TESTED'],evidence:['electron/lib/autonomy.cjs','tests/autonomy.test.cjs','tests/control-plane.test.cjs']},
   'R2.7':{classes:['STATIC','TESTED'],evidence:['electron/lib/control-plane.cjs','scripts/acceptance-audit.cjs']},
   'R3.1':{classes:['TESTED'],evidence:['tests/provider-integration.test.cjs','tests/provider-router.test.cjs']},
   'R3.2':{classes:['TESTED'],evidence:['tests/provider-router.test.cjs','scripts/provider-environment-verify.cjs','tests/provider-environment-workflow.test.cjs']},
