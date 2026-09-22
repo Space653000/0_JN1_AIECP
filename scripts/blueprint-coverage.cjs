@@ -19,7 +19,7 @@ const matrix={
   '09_RESEARCH_NOTES.md':{type:'INFORMATIONAL',evidence:['Blueprint/00_MASTER_BLUEPRINT.md']},
   '10_CONVERSATION_DECISION_LOG.md':{type:'HISTORICAL',evidence:['Blueprint/REQUIREMENTS.md','Blueprint/23_IMPLEMENTATION_STATUS.md']},
   '11_TASK_PROTOCOL.md':{type:'FUNCTIONAL',evidence:['electron/lib/protocol.cjs','tests/protocol.test.cjs']},
-  '12_DATA_MODEL.md':{type:'FUNCTIONAL',evidence:['electron/lib/control-plane.cjs','electron/lib/state-migration.cjs','tests/state-migration.test.cjs','tests/event-projection.test.cjs']},
+  '12_DATA_MODEL.md':{type:'FUNCTIONAL',evidence:['electron/lib/control-plane.cjs','electron/lib/state-migration.cjs','electron/lib/local-data-manager.cjs','tests/state-migration.test.cjs','tests/event-projection.test.cjs','tests/local-data-manager.test.cjs']},
   '13_TRIPLE_AUDIT.md':{type:'HISTORICAL',evidence:['Blueprint/23_IMPLEMENTATION_STATUS.md']},
   '14_GUIDED_UX_AND_GOAL_LOOP.md':{type:'FUNCTIONAL',evidence:['electron/lib/guidance.cjs','ui/app.js','tests/guidance.test.cjs','tests/human-controls.test.cjs']},
   '15_SELF_EVOLUTION_PRIVATE_UPDATE_AGENT_INTEROP.md':{type:'FUNCTIONAL',evidence:['electron/lib/update-state.cjs','electron/lib/authenticode.cjs','electron/lib/backup-manager.cjs','tests/update-state.test.cjs','tests/authenticode.test.cjs','tests/backup-manager.test.cjs','.github/workflows/release.yml','.github/workflows/signed-release.yml']},
