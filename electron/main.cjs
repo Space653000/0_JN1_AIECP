@@ -1204,6 +1204,7 @@ async function removeCurrentWorkspaceBinding() {
   await stopLocalMcp();
   const result = removeWorkspaceBinding(state, workspace.id);
   await saveState(result.state);
+  controlPlane?.setPolicyConfig({});
   return { removed: result.removed, workspaceFilesTouched: false, workspaceId: workspace.id };
 }
 
@@ -1371,6 +1372,7 @@ function registerIpc() {
     if (index >= 0) state.workspaces[index] = workspace; else state.workspaces.push(workspace);
     state.currentWorkspaceId = id;
     await saveState(state);
+    controlPlane?.setPolicyConfig(workspace.policy || {});
     return workspace;
   });
 
@@ -1381,6 +1383,7 @@ function registerIpc() {
     const refreshed = await buildWorkspace(workspace.rootPath, workspace);
     state.workspaces[state.workspaces.findIndex((item) => item.id === workspace.id)] = refreshed;
     await saveState(state);
+    controlPlane?.setPolicyConfig(refreshed.policy || {});
     return refreshed;
   });
   ipcMain.handle('workspace:add-repo', addWorkspaceRepository);
