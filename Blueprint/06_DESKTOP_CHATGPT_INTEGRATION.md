@@ -30,11 +30,11 @@ Bootstrap:
 - AECP can open ChatGPT externally.
 - UI teaches Windows Snap (`Win+←/→`) and remembers AECP pane layout.
 
-Future native dock adapter may position an external browser window using supported Windows APIs/UI Automation. It must not read ChatGPT message DOM.
+The Windows desktop adapter can position an allowlisted external browser window by process/window handle behind policy approval. It does **not** read ChatGPT DOM/messages/cookies or intercept browser traffic. Read-only Windows UI Automation for general apps is separate and browser/ChatGPT automation-tree inspection is denied by default.
 
-## 4. Embedded mode
+## 4. Embedded mode — non-goal / optional exploration
 
-Not a release dependency. If explored later, it must satisfy all conditions:
+Embedded ChatGPT is not required for AECP completion. If ever explored, it must satisfy all conditions:
 - official origin displayed unchanged;
 - no privileged preload on remote origin;
 - no DOM/message scraping;
@@ -45,11 +45,11 @@ Not a release dependency. If explored later, it must satisfy all conditions:
 
 ## 5. Browser extension
 
-A future minimal extension may provide safe bridge ergonomics only when allowed by browser-store/provider rules. It must not extract ChatGPT conversation content automatically. Suitable functions: identify current URL, explicit user-triggered handoff, open AECP via native messaging/deep link.
+A browser extension is optional and not required for the product loop. If added, it may provide only explicit safe-bridge ergonomics allowed by browser/provider rules and must never extract ChatGPT conversation content automatically.
 
 ## 6. Official MCP path
 
-OpenAI documentation states ChatGPT connects to remote MCP servers; local/private MCP requires a supported Secure MCP Tunnel path. Full write/modify MCP availability depends on plan/product support and may change. Therefore AECP treats MCP as an adapter, never as the only transport.
+AECP includes an authenticated local MCP foundation. Any official ChatGPT-to-private-local transport still depends on supported product/tunnel deployment and external identity/TLS configuration. Full write/modify transport is never assumed; AECP treats MCP as one adapter, not the only transport.
 
 ## 7. Why Safe Bridge remains permanent
 
