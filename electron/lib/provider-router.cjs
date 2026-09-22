@@ -181,7 +181,7 @@ class ProviderRouter {
     const result = (status, detail, extra = {}) => ({ provider: providerId, status, detail, checkedAt, ...extra });
     if (!provider) return result('NOT_CONFIGURED', 'Provider is not registered.');
 
-    if (provider.mode === 'ollama' || provider.mode === 'cli') {
+    if (provider.mode === 'ollama' || provider.mode === 'cli' || provider.mode === 'codex-cli') {
       const probe = await this.runner(provider.command, ['--version'], {
         timeoutMs: Math.min(10000, Math.max(1000, Number(opts.timeoutMs || 5000))),
         maxOutputBytes: 16 * 1024,
@@ -190,6 +190,20 @@ class ProviderRouter {
       if (probe.code !== 0) return result('UNAVAILABLE', (probe.stderr || probe.stdout || 'Provider CLI is unavailable.').slice(0, 500));
       if (provider.mode === 'ollama' && !(opts.model || provider.defaultModel || process.env.AECP_OLLAMA_MODEL)) {
         return result('DEGRADED', 'Ollama CLI is available, but an explicit model is required before invocation.', { version: (probe.stdout || probe.stderr || '').split(/\r?\n/)[0] });
+      }
+      if (provider.mode === 'codex-cli') {
+        if (!provider.codexHome) return result('NOT_CONFIGURED', 'Isolated CODEX_HOME is missing.');
+        if (provider.requiresCredential && !provider.apiKey) return result('AUTH_REQUIRED', 'Worker credential is not configured.', { workerId: provider.workerId || providerId, codexHome: provider.codexHome });
+        if (provider.baseUrl && !provider.defaultModel) return result('NOT_CONFIGURED', 'Custom Codex worker requires an explicit model.', { workerId: provider.workerId || providerId, codexHome: provider.codexHome });
+        return result('READY', 'Codex CLI and isolated worker runtime are configured.', {
+          version: (probe.stdout || probe.stderr || '').split(/\r?\n/)[0],
+          workerId: provider.workerId || providerId,
+          workerName: provider.workerName || providerId,
+          providerName: provider.providerName || providerId,
+          model: opts.model || provider.defaultModel || null,
+          codexHome: provider.codexHome,
+          wireApi: provider.wireApi || null
+        });
       }
       return result('READY', 'Provider CLI is available.', { version: (probe.stdout || probe.stderr || '').split(/\r?\n/)[0] });
     }
@@ -263,8 +277,11 @@ class ProviderRouter {
       mode: provider.mode,
       process: provider.mode !== 'openai-compatible',
       network: localOpenCode ? false : Boolean(provider.network || provider.mode === 'openai-compatible'),
-      credential: Boolean(provider.credential || provider.apiKey),
-      local: provider.mode === 'ollama' || provider.mode === 'local-command' || localOpenCode
+      credential: Boolean(provider.credential || provider.apiKey || provider.requiresCredential),
+      local: provider.mode === 'ollama' || provider.mode === 'local-command' || provider.mode === 'codex-cli' || localOpenCode,
+      workerId: provider.workerId || null,
+      workerName: provider.workerName || null,
+      providerName: provider.providerName || provider.id
     };
   }
 
@@ -282,13 +299,26 @@ class ProviderRouter {
       const prefix = Array.isArray(provider.args) ? provider.args.map(String) : [];
       return { command: provider.command, args: [...prefix, prompt], provider: provider.id, model: selectedModel || null, cwd: cwd || null };
     }
-    if (provider.id === 'codex') {
-      const args = ['exec', '--ephemeral', '--ignore-user-config', '--ignore-rules', '--sandbox', 'workspace-write', '--json'];
+    if (provider.mode === 'codex-cli' || provider.id === 'codex') {
+      const args = ['exec', '--ephemeral'];
+      if (provider.id === 'codex') args.push('--ignore-user-config');
+      args.push('--ignore-rules', '--sandbox', 'workspace-write', '--json');
       if (cwd) args.push('--cd', cwd);
       args.push('-c', 'sandbox_workspace_write.network_access=false');
       if (selectedModel) args.push('--model', selectedModel);
       args.push(prompt);
-      return { command: provider.command, args, provider: provider.id, model: selectedModel || null, cwd: cwd || null };
+      return {
+        command: provider.command,
+        args,
+        env: { ...(provider.runtimeEnv || {}) },
+        provider: provider.id,
+        providerName: provider.providerName || provider.id,
+        workerId: provider.workerId || provider.id,
+        workerName: provider.workerName || provider.id,
+        codexHome: provider.codexHome || null,
+        model: selectedModel || null,
+        cwd: cwd || null
+      };
     }
     if (provider.id === 'claude') {
       const args = ['-p', prompt, '--output-format', 'json', '--permission-mode', 'plan', '--max-turns', '12'];
@@ -340,7 +370,16 @@ class ProviderRouter {
         const spec = this.commandSpec(provider.id, role, prompt, { ...opts, providerVersion });
         selectedModel = spec.model || selectedModel;
         const env = { ...(spec.env || {}), ...(opts.env || {}) };
-        result = { ...await this.runner(spec.command, spec.args, { ...opts, env }), provider: spec.provider, model: spec.model, command: spec.command };
+        result = {
+          ...await this.runner(spec.command, spec.args, { ...opts, env }),
+          provider: spec.provider,
+          providerName: spec.providerName || provider.providerName || spec.provider,
+          workerId: spec.workerId || provider.workerId || null,
+          workerName: spec.workerName || provider.workerName || null,
+          codexHome: spec.codexHome || provider.codexHome || null,
+          model: spec.model,
+          command: spec.command
+        };
       }
       await this.recordMetric({
         schema: 'aecp.provider-usage/v1',
