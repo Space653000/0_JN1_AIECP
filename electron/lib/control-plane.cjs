@@ -602,7 +602,7 @@ class ControlPlane {
       let baseRef=null;
       let preparedWorktree=null;
       let preparedBaseHead=null;
-      const existingHarness=await fs.readFile(path.join(subRoot,'harness.json'),'utf8').then(JSON.parse).catch(()=>null);
+      const existingHarness=await fs.readFile(path.join(subRoot,'harness.json'),'utf8').then(text=>JSON.parse(text)).catch(()=>null);
       const resumableWorktree=task.resume&&existingHarness?.worktree&&await fs.stat(existingHarness.worktree).then(()=>true).catch(()=>false);
       if(!resumableWorktree){
         const adminKey=this.gitAdminLockKey(taskRoot);
