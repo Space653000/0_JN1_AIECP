@@ -10,6 +10,7 @@ const {redactText,redactSensitive}=require('../electron/lib/redaction.cjs');
 const {EvidenceManager}=require('../electron/lib/evidence-manager.cjs');
 const {ContextBus}=require('../electron/lib/context-bus.cjs');
 const {safeNetworkUrl}=require('../electron/lib/provider-router.cjs');
+const {ControlPlane}=require('../electron/lib/control-plane.cjs');
 
 test('redactText removes common bearer API GitHub URL and private-key secrets',()=>{
   const privateKey='-----BEGIN PRIVATE KEY-----\nSUPERSECRET\n-----END PRIVATE KEY-----';
@@ -97,4 +98,24 @@ test('all operational persistence surfaces use centralized redaction',()=>{
   assert.match(main,/state\.json'\), redactSensitive\(state\)/);
   assert.match(main,/task\.json'\), redactSensitive\(task\)/);
   assert.match(main,/const event = redactSensitive/);
+});
+
+
+test('Control Plane runtime projections are redacted before UI or remote exposure',async()=>{
+  const root=await fs.mkdtemp(path.join(os.tmpdir(),'aecp-redacted-projection-'));
+  try{
+    const cp=new ControlPlane({rootDir:root});
+    cp.state={
+      schema:'aecp.control-plane/v1',
+      updatedAt:new Date().toISOString(),
+      runs:{r1:{id:'r1',state:'DONE',secret:'run-secret-value'}},
+      tasks:{t1:{id:'t1',state:'DONE',result:{authorization:'Bearer abcdefghijklmnopqrst'}}},
+      agents:{},approvals:{},locks:{}
+    };
+    const snapshot=cp.snapshot();
+    assert.equal(snapshot.runs[0].secret,'[REDACTED]');
+    assert.equal(snapshot.tasks[0].result.authorization,'[REDACTED]');
+    assert.equal((await cp.getRun('r1')).secret,'[REDACTED]');
+    assert.equal((await cp.getTask('t1')).result.authorization,'[REDACTED]');
+  }finally{await fs.rm(root,{recursive:true,force:true});}
 });
