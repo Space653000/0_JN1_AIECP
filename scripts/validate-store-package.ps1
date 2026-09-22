@@ -2,6 +2,7 @@ param(
   [Parameter(Mandatory=$true)][string]$PackagePath,
   [Parameter(Mandatory=$true)][ValidateSet('x64','arm64')][string]$ExpectedArchitecture,
   [string]$ExpectedIdentityName = '',
+  [string]$ExpectedPublisher = '',
   [string]$EvidencePath = ''
 )
 
@@ -33,6 +34,9 @@ try {
   if ([string]::IsNullOrWhiteSpace($publisher)) { throw 'Store package Identity.Publisher is empty.' }
   if ($ExpectedIdentityName -and $name -ne $ExpectedIdentityName) {
     throw "Identity.Name '$name' does not match expected '$ExpectedIdentityName'."
+  }
+  if ($ExpectedPublisher -and $publisher -ne $ExpectedPublisher) {
+    throw "Identity.Publisher '$publisher' does not match expected '$ExpectedPublisher'."
   }
   if ($architecture.ToLowerInvariant() -ne $ExpectedArchitecture.ToLowerInvariant()) {
     throw "ProcessorArchitecture '$architecture' does not match expected '$ExpectedArchitecture'."
