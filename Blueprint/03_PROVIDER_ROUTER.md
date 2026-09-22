@@ -34,7 +34,7 @@ Best for bounded, high-volume preprocessing rather than mandatory central reason
 
 ## 3. Adapter interface
 
-Conceptual interface:
+Runtime contract:
 
 ```ts
 interface ProviderAdapter {
@@ -89,17 +89,17 @@ States:
 - `UNAVAILABLE`
 - `AUTH_REQUIRED`
 
-Failure of an optional provider must not prevent Safe Bridge use.
+Failure of an optional provider must not prevent Safe Bridge use. The current router exposes these five states through bounded health checks: fixed CLI/local-command checks never execute task text; API/Remote MCP live probes require explicit NETWORK approval, and stored credentials require explicit CREDENTIAL approval. An unapproved live probe reports `DEGRADED` rather than silently using network/credentials.
 
 ## 7. Cost/usage observability
 
-For API providers, store locally:
-- request count
-- model name
-- token/cost metadata returned by provider when available
-- latency
+For executable/API providers, AECP stores only privacy-safe invocation metadata locally:
+- request count and success/failure count;
+- model/role identifiers;
+- latency;
+- numeric token/cost metadata returned by the provider when available.
 
-For ChatGPT Web, AECP must not infer or scrape hidden usage counters. UI shows only `subscription-managed externally`.
+The durable usage store is bounded and serialized; prompt text, response bodies, credentials and error message bodies are not persisted as usage telemetry. For ChatGPT Web, AECP does not infer or scrape hidden usage counters; UI shows only `subscription-managed externally`.
 
 ## 8. Failover
 
