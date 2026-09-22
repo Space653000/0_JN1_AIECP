@@ -68,7 +68,7 @@ const staticInvariants=[
  invariant('mission-scoped-policy','electron/lib/control-plane.cjs',[
   {label:'policyForRun',re:/policyForRun\(run\)/},
   {label:'role config validation',re:/normalizeRoleConfig/},
-  {label:'provider planner execution',re:/providers\.execute\('planner'/},
+  {label:'provider planner execution',re:/invokeRole\(\{[\s\S]*role:'planner'/},
   {label:'human-gated CI delivery',re:/GitHub CI passed\. Human approval is required before PR merge/}
  ]),
  invariant('provider-sandbox-and-local','electron/lib/provider-router.cjs',[
