@@ -66,6 +66,8 @@ test('Store packaging is repository-verifiable but submission remains owner-gate
   assert.match(packaging, /Validate Store package manifest/);
   assert.match(packaging, /smoke-upgrade-rollback:/);
   assert.match(packaging, /0\.2\.99/);
+  assert.match(packaging, /--config\.directories\.output=release\/upgrade-baseline/);
+  assert.doesNotMatch(packaging, /-c\.directories\.output=/);
 
   const store = read('.github/workflows/store-package.yml');
   assert.match(store, /identity_name:/);
