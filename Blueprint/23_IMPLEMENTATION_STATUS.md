@@ -250,7 +250,7 @@ AECP should not be called production-complete until:
 
 ## Remaining external dependency
 
-The remaining capabilities that cannot be made genuinely production-complete by repository code alone are external trust/account/environment operations: Microsoft Store publisher identity/certification/submission/private-audience acquisition, production code-signing certificate ownership/secrets and authorized signing run, optional LAN/Internet remote-gateway deployment with a user-owned domain/device identity, and real provider execution requiring actual local/company/provider runtimes or credentials. AECP contains the software-side packaging, Store bundle, signer verification, signed-release preparation, checksum/provenance, release, policy and gateway foundations for those operations.
+The remaining capabilities that cannot be made genuinely production-complete by repository code alone are external trust/account/environment operations: Microsoft Store publisher identity/certification/submission/private-audience acquisition, production code-signing certificate ownership/secrets and authorized signing run, optional LAN/Internet remote-gateway deployment with a user-owned domain/device identity, and real provider execution requiring actual local/company/provider runtimes or credentials. AECP contains the software-side packaging, Store bundle, signer verification, signed-release preparation, checksum/provenance, release, policy and gateway foundations for those operations. Real provider execution now has a dedicated self-hosted Windows evidence workflow; until that workflow runs on the actual machine/model/worker and emits a matching exact-source PASS artifact, the provider environment remains an external evidence gate.
 
 
 ## Autonomous hardening record — 2026-09-19
@@ -258,7 +258,7 @@ The remaining capabilities that cannot be made genuinely production-complete by 
 ### Engineering gates closed in this tranche
 1. **Failure Recovery Assistant** — bounded classifier + low-risk auto-rework implemented; richer evidence-driven diagnosis remains bounded by existing authority.
 2. **Adapter Security Audit Matrix** — explicit SecurityPolicy decisions are now required for READ/WRITE/EXECUTE/NETWORK/CREDENTIAL actions.
-3. **Clean E2E Matrix** — temporary-Git infrastructure coverage plus x64/ARM64/Universal Windows-runner install/uninstall, Store package validation and upgrade→rollback smoke workflows are implemented; real provider execution still requires its environment.
+3. **Clean E2E Matrix** — temporary-Git infrastructure coverage plus x64/ARM64/Universal Windows-runner install/uninstall, Store package validation and upgrade→rollback smoke workflows are implemented. Real Ollama/OpenCode/company-worker execution is wired to the dedicated self-hosted provider evidence workflow and remains environment-gated until that machine reports PASS.
 4. **Release Gate** — repository CI proves unsigned x64/ARM64/Universal build/install/uninstall, Store AppX build/manifest validation, SHA-256/provenance, and x64/ARM64 installer upgrade→rollback behavior; signer pinning/signed-release software is implemented, while actual production signing/Store trust remains an owner gate.
 5. **Remote Pairing Gate** — authenticated one-time pairing, read-only credentials and revocation are implemented; LAN/Internet transport remains gated.
 6. **Drift Scans** — scheduled dependency, security, Blueprint/code and documentation consistency scanners are implemented.
