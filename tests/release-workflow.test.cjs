@@ -9,6 +9,15 @@ const root = path.resolve(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 const count = (text, pattern) => (text.match(pattern) || []).length;
 
+function topLevelJobIds(workflow) {
+  const lines = workflow.split(/\r?\n/);
+  const start = lines.findIndex((line) => line === 'jobs:');
+  if (start < 0) return [];
+  return lines.slice(start + 1)
+    .map((line) => line.match(/^  ([A-Za-z0-9_-]+):$/)?.[1] || null)
+    .filter(Boolean);
+}
+
 test('release workflow is structurally unique and gated by real smoke evidence', () => {
   const workflow = read('.github/workflows/release.yml');
   assert.match(workflow, /pull_request:[\s\S]*branches:\s*\[main\]/);
@@ -129,4 +138,13 @@ test('updater supports build-time signer pinning without forcing unsigned previe
   assert.match(main, /AECP_REQUIRED_SIGNER_THUMBPRINT/);
   assert.match(main, /packageManifest\?\.aecp\?\.requiredSignerThumbprint/);
   assert.match(main, /rollbackInstaller[\s\S]*verifyAuthenticode/);
+});
+
+test('all GitHub workflows have unique top-level job ids', () => {
+  const dir = path.join(root, '.github', 'workflows');
+  for (const name of fs.readdirSync(dir).filter((item) => /\.ya?ml$/i.test(item))) {
+    const workflow = fs.readFileSync(path.join(dir, name), 'utf8');
+    const ids = topLevelJobIds(workflow);
+    assert.equal(ids.length, new Set(ids).size, name + ' contains duplicate top-level job ids');
+  }
 });
