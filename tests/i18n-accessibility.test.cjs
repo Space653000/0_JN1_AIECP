@@ -60,3 +60,17 @@ test('theme control supports system dark and light modes and follows OS changes 
   assert.match(app,/systemThemeMedia\?\.addEventListener\?\.\('change'/);
   assert.match(app,/document\.documentElement\.dataset\.theme = resolvedTheme\(\)/);
 });
+
+
+test('Settings exposes an explicit reduced-motion preference in addition to system media support',()=>{
+  const html=read('ui/index.html');
+  const app=read('ui/app.js');
+  const css=read('ui/styles.css');
+  assert.match(html,/id="motionPreference"/);
+  assert.match(html,/Follow system preference/);
+  assert.match(html,/Reduce motion/);
+  assert.match(app,/aecp-motion/);
+  assert.match(app,/dataset\.motion = state\.motion/);
+  assert.match(css,/\[data-motion="reduced"\]/);
+  assert.match(css,/animation-duration:\s*\.001ms/);
+});
