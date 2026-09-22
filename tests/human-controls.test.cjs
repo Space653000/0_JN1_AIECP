@@ -103,6 +103,6 @@ test('first-run onboarding seeds one safe read-only task without auto-executing 
   assert.match(app,/const hadWorkspace = Boolean/);
   assert.match(app,/!hadWorkspace && state\.tasks\.length === 0/);
   assert.match(app,/await createSampleTask\(\)/);
-  assert.match(main,/sample:card/);
+  assert.match(main,/task:sample/);
   assert.doesNotMatch(app,/!hadWorkspace[\s\S]{0,300}executeTask/);
 });
