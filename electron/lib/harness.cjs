@@ -121,10 +121,18 @@ async function git(cwd, args, signal) {
   return r.stdout.trim();
 }
 
+async function canonicalPathForCompare(value) {
+  const resolved = path.resolve(String(value || ''));
+  const physical = await fs.realpath(resolved).catch(() => resolved);
+  const normalized = path.normalize(physical);
+  return process.platform === 'win32' ? normalized.toLowerCase() : normalized;
+}
+
 async function assertCleanRepo(root, signal) {
   const top = await git(root, ['rev-parse', '--show-toplevel'], signal);
-  const real = path.resolve(root), actual = path.resolve(top);
-  if (real.toLowerCase() !== actual.toLowerCase()) throw new Error('Harness requires Workspace root to be the Git repository root.');
+  const real = await canonicalPathForCompare(root);
+  const actual = await canonicalPathForCompare(top);
+  if (real !== actual) throw new Error('Harness requires Workspace root to be the Git repository root.');
   const status = await git(root, ['status', '--porcelain'], signal);
   if (status) throw new Error('Workspace must be clean before a Harness run.');
   return { head: await git(root, ['rev-parse', 'HEAD'], signal) };
