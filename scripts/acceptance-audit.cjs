@@ -106,6 +106,21 @@ const staticInvariants=[
   {label:'failed-attempt test',re:/failed-attempt budget outside the model/},
   {label:'wall-clock test',re:/wall-clock budget before the next provider call/}
  ]),
+ invariant('mission-budget-propagation','electron/lib/control-plane.cjs',[
+  {label:'mission max turns',re:/maxTurns/},
+  {label:'mission failed attempts',re:/maxFailedAttempts/},
+  {label:'mission wall clock',re:/maxWallClockMs/},
+  {label:'mission patch bytes',re:/maxPatchBytes/},
+  {label:'mission changed files',re:/maxChangedFiles/},
+  {label:'Harness propagation',re:/maxTasks:1,maxIterations:run\.maxIterations,maxTurns:run\.maxTurns/}
+ ]),
+ invariant('mission-budget-ui','ui/harness-console.js',[
+  {label:'provider call budget input',re:/hcTurns/},
+  {label:'failed attempt budget input',re:/hcFailures/},
+  {label:'changed file budget input',re:/hcChangedFiles/},
+  {label:'patch budget input',re:/hcPatchMiB/},
+  {label:'wall clock budget input',re:/hcWallMinutes/}
+ ]),
  invariant('harness-hard-budgets','electron/lib/harness.cjs',[
   {label:'provider call budget',re:/PROVIDER_CALL_BUDGET_EXHAUSTED/},
   {label:'patch byte budget',re:/PATCH_BUDGET_EXHAUSTED/},
