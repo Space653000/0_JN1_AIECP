@@ -562,3 +562,34 @@ test('ControlPlane worker pool reports WORKER_BUSY without falling back to a dif
     await fs.rm(root,{recursive:true,force:true});
   }
 });
+
+
+test('task-scoped cancellation marks only the selected Worker and leaves the other task running', async () => {
+  const root=await fs.mkdtemp(path.join(os.tmpdir(),'aecp-task-cancel-isolation-'));
+  const workers=new WorkerRegistry(path.join(root,'workers'));
+  await workers.init();
+  for(const id of ['worker-a','worker-b']){
+    await workers.register({id,providerId:'provider-'+id,runtime:'codex-cli',role:'builder',codexHome:path.join(root,id)});
+    await workers.acquire(id,{runId:'run-1',taskId:'task-'+id});
+  }
+  const cp=new ControlPlane({rootDir:path.join(root,'runtime'),workerRegistry:workers});
+  await cp.init();
+  try{
+    cp.state.runs['run-1']={id:'run-1',state:'RUNNING',taskIds:['task-worker-a','task-worker-b'],events:[],maxIterations:3};
+    cp.state.tasks['task-worker-a']={id:'task-worker-a',runId:'run-1',state:'RUNNING',phase:'EXECUTING',workerId:'worker-a',lease:{id:'l1',owner:'task-worker-a'}};
+    cp.state.tasks['task-worker-b']={id:'task-worker-b',runId:'run-1',state:'RUNNING',phase:'EXECUTING',workerId:'worker-b',lease:{id:'l2',owner:'task-worker-b'}};
+    const controllerA=new AbortController();
+    const controllerB=new AbortController();
+    cp.controllers.set('task-worker-a',controllerA);
+    cp.controllers.set('task-worker-b',controllerB);
+    await cp.cancelTask('run-1','task-worker-a');
+    assert.equal(controllerA.signal.aborted,true);
+    assert.equal(controllerB.signal.aborted,false);
+    assert.equal(workers.get('worker-a').runtimeState,'CANCELLING');
+    assert.equal(workers.get('worker-b').runtimeState,'RUNNING');
+    assert.equal(cp.state.tasks['task-worker-b'].state,'RUNNING');
+  }finally{
+    await cp.shutdown();
+    await fs.rm(root,{recursive:true,force:true});
+  }
+});
