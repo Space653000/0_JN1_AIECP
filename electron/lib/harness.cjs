@@ -44,6 +44,22 @@ function bounded(value, min, max, fallback) {
   return Number.isFinite(n) ? Math.max(min, Math.min(max, n)) : fallback;
 }
 
+function optionalNumberBudget(value, min, max) {
+  if (value == null || value === '') return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? Math.max(min, Math.min(max, n)) : null;
+}
+
+function providerReportedCost(usage, depth = 0) {
+  if (depth > 4 || usage == null || typeof usage !== 'object' || Array.isArray(usage)) return 0;
+  let total = 0;
+  for (const [key, value] of Object.entries(usage)) {
+    if (typeof value === 'number' && Number.isFinite(value) && /cost|price|credit/i.test(key)) total += Math.max(0, value);
+    else if (value && typeof value === 'object' && !Array.isArray(value)) total += providerReportedCost(value, depth + 1);
+  }
+  return total;
+}
+
 function safeJson(raw) {
   const s = String(raw || '').trim().replace(/^\`\`\`(?:json)?\s*/i, '').replace(/\s*\`\`\`$/i, '');
   const unwrap = (value) => {
@@ -149,8 +165,9 @@ async function makeWorktree(root, runRoot, signal, baseRef = null) {
 }
 
 async function verify(worktree, command, args, signal) {
+  const started = Date.now();
   const r = await runProcess(command, args, { cwd: worktree, signal, timeoutMs: 180000 });
-  return { passed: r.code === 0 && !r.timedOut && !r.aborted && !r.outputLimitExceeded, code: r.code,
+  return { passed: r.code === 0 && !r.timedOut && !r.aborted && !r.outputLimitExceeded, code: r.code, durationMs: Math.max(0, Date.now() - started),
     timedOut: r.timedOut, aborted: r.aborted, outputLimitExceeded: Boolean(r.outputLimitExceeded), command: [command, ...args].join(' '),
     stdout: r.stdout.slice(-20000), stderr: r.stderr.slice(-20000) };
 }
@@ -251,6 +268,8 @@ async function runHarness(options) {
   const maxFailedAttempts = bounded(options.maxFailedAttempts, 1, 20, maxTasks * maxIterations);
   const maxNoProgressAttempts = bounded(options.maxNoProgressAttempts, 1, 5, 2);
   const maxWallClockMs = options.maxWallClockMs == null ? null : bounded(options.maxWallClockMs, 1000, 24 * 60 * 60 * 1000, null);
+  const maxProviderReportedCost = optionalNumberBudget(options.maxProviderReportedCost, 0.000001, 1000000000);
+  const maxLocalComputeMs = options.maxLocalComputeMs == null ? null : bounded(options.maxLocalComputeMs, 1000, 24 * 60 * 60 * 1000, null);
   const maxPatchBytes = bounded(options.maxPatchBytes, 1024, 64 * 1024 * 1024, DEFAULT_MAX_PATCH_BYTES);
   const maxChangedFiles = bounded(options.maxChangedFiles, 1, 1000, DEFAULT_MAX_CHANGED_FILES);
   const signal = options.signal;
@@ -272,7 +291,7 @@ async function runHarness(options) {
   }
   if (!record) record = { schema: HARNESS_SCHEMA, id: options.runId || id('harness'), state: 'PLANNING',
     goal, done, sourceRoot: root, runRoot, maxIterations, maxTasks, tasks: [], events: [], startedAt: new Date().toISOString() };
-  record.maxIterations=maxIterations; record.maxTasks=maxTasks; record.checkpointEvery=checkpointEvery; record.maxTurns=maxTurns; record.maxFailedAttempts=maxFailedAttempts; record.maxNoProgressAttempts=maxNoProgressAttempts; record.maxWallClockMs=maxWallClockMs; record.maxPatchBytes=maxPatchBytes; record.maxChangedFiles=maxChangedFiles; record.providerCalls=Number(record.providerCalls||0); record.failedAttempts=Number(record.failedAttempts||0); record.noProgressAttempts=Number(record.noProgressAttempts||0); record.goal=goal; record.done=done; record.sourceRoot=root; record.runRoot=runRoot; record.providers=roleProviders; record.models=roleModels; record.providerApprovals={network:Boolean(options.providerNetworkApproved),credential:Boolean(options.providerCredentialApproved)};
+  record.maxIterations=maxIterations; record.maxTasks=maxTasks; record.checkpointEvery=checkpointEvery; record.maxTurns=maxTurns; record.maxFailedAttempts=maxFailedAttempts; record.maxNoProgressAttempts=maxNoProgressAttempts; record.maxWallClockMs=maxWallClockMs; record.maxProviderReportedCost=maxProviderReportedCost; record.maxLocalComputeMs=maxLocalComputeMs; record.maxPatchBytes=maxPatchBytes; record.maxChangedFiles=maxChangedFiles; record.providerCalls=Number(record.providerCalls||0); record.providerReportedCost=Number(record.providerReportedCost||0); record.localComputeMs=Number(record.localComputeMs||0); record.failedAttempts=Number(record.failedAttempts||0); record.noProgressAttempts=Number(record.noProgressAttempts||0); record.goal=goal; record.done=done; record.sourceRoot=root; record.runRoot=runRoot; record.providers=roleProviders; record.models=roleModels; record.providerApprovals={network:Boolean(options.providerNetworkApproved),credential:Boolean(options.providerCredentialApproved)};
   record.checkpoints=Array.isArray(record.checkpoints)?record.checkpoints:[];
   const suppliedExecutionContract = options.executionContract || record.executionContract || null;
   if (suppliedExecutionContract && !validateExecutionContract(suppliedExecutionContract).ok) throw new Error('Invalid canonical execution contract.');
@@ -301,6 +320,16 @@ async function runHarness(options) {
     definitionOfDone:done,
     maxIterations,
     checkpointEvery,
+    budgets:{
+      maxTurns,
+      maxFailedAttempts,
+      maxNoProgressAttempts,
+      maxWallClockMs,
+      maxProviderReportedCost,
+      maxLocalComputeMs,
+      maxPatchBytes,
+      maxChangedFiles
+    },
     workspaceId:options.workspaceId||record.loopContract?.workspaceId||null,
     providerPolicy:options.providerPolicy||{
       planner:{provider:roleProviders.planner,model:roleModels.planner},
@@ -325,6 +354,8 @@ async function runHarness(options) {
       'NO_PROGRESS',
       'WALL_CLOCK_BUDGET',
       'PROVIDER_CALL_BUDGET',
+      'PROVIDER_COST_BUDGET',
+      'LOCAL_COMPUTE_BUDGET',
       'OUTPUT_OR_PATCH_BUDGET',
       'PERMISSION_UNAVAILABLE',
       'HUMAN_APPROVAL_REQUIRED',
@@ -366,6 +397,12 @@ async function runHarness(options) {
     if (record.failedAttempts >= maxFailedAttempts) {
       throw Object.assign(new Error(`Failed-attempt budget exhausted (${record.failedAttempts}/${maxFailedAttempts}).`), { code: 'FAILED_ATTEMPT_BUDGET_EXHAUSTED' });
     }
+    if (maxProviderReportedCost != null && record.providerReportedCost > maxProviderReportedCost) {
+      throw Object.assign(new Error(`Provider-reported cost budget exhausted (${record.providerReportedCost} > ${maxProviderReportedCost}).`), { code: 'PROVIDER_COST_BUDGET_EXHAUSTED' });
+    }
+    if (maxLocalComputeMs != null && record.localComputeMs > maxLocalComputeMs) {
+      throw Object.assign(new Error(`Local compute budget exhausted (${record.localComputeMs} ms > ${maxLocalComputeMs} ms).`), { code: 'LOCAL_COMPUTE_BUDGET_EXHAUSTED' });
+    }
   };
   const noteFailedAttempt = () => { record.failedAttempts += 1; };
   const observeProgress = (summary) => {
@@ -383,8 +420,21 @@ async function runHarness(options) {
       throw Object.assign(new Error(`Provider call budget exhausted (${record.providerCalls}/${maxTurns}).`), { code: 'PROVIDER_CALL_BUDGET_EXHAUSTED' });
     }
     record.providerCalls += 1;
+    const capabilities = providerRouter.capabilities(args.role, args.providerId, { model: args.model }) || {};
+    const started = Date.now();
     await emit('provider.call', { role: args.role, providerId: args.providerId, count: record.providerCalls, maxTurns });
-    return invokeRole(args);
+    const result = await invokeRole(args);
+    const elapsed = Math.max(0, Date.now() - started);
+    if (!capabilities.network) record.localComputeMs += elapsed;
+    record.providerReportedCost += providerReportedCost(result.usage);
+    await emit('provider.budget', {
+      providerId: args.providerId,
+      providerCalls: record.providerCalls,
+      providerReportedCost: record.providerReportedCost,
+      localComputeMs: record.localComputeMs
+    });
+    assertRuntimeBudget();
+    return result;
   };
   try {
     if (!resumed) {
@@ -424,6 +474,8 @@ async function runHarness(options) {
           ? ['npm', ['test']] : ['npm', ['run', 'verify']];
         assertProcessPolicy(options.policy, wt.worktree, Boolean(options.executionApproved));
         const v = await verify(wt.worktree, verifier[0], verifier[1], signal);
+        record.localComputeMs += Number(v.durationMs || 0);
+        assertRuntimeBudget();
         task.verification = v;
         if (!v.passed) { noteFailedAttempt(); observeProgress(await diffSummary(wt.worktree, signal)); review = `Deterministic verification failed.\n${v.stderr.slice(-5000)}`; await transition('REWORK', { taskId: task.id, reason: 'verification-failed' }); await checkpoint(task, iteration, iteration===maxIterations?'STOP':'NEXT_ITERATION', review); continue; }
         await transition('REVIEWING', { taskId: task.id });
@@ -467,7 +519,7 @@ async function runHarness(options) {
       record.requiredAction = e?.policy?.action || e?.action || null;
       await transition('HUMAN_REQUIRED', { reason: 'policy-approval-required', action: record.requiredAction, error: record.error });
     }
-    else if (['PROVIDER_CALL_BUDGET_EXHAUSTED','FAILED_ATTEMPT_BUDGET_EXHAUSTED','WALL_CLOCK_BUDGET_EXHAUSTED','PATCH_BUDGET_EXHAUSTED','CHANGED_FILE_BUDGET_EXHAUSTED'].includes(e?.code)) {
+    else if (['PROVIDER_CALL_BUDGET_EXHAUSTED','FAILED_ATTEMPT_BUDGET_EXHAUSTED','WALL_CLOCK_BUDGET_EXHAUSTED','PROVIDER_COST_BUDGET_EXHAUSTED','LOCAL_COMPUTE_BUDGET_EXHAUSTED','PATCH_BUDGET_EXHAUSTED','CHANGED_FILE_BUDGET_EXHAUSTED'].includes(e?.code)) {
       record.error = text(e?.message || e, 4000);
       const activeTask=(record.tasks||[]).find(task=>!['DONE','HUMAN_REQUIRED','BLOCKED'].includes(task.state));
       if(activeTask){activeTask.state='BLOCKED';activeTask.stopReason=e.code;}
