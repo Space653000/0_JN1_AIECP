@@ -15,8 +15,8 @@ test('update transaction persists signer evidence for target and rollback instal
     rollbackSha256:'B'.repeat(64),
     rollbackSignerThumbprint:'dd ee ff'
   });
-  assert.equal(tx.targetSignerThumbprint,'AA BB CC');
-  assert.equal(tx.rollbackSignerThumbprint,'DD EE FF');
+  assert.equal(tx.targetSignerThumbprint,'AABBCC');
+  assert.equal(tx.rollbackSignerThumbprint,'DDEEFF');
 });
 
 test('verified update becomes healthy only when first boot matches target version', () => {
