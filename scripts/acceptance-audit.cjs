@@ -36,6 +36,9 @@ const requiredFiles=[
  ['release-workflow','.github/workflows/release.yml'],
  ['packaging-workflow','.github/workflows/ci.yml'],
  ['store-workflow','.github/workflows/store-package.yml'],
+ ['signed-release-workflow','.github/workflows/signed-release.yml'],
+ ['authenticode','electron/lib/authenticode.cjs'],
+ ['authenticode-test','tests/authenticode.test.cjs'],
  ['store-validator','scripts/validate-store-package.ps1'],
  ['license-audit','scripts/license-audit.cjs'],
  ['requirements-coverage','scripts/requirements-coverage.cjs'],
@@ -168,6 +171,27 @@ const staticInvariants=[
   {label:'ARM64 Store script',re:/"dist:store:arm64"/},
   {label:'Traditional Chinese Store language',re:/"zh-TW"/}
  ]),
+ invariant('authenticode-signer-gate','electron/main.cjs',[
+  {label:'authenticode verifier imported',re:/verifyAuthenticode/},
+  {label:'build-time signer pin',re:/packageManifest\?\.aecp\?\.requiredSignerThumbprint/},
+  {label:'environment signer override',re:/AECP_REQUIRED_SIGNER_THUMBPRINT/},
+  {label:'downloaded installer signature verification',re:/Downloaded installer failed SHA-256 verification[\s\S]*verifyAuthenticode/},
+  {label:'rollback signature verification',re:/rollbackInstaller[\s\S]*verifyAuthenticode/}
+ ]),
+ invariant('signed-release-owner-gate','.github/workflows/signed-release.yml',[
+  {label:'manual dispatch',re:/workflow_dispatch:/},
+  {label:'certificate secret reference',re:/secrets\.AECP_CODESIGN_PFX_BASE64/},
+  {label:'password secret reference',re:/secrets\.AECP_CODESIGN_PASSWORD/},
+  {label:'signer verification',re:/Get-AuthenticodeSignature/},
+  {label:'signed provenance',re:/aecp\.signed-release-provenance\/v1/},
+  {label:'publish acknowledgement',re:/if:\s*\$\{\{ inputs\.publish_ack \}\}/}
+ ]),
+ invariant('authenticode-tests','tests/authenticode.test.cjs',[
+  {label:'preview unsigned policy test',re:/preview mode does not require Authenticode/},
+  {label:'matching signer test',re:/accepts a valid matching signature/},
+  {label:'wrong signer rejection',re:/wrong certificate/},
+  {label:'invalid signature rejection',re:/invalid signature status/}
+ ]),
  invariant('canonical-license-gate','package.json',[
   {label:'license audit script',re:/"audit:license"\s*:\s*"node scripts\/license-audit\.cjs"/},
   {label:'verify executes license audit',re:/"verify"\s*:\s*"[^"]*audit:license[^"]*"/}
@@ -253,6 +277,7 @@ function run(){
    'tests/provider-integration.test.cjs',
    'tests/update-state.test.cjs',
    'tests/delivery-reconciliation.test.cjs',
+   'tests/authenticode.test.cjs',
    'scripts/license-audit.cjs',
    'scripts/requirements-coverage.cjs',
    'scripts/blueprint-coverage.cjs',
