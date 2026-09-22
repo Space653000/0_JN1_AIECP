@@ -903,12 +903,16 @@ async function resetLocalStateData() {
 }
 
 async function chooseWorkspace() {
+  const hadWorkspace = Boolean(state.data?.currentWorkspace || state.data?.workspaces?.length);
   const workspace = await safe(() => window.aecp.selectWorkspace());
   if (!workspace) return;
   state.view = 'start';
   $('#welcomeOverlay').classList.add('hidden');
   toast(`Workspace connected: ${workspace.name}`);
   await loadAll();
+  if (!hadWorkspace && state.tasks.length === 0) {
+    await createSampleTask();
+  }
 }
 
 async function refreshWorkspace() {
