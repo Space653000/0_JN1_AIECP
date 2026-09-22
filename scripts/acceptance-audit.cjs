@@ -155,7 +155,8 @@ const staticInvariants=[
   {label:'owner identity input',re:/identity_name:/},
   {label:'owner publisher input',re:/publisher:/},
   {label:'private audience acknowledgement',re:/private_audience_ack:/},
-  {label:'owner Store build',re:/--win[\s\S]*appx/},
+  {label:'owner identity applied to package config',re:/p\.build\.appx\.identityName=process\.env\.AECP_STORE_IDENTITY/},
+  {label:'owner Store build',re:/npm run dist:store:x64[\s\S]*npm run dist:store:arm64/},
   {label:'manifest validator',re:/validate-store-package\.ps1/},
   {label:'Store provenance',re:/aecp\.store-provenance\/v1/},
   {label:'no fake Store submission',re:/submittedToPartnerCenter=\$false/}
