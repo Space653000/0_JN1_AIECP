@@ -1,15 +1,18 @@
 'use strict';
 
 const crypto=require('node:crypto');
+const SCOPES=new Set(['READ_ONLY','APPROVAL_ONLY']);
 
 class PairingManager{
  constructor({ttlMs=5*60*1000,tokenTtlMs=24*60*60*1000}={}){
   this.ttlMs=ttlMs;this.tokenTtlMs=tokenTtlMs;this.pending=new Map();this.devices=new Map();
  }
- create(){
+ create(scope='READ_ONLY'){
+  const normalized=String(scope||'READ_ONLY').toUpperCase();
+  if(!SCOPES.has(normalized))throw new Error('Unsupported pairing scope.');
   const code=String(crypto.randomInt(0,1000000)).padStart(6,'0');
   const id=crypto.randomBytes(12).toString('hex');
-  this.pending.set(code,{id,expiresAt:Date.now()+this.ttlMs});
+  this.pending.set(code,{id,scope:normalized,expiresAt:Date.now()+this.ttlMs});
   return {code,pairingId:id,expiresAt:new Date(Date.now()+this.ttlMs).toISOString()};
  }
  claim(code,deviceId){
@@ -18,7 +21,7 @@ class PairingManager{
   if(!pending||pending.expiresAt<Date.now())throw new Error('Pairing code is invalid or expired.');
   this.pending.delete(String(code));
   const token=crypto.randomBytes(32).toString('hex');
-  const record={deviceId:String(deviceId||pending.id),token,scope:'READ_ONLY',createdAt:new Date().toISOString(),expiresAt:Date.now()+this.tokenTtlMs,revoked:false};
+  const record={deviceId:String(deviceId||pending.id),token,scope:pending.scope||'READ_ONLY',createdAt:new Date().toISOString(),expiresAt:Date.now()+this.tokenTtlMs,revoked:false};
   this.devices.set(record.token,record);
   return {...record,expiresAt:new Date(record.expiresAt).toISOString()};
  }
@@ -50,4 +53,4 @@ class PairingManager{
   for(const [token,d] of this.devices)if(d.expiresAt<=now||d.revoked)this.devices.delete(token);
  }
 }
-module.exports={PairingManager};
+module.exports={PairingManager,SCOPES};
