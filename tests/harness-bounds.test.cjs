@@ -182,6 +182,11 @@ test('Harness persists the complete Goal Loop contract and checkpoint evidence',
   });
   assert.equal(run.state,'DONE',run.error||JSON.stringify(run,null,2));
   assert.equal(run.loopContract.schema,'aecp.goal-loop/v1');
+  assert.equal(run.executionContract.schema,'aecp.execution-contract/v1');
+  assert.equal(run.executionContract.workspace.id,'ws-test');
+  assert.equal(run.executionContract.transport,'full-harness');
+  assert.deepEqual(run.executionContract.taskIds,run.tasks.map(task=>task.id));
+  assert.match(run.executionContract.evidenceRef,/verified\.patch$/);
   assert.equal(run.loopContract.workspaceId,'ws-test');
   assert.equal(run.loopContract.definitionOfDone,'Verification passes.');
   assert.equal(run.loopContract.checkpointEvery,1);
