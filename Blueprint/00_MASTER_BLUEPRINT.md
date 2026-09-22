@@ -162,7 +162,9 @@ ChatGPT receives only the minimum Context Capsule necessary for high-value reaso
 
 ## 9. Remote/mobile direction
 
-A future Codex-like remote supervision path may allow a phone/browser conversation to submit a task that executes on the local AECP node. This is **not** implemented by scraping ChatGPT. It requires an authenticated Remote Gateway or supported official integration with device identity, encrypted transport, replay protection, short-lived credentials, task-level authorization and revocation. No inbound public port is opened by default.
+Authenticated remote supervision is implemented at bounded scope: one-time pairing, short-lived device credentials, READ_ONLY status/event access, APPROVAL_ONLY decisions for existing approval requests, revocation and replay protection. Non-loopback binding requires explicit enablement + TLS; no public inbound port is opened by default.
+
+**Remote task submission remains intentionally disabled** and is not emulated through ChatGPT scraping/DOM automation. Any future task-submission expansion requires a separate policy/acceptance gate and cannot inherit approval authority implicitly.
 
 ## 10. Success criteria
 
