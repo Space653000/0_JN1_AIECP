@@ -21,3 +21,15 @@ test('rejects sibling/outside path', () => {
   assert.equal(isWithinRoot(root, outside), false);
   assert.throws(() => assertWithinRoot(root, outside), /outside the active Workspace/);
 });
+
+
+test('canonicalizes Windows traversal even when tests run on a non-Windows host', () => {
+  const root = 'C:\\work';
+  assert.equal(isWithinRoot(root, 'C:\\work\\src\\app.js'), true);
+  assert.equal(isWithinRoot(root, 'C:\\work\\..\\outside\\secret.txt'), false);
+  assert.equal(isWithinRoot(root, 'C:\\work-evil\\secret.txt'), false);
+});
+
+test('canonical Windows path comparison is case-insensitive', () => {
+  assert.equal(isWithinRoot('C:\\Work', 'c:\\work\\src\\app.js'), true);
+});
