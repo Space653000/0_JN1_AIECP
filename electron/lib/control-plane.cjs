@@ -47,7 +47,7 @@ function compareSchedulerCandidates(a,b){
 }
 
 class ControlPlane {
-  constructor({rootDir, emit=async()=>{}, providerRouter=null, remoteOptions={}, policyConfig={}}={}) {
+  constructor({rootDir, emit=async()=>{}, providerRouter=null, workerRegistry=null, remoteOptions={}, policyConfig={}}={}) {
     this.rootDir=path.resolve(rootDir);
     this.file=path.join(this.rootDir,'control-plane.json');
     this.eventFile=path.join(this.rootDir,'events.jsonl');
@@ -66,6 +66,7 @@ class ControlPlane {
     this.evidence=new EvidenceManager(path.join(this.rootDir,'evidence'));
     this.contextBus=new ContextBus(this.rootDir);
     this.providers=providerRouter||new ProviderRouter();
+    this.workerRegistry=workerRegistry||null;
     this.delivery=new DeliveryManager({repo:null,cwd:this.rootDir});
     this.ledger=new EventLedger(this.eventFile+'.ledger');
     this.resources=new ResourceManager(path.join(this.rootDir,'resources'));
@@ -121,7 +122,7 @@ class ControlPlane {
   }
 
   snapshot(){
-    return redactSensitive({schema:SCHEMA,updatedAt:this.state?.updatedAt,runs:Object.values(this.state?.runs||{}),tasks:Object.values(this.state?.tasks||{}),agents:Object.values(this.state?.agents||{}),approvals:Object.values(this.state?.approvals||{}),locks:Object.values(this.state?.locks||{})});
+    return redactSensitive({schema:SCHEMA,updatedAt:this.state?.updatedAt,runs:Object.values(this.state?.runs||{}),tasks:Object.values(this.state?.tasks||{}),agents:Object.values(this.state?.agents||{}),workers:this.workerRegistry?.list?.()||[],approvals:Object.values(this.state?.approvals||{}),locks:Object.values(this.state?.locks||{})});
   }
 
   policyForRun(run){
@@ -148,12 +149,45 @@ class ControlPlane {
     return {providers:selected,models:selectedModels};
   }
 
+  normalizeBuilderWorkers(workerIds=[]){
+    const ids=[...new Set((Array.isArray(workerIds)?workerIds:[]).map(x=>String(x||'').trim()).filter(Boolean))];
+    if(!ids.length) return [];
+    if(!this.workerRegistry) throw new Error('Builder Worker pool requires a Worker Registry.');
+    for(const id of ids){
+      const worker=this.workerRegistry.get(id);
+      if(!worker) throw new Error(`Worker "${id}" is not registered.`);
+      if(worker.role!=='builder') throw new Error(`Worker "${id}" cannot serve role "builder".`);
+      if(!worker.providerId||!this.providers.resolve('builder',worker.providerId)) throw new Error(`Worker "${id}" provider cannot serve role "builder".`);
+    }
+    return ids;
+  }
+
+  builderWorkerProfiles(run){
+    const ids=Array.isArray(run?.builderWorkers)?run.builderWorkers:[];
+    if(!ids.length||!this.workerRegistry) return [];
+    return ids.map(id=>this.workerRegistry.get(id)).filter(Boolean);
+  }
+
+  builderProviderEntries(run){
+    const workers=this.builderWorkerProfiles(run);
+    if(workers.length) return workers.map(worker=>({
+      workerId:worker.id,
+      providerId:worker.providerId,
+      model:worker.model||null
+    }));
+    return run?.providers?.builder?[{workerId:null,providerId:run.providers.builder,model:run.models?.builder||null}]:[];
+  }
+
   missingProviderApprovals(run){
     const missing=new Set();
-    for(const role of ['planner','builder','reviewer']){
-      const providerId=run.providers?.[role];
-      if(!providerId) continue;
-      const capabilities=this.providers.capabilities(role,providerId,{model:run.models?.[role]});
+    const entries=[
+      {role:'planner',providerId:run.providers?.planner,model:run.models?.planner||null},
+      {role:'reviewer',providerId:run.providers?.reviewer,model:run.models?.reviewer||null},
+      ...this.builderProviderEntries(run).map(entry=>({role:'builder',providerId:entry.providerId,model:entry.model}))
+    ];
+    for(const entry of entries){
+      if(!entry.providerId) continue;
+      const capabilities=this.providers.capabilities(entry.role,entry.providerId,{model:entry.model});
       if(!capabilities) continue;
       if(capabilities.network && !run.providerApprovals?.network) missing.add('NETWORK');
       if(capabilities.credential && !run.providerApprovals?.credential) missing.add('CREDENTIAL');
@@ -235,10 +269,11 @@ class ControlPlane {
     return tasks;
   }
 
-  async createMission({goal,done,sourceRoot,workspaceId=null,context='',maxTasks=8,maxIterations=5,maxConcurrency=2,maxTurns=null,maxFailedAttempts=null,maxNoProgressAttempts=2,maxWallClockMs=null,maxProviderReportedCost=null,maxLocalComputeMs=null,maxPatchBytes=null,maxChangedFiles=null,checkpointEvery=1,autoStart=true,autoResume=true,delivery=false,githubRepo=null,providers={},models={},providerApprovals={}}){
+  async createMission({goal,done,sourceRoot,workspaceId=null,context='',maxTasks=8,maxIterations=5,maxConcurrency=2,maxTurns=null,maxFailedAttempts=null,maxNoProgressAttempts=2,maxWallClockMs=null,maxProviderReportedCost=null,maxLocalComputeMs=null,maxPatchBytes=null,maxChangedFiles=null,checkpointEvery=1,autoStart=true,autoResume=true,delivery=false,githubRepo=null,providers={},models={},builderWorkers=[],providerApprovals={}}){
     if(!goal||!done) throw new Error('Goal and Definition of Done are required.');
     if(!sourceRoot) throw new Error('Mission sourceRoot is required.');
     const roleConfig=this.normalizeRoleConfig(providers,models);
+    const selectedBuilderWorkers=this.normalizeBuilderWorkers(builderWorkers);
     const id=uid('mission');
     const executionContract=makeExecutionContract({
       goal,
@@ -251,10 +286,10 @@ class ControlPlane {
       evidenceRef:`local://control-plane/${id}/evidence`,
       traceRef:`local://control-plane/${id}/events.jsonl`,
       transport:'control-plane-harness',
-      worker:roleConfig.providers.builder
+      worker:selectedBuilderWorkers.length?selectedBuilderWorkers:roleConfig.providers.builder
     });
     const boundedMaxTasks=clamp(maxTasks,1,8,8),boundedMaxIterations=clamp(maxIterations,1,5,5);
-    const run={id,schema:'aecp.mission/v1',goal,done,sourceRoot:path.resolve(sourceRoot),workspaceId:workspaceId||null,context,maxTasks:boundedMaxTasks,maxIterations:boundedMaxIterations,maxConcurrency:clamp(maxConcurrency,1,8,2),maxTurns:clamp(maxTurns,1,200,Math.max(3,1+(boundedMaxTasks*boundedMaxIterations*2))),maxFailedAttempts:clamp(maxFailedAttempts,1,20,boundedMaxTasks*boundedMaxIterations),maxNoProgressAttempts:clamp(maxNoProgressAttempts,1,5,2),maxWallClockMs:maxWallClockMs==null?null:clamp(maxWallClockMs,1000,24*60*60*1000,null),maxProviderReportedCost:maxProviderReportedCost==null?null:Math.max(0.000001,Math.min(1000000000,Number(maxProviderReportedCost)||0.000001)),maxLocalComputeMs:maxLocalComputeMs==null?null:clamp(maxLocalComputeMs,1000,24*60*60*1000,null),maxPatchBytes:maxPatchBytes==null?8*1024*1024:clamp(maxPatchBytes,1024,64*1024*1024,8*1024*1024),maxChangedFiles:maxChangedFiles==null?100:clamp(maxChangedFiles,1,1000,100),checkpointEvery:clamp(checkpointEvery,1,boundedMaxIterations,1),autoResume:Boolean(autoResume),delivery:Boolean(delivery),githubRepo:githubRepo||null,providers:roleConfig.providers,models:roleConfig.models,providerApprovals:{network:Boolean(providerApprovals?.network),credential:Boolean(providerApprovals?.credential)},executionContract,state:'QUEUED',createdAt:now(),updatedAt:now(),taskIds:[],events:[]};
+    const run={id,schema:'aecp.mission/v1',goal,done,sourceRoot:path.resolve(sourceRoot),workspaceId:workspaceId||null,context,maxTasks:boundedMaxTasks,maxIterations:boundedMaxIterations,maxConcurrency:clamp(maxConcurrency,1,8,2),maxTurns:clamp(maxTurns,1,200,Math.max(3,1+(boundedMaxTasks*boundedMaxIterations*2))),maxFailedAttempts:clamp(maxFailedAttempts,1,20,boundedMaxTasks*boundedMaxIterations),maxNoProgressAttempts:clamp(maxNoProgressAttempts,1,5,2),maxWallClockMs:maxWallClockMs==null?null:clamp(maxWallClockMs,1000,24*60*60*1000,null),maxProviderReportedCost:maxProviderReportedCost==null?null:Math.max(0.000001,Math.min(1000000000,Number(maxProviderReportedCost)||0.000001)),maxLocalComputeMs:maxLocalComputeMs==null?null:clamp(maxLocalComputeMs,1000,24*60*60*1000,null),maxPatchBytes:maxPatchBytes==null?8*1024*1024:clamp(maxPatchBytes,1024,64*1024*1024,8*1024*1024),maxChangedFiles:maxChangedFiles==null?100:clamp(maxChangedFiles,1,1000,100),checkpointEvery:clamp(checkpointEvery,1,boundedMaxIterations,1),autoResume:Boolean(autoResume),delivery:Boolean(delivery),githubRepo:githubRepo||null,providers:roleConfig.providers,models:roleConfig.models,builderWorkers:selectedBuilderWorkers,providerApprovals:{network:Boolean(providerApprovals?.network),credential:Boolean(providerApprovals?.credential)},executionContract,state:'QUEUED',createdAt:now(),updatedAt:now(),taskIds:[],events:[]};
     this.state.runs[id]=run;
     await this.persist();
     await this.event('mission.created',{runId:id,state:run.state,goal});
@@ -280,13 +315,13 @@ class ControlPlane {
   async pauseMission(id){
     const run=this.state.runs[id]; if(!run) throw new Error('Mission not found.');
     run.state='PAUSED'; run.pausedAt=now();
-    for(const taskId of run.taskIds||[]){ const c=this.controllers.get(taskId); if(c) c.abort(); }
+    for(const taskId of run.taskIds||[]){ const task=this.state.tasks[taskId]; const controller=this.controllers.get(taskId); if(controller) controller.abort(); if(task?.workerId&&this.workerRegistry) await this.workerRegistry.markCancelling(task.workerId).catch(()=>{}); }
     await this.persist(); await this.event('mission.paused',{runId:id}); return run;
   }
 
   async cancelMission(id){
     const run=this.state.runs[id]; if(!run) throw new Error('Mission not found.');
-    for(const taskId of run.taskIds||[]){const c=this.controllers.get(taskId);if(c)c.abort();}
+    for(const taskId of run.taskIds||[]){const task=this.state.tasks[taskId];const controller=this.controllers.get(taskId);if(controller)controller.abort();if(task?.workerId&&this.workerRegistry)await this.workerRegistry.markCancelling(task.workerId).catch(()=>{});}
     run.state='CANCELLED'; run.cancelledAt=now();
     await this.persist(); await this.event('mission.cancelled',{runId:id}); return run;
   }
@@ -338,6 +373,7 @@ class ControlPlane {
         if(t?.state!=='RUNNING'||!t.lease) continue;
         t.lease.expiresAt=new Date(Date.now()+15*60*1000).toISOString();
         t.heartbeatAt=now();
+        if(t.workerId&&this.workerRegistry) await this.workerRegistry.updateAssignment(t.workerId,{runId:run.id,taskId:t.id,verificationState:t.phase==='VERIFYING'?'RUNNING':'PENDING'}).catch(()=>{});
         for(const lock of t.lockLeases||[]){
           try{
             const renewed=await this.locks.renew(lock.key,t.id,lock.token);
@@ -360,9 +396,12 @@ class ControlPlane {
   async providerHealthForRun(run){
     const results={};
     const unique=new Map();
-    for(const role of ['planner','builder','reviewer']){
+    for(const role of ['planner','reviewer']){
       const providerId=run.providers?.[role];
       if(providerId) unique.set(providerId,{providerId,model:run.models?.[role]||null});
+    }
+    for(const entry of this.builderProviderEntries(run)){
+      if(entry.providerId) unique.set(entry.providerId,{providerId:entry.providerId,model:entry.model||null});
     }
     for(const {providerId,model} of unique.values()){
       const cacheKey=[providerId,model||'',Boolean(run.providerApprovals?.network),Boolean(run.providerApprovals?.credential)].join('|');
@@ -387,7 +426,7 @@ class ControlPlane {
     return results;
   }
 
-  schedulerDecision(run,task,{providerHealth={},locks=[]}={}){
+  schedulerDecision(run,task,{providerHealth={},locks=[],reservedWorkers=new Set()}={}){
     const reasons=[];
     const dependenciesReady=(task.dependencies||[]).every(d=>{
       const dep=(run.taskIds||[]).map(x=>this.state.tasks[x]).find(x=>x?.id===d||x?.title===d);
@@ -407,12 +446,32 @@ class ControlPlane {
     if(!this.adapterSecurity?.ok) reasons.push('ADAPTER_POLICY_BLOCKED');
 
     const providerStates={};
-    for(const role of ['planner','builder','reviewer']){
+    for(const role of ['planner','reviewer']){
       const providerId=run.providers?.[role];
       if(!providerId) continue;
       const health=providerHealth[providerId]||{status:'NOT_CONFIGURED',detail:'Provider health unavailable.'};
       providerStates[role]={provider:providerId,status:health.status,detail:health.detail||null};
       if(health.status!=='READY') reasons.push('PROVIDER_'+role.toUpperCase()+'_'+health.status);
+    }
+
+    let selectedWorker=null;
+    const workerProfiles=this.builderWorkerProfiles(run);
+    if(workerProfiles.length){
+      const candidates=workerProfiles.filter(worker=>worker.runtimeState==='IDLE'&&!reservedWorkers.has(worker.id));
+      selectedWorker=candidates.find(worker=>(providerHealth[worker.providerId]?.status||'NOT_CONFIGURED')==='READY')||null;
+      if(!selectedWorker){
+        const anyIdle=candidates.length>0;
+        if(!anyIdle) reasons.push('WORKER_BUSY');
+        else reasons.push('BUILDER_PROVIDER_UNAVAILABLE');
+      }else{
+        const health=providerHealth[selectedWorker.providerId]||{status:'NOT_CONFIGURED',detail:'Provider health unavailable.'};
+        providerStates.builder={provider:selectedWorker.providerId,workerId:selectedWorker.id,status:health.status,detail:health.detail||null};
+      }
+    }else{
+      const providerId=run.providers?.builder;
+      const health=providerHealth[providerId]||{status:'NOT_CONFIGURED',detail:'Provider health unavailable.'};
+      providerStates.builder={provider:providerId,status:health.status,detail:health.detail||null};
+      if(health.status!=='READY') reasons.push('PROVIDER_BUILDER_'+health.status);
     }
 
     return {
@@ -421,6 +480,9 @@ class ControlPlane {
       at:now(),
       eligible:reasons.length===0,
       reasons:[...new Set(reasons)],
+      selectedWorkerId:selectedWorker?.id||null,
+      selectedBuilderProvider:selectedWorker?.providerId||run.providers?.builder||null,
+      selectedBuilderModel:selectedWorker?.model||run.models?.builder||null,
       priority:schedulerPriority(task.priority),
       risk:schedulerRisk(task.risk),
       estimatedCostUnits:schedulerEstimate(task.estimatedCostUnits,1,1000000),
@@ -442,18 +504,20 @@ class ControlPlane {
       if(active>=run.maxConcurrency) continue;
 
       const providerHealth=await this.providerHealthForRun(run);
-      const candidates=(run.taskIds||[]).map(id=>this.state.tasks[id]).filter(t=>t&&t.state==='QUEUED').map(task=>{
-        const decision=this.schedulerDecision(run,task,{providerHealth,locks});
+      const reservedWorkers=new Set();
+      const ordered=(run.taskIds||[]).map(id=>this.state.tasks[id]).filter(t=>t&&t.state==='QUEUED').sort((a,b)=>compareSchedulerCandidates(
+        {priority:schedulerPriority(a.priority),risk:schedulerRisk(a.risk),estimatedCostUnits:schedulerEstimate(a.estimatedCostUnits,1,1000000),estimatedRuntimeMs:schedulerEstimate(a.estimatedRuntimeMs,300000,24*60*60*1000),createdAt:a.createdAt,taskId:a.id},
+        {priority:schedulerPriority(b.priority),risk:schedulerRisk(b.risk),estimatedCostUnits:schedulerEstimate(b.estimatedCostUnits,1,1000000),estimatedRuntimeMs:schedulerEstimate(b.estimatedRuntimeMs,300000,24*60*60*1000),createdAt:b.createdAt,taskId:b.id}
+      ));
+      const selected=[];
+      for(const task of ordered){
+        const decision=this.schedulerDecision(run,task,{providerHealth,locks,reservedWorkers});
         task.schedulerDecision=decision;
-        return {task,decision};
-      });
-      const selected=candidates
-        .filter(item=>item.decision.eligible)
-        .sort((a,b)=>compareSchedulerCandidates(
-          {...a.decision,createdAt:a.task.createdAt,taskId:a.task.id},
-          {...b.decision,createdAt:b.task.createdAt,taskId:b.task.id}
-        ))
-        .slice(0,run.maxConcurrency-active);
+        if(!decision.eligible) continue;
+        selected.push({task,decision});
+        if(decision.selectedWorkerId) reservedWorkers.add(decision.selectedWorkerId);
+        if(selected.length>=run.maxConcurrency-active) break;
+      }
       for(const {task,decision} of selected){
         await this.event('scheduler.selected',{runId:run.id,taskId:task.id,decision});
         this.executeTask(run,task).catch(()=>{});
