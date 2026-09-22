@@ -574,3 +574,42 @@ test('main process and UI expose resume only for persisted INTERRUPTED autonomy'
   assert.match(app, /Resume interrupted run/);
   assert.match(app, /state\.autonomyStatus\?\.state === 'INTERRUPTED'/);
 });
+
+
+test('autonomy treats verifier output overflow as BUDGET_EXHAUSTED instead of ordinary rework', async (t) => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'aecp-auto-verifier-output-budget-'));
+  const repo = path.join(root, 'repo');
+  const runRoot = path.join(root, 'run');
+  await fs.mkdir(repo, { recursive: true });
+  await exec('git', ['init'], { cwd: repo });
+  await exec('git', ['config', 'user.email', 'test@example.com'], { cwd: repo });
+  await exec('git', ['config', 'user.name', 'AECP Test'], { cwd: repo });
+  await fs.writeFile(path.join(repo, 'value.txt'), 'original\n');
+  await exec('git', ['add', '.'], { cwd: repo });
+  await exec('git', ['commit', '-m', 'base'], { cwd: repo });
+  t.after(async () => fs.rm(root, { recursive: true, force: true }));
+
+  const record = await runBoundedAutonomy({
+    sourceRoot: repo,
+    runRoot,
+    spec: {
+      goal: 'Stop on verifier output overflow.',
+      done: 'Never reinterpret output overflow as a normal failed test.',
+      workerId: 'opencode',
+      verificationProfile: 'npm-test',
+      maxIterations: 3
+    }
+  }, {
+    workerProbe: async () => '1.18.30',
+    runProcess: async () => ({ code:0, signal:null, timedOut:false, aborted:false, outputLimitExceeded:false, stdout:'worker ok', stderr:'' }),
+    runVerification: async () => ({
+      profile:'npm-test', label:'fake', command:'fake verify', passed:false, code:-1,
+      timedOut:false, aborted:false, outputLimitExceeded:true, stdout:'', stderr:''
+    })
+  });
+
+  assert.equal(record.state, 'BUDGET_EXHAUSTED');
+  assert.equal(record.currentIteration, 1);
+  assert.equal(record.iterations.length, 1);
+  assert.equal(record.iterations[0].verification.outputLimitExceeded, true);
+});
