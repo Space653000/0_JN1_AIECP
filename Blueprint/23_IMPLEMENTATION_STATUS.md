@@ -1,6 +1,6 @@
 # 23 — Implementation Status, Decisions and Remaining Work
 
-**Status date:** 2026-09-19  
+**Status date:** 2026-09-22  
 **Branch:** `feat/control-plane-complete-loop`  
 **Current integration vehicle:** PR #7  
 **Purpose:** This document is the authoritative implementation snapshot for the current AECP Harness / Control Plane expansion.
@@ -135,21 +135,21 @@ Git / GitHub
 | Bounded scheduler | Implemented |
 | Locks / leases / heartbeat | Implemented |
 | Evidence / event journal | Implemented |
-| Security policy foundation | Implemented and partially enforced |
-| Provider routing foundation | Implemented |
-| GitHub delivery foundation | Implemented |
+| Security policy / adapter audit | Implemented; high-risk actions remain approval-gated |
+| Provider routing | Implemented in canonical Harness with role-specific selection |
+| Governed GitHub delivery | Implemented for branch/commit/push/Draft PR/CI; merge human-gated |
 | CI monitoring / bounded rework | Implemented |
 | Governed PR approval / merge path | Implemented |
 | Full crash-safe substep resume | Implemented |
 | Full multi-repository routing | Implemented for repository-per-task execution |
 | Complete GitHub event/webhook/event-bus integration | Hardened — signed inbound receiver + polling fallback; production deployment/tunnel remains external |
 | Full security enforcement across every adapter | Hardened in Control Plane delivery paths; adapter-specific completion remains |
-| Mobile authenticated supervision | Pairing foundation implemented; LAN/Internet transport intentionally gated |
-| Windows UI automation | Not implemented |
-| Public/remote MCP gateway | Not implemented |
+| Remote authenticated supervision | READ_ONLY + APPROVAL_ONLY pairing/revocation implemented; remote task submission disabled; non-loopback requires explicit enablement + TLS |
+| Windows UI automation | Scoped read-only inspection implemented; browser/ChatGPT deny-by-default; state-changing docking requires SYSTEM approval |
+| Public/remote gateway | Software boundary implemented; public deployment disabled by default and remains operator-owned |
 | Private Store distribution | Not implemented |
 | One-click production-grade updater | Partial — update/rollback release-environment proof remains |
-| Full integration/E2E test suite | Infrastructure E2E implemented; provider/clean-Windows matrix external |
+| Full integration/E2E test suite | Deterministic canonical/provider/pairing/security tests plus Windows packaging/smoke workflow implemented; real-provider environment remains external |
 | Maintenance / garbage collection automation | Implemented bounded scheduler/retention |
 
 ## 5. Remaining work — ordered by engineering dependency
@@ -177,7 +177,7 @@ Git / GitHub
 - Correlation and replay protection — completed.
 - External event deduplication — completed.
 - Polling fallback retained when webhook is unavailable.
-- Materialized event projection — remaining dashboard hardening.
+- Materialized event projection — implemented; Dashboard remains a projection and never Source of Truth.
 
 ### P3 — Maintenance / self-healing
 - Expired lease cleanup — completed.
@@ -188,18 +188,19 @@ Git / GitHub
 - Scheduled maintenance tasks with bounded budgets — completed.
 
 ### P4 — Distribution
-- Reliable x64/ARM64 production builds.
-- Installer smoke tests on clean Windows environments.
-- Signed release channel.
-- Robust update rollback.
-- Private Microsoft Store lane.
-- Release provenance and artifact verification.
+- x64/ARM64 architecture-specific builds — implemented in Packaging workflow; exact-HEAD Actions determine PASS.
+- Universal architecture-selecting bootstrap — implemented with Windows-runner smoke gate.
+- Silent install/uninstall smoke on x64/ARM64 — repository-verifiable on GitHub Windows runners.
+- SHA-256 release manifest, updater verification, update transaction/rollback and backup/restore foundations — implemented.
+- Production Authenticode signing and Microsoft Store publication — **EXTERNAL OWNER GATE**.
+- Optional production release provenance tied to owner signing identity — **EXTERNAL OWNER GATE**.
 
 ### P5 — Remote/mobile
-- Authenticated device pairing.
-- Read-only mobile dashboard first.
-- Approval-only remote actions next.
-- Full remote task submission only after policy and revocation are proven.
+- One-time authenticated device pairing and revocation — implemented.
+- READ_ONLY status/tasks/approvals/events supervision — implemented.
+- APPROVAL_ONLY decision of existing approvals — implemented with request-id replay safety.
+- Remote task submission — intentionally disabled.
+- Non-loopback binding — requires explicit `allowRemote=true` plus TLS; public deployment/domain/device identity is **EXTERNAL OWNER GATE**.
 - No public inbound port by default.
 
 ## 6. Non-goals / permanent boundaries
@@ -253,8 +254,8 @@ The major capabilities that cannot be made genuinely production-complete by repo
 ### Engineering work tracked in this tranche
 1. **Failure Recovery Assistant** — bounded classifier + low-risk auto-rework implemented; richer evidence-driven diagnosis remains bounded by existing authority.
 2. **Adapter Security Audit Matrix** — explicit SecurityPolicy decisions are now required for READ/WRITE/EXECUTE/NETWORK/CREDENTIAL actions.
-3. **Clean E2E Matrix** — temporary-Git infrastructure coverage is implemented; real provider/clean-Windows evidence remains external.
-4. **Release Gate** — clean Windows x64/ARM64 install, update, rollback, provenance and checksum verification remain release-environment evidence gates.
+3. **Clean E2E Matrix** — temporary-Git infrastructure coverage plus x64/ARM64/universal Windows-runner install/uninstall smoke workflows are implemented; real provider execution still requires its environment.
+4. **Release Gate** — repository CI can prove unsigned x64/ARM64/universal build/install/uninstall/checksum behavior; production signing/Store trust remains an owner gate, while update/rollback must retain exact evidence.
 5. **Remote Pairing Gate** — authenticated one-time pairing, read-only credentials and revocation are implemented; LAN/Internet transport remains gated.
 6. **Drift Scans** — scheduled dependency, security, Blueprint/code and documentation consistency scanners are implemented.
 
@@ -290,7 +291,7 @@ The maintenance loop now includes a bounded, non-mutating Blueprint/documentatio
 ### Deterministic E2E hardening — 2026-09-19
 
 - Added a clean temporary-Git canonical-loop infrastructure test covering repository discovery, policy gates, locks, event idempotency, evidence, bounded recovery and maintenance drift/security results without requiring external model credentials.
-- This is an infrastructure E2E layer; provider-backed clean Windows and real GitHub delivery tests remain separate release-environment gates.
+- This is an infrastructure E2E layer; Windows packaging/install smoke is repository-verifiable in Actions, while provider-backed execution and owner trust credentials remain separate environment/owner gates.
 - Harness provider execution now passes through the Control Plane EXECUTE policy before Planner, Builder, Reviewer and deterministic verifier processes start.
 
 ### Dependency/security drift hardening — 2026-09-19
@@ -309,4 +310,12 @@ The maintenance loop now includes a bounded, non-mutating Blueprint/documentatio
 
 - Added a self-contained Windows bootstrap installer source that detects x64 vs ARM64 at runtime and launches the matching embedded NSIS payload.
 - Release workflow now builds x64 and ARM64 payloads, assembles the universal auto-select installer, generates SHA-256 checksums, and publishes release assets for version tags.
-- The universal installer path is now represented in source and CI; clean-machine installer execution remains an external release gate until a Windows runner smoke test has actually executed successfully.
+- The universal installer path is represented in source and CI, and the Packaging workflow contains architecture-specific plus universal Windows-runner install/uninstall smoke gates. PASS is accepted only from the exact PR HEAD Actions run.
+
+
+## Exact-HEAD verification hardening — 2026-09-22
+
+- AECP CI, AECP Security and AECP Packaging explicitly checkout `pull_request.head.sha` for PR verification instead of implicitly testing GitHub's synthetic merge commit.
+- Acceptance Audit fails if the exact-head checkout contract is removed.
+- Workflow artifacts/evidence are tied to the exact PR HEAD where applicable.
+- Documentation never records a static PASS as a substitute for the live GitHub Actions result.
