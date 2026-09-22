@@ -95,3 +95,11 @@ test('Graph edge editing routes only through governed controls',()=>{
   assert.match(app,/Graph mutations are governed/);
   assert.doesNotMatch(app,/data-action="graph-(?:write|shell|grant|delete)"/);
 });
+
+
+test('Workspace policy follows select refresh and unbind transitions',()=>{
+  const main=read('electron/main.cjs');
+  assert.match(main,/controlPlane\?\.setPolicyConfig\(workspace\.policy \|\| \{\}\)/);
+  assert.match(main,/controlPlane\?\.setPolicyConfig\(refreshed\.policy \|\| \{\}\)/);
+  assert.match(main,/controlPlane\?\.setPolicyConfig\(\{\}\)/);
+});
