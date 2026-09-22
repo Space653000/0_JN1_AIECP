@@ -39,6 +39,7 @@ const requiredFiles=[
  ['universal-bootstrap-project','release/universal-bootstrap/UniversalBootstrap.csproj'],
  ['e2e-canonical','tests/canonical-loop.e2e.test.cjs'],
  ['e2e-provider','tests/provider-router.e2e.test.cjs'],
+ ['e2e-provider-network','tests/provider-network.e2e.test.cjs'],
  ['event-projection-test','tests/event-projection.test.cjs'],
  ['provider-integration-test','tests/provider-integration.test.cjs'],
  ['e2e-security-recovery','tests/security-recovery-matrix.test.cjs'],
@@ -149,6 +150,7 @@ function run(){
    'npm test executes behavioral/unit/integration tests before this audit',
    'tests/canonical-loop.e2e.test.cjs',
    'tests/provider-router.e2e.test.cjs',
+   'tests/provider-network.e2e.test.cjs',
    'tests/remote-pairing.test.cjs',
    'tests/security-recovery-matrix.test.cjs'
   ],
