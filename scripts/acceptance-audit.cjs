@@ -136,6 +136,11 @@ const staticInvariants=[
   {label:'universal bootstrap smoke',re:/smoke-universal-bootstrap/},
   {label:'uninstall verification',re:/still exists after (?:universal bootstrap )?uninstall/}
  ]),
+ invariant('release-exact-head-dry-run','.github/workflows/release.yml',[
+  {label:'PR trigger',re:/pull_request:[\s\S]*branches:\s*\[main\]/},
+  {label:'PR exact HEAD checkout',re:/pull_request\.head\.sha \|\| github\.sha/},
+  {label:'stale run cancellation',re:/cancel-in-progress:\s*true/}
+ ]),
  invariant('release-publication-gate','.github/workflows/release.yml',[
   {label:'release verify job',re:/^  verify:$/m},
   {label:'x64 ARM64 smoke',re:/smoke-install:[\s\S]*windows-11-arm/},
