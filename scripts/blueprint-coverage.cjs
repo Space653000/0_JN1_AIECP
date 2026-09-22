@@ -31,7 +31,7 @@ const matrix={
   '21_AGENT_ROLES_AND_HANDOFF_PROTOCOL.md':{type:'FUNCTIONAL',evidence:['electron/lib/provider-router.cjs','electron/lib/harness.cjs','tests/provider-integration.test.cjs']},
   '22_DASHBOARD_QUEUE_AND_EVENT_ARCHITECTURE.md':{type:'FUNCTIONAL',evidence:['electron/lib/event-projection.cjs','ui/harness-console.js','tests/event-projection.test.cjs','tests/i18n-accessibility.test.cjs']},
   '23_IMPLEMENTATION_STATUS.md':{type:'NORMATIVE',evidence:['scripts/acceptance-audit.cjs','scripts/requirements-coverage.cjs','scripts/blueprint-coverage.cjs']},
-  '24_LOCAL_MODEL_PROVIDER_VERIFICATION.md':{type:'FUNCTIONAL',evidence:['electron/lib/provider-router.cjs','tests/provider-router.e2e.test.cjs','tests/provider-integration.test.cjs'],external:['real Ollama/model artifact execution environment']}
+  '24_LOCAL_MODEL_PROVIDER_VERIFICATION.md':{type:'FUNCTIONAL',evidence:['electron/lib/provider-router.cjs','electron/lib/provider-usage.cjs','scripts/provider-environment-verify.cjs','.github/workflows/provider-environment.yml','tests/provider-router.test.cjs','tests/provider-usage.test.cjs','tests/provider-router.e2e.test.cjs','tests/provider-integration.test.cjs','tests/provider-environment-workflow.test.cjs'],external:['self-hosted aecp-provider machine with actual Ollama/OpenCode/model artifacts and optional company worker']}
 };
 
 const blueprintDir=path.join(root,'Blueprint');
