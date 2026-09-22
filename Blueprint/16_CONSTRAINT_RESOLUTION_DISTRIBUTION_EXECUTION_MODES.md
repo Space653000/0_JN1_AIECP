@@ -162,7 +162,9 @@ ChatGPT Web is still the preferred supervisor/architect, but it does not need to
 - Local Ollama model / local agent runtime
 - Gemini CLI
 - Claude Code
-- Codex CLI
+- Codex CLI through isolated Worker profiles
+  - `codex-official` → OpenAI Official → dedicated `CODEX_HOME`
+  - `codex-pega` → PEGA → dedicated `CODEX_HOME`
 - OpenCode/local agent with deny-first permissions
 - external/OpenAI-compatible API providers when explicitly enabled and approved
 
@@ -185,7 +187,7 @@ AECP owns:
 
 ### Provider-specific notes
 
-Claude Code, Gemini CLI, Codex CLI and OpenCode are represented through governed role/capability adapters. Provider automation may have its own subscription/credit/quota semantics and must be surfaced in capability/status rather than treated as unlimited.
+Claude Code, Gemini CLI, Codex CLI and OpenCode are represented through governed role/capability adapters. Codex execution may have multiple isolated Worker identities; switching Provider by mutating a shared `CODEX_HOME` is not considered isolation. Provider automation may have its own subscription/credit/quota semantics and must be surfaced in capability/status rather than treated as unlimited.
 
 Local-only workers are the only path that can truthfully avoid external model quotas entirely.
 
