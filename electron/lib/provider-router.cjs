@@ -357,6 +357,14 @@ class ProviderRouter {
     const started = Date.now();
     let selectedModel = opts.model || provider.defaultModel || process.env[`AECP_${provider.id.toUpperCase()}_MODEL`] || null;
     try {
+      if (provider.mode === 'codex-cli') {
+        if (provider.network && !opts.networkApproved) {
+          throw Object.assign(new Error('Codex worker network access requires explicit approval.'), { code: 'APPROVAL_REQUIRED', action: 'NETWORK' });
+        }
+        if (provider.requiresCredential && !opts.credentialApproved) {
+          throw Object.assign(new Error('Codex worker credential use requires explicit approval.'), { code: 'APPROVAL_REQUIRED', action: 'CREDENTIAL' });
+        }
+      }
       let result;
       if (provider.mode === 'openai-compatible') {
         result = await executeOpenAICompatible(provider, role, prompt, opts);
