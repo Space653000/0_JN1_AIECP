@@ -12,7 +12,7 @@ const state = {
   githubConnection: null,
   update: null,
   updateTransaction: null,
-  mcpStatus: null;
+  mcpStatus: null,
   autonomyOptions: null,
   autonomyStatus: null,
   harnessStatus: null,
