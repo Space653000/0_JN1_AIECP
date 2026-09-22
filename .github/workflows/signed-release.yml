@@ -221,61 +221,7 @@ jobs:
         run: |
           $thumb = ($env:AECP_SIGNER_THUMBPRINT -replace '[^A-Fa-f0-9]','').ToUpperInvariant()
           $sourceCommit = (git rev-parse HEAD).Trim()
-          if ($LASTEXITCODE -ne 0 -or $sourceCommit -notmatch '^[0-9a-f]{40} Get-ChildItem signed-assets -Recurse -File | Where-Object { $_.Extension -in @('.exe','.blockmap') } | Sort-Object FullName
-          if (-not $assets) { throw 'No signed release assets found.' }
-          $lines=@();$records=@()
-          foreach($asset in $assets){
-            $hash=(Get-FileHash $asset.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
-            $lines += "$hash  $($asset.Name)"
-            $records += [ordered]@{file=$asset.Name;sha256=$hash;bytes=$asset.Length}
-          }
-          $lines | Out-File -Encoding ascii signed-assets/SHA256SUMS.txt
-          $prov=[ordered]@{
-            schema='aecp.signed-release-provenance/v1'
-            releaseTag=$env:AECP_RELEASE_TAG
-            sourceRef='${{ inputs.source_ref }}'
-            sourceCommit=$sourceCommit
-            signerThumbprint=$thumb
-            workflowRunId=$env:GITHUB_RUN_ID
-            signed=$true
-            assets=$records
-            generatedAt=(Get-Date).ToUniversalTime().ToString('o')
-          }
-          $prov|ConvertTo-Json -Depth 6|Out-File -Encoding utf8 signed-assets/SIGNED_RELEASE_PROVENANCE.json
-      - uses: actions/upload-artifact@v4
-        with:
-          name: aecp-signed-release-bundle
-          path: signed-assets/**
-          if-no-files-found: error
-          retention-days: 30
-
-  publish-signed-release:
-    name: Publish signed GitHub Release
-    if: ${{ inputs.publish_ack }}
-    needs: signed-provenance
-    timeout-minutes: 45
-    runs-on: windows-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: aecp-signed-release-bundle
-          path: signed-assets
-      - name: Publish owner-authorized signed release
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
-          AECP_RELEASE_TAG: ${{ inputs.release_tag }}
-        run: |
-          gh release view $env:AECP_RELEASE_TAG 2>$null
-          if ($LASTEXITCODE -ne 0) {
-            gh release create $env:AECP_RELEASE_TAG --title "AECP $env:AECP_RELEASE_TAG" --generate-notes
-          }
-          Get-ChildItem signed-assets -Recurse -File | ForEach-Object {
-            gh release upload $env:AECP_RELEASE_TAG $_.FullName --clobber
-          }
-) { throw 'Unable to resolve exact signed source commit.' }
+          if ($LASTEXITCODE -ne 0 -or $sourceCommit -notmatch '^[0-9a-f]{40}$') { throw 'Unable to resolve exact signed source commit.' }
           $assets = Get-ChildItem signed-assets -Recurse -File | Where-Object { $_.Extension -in @('.exe','.blockmap') } | Sort-Object FullName
           if (-not $assets) { throw 'No signed release assets found.' }
           $lines=@();$records=@()
@@ -289,7 +235,7 @@ jobs:
             schema='aecp.signed-release-provenance/v1'
             releaseTag=$env:AECP_RELEASE_TAG
             sourceRef='${{ inputs.source_ref }}'
-            sourceCommit=$env:GITHUB_SHA
+            sourceCommit=$sourceCommit
             signerThumbprint=$thumb
             workflowRunId=$env:GITHUB_RUN_ID
             signed=$true
