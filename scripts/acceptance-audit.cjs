@@ -39,6 +39,9 @@ const requiredFiles=[
  ['store-validator','scripts/validate-store-package.ps1'],
  ['license-audit','scripts/license-audit.cjs'],
  ['requirements-coverage','scripts/requirements-coverage.cjs'],
+ ['blueprint-coverage','scripts/blueprint-coverage.cjs'],
+ ['store-metadata','release/store/store-metadata.template.json'],
+ ['store-readme','release/store/README.md'],
  ['human-controls-test','tests/human-controls.test.cjs'],
  ['universal-bootstrap-source','release/universal-bootstrap/Program.cs'],
  ['universal-bootstrap-project','release/universal-bootstrap/UniversalBootstrap.csproj'],
@@ -166,6 +169,10 @@ const staticInvariants=[
   {label:'requirements audit script',re:/"audit:requirements"\s*:\s*"node scripts\/requirements-coverage\.cjs"/},
   {label:'verify executes requirements audit',re:/"verify"\s*:\s*"[^"]*audit:requirements[^"]*"/}
  ]),
+ invariant('blueprint-coverage-gate','package.json',[
+  {label:'Blueprint audit script',re:/"audit:blueprints"\s*:\s*"node scripts\/blueprint-coverage\.cjs"/},
+  {label:'verify executes Blueprint audit',re:/"verify"\s*:\s*"[^"]*audit:blueprints[^"]*"/}
+ ]),
  invariant('human-agency-gate','tests/human-controls.test.cjs',[
   {label:'explicit Workspace selection',re:/Workspace authorization is explicit/},
   {label:'explicit clipboard',re:/clipboard bridge remains explicit/},
@@ -230,6 +237,7 @@ function run(){
    'tests/update-state.test.cjs',
    'scripts/license-audit.cjs',
    'scripts/requirements-coverage.cjs',
+   'scripts/blueprint-coverage.cjs',
    'tests/human-controls.test.cjs'
   ],
   exactCommitCIGates:[
