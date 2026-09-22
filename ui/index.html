@@ -175,6 +175,7 @@
           <label>Kind<select id="providerKindInput"><option value="api">API</option><option value="local">Local OpenAI-compatible</option><option value="local-command">Fixed local command</option><option value="remote-mcp">Remote MCP</option></select></label>
           <label class="wide">Base URL<input id="providerUrlInput" placeholder="https://api.example.com/v1 or http://localhost:11434/v1"></label>
           <label class="wide">Default model<input id="providerModelInput" maxlength="200" placeholder="Example: company-code-model or qwen3-coder:30b"></label>
+          <label>Wire API<select id="providerWireApiInput"><option value="responses">Responses</option><option value="chat">Chat Completions</option></select></label>
           <label class="wide">Fixed command<input id="providerCommandInput" maxlength="2048" placeholder="Example: C:\Tools\my-company-worker.exe"></label>
           <label class="wide">Fixed arguments<input id="providerArgsInput" maxlength="1024" placeholder="Optional fixed args, separated by spaces"></label>
           <label class="wide">API key (optional)<input id="providerKeyInput" type="password" autocomplete="new-password" placeholder="Stored encrypted by Windows/Electron safeStorage"></label>
