@@ -422,9 +422,26 @@ async function runBoundedAutonomy(options, deps = {}) {
     return (result.stdout || result.stderr).trim().split(/\r?\n/)[0];
   });
 
-  const runId = options.runId || makeRunId();
-  const startedAt = new Date().toISOString();
-  const record = {
+  const resumeRecord = options.resumeRecord && options.resumeRecord.schema === AUTONOMY_SCHEMA ? options.resumeRecord : null;
+  if (resumeRecord && resumeRecord.state !== 'INTERRUPTED') throw new Error('Only an INTERRUPTED autonomous run can resume.');
+  if (resumeRecord && normalizePathForCompare(resumeRecord.sourceRoot) !== normalizePathForCompare(sourceRoot)) throw new Error('Resume sourceRoot does not match the persisted run.');
+  if (resumeRecord && normalizePathForCompare(resumeRecord.runRoot) !== normalizePathForCompare(runRoot)) throw new Error('Resume runRoot does not match the persisted run.');
+  const runId = resumeRecord?.id || options.runId || makeRunId();
+  const startedAt = resumeRecord?.startedAt || new Date().toISOString();
+  const record = resumeRecord ? {
+    ...resumeRecord,
+    state: 'PREPARING',
+    completedAt: null,
+    error: null,
+    spec,
+    maxIterations: spec.maxIterations,
+    maxTurns: spec.maxTurns,
+    maxOutputBytes: spec.maxOutputBytes,
+    maxPatchBytes: spec.maxPatchBytes,
+    maxChangedFiles: spec.maxChangedFiles,
+    updatedAt: new Date().toISOString(),
+    iterations: Array.isArray(resumeRecord.iterations) ? resumeRecord.iterations : []
+  } : {
     schema: AUTONOMY_SCHEMA,
     id: runId,
     state: 'PREPARING',
@@ -434,6 +451,7 @@ async function runBoundedAutonomy(options, deps = {}) {
     verificationProfile: spec.verificationProfile,
     goal: spec.goal,
     done: spec.done,
+    spec,
     maxIterations: spec.maxIterations,
     maxTurns: spec.maxTurns,
     maxOutputBytes: spec.maxOutputBytes,
@@ -456,21 +474,52 @@ async function runBoundedAutonomy(options, deps = {}) {
   };
 
   try {
-    await emit('run.preparing', { workerId: spec.workerId });
+    await emit(resumeRecord ? 'run.resuming' : 'run.preparing', { workerId: spec.workerId });
     const workerVersion = await workerProbe(spec.workerId);
     record.workerVersion = workerVersion;
 
-    const prepared = await prepareWorktree({ sourceRoot, runRoot, signal });
-    record.worktree = prepared.worktree;
-    record.baseHead = prepared.baseHead;
-    record.linkedNodeModules = prepared.linkedNodeModules;
-    record.state = 'RUNNING';
-    await emit('worktree.ready', { worktree: prepared.worktree, baseHead: prepared.baseHead });
+    let prepared;
+    let startIteration = 1;
+    if (resumeRecord) {
+      const current = await assertCleanGitRoot(sourceRoot, signal);
+      if (!record.baseHead || current.head !== record.baseHead) throw new Error('Workspace HEAD changed since the interrupted autonomous run. Refusing to resume.');
+      if (!record.worktree) throw new Error('Interrupted autonomous run has no persisted worktree.');
+      const worktree = path.resolve(record.worktree);
+      const runBase = path.resolve(runRoot);
+      const relative = path.relative(runBase, worktree);
+      if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) throw new Error('Persisted autonomous worktree is outside the run root.');
+      const stat = await fs.stat(worktree).catch(() => null);
+      if (!stat?.isDirectory()) throw new Error('Persisted autonomous worktree is unavailable.');
+      const top = await git(worktree, ['rev-parse', '--show-toplevel'], { signal });
+      if (normalizePathForCompare(top) !== normalizePathForCompare(worktree)) throw new Error('Persisted autonomous worktree identity is invalid.');
+      prepared = { worktree, baseHead: record.baseHead, linkedNodeModules: Boolean(record.linkedNodeModules) };
+      const last = record.iterations.at(-1);
+      const currentIteration = Math.max(1, Number(record.currentIteration || 1));
+      startIteration = last && Number(last.iteration) === currentIteration ? currentIteration + 1 : currentIteration;
+      if (startIteration > spec.maxIterations) {
+        record.state = 'BUDGET_EXHAUSTED';
+        record.completedAt = new Date().toISOString();
+        await emit('run.budget_exhausted', { iterations: spec.maxIterations, reason: 'resume-budget-exhausted' });
+        return record;
+      }
+      record.state = 'RUNNING';
+      await emit('worktree.resumed', { worktree, baseHead: record.baseHead, startIteration });
+    } else {
+      prepared = await prepareWorktree({ sourceRoot, runRoot, signal });
+      record.worktree = prepared.worktree;
+      record.baseHead = prepared.baseHead;
+      record.linkedNodeModules = prepared.linkedNodeModules;
+      record.state = 'RUNNING';
+      await emit('worktree.ready', { worktree: prepared.worktree, baseHead: prepared.baseHead });
+    }
 
-    let previousVerification = '';
-    let currentDiff = '';
+    const lastVerification = record.iterations.at(-1)?.verification;
+    let previousVerification = resumeRecord && lastVerification && !lastVerification.passed
+      ? ['Previous checkpoint verification failed.', lastVerification.command || '', lastVerification.stderr || '', lastVerification.stdout || ''].filter(Boolean).join('\n').slice(-6000)
+      : '';
+    let currentDiff = resumeRecord ? await diffSummary(record.worktree, signal) : '';
 
-    for (let iteration = 1; iteration <= spec.maxIterations; iteration += 1) {
+    for (let iteration = startIteration; iteration <= spec.maxIterations; iteration += 1) {
       if (signal?.aborted) throw Object.assign(new Error('Autonomous run cancelled.'), { name: 'AbortError' });
       record.currentIteration = iteration;
       record.state = 'RUNNING';
