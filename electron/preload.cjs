@@ -32,6 +32,7 @@ contextBridge.exposeInMainWorld('aecp', Object.freeze({
   getAutonomyOptions: () => call('autonomy:options'),
   getAutonomyStatus: () => call('autonomy:status'),
   startAutonomy: (payload) => call('autonomy:start', payload),
+  resumeAutonomy: () => call('autonomy:resume'),
   cancelAutonomy: () => call('autonomy:cancel'),
   openAutonomyWorktree: () => call('autonomy:open-worktree'),
   applyAutonomy: () => call('autonomy:apply'),
