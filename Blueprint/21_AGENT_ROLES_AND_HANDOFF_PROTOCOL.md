@@ -181,11 +181,11 @@ without changing the Task schema.
 This is the primary observability contract for beginners.
 
 
-## 13. Runtime status — 2026-09-19
+## 13. Runtime status — 2026-09-22
 
 The role contracts are now backed by a Provider Router foundation and the Control Plane uses Planner/Builder/Reviewer roles without making vendor identity part of Task state. Worker reports and evidence are persisted; reviewer outcomes drive bounded state transitions.
 
-A provider may be substituted without changing the task contract, but production acceptance still requires broader adapter-level policy enforcement and integration testing.
+A provider may be substituted without changing the task contract. Adapter-level policy coverage and deterministic integration tests are now part of canonical verification; real provider-specific production claims still require the corresponding actual runtime/credentials/environment.
 
 
 ## Runtime closure update — 2026-09-19
