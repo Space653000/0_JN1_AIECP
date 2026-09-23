@@ -203,6 +203,33 @@ AECP verifier
 
 ---
 
+# Multi-Worker：Codex OFFICIAL + Codex PEGA
+
+AECP 現在把 **Provider** 與 **Worker** 分開管理。使用者仍只操作一個 AECP；Harness/Control Plane 可以把不同 Builder task 派給不同、彼此隔離的 Codex Worker。
+
+```text
+AECP
+ ↓
+Harness / Control Plane
+ ├─ Codex OFFICIAL → OpenAI Official → isolated CODEX_HOME
+ └─ Codex PEGA     → PEGA            → isolated CODEX_HOME
+```
+
+核心規則：
+
+- OFFICIAL 與 PEGA 使用不同 `CODEX_HOME`、auth/session/runtime state。
+- 同一 repository 要平行施工時，各 task 使用不同 Git worktree。
+- Worker 不可繞過 Harness 自行取得 Workspace、網路、credential、push 或 merge 權限。
+- NETWORK / CREDENTIAL 仍需受控批准。
+- 單一 task cancel 只取消該 task / Worker；Dashboard 的 **STOP ALL** 才是全域停止入口。
+- Dashboard 顯示 Worker / Provider / Model / Role / Task / State / Runtime / Worktree / Verify / Health；無法驗證時顯示 UNKNOWN。
+- PEGA 固定以 Provider Adapter 接到 `https://aiapi.t-cyber.com/v1`，目前支援明確選擇 Responses 或 Chat Completions wire API。
+- repository tests/CI 可以證明隔離、排程與介面；**真 OFFICIAL / PEGA endpoint、model、auth、雙 Worker 同時執行仍必須由 self-hosted Windows ENVIRONMENT evidence 證明**。
+
+這不是 Dual Codex Desktop、Dual Launcher，也不是兩套 Control Plane。
+
+---
+
 # 自動偵測原則
 
 AECP 採用：
