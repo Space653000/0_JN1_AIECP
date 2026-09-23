@@ -99,3 +99,22 @@ test('real PEGA evidence is executed through the governed Codex worker adapter a
   assert.match(script,/codexHomeSha256/);
   assert.doesNotMatch(script,/status:'PASS'.*PEGA_BASE_URL/);
 });
+
+test('all mode includes Codex prerequisites and real multi-Codex evidence uses isolated Git worktrees',()=>{
+  const workflow=read('.github/workflows/provider-environment.yml');
+  const script=read('scripts/provider-environment-verify.cjs');
+  assert.match(workflow,/@\('codex-official','codex-pega','multi-codex','all'\)/);
+  assert.match(workflow,/@\('codex-pega','multi-codex','all'\)/);
+  assert.match(script,/mode==='codex-official'\|\|mode==='all'/);
+  assert.match(script,/mode==='codex-pega'\|\|mode==='all'/);
+  assert.match(script,/mode==='multi-codex'\|\|mode==='all'/);
+  assert.match(script,/makeCodexParallelWorktrees/);
+  assert.match(script,/git\(repo,\['worktree','add','-b','evidence-official'/);
+  assert.match(script,/git\(repo,\['worktree','add','-b','evidence-pega'/);
+  assert.match(script,/codexEditSmoke/);
+  assert.match(script,/worker_result\.txt/);
+  assert.match(script,/worktreeSha256/);
+  assert.match(script,/fileSha256/);
+  assert.match(script,/distinctWorktrees/);
+});
+
