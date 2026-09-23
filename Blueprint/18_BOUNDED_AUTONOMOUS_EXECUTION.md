@@ -127,6 +127,28 @@ codex exec
 
 This keeps model-generated execution in Codex workspace-write sandbox and disables sandbox network access.
 
+### Codex Multi-Worker profile isolation
+
+The broader Control Plane may run multiple Codex Builder Workers concurrently, but bounded autonomy must preserve the same safety envelope.
+
+Initial canonical Codex Worker identities are:
+
+```text
+codex-official → OpenAI Official → dedicated CODEX_HOME
+codex-pega     → PEGA            → dedicated CODEX_HOME
+```
+
+Rules:
+
+- Worker identity is separate from Provider identity and Builder role.
+- OFFICIAL and PEGA never share `CODEX_HOME`, auth/session/runtime state or task worktree.
+- A task receives one explicit Worker assignment from Harness/Control Plane.
+- Same-repository parallel tasks use different isolated Git worktrees.
+- Worker/provider network and credential use remain approval-gated.
+- Task-scoped cancel must not cancel unrelated Workers.
+- Deterministic verification, patch budgets, evidence and human delivery gates remain authoritative regardless of Worker/provider.
+- Real OFFICIAL/PEGA endpoint execution is an ENVIRONMENT claim and cannot be promoted from mock/unit tests.
+
 ### Claude Code / Gemini CLI
 
 Both remain detected launchable agents, but v0.3 does not mark them as autonomous-write workers yet.
