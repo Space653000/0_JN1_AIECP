@@ -42,6 +42,14 @@ The extension reuses the existing Provider Router, Scheduler, isolated worktrees
 
 The authoritative acceptance rule remains: **Blueprint presence is not Runtime completion, and repository tests are not real-provider evidence.** Runtime claims require implementation + deterministic tests + exact-HEAD CI. Real PEGA/OpenAI Worker claims additionally require ENVIRONMENT evidence from the actual endpoint/model/auth/runtime.
 
+## 0C. Provider evidence architecture hard gate — 2026-09-23
+
+- Real-provider workflow now accepts an explicit `expected_arch: any | x64 | arm64`.
+- The self-hosted runner fails before provider execution when `process.arch` does not match the requested architecture.
+- Provider evidence persists both actual `arch` and `expectedArch`; provenance verification rejects mismatches.
+- Deterministic tests and canonical acceptance audit cover the architecture gate.
+- This closes the **software-side ARM64 evidence selection gate only**. A real ARM64 OFFICIAL/PEGA run is still **ENVIRONMENT NOT YET VERIFIED**.
+
 ## 0B. V3.0 progress visibility and audit — 2026-09-23
 
 - Added `Reports/V3_IMPLEMENTATION_PROGRESS_REPORT.md` as the detailed V3.0 progress ledger.
