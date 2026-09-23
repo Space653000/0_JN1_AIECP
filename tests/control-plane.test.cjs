@@ -593,3 +593,28 @@ test('task-scoped cancellation marks only the selected Worker and leaves the oth
     await fs.rm(root,{recursive:true,force:true});
   }
 });
+
+test('same-repository parallel tasks receive distinct task-scoped worktree locks while Git admin stays serialized', async () => {
+  const root=await fs.mkdtemp(path.join(os.tmpdir(),'aecp-worktree-lock-isolation-'));
+  const repo=path.join(root,'repo');
+  await fs.mkdir(repo,{recursive:true});
+  const cp=new ControlPlane({rootDir:path.join(root,'runtime')});
+  await cp.init();
+  try{
+    const run={id:'run-parallel',sourceRoot:repo};
+    const taskA={id:'task-a',resources:{repositories:[repo]}};
+    const taskB={id:'task-b',resources:{repositories:[repo]}};
+    const locksA=cp.taskMutationLockKeys(run,taskA);
+    const locksB=cp.taskMutationLockKeys(run,taskB);
+    assert.equal(locksA.length,1);
+    assert.equal(locksB.length,1);
+    assert.notEqual(locksA[0],locksB[0]);
+    assert.match(locksA[0],/task-a/);
+    assert.match(locksB[0],/task-b/);
+    assert.equal(cp.gitAdminLockKey(repo),cp.gitAdminLockKey(repo));
+  }finally{
+    await cp.shutdown();
+    await fs.rm(root,{recursive:true,force:true});
+  }
+});
+
