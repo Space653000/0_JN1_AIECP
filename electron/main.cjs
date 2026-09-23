@@ -1189,6 +1189,11 @@ async function checkProviderHealth(providerId, options = {}) {
     return { provider: providerId, status: 'NOT_CONFIGURED', detail: 'Provider is not registered.', checkedAt: new Date().toISOString() };
   }
   const router = await buildRuntimeProviderRouter();
+  // A health check is also an explicit runtime refresh point. This keeps an
+  // already-initialized Control Plane aligned after isolated Codex login or
+  // provider credential/model changes, without polling/rebuilding on every
+  // dashboard status request.
+  if (controlPlane) controlPlane.providers = router;
   return router.health(providerId, {
     networkApproved: Boolean(options.networkApproved),
     credentialApproved: Boolean(options.credentialApproved),
