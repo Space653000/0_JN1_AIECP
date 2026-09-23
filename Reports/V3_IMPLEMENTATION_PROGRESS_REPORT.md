@@ -214,6 +214,7 @@ Current status:
 | Real Codex OFFICIAL | ENVIRONMENT PENDING |
 | Real Codex PEGA | ENVIRONMENT PENDING |
 | Real OFFICIAL + PEGA simultaneous execution | ENVIRONMENT PENDING |
+| ARM64/x64 architecture hard gate in provider-evidence workflow | IMPLEMENTED + TESTED; exact-HEAD CI pending for this tranche |
 | Real target ARM64 provider execution | ENVIRONMENT PENDING |
 
 These are the most important remaining V3.0 technical gates.
@@ -239,7 +240,7 @@ The Master Blueprint defines 15 key Multi-Worker acceptance requirements.
 | 11 | Task/Mission/Queue/Harness do not depend on literal `PEGA` | PASS — architecture/acceptance audited | n/a |
 | 12 | deterministic verifier remains completion authority | PASS — TESTED | n/a |
 | 13 | Dashboard projects Worker/Provider/model/task/state/runtime/worktree/verify/health | PASS — TESTED | runtime values depend on environment |
-| 14 | Windows x64 and ARM64 deterministic gates remain green | PASS at last inspected exact-head baseline | new tranche exact-head CI pending |
+| 14 | Windows x64 and ARM64 deterministic gates remain green | PASS at prior inspected exact-head baseline; provider-evidence architecture hard gate now added | current architecture-gate tranche exact-head CI pending |
 | 15 | real PEGA endpoint/model/auth accepted only from ENVIRONMENT evidence | PASS — policy/workflow design | **ENVIRONMENT PENDING** |
 
 No item in the last column is silently converted to PASS from source code.
@@ -271,6 +272,10 @@ No item in the last column is silently converted to PASS from source code.
    - require PASS.
 
 4. **Repeat on the intended ARM64 target when ARM64 real-provider proof is required.**
+   - select `expected_arch: arm64`;
+   - workflow now fails closed when Node reports a different architecture;
+   - evidence artifact persists both requested and actual architecture;
+   - provenance validation rejects an architecture mismatch.
 
 ### 5.2 OWNER / EXTERNAL production gates
 
