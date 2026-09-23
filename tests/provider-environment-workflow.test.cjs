@@ -118,3 +118,22 @@ test('all mode includes Codex prerequisites and real multi-Codex evidence uses i
   assert.match(script,/distinctWorktrees/);
 });
 
+
+
+test('real provider evidence can hard-gate the requested x64 or ARM64 runtime architecture',()=>{
+  const workflow=read('.github/workflows/provider-environment.yml');
+  const script=read('scripts/provider-environment-verify.cjs');
+  assert.match(workflow,/expected_arch:/);
+  assert.match(workflow,/default:\s*any/);
+  assert.match(workflow,/- x64[\s\S]*- arm64/);
+  assert.match(workflow,/AECP_PROVIDER_VERIFY_EXPECTED_ARCH/);
+  assert.match(workflow,/node -p "process\.arch"/);
+  assert.match(workflow,/Runner architecture mismatch/);
+  assert.match(workflow,/Evidence runtime architecture mismatch/);
+  assert.match(script,/AECP_PROVIDER_VERIFY_EXPECTED_ARCH/);
+  assert.match(script,/VALID_ARCHES/);
+  assert.match(script,/expectedArch/);
+  assert.match(script,/ARCH_INVALID/);
+  assert.match(script,/ARCH_MISMATCH/);
+  assert.match(script,/arch:process\.arch/);
+});
