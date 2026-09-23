@@ -26,12 +26,17 @@ const matrix={
   'R3.4':{classes:['TESTED'],evidence:['tests/provider-router.test.cjs','scripts/provider-environment-verify.cjs','tests/provider-environment-workflow.test.cjs']},
   'R3.5':{classes:['TESTED'],evidence:['tests/security-recovery-matrix.test.cjs','tests/provider-network.e2e.test.cjs','electron/lib/execution-contract.cjs','tests/execution-contract.test.cjs']},
   'R3.6':{classes:['STATIC','TESTED'],evidence:['electron/lib/provider-router.cjs','electron/lib/provider-usage.cjs','tests/provider-router.test.cjs','tests/provider-usage.test.cjs','tests/human-controls.test.cjs','scripts/provider-environment-verify.cjs','tests/provider-environment-workflow.test.cjs']},
+  'R3.7':{classes:['STATIC','TESTED'],evidence:['electron/lib/worker-registry.cjs','electron/lib/control-plane.cjs','tests/worker-registry.test.cjs','tests/control-plane.test.cjs','tests/provider-integration.test.cjs']},
+  'R3.8':{classes:['TESTED'],evidence:['electron/lib/codex-worker-runtime.cjs','electron/lib/worker-registry.cjs','tests/worker-registry.test.cjs','tests/provider-integration.test.cjs']},
+  'R3.9':{classes:['STATIC','TESTED','ENVIRONMENT'],evidence:['electron/lib/pega-provider.cjs','electron/lib/provider-router.cjs','scripts/provider-environment-verify.cjs','.github/workflows/provider-environment.yml','tests/provider-environment-workflow.test.cjs']},
+  'R3.10':{classes:['TESTED'],evidence:['electron/lib/control-plane.cjs','electron/lib/worker-registry.cjs','tests/worker-registry.test.cjs','tests/control-plane.test.cjs']},
   'R4.1':{classes:['TESTED'],evidence:['tests/canonical-loop.e2e.test.cjs','electron/lib/resource-manager.cjs']},
   'R4.2':{classes:['TESTED'],evidence:['tests/canonical-loop.e2e.test.cjs','tests/control-plane-infrastructure.test.cjs']},
   'R4.3':{classes:['STATIC','TESTED'],evidence:['electron/lib/delivery.cjs','tests/control-plane.test.cjs']},
   'R4.4':{classes:['TESTED'],evidence:['tests/control-plane-hardening.test.cjs']},
   'R4.5':{classes:['TESTED'],evidence:['tests/security-recovery-matrix.test.cjs','electron/lib/failure-recovery.cjs']},
   'R4.6':{classes:['STATIC','CI'],evidence:['electron/lib/control-plane.cjs','scripts/acceptance-audit.cjs']},
+  'R4.7':{classes:['TESTED'],evidence:['electron/lib/control-plane.cjs','tests/control-plane.test.cjs','tests/worker-registry.test.cjs','scripts/provider-environment-verify.cjs','tests/provider-environment-workflow.test.cjs']},
   'R5.1':{classes:['TESTED'],evidence:['tests/control-plane.test.cjs','tests/event-projection.test.cjs']},
   'R5.2':{classes:['TESTED'],evidence:['tests/canonical-loop.e2e.test.cjs','electron/lib/evidence-manager.cjs','electron/lib/accepted-evidence.cjs','tests/accepted-evidence.test.cjs']},
   'R5.3':{classes:['TESTED'],evidence:['tests/event-projection.test.cjs','Blueprint/22_DASHBOARD_QUEUE_AND_EVENT_ARCHITECTURE.md']},
@@ -51,7 +56,8 @@ const matrix={
   'R8.2':{classes:['STATIC','TESTED'],evidence:['ui/app.js','ui/harness-console.js','tests/i18n-accessibility.test.cjs','tests/dashboard-acceptance.test.cjs','electron/lib/execution-contract.cjs','tests/execution-contract.test.cjs']},
   'R8.3':{classes:['TESTED'],evidence:['tests/human-controls.test.cjs']},
   'R8.4':{classes:['STATIC','TESTED'],evidence:['ui/app.js','ui/harness-console.js','tests/human-controls.test.cjs','tests/dashboard-acceptance.test.cjs']},
-  'R8.5':{classes:['TESTED'],evidence:['tests/human-controls.test.cjs','tests/control-plane.test.cjs','tests/dashboard-acceptance.test.cjs']}
+  'R8.5':{classes:['TESTED'],evidence:['tests/human-controls.test.cjs','tests/control-plane.test.cjs','tests/dashboard-acceptance.test.cjs']},
+  'R8.6':{classes:['STATIC','TESTED'],evidence:['ui/harness-console.js','electron/lib/control-plane.cjs','tests/dashboard-acceptance.test.cjs','tests/provider-integration.test.cjs']}
 };
 
 const body=fs.readFileSync(requirementsFile,'utf8');
