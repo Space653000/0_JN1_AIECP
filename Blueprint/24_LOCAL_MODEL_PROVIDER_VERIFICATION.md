@@ -49,7 +49,11 @@ No provider adapter may bypass SecurityPolicy. Provider selection changes the mo
 
 Source/unit checks and GitHub CI are repository-verifiable. Windows packaging/install smoke can also be repository-verifiable through GitHub Windows runners and is accepted only from the exact PR HEAD. `Local Ollama smoke` and `Canonical Harness E2E with Ollama` require an environment containing the actual Ollama/model artifacts; deterministic adapter tests must not be presented as real-model execution evidence.
 
-The repository includes `.github/workflows/provider-environment.yml` plus `scripts/provider-environment-verify.cjs` for this external evidence. It runs only on a dedicated `self-hosted + Windows + aecp-provider` runner, checks out an explicit source ref, and can verify: raw Ollama smoke, OpenCode+Ollama real file edit, fixed local/company command smoke, and a canonical Ollama Planner → OpenCode/Ollama Builder → deterministic Verify → Ollama Reviewer Harness loop. Evidence is emitted as `aecp.provider-environment-evidence/v1` and intentionally stores hashes/state/metrics rather than prompt or response bodies.
+The repository includes `.github/workflows/provider-environment.yml` plus `scripts/provider-environment-verify.cjs` for this external evidence. It runs only on a dedicated `self-hosted + Windows + aecp-provider` runner and checks out an explicit source ref. Supported evidence modes are: raw Ollama smoke, OpenCode+Ollama real file edit, fixed local/company command smoke, canonical Ollama Planner → OpenCode/Ollama Builder → deterministic Verify → Ollama Reviewer, real `codex-official`, real `codex-pega`, real concurrent `multi-codex`, and `all`.
+
+The real concurrent Codex mode requires distinct OFFICIAL/PEGA `CODEX_HOME` roots and distinct processes, creates two actual Git worktrees from one temporary repository, runs OFFICIAL and PEGA concurrently, requires each Worker to create and deterministically verify its own `worker_result.txt`, and records only hashes/state/timing evidence. Evidence is emitted as `aecp.provider-environment-evidence/v1`; prompt bodies, response bodies and credentials are not persisted.
+
+The existence of this workflow is not a real-provider PASS. Until a self-hosted target machine runs the exact source commit with the actual OFFICIAL auth and PEGA endpoint/model/credential and uploads a passing artifact, the corresponding ENVIRONMENT requirements remain unverified.
 
 ## OFFICIAL / PEGA Worker environment verification extension
 
