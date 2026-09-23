@@ -4,6 +4,26 @@
 
 > **Target release: v0.3.0 Preview.** Official ChatGPT Web remains the normal supervisor. v0.3 adds real bounded autonomous execution: AECP builds in an isolated Git worktree, verifies each iteration, and only applies a verified patch to your real Workspace after your explicit approval.
 
+## V3.0 Multi-Worker progress
+
+The current V3.0 architecture keeps **one AECP** and adds isolated, replaceable Builder Workers behind the existing Harness:
+
+```text
+AECP
+ ↓
+Harness / Control Plane
+ ├─ Codex OFFICIAL Worker → isolated CODEX_HOME
+ ├─ Codex PEGA Worker     → isolated CODEX_HOME
+ ├─ Claude Code Planner / Reviewer
+ └─ future Provider / Worker
+```
+
+Repository/runtime implementation, deterministic tests, real-provider environment evidence, and OWNER/EXTERNAL production trust are tracked separately. The detailed ledger is:
+
+**[Reports/V3_IMPLEMENTATION_PROGRESS_REPORT.md](Reports/V3_IMPLEMENTATION_PROGRESS_REPORT.md)**
+
+The Command Center also exposes a **V3.0 Multi-Worker Readiness** panel. Real OFFICIAL/PEGA execution is never shown as complete from source tests alone; it remains an **ENVIRONMENT GATE** until exact-source self-hosted Windows evidence exists.
+
 ## The idea in one picture
 
 ```text
