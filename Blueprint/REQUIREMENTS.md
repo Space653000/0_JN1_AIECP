@@ -29,6 +29,10 @@
 - **R3.4** Ollama model selection is explicit; AECP must not silently choose a model.
 - **R3.5** Changing providers must not implicitly change Workspace or security permissions.
 - **R3.6** Optional providers failing or being unconfigured must not break Web Safe Bridge operation.
+- **R3.7** Provider identity and Worker runtime identity are separate concepts; Mission/Task/Queue/Harness state machines must remain provider-neutral.
+- **R3.8** Codex OFFICIAL and Codex PEGA Workers use different `CODEX_HOME`, auth/session/runtime state and process environments; credentials must not cross Worker boundaries.
+- **R3.9** PEGA is implemented through the Provider Router/Worker abstraction rather than PEGA-specific Harness branching; real endpoint/model/auth compatibility is accepted only from ENVIRONMENT evidence.
+- **R3.10** Worker/provider failure and task-scoped cancellation are isolated; one Worker becoming unavailable must not terminate another Worker or the Web Safe Bridge.
 
 ## R4 — Git, GitHub and multi-repository work
 
@@ -38,6 +42,7 @@
 - **R4.4** GitHub webhook events are authenticated and replay/idempotency protected; polling remains a fallback.
 - **R4.5** CI failure evidence returns only safely classified failures to bounded rework.
 - **R4.6** A governed merge requires required CI success and explicit human approval.
+- **R4.7** Parallel mutating tasks in the same repository use distinct task-scoped Git worktrees and cannot concurrently own the same mutating worktree/resource.
 
 ## R5 — Evidence, observability and recovery
 
@@ -70,6 +75,7 @@
 - **R8.3** Clipboard ingress/egress occurs only on explicit user action.
 - **R8.4** Goal/Definition of Done, current state, risk, evidence and required approvals are visible.
 - **R8.5** User pause/cancel/emergency-stop controls remain authoritative over autonomous execution.
+- **R8.6** The Dashboard projects canonical Worker, Provider, Model, Role, Task, State, Runtime, Worktree, Verify and Health fields and shows UNKNOWN instead of inventing unverifiable status.
 
 ## Verification rule
 
