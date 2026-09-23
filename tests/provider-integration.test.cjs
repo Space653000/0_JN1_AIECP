@@ -101,3 +101,11 @@ test('Mission creation refreshes Worker provider state after isolated login or p
   assert.match(block[0], /return controlPlane\.createMission\(/);
 });
 
+test('Provider health refresh synchronizes the long-lived Control Plane router', () => {
+  const main = read('electron/main.cjs');
+  const block = main.match(/async function checkProviderHealth\([\s\S]*?\n\}/);
+  assert.ok(block, 'checkProviderHealth must exist');
+  assert.match(block[0], /const router = await buildRuntimeProviderRouter\(\)/);
+  assert.match(block[0], /if \(controlPlane\) controlPlane\.providers = router/);
+});
+
