@@ -26,6 +26,10 @@ const requiredFiles=[
  ['lock-manager','electron/lib/lock-manager.cjs'],
  ['context-bus','electron/lib/context-bus.cjs'],
  ['provider-router','electron/lib/provider-router.cjs'],
+ ['worker-registry','electron/lib/worker-registry.cjs'],
+ ['codex-worker-runtime','electron/lib/codex-worker-runtime.cjs'],
+ ['pega-provider','electron/lib/pega-provider.cjs'],
+ ['worker-registry-test','tests/worker-registry.test.cjs'],
  ['provider-usage','electron/lib/provider-usage.cjs'],
  ['provider-usage-test','tests/provider-usage.test.cjs'],
  ['real-provider-test','tests/provider-environment-workflow.test.cjs'],
@@ -335,6 +339,33 @@ const staticInvariants=[
   {label:'no provider network approval',re:/providerNetworkApproved:false/},
   {label:'privacy declaration',re:/promptBodiesPersisted:false[\s\S]*responseBodiesPersisted:false[\s\S]*credentialsPersisted:false/}
  ]),
+ invariant('multi-worker-runtime','electron/lib/worker-registry.cjs',[
+  {label:'durable worker registry schema',re:/aecp\.worker-registry\/v1/},
+  {label:'shared CODEX_HOME rejected',re:/Workers must not share CODEX_HOME/},
+  {label:'worker busy double assignment rejected',re:/WORKER_BUSY/},
+  {label:'restart does not fake running state',re:/RECOVERY_REQUIRED/}
+ ]),
+ invariant('codex-worker-isolation','electron/lib/codex-worker-runtime.cjs',[
+  {label:'OFFICIAL worker identity',re:/codex-official/},
+  {label:'PEGA worker identity',re:/codex-pega/},
+  {label:'dedicated CODEX_HOME environment',re:/CODEX_HOME/},
+  {label:'custom worker secret via env key',re:/env_key/},
+  {label:'workspace-write sandbox',re:/sandbox_mode = "workspace-write"/}
+ ]),
+ invariant('pega-provider-adapter','electron/lib/pega-provider.cjs',[
+  {label:'PEGA provider id',re:/PEGA_PROVIDER_ID='pega'/},
+  {label:'PEGA worker id',re:/PEGA_WORKER_ID='codex-pega'/},
+  {label:'PEGA governed base URL',re:/https:\/\/aiapi\.t-cyber\.com\/v1/},
+  {label:'wire API choices',re:/\['responses','chat'\]/}
+ ]),
+ invariant('multi-codex-real-environment','scripts/provider-environment-verify.cjs',[
+  {label:'real OFFICIAL smoke',re:/codex-official\.real-smoke/},
+  {label:'real PEGA smoke',re:/codex-pega\.real-smoke/},
+  {label:'real parallel Codex check',re:/codex\.multi-worker-real-concurrency/},
+  {label:'git worktree fixture',re:/makeCodexParallelWorktrees/},
+  {label:'worktree evidence hash',re:/worktreeSha256/},
+  {label:'distinct worktrees asserted',re:/distinctWorktrees/}
+ ]),
  invariant('provider-health-and-observability','electron/lib/provider-router.cjs',[
   {label:'health NOT_CONFIGURED',re:/NOT_CONFIGURED/},
   {label:'health READY',re:/READY/},
@@ -566,6 +597,7 @@ function run(){
    'tests/security-recovery-matrix.test.cjs',
    'tests/event-projection.test.cjs',
    'tests/provider-integration.test.cjs',
+   'tests/worker-registry.test.cjs',
    'tests/update-state.test.cjs',
    'tests/delivery-reconciliation.test.cjs',
    'tests/authenticode.test.cjs',
