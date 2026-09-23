@@ -345,7 +345,18 @@ const staticInvariants=[
   {label:'dedicated self-hosted runner',re:/runs-on:\s*\[self-hosted, Windows, aecp-provider\]/},
   {label:'exact source checkout',re:/ref:\s*\$\{\{ inputs\.source_ref \}\}/},
   {label:'provider evidence artifact',re:/provider-environment-evidence\.json/},
+  {label:'expected architecture input',re:/expected_arch:/},
+  {label:'runtime architecture prerequisite gate',re:/Runner architecture mismatch/},
+  {label:'artifact architecture provenance gate',re:/Evidence runtime architecture mismatch/},
   {label:'always upload evidence',re:/if:\s*always\(\)[\s\S]*Upload real provider evidence/}
+ ]),
+ invariant('real-provider-architecture-gate','scripts/provider-environment-verify.cjs',[
+  {label:'expected architecture environment input',re:/AECP_PROVIDER_VERIFY_EXPECTED_ARCH/},
+  {label:'allowed architectures',re:/VALID_ARCHES/},
+  {label:'fail closed invalid architecture',re:/ARCH_INVALID/},
+  {label:'fail closed mismatch',re:/ARCH_MISMATCH/},
+  {label:'actual architecture persisted',re:/arch:process\.arch/},
+  {label:'expected architecture persisted',re:/expectedArch/}
  ]),
  invariant('real-provider-evidence-script','scripts/provider-environment-verify.cjs',[
   {label:'real Ollama smoke',re:/ollama\.real-smoke/},
