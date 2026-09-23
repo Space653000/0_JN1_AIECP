@@ -335,3 +335,51 @@ test('Codex OFFICIAL health reports AUTH_REQUIRED when isolated home is not auth
   const health = await router.health('openai-official');
   assert.equal(health.status,'AUTH_REQUIRED');
 });
+
+test('PEGA credential is injected only into the selected Worker environment and never argv', async () => {
+  let observed=null;
+  const runner=async (command,args,options={})=>{
+    observed={command,args:[...args],env:{...(options.env||{})}};
+    return {code:0,stdout:'ok',stderr:'',timedOut:false,aborted:false};
+  };
+  const secret='PEGA_ENV_ONLY_SECRET';
+  const router=new ProviderRouter({
+    pega:{
+      id:'pega',
+      command:'codex',
+      roles:['builder'],
+      mode:'codex-cli',
+      network:true,
+      credential:true,
+      requiresCredential:true,
+      apiKey:secret,
+      workerId:'codex-pega',
+      workerName:'Codex PEGA',
+      providerName:'PEGA',
+      codexHome:'C:\\AECP\\workers\\pega',
+      runtimeEnv:{CODEX_HOME:'C:\\AECP\\workers\\pega',AECP_PEGA_API_KEY:secret},
+      defaultModel:'pega-model'
+    },
+    'openai-official':{
+      id:'openai-official',
+      command:'codex',
+      roles:['builder'],
+      mode:'codex-cli',
+      network:true,
+      credential:false,
+      workerId:'codex-official',
+      workerName:'Codex OFFICIAL',
+      providerName:'OpenAI Official',
+      codexHome:'C:\\AECP\\workers\\official',
+      runtimeEnv:{CODEX_HOME:'C:\\AECP\\workers\\official'}
+    }
+  },{runner});
+  const official=router.commandSpec('openai-official','builder','build',{cwd:'C:\\repo-official'});
+  assert.equal(official.env.AECP_PEGA_API_KEY,undefined);
+  await router.execute('builder','build',{provider:'pega',cwd:'C:\\repo-pega',networkApproved:true,credentialApproved:true});
+  assert.equal(observed.command,'codex');
+  assert.equal(observed.env.CODEX_HOME,'C:\\AECP\\workers\\pega');
+  assert.equal(observed.env.AECP_PEGA_API_KEY,secret);
+  assert.equal(observed.args.some(arg=>String(arg).includes(secret)),false);
+});
+
