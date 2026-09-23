@@ -42,6 +42,14 @@ The extension reuses the existing Provider Router, Scheduler, isolated worktrees
 
 The authoritative acceptance rule remains: **Blueprint presence is not Runtime completion, and repository tests are not real-provider evidence.** Runtime claims require implementation + deterministic tests + exact-HEAD CI. Real PEGA/OpenAI Worker claims additionally require ENVIRONMENT evidence from the actual endpoint/model/auth/runtime.
 
+## 0B. V3.0 progress visibility and audit — 2026-09-23
+
+- Added `Reports/V3_IMPLEMENTATION_PROGRESS_REPORT.md` as the detailed V3.0 progress ledger.
+- Command Center now includes **V3.0 Multi-Worker Readiness** using canonical Worker state for Worker Registry, CODEX_HOME isolation, parallel runtime, OFFICIAL health and PEGA health.
+- Real OFFICIAL/PEGA execution is explicitly displayed as **ENVIRONMENT GATE** and cannot become green from source tests or provider health alone.
+- Acceptance audit now requires the V3.0 report and verifies that DOCUMENTED / IMPLEMENTED / TESTED / CI / ENVIRONMENT / OWNER-EXTERNAL evidence classes remain separated.
+- The latest exact-HEAD CI result must always be re-read after these reporting/UI commits; the prior green commit does not automatically certify a newer source commit.
+
 ## 1. Current architecture actually implemented
 
 The implemented runtime now contains these layers:
