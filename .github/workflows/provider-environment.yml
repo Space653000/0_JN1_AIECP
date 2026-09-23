@@ -103,12 +103,12 @@ jobs:
           if ($env:AECP_MODE -in @('local-command','all') -and [string]::IsNullOrWhiteSpace($env:AECP_LOCAL_COMMAND)) {
             throw 'A fixed local/company worker command is required for local-command/all mode.'
           }
-          if ($env:AECP_MODE -in @('codex-official','codex-pega','multi-codex')) {
+          if ($env:AECP_MODE -in @('codex-official','codex-pega','multi-codex','all')) {
             codex --version
             if ($LASTEXITCODE -ne 0) { throw 'Codex CLI is required for real Codex worker evidence.' }
           }
-          if ($env:AECP_MODE -in @('codex-pega','multi-codex')) {
-            if ([string]::IsNullOrWhiteSpace($env:AECP_PEGA_MODEL)) { throw 'An explicit PEGA model is required for codex-pega/multi-codex mode.' }
+          if ($env:AECP_MODE -in @('codex-pega','multi-codex','all')) {
+            if ([string]::IsNullOrWhiteSpace($env:AECP_PEGA_MODEL)) { throw 'An explicit PEGA model is required for codex-pega/multi-codex/all mode.' }
             if ([string]::IsNullOrWhiteSpace($env:AECP_PEGA_API_KEY)) { throw 'AECP_PEGA_API_KEY repository/environment secret is required for real PEGA evidence.' }
           }
 
