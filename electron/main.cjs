@@ -1690,7 +1690,12 @@ function registerIpc() {
     const state = await loadState();
     const workspace = getCurrentWorkspace(state);
     if (!workspace) throw new Error('Choose a Workspace first.');
-    return (await initControlPlane()).createMission({
+    // Rebuild runtime providers immediately before mission creation so a freshly
+    // completed isolated Codex login or provider credential/model change cannot
+    // leave the long-lived Control Plane with stale auth/capability state.
+    await initControlPlane();
+    await refreshRuntimeProviders();
+    return controlPlane.createMission({
       ...payload,
       sourceRoot: workspace.rootPath,
       workspaceId: workspace.id,
