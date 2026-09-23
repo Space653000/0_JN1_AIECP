@@ -91,3 +91,13 @@ test('Codex OFFICIAL login is an explicit user action scoped to its isolated COD
   assert.match(ui, /data-worker-login-official/);
   assert.match(ui, /Sign in isolated OFFICIAL/);
 });
+
+test('Mission creation refreshes Worker provider state after isolated login or provider changes', () => {
+  const main = read('electron/main.cjs');
+  const block = main.match(/ipcMain\.handle\('control-plane:create-mission'[\s\S]*?\n  \}\);/);
+  assert.ok(block, 'control-plane:create-mission IPC handler must exist');
+  assert.match(block[0], /await initControlPlane\(\)/);
+  assert.match(block[0], /await refreshRuntimeProviders\(\)/);
+  assert.match(block[0], /return controlPlane\.createMission\(/);
+});
+
