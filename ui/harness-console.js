@@ -70,7 +70,30 @@ function render(){
    +'<div><b>GOVERNANCE</b><span class="status '+governanceSignal.cls+'">'+esc(governanceSignal.text)+'</span><small>Adapter audit + approval queue</small></div>'
    +'<div><b>MULTI-REPO</b><span class="status '+repoSignal.cls+'">'+esc(repoSignal.text)+'</span><small>Canonical resource graph</small></div>'
    +'<div><b>REMOTE</b><span class="status '+remoteSignal.cls+'">'+esc(remoteSignal.text)+'</span><small>Authenticated supervision status</small></div>'
-   +'</div><div class="hc-pending"><strong>Rule:</strong> runtime signals come from canonical state/evidence. If AECP cannot verify a condition, this dashboard shows UNKNOWN instead of a green status.</div></section>';const projected=snapshot.eventProjection?.total||events.length;
+   +'</div><div class="hc-pending"><strong>Rule:</strong> runtime signals come from canonical state/evidence. If AECP cannot verify a condition, this dashboard shows UNKNOWN instead of a green status.</div></section>';
+ const officialWorker=workers.find(w=>w.id==='codex-official')||null;
+ const pegaWorker=workers.find(w=>w.id==='codex-pega')||null;
+ const registryReady=Boolean(officialWorker&&pegaWorker);
+ const homesKnown=Boolean(officialWorker?.codexHome&&pegaWorker?.codexHome);
+ const homesIsolated=homesKnown&&String(officialWorker.codexHome).toLowerCase()!==String(pegaWorker.codexHome).toLowerCase();
+ const bothRunning=officialWorker?.runtimeState==='RUNNING'&&pegaWorker?.runtimeState==='RUNNING';
+ const parallelWorktreesKnown=Boolean(officialWorker?.worktree&&pegaWorker?.worktree);
+ const parallelWorktreesIsolated=parallelWorktreesKnown&&String(officialWorker.worktree).toLowerCase()!==String(pegaWorker.worktree).toLowerCase();
+ const registryValue=registryReady?'READY':'INCOMPLETE';
+ const isolationValue=!homesKnown?'UNKNOWN':homesIsolated?'PASS':'BLOCKED';
+ const parallelValue=!bothRunning?'IDLE':!parallelWorktreesKnown?'UNKNOWN':parallelWorktreesIsolated?'ACTIVE':'BLOCKED';
+ const officialHealth=officialWorker?.health||'UNKNOWN';
+ const pegaHealth=pegaWorker?.health||'UNKNOWN';
+ const healthClass=value=>value==='READY'?'ready':['DEGRADED','AUTH_REQUIRED'].includes(value)?'warn':['UNKNOWN','NOT_CONFIGURED'].includes(value)?'neutral':'bad';
+ h+='<section class="hc-card hc-status-card"><div class="section-title"><h2>V3.0 Multi-Worker Readiness</h2><span class="status '+(registryReady&&homesIsolated?'ready':'warn')+'">'+(registryReady&&homesIsolated?'REPOSITORY READY':'CHECK REQUIRED')+'</span></div><div class="hc-status-grid">'
+   +'<div><b>WORKER REGISTRY</b><span class="status '+(registryReady?'ready':'warn')+'">'+esc(registryValue)+'</span><small>Codex OFFICIAL + Codex PEGA canonical Worker identities</small></div>'
+   +'<div><b>CODEX_HOME ISOLATION</b><span class="status '+(isolationValue==='PASS'?'ready':isolationValue==='BLOCKED'?'bad':'neutral')+'">'+esc(isolationValue)+'</span><small>Independent config/auth/session/runtime roots</small></div>'
+   +'<div><b>PARALLEL RUNTIME</b><span class="status '+(parallelValue==='ACTIVE'?'ready':parallelValue==='BLOCKED'?'bad':'neutral')+'">'+esc(parallelValue)+'</span><small>ACTIVE only when both Workers are running on distinct worktrees</small></div>'
+   +'<div><b>OFFICIAL HEALTH</b><span class="status '+healthClass(officialHealth)+'">'+esc(officialHealth)+'</span><small>'+esc(officialWorker?.healthDetail||'Canonical Worker health')+'</small></div>'
+   +'<div><b>PEGA HEALTH</b><span class="status '+healthClass(pegaHealth)+'">'+esc(pegaHealth)+'</span><small>'+esc(pegaWorker?.healthDetail||'Canonical Worker health')+'</small></div>'
+   +'<div><b>REAL PROVIDER EVIDENCE</b><span class="status warn">ENVIRONMENT GATE</span><small>Requires exact-source self-hosted Windows evidence; never inferred from source tests or health alone.</small></div>'
+   +'</div><div class="hc-pending"><strong>V3.0 rule:</strong> repository implementation and CI can prove architecture/runtime invariants, but real OFFICIAL/PEGA model execution remains an ENVIRONMENT gate until the dedicated evidence workflow produces a matching artifact.</div></section>';
+ const projected=snapshot.eventProjection?.total||events.length;
  h+='<div class="hc-metrics"><div><strong>'+running+'</strong><span>RUNNING</span></div><div><strong>'+queued+'</strong><span>QUEUED</span></div><div><strong>'+waiting+'</strong><span>APPROVAL</span></div><div><strong>'+done+'/'+total+'</strong><span>TASKS DONE</span></div><div><strong>'+pct+'%</strong><span>PROGRESS</span></div><div><strong>'+projected+'</strong><span>JOURNALED EVENTS</span></div></div>';
  h+='<section class="hc-card"><div class="section-title"><h2>Worker Runtime</h2><span class="count-badge">'+workers.length+'</span></div><div class="hc-task-grid">'
    +(workers.map(w=>{const health=w.health||'UNKNOWN',healthClass=health==='READY'?'ready':['DEGRADED','AUTH_REQUIRED'].includes(health)?'warn':health==='UNKNOWN'?'neutral':'bad';return '<article class="hc-task hc-worker"><div class="hc-task-head"><strong>'+esc(w.name||w.id)+'</strong><span class="status '+cls(w.runtimeState)+'">'+esc(w.runtimeState||'UNKNOWN')+'</span></div>'
