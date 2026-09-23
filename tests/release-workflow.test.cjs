@@ -134,6 +134,8 @@ test('updater supports build-time signer pinning without forcing unsigned previe
   const pkg = JSON.parse(read('package.json'));
   assert.equal(typeof pkg.aecp.requiredSignerThumbprint, 'string');
   const main = read('electron/main.cjs');
+  assert.match(main, /const UPDATE_REPO = 'Space653000\/0_JN1_AIECP';/);
+  assert.doesNotMatch(main, /Space653000\/AI-Engineering-Control-Plane/);
   assert.match(main, /verifyAuthenticode/);
   assert.match(main, /AECP_REQUIRED_SIGNER_THUMBPRINT/);
   assert.match(main, /packageManifest\?\.aecp\?\.requiredSignerThumbprint/);

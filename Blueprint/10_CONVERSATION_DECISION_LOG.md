@@ -72,7 +72,7 @@ User named the architecture/project:
 
 Requested:
 - convert all discussions, architecture, interfaces, UX/UI, tools and research into a rigorous Blueprint;
-- create a dedicated `Blueprint/` directory in `Space653000/AI-Engineering-Control-Plane`;
+- create a dedicated `Blueprint/` directory in `Space653000/0_JN1_AIECP`;
 - use that repository as the full development repository;
 - make the end product beginner-friendly: download an `.exe`, put/install it on Windows and use it intuitively;
 - perform three independent Blueprint-vs-implementation checks;

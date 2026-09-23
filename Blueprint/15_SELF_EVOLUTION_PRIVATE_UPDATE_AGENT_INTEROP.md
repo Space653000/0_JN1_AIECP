@@ -47,7 +47,7 @@ The installed app never pulls arbitrary branches and never installs an artifact 
 
 v0.1 is hard-bound to:
 
-`Space653000/AI-Engineering-Control-Plane`
+`Space653000/0_JN1_AIECP`
 
 The update source cannot be changed by a Command Card or by content copied from an AI conversation.
 

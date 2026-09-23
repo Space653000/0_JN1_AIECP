@@ -43,7 +43,7 @@ const {
 } = require('./lib/autonomy.cjs');
 
 const STATE_SCHEMA = 1;
-const UPDATE_REPO = 'Space653000/AI-Engineering-Control-Plane';
+const UPDATE_REPO = 'Space653000/0_JN1_AIECP';
 const AGENT_SPECS = Object.freeze([
   { id: 'codex-cli', providerId: 'codex', name: 'Codex CLI', command: 'codex', args: ['--version'], role: 'coding' },
   { id: 'claude-code', providerId: 'claude', name: 'Claude Code', command: 'claude', args: ['--version'], role: 'coding' },

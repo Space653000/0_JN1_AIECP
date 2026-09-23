@@ -337,7 +337,7 @@ AECP 不會把 GitHub Token 抽出來交給 ChatGPT，也不會把 Token 存進�
 
 更新時 AECP 只接受固定 repository：
 
-`Space653000/AI-Engineering-Control-Plane`
+`Space653000/0_JN1_AIECP`
 
 並且只會：
 
@@ -609,8 +609,8 @@ Provider Registry / Router 現在支援：
 - Windows（建 Windows installer 時）
 
 ```powershell
-git clone https://github.com/Space653000/AI-Engineering-Control-Plane.git
-cd AI-Engineering-Control-Plane
+git clone https://github.com/Space653000/0_JN1_AIECP.git
+cd 0_JN1_AIECP
 npm install
 npm run verify
 npm start

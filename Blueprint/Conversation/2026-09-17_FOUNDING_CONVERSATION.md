@@ -155,7 +155,7 @@ The user formally named the architecture/project:
 The user requested:
 
 1. turn all discussion/research/architecture/interface/UX/UI/tool decisions into a rigorous Blueprint;
-2. create a dedicated `Blueprint/` directory in `Space653000/AI-Engineering-Control-Plane`;
+2. create a dedicated `Blueprint/` directory in `Space653000/0_JN1_AIECP`;
 3. use that repository as the complete development repository;
 4. make the product approachable enough that a novice can download one Windows `.exe`, install it and use it intuitively;
 5. after implementation, compare the product against the Blueprint independently three times.

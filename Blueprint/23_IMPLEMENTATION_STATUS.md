@@ -1,6 +1,8 @@
 # 23 — Implementation Status, Decisions and Remaining Work
 
 **Status date:** 2026-09-23  
+**Repository:** `Space653000/0_JN1_AIECP`
+**Current operator checkout:** `C:\0_JN1_AIECP`
 **Branch:** `feat/control-plane-complete-loop`  
 **Current integration vehicle:** PR #7  
 **Purpose:** This document is the authoritative implementation snapshot for the current AECP Harness / Control Plane expansion.

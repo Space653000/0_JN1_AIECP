@@ -1,7 +1,8 @@
 # AECP V3.0 Implementation Progress Report
 
 **Status date:** 2026-09-23  
-**Repository:** `Space653000/AI-Engineering-Control-Plane`  
+**Repository:** `Space653000/0_JN1_AIECP`
+**Current operator checkout:** `C:\0_JN1_AIECP`
 **Branch:** `feat/control-plane-complete-loop`  
 **Integration vehicle:** PR #7  
 **Purpose:** provide one rigorous progress ledger for the V3.0 Blueprint expansion, especially the isolated Codex OFFICIAL + Codex PEGA Multi-Worker architecture.
