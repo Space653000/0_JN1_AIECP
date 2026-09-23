@@ -1,0 +1,13 @@
+# Dependencies
+node_modules/
+
+# Local verification/audit artifacts (evidence is recorded in docs, not committed)
+artifacts/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
