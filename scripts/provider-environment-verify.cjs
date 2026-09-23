@@ -24,7 +24,9 @@ const pegaModel=String(process.env.AECP_PROVIDER_VERIFY_PEGA_MODEL||'').trim();
 const pegaWireApi=String(process.env.AECP_PROVIDER_VERIFY_PEGA_WIRE_API||'responses').trim().toLowerCase();
 const pegaApiKey=String(process.env[PEGA_ENV_KEY]||'');
 const codexWorkerRoot=path.resolve(process.env.AECP_PROVIDER_VERIFY_CODEX_ROOT||path.join(os.homedir(),'.aecp-provider-evidence-workers'));
+const expectedArch=String(process.env.AECP_PROVIDER_VERIFY_EXPECTED_ARCH||'any').trim().toLowerCase();
 const VALID_MODES=new Set(['ollama','opencode-ollama','canonical-local','local-command','codex-official','codex-pega','multi-codex','all']);
+const VALID_ARCHES=new Set(['any','x64','arm64']);
 
 function sha(value){return crypto.createHash('sha256').update(String(value||'')).digest('hex');}
 function now(){return new Date().toISOString();}
@@ -59,6 +61,7 @@ const evidence={
   mode,
   platform:process.platform,
   arch:process.arch,
+  expectedArch,
   node:process.version,
   model:modelInput||null,
   checks:[],
@@ -206,6 +209,10 @@ async function makeHarnessFixture(){
 
 async function main(){
   if(!VALID_MODES.has(mode))throw Object.assign(new Error('AECP_PROVIDER_VERIFY_MODE is invalid.'),{code:'MODE_INVALID'});
+  if(!VALID_ARCHES.has(expectedArch))throw Object.assign(new Error('AECP_PROVIDER_VERIFY_EXPECTED_ARCH is invalid.'),{code:'ARCH_INVALID'});
+  if(expectedArch!=='any'&&process.arch!==expectedArch){
+    throw Object.assign(new Error('Runtime architecture does not match the required evidence architecture.'),{code:'ARCH_MISMATCH'});
+  }
   evidence.sourceCommit=await sourceCommit();
   const metrics=[];
   const registry={...PROVIDERS};
