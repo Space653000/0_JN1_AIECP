@@ -57,8 +57,9 @@ function publicWorker(input = {}) {
 }
 
 class WorkerRegistry {
-  constructor(rootDir) {
+  constructor(rootDir, { processExistsFn = processExists } = {}) {
     this.rootDir = path.resolve(rootDir);
+    this.processExistsFn = processExistsFn;
     this.file = path.join(this.rootDir, 'worker-registry.json');
     this.state = { schema: WORKER_REGISTRY_SCHEMA, workers: {}, updatedAt: now() };
     this.persistQueue = Promise.resolve();
@@ -81,7 +82,7 @@ class WorkerRegistry {
     for (const worker of Object.values(this.state.workers)) {
       if (['RUNNING', 'CANCELLING'].includes(worker.runtimeState)) {
         const priorPid = Number.isInteger(worker.processId) && worker.processId > 0 ? worker.processId : null;
-        const alive = processExists(priorPid);
+        const alive = priorPid ? this.processExistsFn(priorPid) : null;
         if (alive === false) {
           worker.lastResultState = 'RECOVERED_PROCESS_GONE';
           worker.lastFinishedAt = now();
