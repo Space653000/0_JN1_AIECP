@@ -46,13 +46,15 @@ test('TLS remote gateway serves paired read-only status over HTTPS', async (t) =
  const https=require('node:https');
  const probe=spawnSync('openssl',['version'],{encoding:'utf8'});
  if(probe.status!==0){t.skip('openssl unavailable on this runner');return}
+ const opensslEnv={...process.env};
+ if(!opensslEnv.OPENSSL_CONF)opensslEnv.OPENSSL_CONF='';
  const dir=await fsp.mkdtemp(path.join(os.tmpdir(),'aecp-tls-'));
  t.after(async()=>fsp.rm(dir,{recursive:true,force:true}));
  const key=path.join(dir,'key.pem'),cert=path.join(dir,'cert.pem');
  const generated=spawnSync('openssl',[
   'req','-x509','-newkey','rsa:2048','-nodes','-sha256',
   '-subj','/CN=localhost','-keyout',key,'-out',cert,'-days','1'
- ],{encoding:'utf8'});
+ ],{encoding:'utf8',env:opensslEnv});
  assert.equal(generated.status,0,generated.stderr||generated.stdout);
 
  const gateway=new RemoteGateway({
