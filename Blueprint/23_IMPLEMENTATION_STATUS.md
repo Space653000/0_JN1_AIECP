@@ -21,21 +21,26 @@ Harness / Control Plane
 
 This is an extension of the existing Harness architecture. It is **not** Dual Codex Desktop, a Dual Launcher, a second GUI, or a second Control Plane.
 
-### Blueprint status
+### Blueprint / Runtime status
 
-- Master architecture integration: **PLANNED / DOCUMENTED**
-- Provider-vs-Worker contract: **PLANNED / DOCUMENTED**
-- PEGA Provider Adapter contract: **PLANNED / DOCUMENTED**
-- isolated OFFICIAL/PEGA `CODEX_HOME`: **NOT YET IMPLEMENTED**
-- parallel OFFICIAL/PEGA Worker runtime: **NOT YET IMPLEMENTED**
-- Worker Registry/runtime persistence: **NOT YET IMPLEMENTED**
-- Worker-specific Dashboard cards: **NOT YET IMPLEMENTED**
+- Master architecture integration: **DOCUMENTED**
+- Provider-vs-Worker contract: **IMPLEMENTED + TESTED**
+- PEGA Provider Adapter contract: **IMPLEMENTED + TESTED**; real endpoint behavior remains ENVIRONMENT-gated
+- isolated OFFICIAL/PEGA `CODEX_HOME`: **IMPLEMENTED + TESTED**
+- Worker Registry/runtime persistence: **IMPLEMENTED + TESTED**
+- Worker pool scheduling with distinct Worker selection: **IMPLEMENTED + TESTED**
+- same-repository parallel task isolation through task-scoped worktrees/locks: **IMPLEMENTED + TESTED**
+- task-scoped cancel isolation and mission STOP ALL authority: **IMPLEMENTED + TESTED**
+- Worker-specific Dashboard projection for Worker/Provider/Model/Role/Task/State/Runtime/Worktree/Verify/Health: **IMPLEMENTED + TESTED**
+- Codex OFFICIAL explicit isolated login flow: **IMPLEMENTED + TESTED**
+- Mission-start provider refresh after login/config changes: **IMPLEMENTED + TESTED**
 - real PEGA endpoint/model/auth evidence: **ENVIRONMENT NOT YET VERIFIED**
-- Windows ARM64 deterministic validation for this extension: **NOT YET VERIFIED**
+- real OFFICIAL + PEGA simultaneous provider execution on the target Windows machine: **ENVIRONMENT NOT YET VERIFIED**
+- Windows x64/ARM64 repository build/package gates for the extension: **CI VERIFIED on exact source commits when the matching workflows are green**; real provider execution on ARM64 remains ENVIRONMENT-gated
 
-Existing Provider Router, Scheduler, isolated worktrees, locks, bounded execution, deterministic verification, Evidence, GitHub/CI and Dashboard foundations remain the architecture to extend; they must not be duplicated.
+The extension reuses the existing Provider Router, Scheduler, isolated worktrees, locks, bounded execution, deterministic verification, Evidence, GitHub/CI and Dashboard foundations; no duplicate Control Plane or Dual Codex GUI was introduced.
 
-The authoritative acceptance rule is: **Blueprint presence is not Runtime completion.** Runtime completion requires implementation + deterministic tests + exact-HEAD CI; real PEGA/OpenAI worker claims additionally require ENVIRONMENT evidence.
+The authoritative acceptance rule remains: **Blueprint presence is not Runtime completion, and repository tests are not real-provider evidence.** Runtime claims require implementation + deterministic tests + exact-HEAD CI. Real PEGA/OpenAI Worker claims additionally require ENVIRONMENT evidence from the actual endpoint/model/auth/runtime.
 
 ## 1. Current architecture actually implemented
 
@@ -279,6 +284,20 @@ AECP should not be called production-complete until:
 - Repository discovery and task-to-repository routing are now part of mission planning; each task executes against its selected Git repository and locks its resources.
 - External event idempotency ledger, signed GitHub webhook receiver, maintenance/retention service and local authenticated read-only gateway are implemented.
 - Release pipeline runs a non-publishing PR dry-run and publishes only on explicit version tags; production Authenticode publication remains a separate owner-authorized manual workflow.
+
+## Multi-Worker Runtime implementation update — 2026-09-23
+
+- Added durable `WorkerRegistry` with independent Worker identity, process/task assignment, heartbeat, verification state, cancellation state and restart-safe UNKNOWN recovery semantics.
+- Added `CodexWorkerRuntime` with physically distinct `CODEX_HOME` roots for `codex-official` and `codex-pega`; PEGA credentials are injected through the Worker process environment and are not written into Codex config.
+- Added first-class PEGA Provider Adapter for `https://aiapi.t-cyber.com/v1`, with explicit `responses` / `chat` wire selection and no PEGA-specific Task/Queue state machine.
+- Control Plane missions can select a Builder Worker pool. Scheduler reserves distinct idle Workers, records Worker/Provider/Model decisions and refuses silent fallback when the selected Worker authority is unavailable.
+- Same-repository parallel tasks use distinct task-scoped worktree roots/locks; Git worktree administrative mutation remains serialized behind a repository-level admin lock.
+- Task cancellation marks/aborts only its selected Worker/task. Mission cancellation remains global for that mission, and Dashboard STOP ALL retains operator authority over all active missions.
+- Harness Builder invocation receives the selected Worker's Provider/Model and isolated runtime environment. Deterministic Verify/Reviewer/Evidence remain authoritative over Worker self-report.
+- Dashboard now projects canonical Worker runtime fields and health; it shows UNKNOWN when runtime/provider state cannot be verified.
+- Mission creation now refreshes runtime Provider state immediately before scheduling so a newly completed isolated OFFICIAL login or updated provider credential/model cannot leave a stale Control Plane auth snapshot.
+- Deterministic tests cover CODEX_HOME isolation, secret non-persistence, concurrent Worker assignment, same-Worker double-assignment denial, cancel isolation, restart UNKNOWN state, scheduler Worker selection, same-repository worktree-lock isolation and mission-time Provider refresh.
+- Real OFFICIAL/PEGA network/model execution is still an **ENVIRONMENT gate** and must not be inferred from mocks, source tests or CI packaging.
 
 ## Latest repository closure hardening — 2026-09-23
 
