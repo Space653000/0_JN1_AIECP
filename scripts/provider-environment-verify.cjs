@@ -140,6 +140,43 @@ async function codexSmoke(router,{provider,model,workerId,cwd,token,credentialAp
   };
 }
 
+
+async function codexEditSmoke(router,{provider,model,workerId,cwd,token,credentialApproved=false,onSpawn=null}){
+  const health=await router.health(provider,{model:model||null,networkApproved:true,credentialApproved,timeoutMs:30000});
+  if(health.status!=='READY')throw Object.assign(new Error('Codex worker health not ready'),{code:'CODEX_'+workerId+'_'+health.status});
+  const result=await router.execute('builder','Create a file named worker_result.txt in the current directory containing exactly '+token+'. Do not modify any other file.',{
+    provider,model:model||null,cwd,timeoutMs,networkApproved:true,credentialApproved,onSpawn
+  });
+  if(result.code!==0)throw Object.assign(new Error('Codex worker real edit failed'),{code:'CODEX_'+workerId+'_EDIT_FAILED'});
+  const actual=(await fs.readFile(path.join(cwd,'worker_result.txt'),'utf8')).trim();
+  if(actual!==token)throw Object.assign(new Error('Codex worker deterministic file token mismatch'),{code:'CODEX_'+workerId+'_FILE_VERIFY_FAILED'});
+  return {
+    workerId,provider,providerName:result.providerName||health.providerName||provider,
+    model:result.model||model||null,health:health.status,
+    codexHomeSha256:sha(result.codexHome||health.codexHome||''),
+    worktreeSha256:sha(path.resolve(cwd)),
+    fileSha256:sha(actual),
+    timedOut:Boolean(result.timedOut),aborted:Boolean(result.aborted)
+  };
+}
+
+async function makeCodexParallelWorktrees(){
+  const root=await fs.mkdtemp(path.join(os.tmpdir(),'aecp-codex-parallel-worktrees-'));
+  const repo=path.join(root,'repo');
+  const officialWorktree=path.join(root,'official-worktree');
+  const pegaWorktree=path.join(root,'pega-worktree');
+  await fs.mkdir(repo,{recursive:true});
+  await fs.writeFile(path.join(repo,'README.md'),'# AECP multi Codex environment fixture\n','utf8');
+  await git(repo,['init']);
+  await git(repo,['config','user.name','AECP Provider Evidence']);
+  await git(repo,['config','user.email','aecp-provider-evidence@example.invalid']);
+  await git(repo,['add','.']);
+  await git(repo,['commit','-m','baseline']);
+  await git(repo,['worktree','add','-b','evidence-official',officialWorktree,'HEAD']);
+  await git(repo,['worktree','add','-b','evidence-pega',pegaWorktree,'HEAD']);
+  return {root,repo,officialWorktree,pegaWorktree};
+}
+
 async function makeHarnessFixture(){
   const root=await fs.mkdtemp(path.join(os.tmpdir(),'aecp-real-provider-harness-'));
   const repo=path.join(root,'repo');
@@ -241,7 +278,7 @@ async function main(){
   }
 
 
-  if(mode==='codex-official'){
+  if(mode==='codex-official'||mode==='all'){
     await check('codex-official.real-smoke',async()=>{
       const built=await buildRealCodexRouter({official:true});
       const temp=await fs.mkdtemp(path.join(os.tmpdir(),'aecp-codex-official-real-'));
@@ -254,7 +291,7 @@ async function main(){
     });
   }
 
-  if(mode==='codex-pega'){
+  if(mode==='codex-pega'||mode==='all'){
     await check('codex-pega.real-smoke',async()=>{
       const built=await buildRealCodexRouter({pega:true});
       const temp=await fs.mkdtemp(path.join(os.tmpdir(),'aecp-codex-pega-real-'));
@@ -268,26 +305,27 @@ async function main(){
     });
   }
 
-  if(mode==='multi-codex'){
+  if(mode==='multi-codex'||mode==='all'){
     await check('codex.multi-worker-real-concurrency',async()=>{
       const built=await buildRealCodexRouter({official:true,pega:true});
       if(path.resolve(built.profiles.official.codexHome)===path.resolve(built.profiles.pega.codexHome)){
         throw Object.assign(new Error('OFFICIAL and PEGA CODEX_HOME unexpectedly match.'),{code:'CODEX_HOME_NOT_ISOLATED'});
       }
-      const root=await fs.mkdtemp(path.join(os.tmpdir(),'aecp-codex-multi-real-'));
-      const officialCwd=path.join(root,'official'),pegaCwd=path.join(root,'pega');
-      await Promise.all([fs.mkdir(officialCwd,{recursive:true}),fs.mkdir(pegaCwd,{recursive:true})]);
+      const fixture=await makeCodexParallelWorktrees();
       const spawns={};
       const started=Date.now();
       try{
+        if(path.resolve(fixture.officialWorktree)===path.resolve(fixture.pegaWorktree)){
+          throw Object.assign(new Error('OFFICIAL and PEGA worktrees unexpectedly match.'),{code:'CODEX_WORKTREE_NOT_ISOLATED'});
+        }
         const results=await Promise.all([
-          codexSmoke(built.router,{
-            provider:'openai-official',model:officialModel||null,workerId:WORKER_IDS.OFFICIAL,cwd:officialCwd,
+          codexEditSmoke(built.router,{
+            provider:'openai-official',model:officialModel||null,workerId:WORKER_IDS.OFFICIAL,cwd:fixture.officialWorktree,
             token:'AECP_CODEX_OFFICIAL_PARALLEL_OK',credentialApproved:false,
             onSpawn:pid=>{spawns.official={pid,at:Date.now()};}
           }),
-          codexSmoke(built.router,{
-            provider:PEGA_PROVIDER_ID,model:pegaModel,workerId:PEGA_WORKER_ID,cwd:pegaCwd,
+          codexEditSmoke(built.router,{
+            provider:PEGA_PROVIDER_ID,model:pegaModel,workerId:PEGA_WORKER_ID,cwd:fixture.pegaWorktree,
             token:'AECP_CODEX_PEGA_PARALLEL_OK',credentialApproved:true,
             onSpawn:pid=>{spawns.pega={pid,at:Date.now()};}
           })
@@ -295,12 +333,16 @@ async function main(){
         if(!spawns.official?.pid||!spawns.pega?.pid||spawns.official.pid===spawns.pega.pid){
           throw Object.assign(new Error('Distinct concurrent Codex worker processes were not observed.'),{code:'CODEX_PROCESS_ISOLATION_FAILED'});
         }
+        const distinctCodexHomes=results[0].codexHomeSha256!==results[1].codexHomeSha256;
+        const distinctWorktrees=results[0].worktreeSha256!==results[1].worktreeSha256;
+        if(!distinctCodexHomes)throw Object.assign(new Error('Codex home hashes are not isolated.'),{code:'CODEX_HOME_HASH_COLLISION'});
+        if(!distinctWorktrees)throw Object.assign(new Error('Worktree hashes are not isolated.'),{code:'CODEX_WORKTREE_HASH_COLLISION'});
         return {
-          state:'PASS',workers:results,distinctCodexHomes:results[0].codexHomeSha256!==results[1].codexHomeSha256,
+          state:'PASS',workers:results,distinctCodexHomes,distinctWorktrees,
           distinctProcesses:true,spawnDeltaMs:Math.abs(spawns.official.at-spawns.pega.at),
           durationMs:Date.now()-started,pegaWireApi
         };
-      }finally{await fs.rm(root,{recursive:true,force:true});}
+      }finally{await fs.rm(fixture.root,{recursive:true,force:true});}
     });
   }
 
