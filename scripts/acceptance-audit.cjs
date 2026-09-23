@@ -8,6 +8,7 @@ const requiredFiles=[
  ['master-blueprint','Blueprint/00_MASTER_BLUEPRINT.md'],
  ['requirements','Blueprint/REQUIREMENTS.md'],
  ['implementation-status','Blueprint/23_IMPLEMENTATION_STATUS.md'],
+ ['v3-progress-report','Reports/V3_IMPLEMENTATION_PROGRESS_REPORT.md'],
  ['roadmap-acceptance','Blueprint/08_ROADMAP_ACCEPTANCE.md'],
  ['ui-spec','Blueprint/01_UX_UI_SPEC.md'],
  ['control-plane','electron/lib/control-plane.cjs'],
@@ -171,6 +172,21 @@ const staticInvariants=[
   {label:'resume function',re:/async function resumeAutonomy/}
  ]),
 
+ invariant('v3-progress-truth-separation','Reports/V3_IMPLEMENTATION_PROGRESS_REPORT.md',[
+  {label:'V3 evidence classes separated',re:/DOCUMENTED[\s\S]*IMPLEMENTED[\s\S]*TESTED[\s\S]*CI[\s\S]*ENVIRONMENT[\s\S]*OWNER\/EXTERNAL/},
+  {label:'OFFICIAL environment pending',re:/Real Codex OFFICIAL[\s\S]*ENVIRONMENT PENDING/},
+  {label:'PEGA environment pending',re:/Real Codex PEGA[\s\S]*ENVIRONMENT PENDING/},
+  {label:'multi-Codex environment pending',re:/Real OFFICIAL \+ PEGA simultaneous execution[\s\S]*ENVIRONMENT PENDING/},
+  {label:'no mock environment promotion',re:/No environment PASS may be claimed from mock, unit-test or packaging evidence/}
+ ]),
+ invariant('v3-dashboard-readiness','ui/harness-console.js',[
+  {label:'V3 readiness panel',re:/V3\.0 Multi-Worker Readiness/},
+  {label:'OFFICIAL worker canonical lookup',re:/codex-official/},
+  {label:'PEGA worker canonical lookup',re:/codex-pega/},
+  {label:'CODEX_HOME isolation projection',re:/CODEX_HOME ISOLATION/},
+  {label:'parallel worktree projection',re:/parallelWorktreesIsolated/},
+  {label:'real provider environment gate',re:/REAL PROVIDER EVIDENCE[\s\S]*ENVIRONMENT GATE/}
+ ]),
  invariant('dashboard-novice-acceptance','tests/dashboard-acceptance.test.cjs',[
   {label:'eight novice questions',re:/eight Blueprint 22 novice questions/},
   {label:'authoritative controls',re:/authoritative human controls/},
