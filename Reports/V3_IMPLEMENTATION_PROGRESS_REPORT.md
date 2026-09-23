@@ -42,6 +42,21 @@ At that exact commit:
 
 Subsequent V3.0 progress/dashboard commits must receive their own exact-HEAD workflow results before they inherit a CI PASS claim.
 
+### Architecture-gate exact-HEAD verification
+
+The provider-evidence architecture hardening tranche was verified at:
+
+`2d16de141d52e1f3a38c4803435b9235a2953300`
+
+| Workflow | Run | Result |
+|---|---:|---|
+| AECP Security | #675 | SUCCESS |
+| AECP CI | #804 | SUCCESS |
+| AECP Packaging | #718 | SUCCESS |
+| Build and Release | #466 | SUCCESS |
+
+This proves the repository-side `expected_arch: any | x64 | arm64` gate, tests, packaging, Windows/ARM64 build paths and release dry-run remain compatible. It does **not** prove real OFFICIAL/PEGA provider execution on ARM64.
+
 ---
 
 ## 2. Completion model
@@ -214,7 +229,7 @@ Current status:
 | Real Codex OFFICIAL | ENVIRONMENT PENDING |
 | Real Codex PEGA | ENVIRONMENT PENDING |
 | Real OFFICIAL + PEGA simultaneous execution | ENVIRONMENT PENDING |
-| ARM64/x64 architecture hard gate in provider-evidence workflow | IMPLEMENTED + TESTED; exact-HEAD CI pending for this tranche |
+| ARM64/x64 architecture hard gate in provider-evidence workflow | IMPLEMENTED + TESTED + CI VERIFIED on `2d16de141d52e1f3a38c4803435b9235a2953300` |
 | Real target ARM64 provider execution | ENVIRONMENT PENDING |
 
 These are the most important remaining V3.0 technical gates.
@@ -240,7 +255,7 @@ The Master Blueprint defines 15 key Multi-Worker acceptance requirements.
 | 11 | Task/Mission/Queue/Harness do not depend on literal `PEGA` | PASS — architecture/acceptance audited | n/a |
 | 12 | deterministic verifier remains completion authority | PASS — TESTED | n/a |
 | 13 | Dashboard projects Worker/Provider/model/task/state/runtime/worktree/verify/health | PASS — TESTED | runtime values depend on environment |
-| 14 | Windows x64 and ARM64 deterministic gates remain green | PASS at prior inspected exact-head baseline; provider-evidence architecture hard gate now added | current architecture-gate tranche exact-head CI pending |
+| 14 | Windows x64 and ARM64 deterministic gates remain green | PASS — architecture-gate commit `2d16de141d52e1f3a38c4803435b9235a2953300` passed Security #675, CI #804, Packaging #718 and Build and Release #466 | real provider ARM64 execution still ENVIRONMENT PENDING |
 | 15 | real PEGA endpoint/model/auth accepted only from ENVIRONMENT evidence | PASS — policy/workflow design | **ENVIRONMENT PENDING** |
 
 No item in the last column is silently converted to PASS from source code.
