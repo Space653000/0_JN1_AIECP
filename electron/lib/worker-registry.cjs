@@ -8,6 +8,19 @@ const WORKER_STATES = Object.freeze(['IDLE', 'RUNNING', 'CANCELLING', 'FAILED', 
 
 function now() { return new Date().toISOString(); }
 
+function processExists(pid) {
+  const value = Number(pid);
+  if (!Number.isInteger(value) || value <= 0) return null;
+  try {
+    process.kill(value, 0);
+    return true;
+  } catch (error) {
+    if (error?.code === 'ESRCH') return false;
+    if (error?.code === 'EPERM') return true;
+    return null;
+  }
+}
+
 function normalizeWorkerId(value) {
   const id = String(value || '').trim().toLowerCase();
   if (!/^[a-z0-9][a-z0-9._-]{1,63}$/.test(id)) throw new Error('Invalid worker id.');
@@ -67,9 +80,30 @@ class WorkerRegistry {
     let changed = false;
     for (const worker of Object.values(this.state.workers)) {
       if (['RUNNING', 'CANCELLING'].includes(worker.runtimeState)) {
-        worker.runtimeState = 'UNKNOWN';
-        worker.processId = null;
-        worker.cancelState = 'RECOVERY_REQUIRED';
+        const priorPid = Number.isInteger(worker.processId) && worker.processId > 0 ? worker.processId : null;
+        const alive = processExists(priorPid);
+        if (alive === false) {
+          worker.lastResultState = 'RECOVERED_PROCESS_GONE';
+          worker.lastFinishedAt = now();
+          worker.runtimeState = 'IDLE';
+          worker.processId = null;
+          worker.runId = null;
+          worker.taskId = null;
+          worker.repository = null;
+          worker.worktree = null;
+          worker.verificationState = null;
+          worker.startedAt = null;
+          worker.heartbeatAt = null;
+          worker.timeoutAt = null;
+          worker.cancelState = 'RECOVERED_PROCESS_GONE';
+        } else {
+          // Never claim a crash-orphaned Worker is reusable unless the old
+          // process is proven gone. A live, permission-hidden, or untracked
+          // process remains UNKNOWN and requires operator recovery.
+          worker.runtimeState = 'UNKNOWN';
+          worker.processId = priorPid;
+          worker.cancelState = 'RECOVERY_REQUIRED';
+        }
         worker.updatedAt = now();
         changed = true;
       }
@@ -252,5 +286,6 @@ module.exports = {
   WORKER_STATES,
   WorkerRegistry,
   normalizeWorkerId,
-  publicWorker
+  publicWorker,
+  processExists
 };
