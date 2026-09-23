@@ -116,3 +116,46 @@ test('Worker Registry restart does not pretend an orphaned running process is st
     await fs.rm(root, { recursive: true, force: true });
   }
 });
+
+test('Worker Registry safely reclaims a crash-orphaned Worker only when the old process is proven gone', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'aecp-worker-reclaim-gone-'));
+  try {
+    const first = new WorkerRegistry(root);
+    await first.init();
+    await first.register({ id:'codex-official', providerId:'openai-official', runtime:'codex-cli', codexHome:path.join(root,'home') });
+    await first.acquire('codex-official', { runId:'r1', taskId:'t1', processId:4242, worktree:path.join(root,'wt') });
+    const second = new WorkerRegistry(root, { processExistsFn: () => false });
+    await second.init();
+    const recovered = second.get('codex-official');
+    assert.equal(recovered.runtimeState, 'IDLE');
+    assert.equal(recovered.processId, null);
+    assert.equal(recovered.runId, null);
+    assert.equal(recovered.taskId, null);
+    assert.equal(recovered.worktree, null);
+    assert.equal(recovered.lastResultState, 'RECOVERED_PROCESS_GONE');
+    assert.equal(recovered.cancelState, 'RECOVERED_PROCESS_GONE');
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+test('Worker Registry keeps a crash-orphaned Worker UNKNOWN when the old process may still be alive', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'aecp-worker-reclaim-live-'));
+  try {
+    const first = new WorkerRegistry(root);
+    await first.init();
+    await first.register({ id:'codex-pega', providerId:'pega', runtime:'codex-cli', codexHome:path.join(root,'home') });
+    await first.acquire('codex-pega', { runId:'r1', taskId:'t1', processId:5151, worktree:path.join(root,'wt') });
+    const second = new WorkerRegistry(root, { processExistsFn: () => true });
+    await second.init();
+    const recovered = second.get('codex-pega');
+    assert.equal(recovered.runtimeState, 'UNKNOWN');
+    assert.equal(recovered.processId, 5151);
+    assert.equal(recovered.runId, 'r1');
+    assert.equal(recovered.taskId, 't1');
+    assert.equal(recovered.cancelState, 'RECOVERY_REQUIRED');
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
