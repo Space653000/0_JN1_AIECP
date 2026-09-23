@@ -48,6 +48,7 @@ The authoritative acceptance rule remains: **Blueprint presence is not Runtime c
 - The self-hosted runner fails before provider execution when `process.arch` does not match the requested architecture.
 - Provider evidence persists both actual `arch` and `expectedArch`; provenance verification rejects mismatches.
 - Deterministic tests and canonical acceptance audit cover the architecture gate.
+- Exact-head commit `2d16de141d52e1f3a38c4803435b9235a2953300` passed AECP Security #675, AECP CI #804, AECP Packaging #718 and Build and Release #466.
 - This closes the **software-side ARM64 evidence selection gate only**. A real ARM64 OFFICIAL/PEGA run is still **ENVIRONMENT NOT YET VERIFIED**.
 
 ## 0B. V3.0 progress visibility and audit — 2026-09-23
