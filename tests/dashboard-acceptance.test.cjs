@@ -62,3 +62,27 @@ test('Command Center projects canonical Multi-Worker identity, health and isolat
   assert.ok(dashboard.includes('window.aecp.cancelTask'));
   assert.ok(dashboard.includes('Other workers and tasks will keep running'));
 });
+
+
+test('V3.0 readiness panel separates repository runtime readiness from real provider environment evidence',()=>{
+  const ui=read('ui/harness-console.js');
+  for(const term of [
+    'V3.0 Multi-Worker Readiness',
+    'WORKER REGISTRY',
+    'CODEX_HOME ISOLATION',
+    'PARALLEL RUNTIME',
+    'OFFICIAL HEALTH',
+    'PEGA HEALTH',
+    'REAL PROVIDER EVIDENCE',
+    'ENVIRONMENT GATE'
+  ]){
+    assert.ok(ui.includes(term), 'missing V3 readiness field: '+term);
+  }
+  assert.match(ui,/workers\.find\(w=>w\.id==='codex-official'\)/);
+  assert.match(ui,/workers\.find\(w=>w\.id==='codex-pega'\)/);
+  assert.match(ui,/officialWorker\?\.codexHome/);
+  assert.match(ui,/pegaWorker\?\.codexHome/);
+  assert.match(ui,/parallelWorktreesIsolated/);
+  assert.match(ui,/never inferred from source tests or health alone/);
+  assert.match(ui,/real OFFICIAL\/PEGA model execution remains an ENVIRONMENT gate/);
+});
