@@ -45,5 +45,28 @@
       artifacts:ci.artifacts||UNKNOWN,release:delivery.release||UNKNOWN,
       lastEvent:recent?`${recent.type||UNKNOWN} · ${recent.id||UNKNOWN}`:UNKNOWN};
   }
-  return Object.freeze({UNKNOWN,timeline,diffView,reviewView,githubView,REVIEW_DIMENSIONS});
+  const NOTIFICATION_RULES=Object.freeze([
+    Object.freeze({test:/^(?:security\.|policy\.violation)/,category:'CRITICAL'}),
+    Object.freeze({test:/^approval\.requested$/,category:'ACTION REQUIRED'}),
+    Object.freeze({test:/^(?:task\.failed|mission\.failed|ci\.failed|delivery\.blocked|state\.failed|approval\.rejected)$/,category:'ERROR'}),
+    Object.freeze({test:/^(?:task\.accepted|mission\.finished|ci\.passed|approval\.approved)$/,category:'SUCCESS'}),
+    Object.freeze({test:/^(?:provider\.degraded|task\.rework|state\.rework|task\.waiting_for_lock)$/,category:'WARNING'}),
+    Object.freeze({test:/^(?:task\.|mission\.|provider\.|ci\.|delivery\.|state\.)/,category:'INFO'})
+  ]);
+  function notifications(events,{readIds=[]}={}){
+    const read=new Set(readIds),seen=new Set(),out=[];
+    for(const event of (Array.isArray(events)?events:[]).slice().sort((a,b)=>String(b?.at||'').localeCompare(String(a?.at||'')))){
+      if(!event||typeof event.id!=='string'||seen.has(event.id))continue;
+      seen.add(event.id);
+      const type=String(event.data?.type||event.type||'');
+      if(/(?:^|\.)token(?:\.|$)/i.test(type))continue;
+      const category=NOTIFICATION_RULES.find(rule=>rule.test.test(type))?.category;
+      if(!category)continue;
+      out.push({id:event.id,category,type,at:event.at||UNKNOWN,taskId:event.taskId||UNKNOWN,
+        read:read.has(event.id),approvalTarget:category==='ACTION REQUIRED'?'#hcApprovals':null});
+      if(out.length>=100)break;
+    }
+    return out;
+  }
+  return Object.freeze({UNKNOWN,timeline,diffView,reviewView,githubView,notifications,NOTIFICATION_RULES,REVIEW_DIMENSIONS});
 });

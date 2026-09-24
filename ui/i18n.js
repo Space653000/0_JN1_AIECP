@@ -80,7 +80,12 @@ const DICTIONARIES=Object.freeze({
     'dashboard.github.workflow':'Workflow',
     'dashboard.github.artifacts':'Artifacts',
     'dashboard.github.release':'Release',
-    'dashboard.github.lastEvent':'Last event'
+    'dashboard.github.lastEvent':'Last event',
+    'dashboard.notifications':'Notifications',
+    'dashboard.openApprovals':'Open approvals',
+    'dashboard.read':'Read',
+    'dashboard.markRead':'Mark read',
+    'dashboard.noNotifications':'No verified notifications'
   }),
   'zh-TW':Object.freeze({
     'workspace.choose':'選擇工作區',
@@ -161,7 +166,12 @@ const DICTIONARIES=Object.freeze({
     'dashboard.github.workflow':'工作流程',
     'dashboard.github.artifacts':'產物',
     'dashboard.github.release':'發行',
-    'dashboard.github.lastEvent':'最近事件'
+    'dashboard.github.lastEvent':'最近事件',
+    'dashboard.notifications':'通知',
+    'dashboard.openApprovals':'開啟核准佇列',
+    'dashboard.read':'已讀',
+    'dashboard.markRead':'標為已讀',
+    'dashboard.noNotifications':'尚無可驗證通知'
   })
 });
 

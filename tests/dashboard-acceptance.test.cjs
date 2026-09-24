@@ -61,6 +61,14 @@ test('GitHub view renders all nine Blueprint fields from projection',()=>{
   for(const field of ['branch','base','commit','pr','ciStatus','workflow','artifacts','release','lastEvent'])assert.ok(ui.includes('githubView.'+field));
   assert.match(ui,/AECPDashboard\.githubView\(focusTask,events\)/);
 });
+test('Notification view uses event projection and presentation-only read state',()=>{
+  const ui=read('ui/harness-console.js');
+  assert.match(ui,/AECPDashboard\.notifications\(events/);
+  assert.match(ui,/presentation-only; never written to Control Plane/);
+  assert.match(ui,/data-read-notification/);
+  assert.match(ui,/href=\\?"#hcApprovals/);
+  assert.match(ui,/⚠ /);
+});
 
 test('Dashboard and shell accessibility provide keyboard focus text status and reduced motion',()=>{
   const html=read('ui/index.html');
