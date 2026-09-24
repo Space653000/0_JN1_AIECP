@@ -147,6 +147,11 @@ function render(){
  h+='<section class="hc-card" id="hcReview"><div class="section-title"><h2>'+esc(tr('dashboard.review','Review view'))+'</h2><span class="status '+(reviewAttention?'warn':cls(reviewView.result))+'">'+(reviewAttention?'⚠ ':'')+esc(reviewView.originalResult?reviewView.originalResult+' → '+reviewView.result:reviewView.result)+'</span></div>';
  h+='<div class="hc-detail-grid">'+window.AECPDashboard.REVIEW_DIMENSIONS.map(d=>'<div>'+esc(tr('dashboard.review.'+d,d))+': <strong>'+esc(reviewView.dimensions[d])+'</strong></div>').join('')+'</div>';
  h+='<div class="hc-event-evidence">'+esc(tr('dashboard.findings','Findings'))+': '+esc(reviewView.findings.length?reviewView.findings.join('; '):reviewView.state==='UNKNOWN'?'UNKNOWN':'0')+'<br>'+esc(tr('dashboard.requiredChanges','Required changes'))+': '+esc(reviewView.requiredChanges.length?reviewView.requiredChanges.join('; '):reviewView.state==='UNKNOWN'?'UNKNOWN':'0')+'</div></section>';
+ const githubView=window.AECPDashboard.githubView(focusTask,events);
+ h+='<section class="hc-card" id="hcGitHub"><div class="section-title"><h2>'+esc(tr('dashboard.github','GitHub view'))+'</h2></div><div class="hc-detail-grid">'
+   +Object.entries({branch:githubView.branch,base:githubView.base,commit:githubView.commit,pr:githubView.pr,ciStatus:githubView.ciStatus,
+     workflow:githubView.workflow,artifacts:githubView.artifacts,release:githubView.release,lastEvent:githubView.lastEvent})
+     .map(([key,value])=>'<div>'+esc(tr('dashboard.github.'+key,key))+': '+esc(value)+'</div>').join('')+'</div></section>';
  host.innerHTML=h;
  document.querySelectorAll('[data-select-task]').forEach(b=>b.onclick=()=>{selectedTaskId=b.dataset.selectTask;selectedEventId=null;render();});
  document.querySelectorAll('[data-event-id]').forEach(b=>b.onclick=()=>{selectedEventId=b.dataset.eventId;render();});

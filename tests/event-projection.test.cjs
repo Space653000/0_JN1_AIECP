@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { projectEvents } = require('../electron/lib/event-projection.cjs');
-const {timeline,diffView,reviewView,REVIEW_DIMENSIONS}=require('../ui/dashboard-projection.js');
+const {timeline,diffView,reviewView,githubView,REVIEW_DIMENSIONS}=require('../ui/dashboard-projection.js');
 
 test('event projection materializes run task approval and type counters deterministically', () => {
   const projection = projectEvents([
@@ -55,4 +55,15 @@ test('Review projection shows six canonical dimensions, human gate and UNKNOWN',
   assert.deepEqual(view.findings,['Decision needed']);assert.equal(JSON.stringify(task),before);
   assert.equal(reviewView({}).result,'UNKNOWN');
   assert.ok(Object.values(reviewView({}).dimensions).every(v=>v==='UNKNOWN'));
+});
+test('GitHub projection shows existing delivery/CI data and UNKNOWN for missing fields',()=>{
+  const task={id:'T1',delivery:{branch:'agent/T1',base:'main',sha:'a'.repeat(40),pr:'https://example.test/pr/1'},
+    ci:{state:'PASSED',runs:[{name:'AECP CI'}]}};
+  const event={id:'evt-1',taskId:'T1',type:'ci.passed',at:'2026-09-24T01:00:00Z'};
+  const before=JSON.stringify(task),view=githubView(task,[event]);
+  assert.equal(view.branch,'agent/T1');assert.equal(view.base,'main');
+  assert.equal(view.workflow,'AECP CI');assert.equal(view.ciStatus,'PASSED');
+  assert.equal(view.artifacts,'UNKNOWN');assert.equal(view.release,'UNKNOWN');
+  assert.match(view.lastEvent,/evt-1/);assert.equal(JSON.stringify(task),before);
+  assert.ok(Object.values(githubView(null,[])).every(v=>v==='UNKNOWN'));
 });

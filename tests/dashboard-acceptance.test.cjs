@@ -56,6 +56,11 @@ test('Review view renders six dimensions and textual human-required warning',()=
   assert.match(ui,/⚠ /);
   assert.match(ui,/HUMAN_REQUIRED/);
 });
+test('GitHub view renders all nine Blueprint fields from projection',()=>{
+  const ui=read('ui/harness-console.js');
+  for(const field of ['branch','base','commit','pr','ciStatus','workflow','artifacts','release','lastEvent'])assert.ok(ui.includes('githubView.'+field));
+  assert.match(ui,/AECPDashboard\.githubView\(focusTask,events\)/);
+});
 
 test('Dashboard and shell accessibility provide keyboard focus text status and reduced motion',()=>{
   const html=read('ui/index.html');

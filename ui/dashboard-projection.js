@@ -35,5 +35,15 @@
       findings:Array.isArray(report.findings)?report.findings.slice(0,20):[],
       requiredChanges:Array.isArray(report.required_changes)?report.required_changes.slice(0,20):[]};
   }
-  return Object.freeze({UNKNOWN,timeline,diffView,reviewView,REVIEW_DIMENSIONS});
+  function githubView(task,events=[]){
+    const delivery=task?.delivery||{},ci=task?.ci||{};
+    const runs=ci.runs||ci.lastSnapshot?.runs||[];
+    const recent=(Array.isArray(events)?events:[]).filter(e=>e?.taskId===task?.id).slice().sort((a,b)=>String(b.at||'').localeCompare(String(a.at||'')))[0];
+    return {branch:delivery.branch||UNKNOWN,base:delivery.base||UNKNOWN,commit:delivery.sha||UNKNOWN,
+      pr:delivery.pr||UNKNOWN,ciStatus:ci.state||UNKNOWN,
+      workflow:runs.length?runs.map(r=>r.name).filter(Boolean).join(', ')||UNKNOWN:UNKNOWN,
+      artifacts:ci.artifacts||UNKNOWN,release:delivery.release||UNKNOWN,
+      lastEvent:recent?`${recent.type||UNKNOWN} · ${recent.id||UNKNOWN}`:UNKNOWN};
+  }
+  return Object.freeze({UNKNOWN,timeline,diffView,reviewView,githubView,REVIEW_DIMENSIONS});
 });

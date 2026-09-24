@@ -70,7 +70,17 @@ const DICTIONARIES=Object.freeze({
     'dashboard.review.security':'Security',
     'dashboard.review.architecture':'Architecture',
     'dashboard.findings':'Findings',
-    'dashboard.requiredChanges':'Required changes'
+    'dashboard.requiredChanges':'Required changes',
+    'dashboard.github':'GitHub view',
+    'dashboard.github.branch':'Branch',
+    'dashboard.github.base':'Base',
+    'dashboard.github.commit':'Commit',
+    'dashboard.github.pr':'PR',
+    'dashboard.github.ciStatus':'CI status',
+    'dashboard.github.workflow':'Workflow',
+    'dashboard.github.artifacts':'Artifacts',
+    'dashboard.github.release':'Release',
+    'dashboard.github.lastEvent':'Last event'
   }),
   'zh-TW':Object.freeze({
     'workspace.choose':'選擇工作區',
@@ -141,7 +151,17 @@ const DICTIONARIES=Object.freeze({
     'dashboard.review.security':'安全',
     'dashboard.review.architecture':'架構',
     'dashboard.findings':'發現',
-    'dashboard.requiredChanges':'必要修正'
+    'dashboard.requiredChanges':'必要修正',
+    'dashboard.github':'GitHub 檢視',
+    'dashboard.github.branch':'分支',
+    'dashboard.github.base':'基底',
+    'dashboard.github.commit':'提交',
+    'dashboard.github.pr':'拉取請求',
+    'dashboard.github.ciStatus':'CI 狀態',
+    'dashboard.github.workflow':'工作流程',
+    'dashboard.github.artifacts':'產物',
+    'dashboard.github.release':'發行',
+    'dashboard.github.lastEvent':'最近事件'
   })
 });
 
