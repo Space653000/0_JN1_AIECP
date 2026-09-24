@@ -64,3 +64,14 @@
 2. `ENVIRONMENT` / `OWNER-EXTERNAL` 等級項目，只有實機/擁有者本人提供的真實紀錄可以結案，Claude Code 不得代為結案。
 3. 任何宣稱與 [`Blueprint/23_IMPLEMENTATION_STATUS.md`](../Blueprint/23_IMPLEMENTATION_STATUS.md) 或 [`STATUS.md`](STATUS.md) 矛盾時，先更新這兩份文件再繼續其他工作。
 4. 驗收永遠針對「明確範圍版本」，不得把某個小改動的通過膨脹成整個階段/整個產品完成。
+
+## 5. ENVIRONMENT / OWNER 項目的驗收協定（2026-09-24 新增）
+
+適用於 [STATUS.md](STATUS.md) 的環境閘門。通則：證據須含 **exact-source 40 碼 SHA、日期、機器與 `process.arch`、操作者聲明**；只傳雜湊/狀態/截圖，不含憑證、prompt、response 內容。Codex 不得自行結案，由 Claude Code 對照 repo SHA 審核後才可改 STATUS。無 workflow provenance（`provider-environment.yml` 尚未在 `main`）時，以本機腳本產出的 JSON 為證據，須標明「非 workflow PASS」，等級仍為 ENVIRONMENT。
+
+| 項目 | 必備證據 | 判定 PASS 條件 |
+|---|---|---|
+| 實體 ARM64 UI smoke | 該 SHA 的 arm64 Packaging artifact 之 SHA-256 與 checksum 相符；`node -p process.arch` = `arm64`；截圖/操作者勾選：安裝、啟動、Dashboard 顯示八問視圖、選 Workspace、以 `inspect-workspace` Command Card 跑一次、STOP ALL 有效、解除安裝乾淨 | 清單全數勾選且無崩潰；任一失敗即 FAIL |
+| 使用者筆電 CLI / verifier 安全 | 在一次性測試 repo 跑 Local Autonomous：run 證據 manifest、verified patch diff、verifier 輸出；操作者書面確認已審閱專案 verifier 腳本無對外網路、無 worktree 外寫入、無刪除 | patch 僅出現在 worktree；Apply 前 source 不變；verifier 決定 pass/fail；審閱聲明齊全 |
+| Official Full MCP | 需真實 ChatGPT Business/Enterprise/Edu workspace：tunnel/connector 健康紀錄；讀取工具呼叫的 event id；寫入工具**未核准被拒**與**核准後成功**各一筆 event id；斷線後回退 Safe Bridge 的紀錄 | 四項證據皆對應事件帳本 id；缺任一項不得標 Ready（見 Blueprint 16 §7） |
+| PEGA/OFFICIAL 故障隔離 | 兩次 run：(a) 讓 PEGA 失敗（僅在該次程序環境注入無效 key，不動已存 auth）→ OFFICIAL 仍 PASS；(b) 讓 OFFICIAL 失敗 → PEGA 仍 PASS；期間 Safe Bridge 可用；恢復後兩者 READY。附兩份 evidence JSON 與 Worker Registry 狀態（失敗方 UNAVAILABLE/UNKNOWN、另一方 READY） | 失敗不外溢；兩個 `codexHomeSha256` 前後不變；無靜默 fallback |
