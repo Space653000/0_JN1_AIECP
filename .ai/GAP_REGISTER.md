@@ -28,6 +28,7 @@
 | G8 | 全部規範條文的完整性 | 已完成分類（0010、0011）：231 條中 115 已實作、91 部分、5 確認缺失、9 人工、3 擁有者、8 蓄意不做，無任何未分類項；「部分」與「確認缺失」由 G9、G10 承接 | 中 | 0011 |
 | G9 | B04 Electron 基線、B11、B21 | **已全部修復（5/5）**：導覽限制、剪貼簿位元組上限、IPC 統一參數驗證、Evidence 不可變（write-once）、Result Capsule 未驗證不得宣稱成功；並額外修掉兩條路徑穿越（模型控制的任務 ID、`task:trace`／`task:evidence`）。詳見 0012 | 已解決 | 0012 |
 | G10 | 89 條 PARTIAL | 行為存在但缺針對該條文的測試；`policy.violation` 已涵蓋所有政策閘門（0012 D）。剩餘 89 條依風險分 11 批，見 `.ai/WORK_ORDERS/0013-batches.md` | 中 | 0013 |
+| G11 | B05 §7、§8、B02 | 0013 批次 3 發現並經 Claude 重現的真缺陷：①Webhook 簽章長度不符丟 RangeError 使請求掛住（github-webhook.cjs verify）；② 因與  共用 idempotencyKey 被去重而從未寫入；③ResourceManager.scan 把帶內嵌憑證的 remote URL 原樣寫入 resources.json（B05-L20）；④鎖回收不記錄釋放原因（B02-L109）；⑤跨倉庫鎖無決定順序／BLOCKED（B05-L88） | 高（①③涉及安全） | 待簽發 0014 |
 
 ## 決策紀錄（Claude Code，Blueprint 擁有者）
 - **D2｜Blueprint 22 §6–§9、§11 與 20 §16 為必要項。** `22 §17` 有一段「深入視覺檢視……為選用的呈現強化，非缺失的驗收需求」的收尾註記，是先前施工者為結案而加，且與同文件本文「dashboard must show…」衝突；依「Blueprint 是標準」，以本文為準，該註記視為被取代（不改動原檔，於此登記）。
