@@ -20,6 +20,10 @@ const TYPES={
   'aecp.owner-evidence.official-full-mcp/v1':[
     'supportedWorkspaceUsed','tunnelConnectorHealthy','readToolEventRecorded',
     'unapprovedWriteDenied','approvedWriteSucceeded','disconnectSafeBridgeFallback'
+  ],
+  'aecp.owner-evidence.safe-bridge-during-fault/v1':[
+    'safeBridgeAvailableDuringPegaFailure','safeBridgeAvailableDuringOfficialFailure',
+    'inspectWorkspaceCardPassedDuringFault','bothWorkersRecoveredReady'
   ]
 };
 
@@ -57,7 +61,9 @@ function verifyOwnerEvidence(evidence,{expectSha}={}){
   const required=evidence?.schema==='aecp.owner-evidence.arm64-ui-smoke/v1'
     ?['installer','screenshots']
     :evidence?.schema==='aecp.owner-evidence.laptop-verifier-safety/v1'
-      ?['runManifest','verifiedPatch','verifierOutput']:['eventLedger','tunnelHealth'];
+      ?['runManifest','verifiedPatch','verifierOutput']
+      :evidence?.schema==='aecp.owner-evidence.safe-bridge-during-fault/v1'
+        ?['providerEvidence']:['eventLedger','tunnelHealth'];
   for(const key of required){
     const value=artifacts?.[key];
     const items=Array.isArray(value)?value:[value];

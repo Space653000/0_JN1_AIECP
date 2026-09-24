@@ -9,7 +9,7 @@ const {verifyOwnerEvidence,TYPES}=require('../scripts/verify-owner-evidence.cjs'
 
 const sha='a'.repeat(40);
 const root=path.join(__dirname,'..','samples','owner-evidence');
-const names=['arm64-ui-smoke','laptop-verifier-safety','official-full-mcp'];
+const names=['arm64-ui-smoke','laptop-verifier-safety','official-full-mcp','safe-bridge-during-fault'];
 const load=name=>JSON.parse(fs.readFileSync(path.join(root,`${name}.template.json`),'utf8'));
 
 function filled(name){
@@ -66,4 +66,18 @@ test('CLI rejects the unfilled owner template',()=>{
   const result=spawnSync(process.execPath,[path.join(__dirname,'..','scripts','verify-owner-evidence.cjs'),file,'--expect-sha',sha],{encoding:'utf8'});
   assert.equal(result.status,1);
   assert.equal(fs.readFileSync(file,'utf8'),original);
+});
+
+test('Safe Bridge fault record rejects false checklist, placeholder, wrong SHA and secret',()=>{
+  const valid=filled('safe-bridge-during-fault');
+  assert.equal(verifyOwnerEvidence(valid,{expectSha:sha}).passed,true);
+  const falseItem=structuredClone(valid);falseItem.checklist.safeBridgeAvailableDuringPegaFailure.passed=false;
+  assert.equal(verifyOwnerEvidence(falseItem,{expectSha:sha}).passed,false);
+  const placeholder=structuredClone(valid);placeholder.checklist.inspectWorkspaceCardPassedDuringFault.note='<placeholder>';
+  assert.equal(verifyOwnerEvidence(placeholder,{expectSha:sha}).passed,false);
+  assert.equal(verifyOwnerEvidence(valid,{expectSha:'c'.repeat(40)}).passed,false);
+  const secret=structuredClone(valid);secret.operatorAttestation.statement='Bearer abcdefghi123456';
+  assert.equal(verifyOwnerEvidence(secret,{expectSha:sha}).passed,false);
+  const badArtifact=structuredClone(valid);badArtifact.artifacts.providerEvidence.sha256='bad';
+  assert.equal(verifyOwnerEvidence(badArtifact,{expectSha:sha}).passed,false);
 });
