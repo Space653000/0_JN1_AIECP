@@ -40,7 +40,7 @@ test('provider health is exposed through IPC and UI without implicit network acc
   const main = read('electron/main.cjs');
   const preload = read('electron/preload.cjs');
   const app = read('ui/app.js');
-  assert.match(main, /ipcMain\.handle\('provider:health'/);
+  assert.match(main, /ipc\.handle\('provider:health'/);
   assert.match(main, /checkProviderHealth/);
   assert.match(preload, /checkProviderHealth/);
   assert.match(app, /data-provider-health/);
@@ -94,7 +94,7 @@ test('Codex OFFICIAL login is an explicit user action scoped to its isolated COD
 
 test('Mission creation refreshes Worker provider state after isolated login or provider changes', () => {
   const main = read('electron/main.cjs');
-  const block = main.match(/ipcMain\.handle\('control-plane:create-mission'[\s\S]*?\n  \}\);/);
+  const block = main.match(/ipc\.handle\('control-plane:create-mission'[\s\S]*?\n  \}\);/);
   assert.ok(block, 'control-plane:create-mission IPC handler must exist');
   assert.match(block[0], /await initControlPlane\(\)/);
   assert.match(block[0], /await refreshRuntimeProviders\(\)/);

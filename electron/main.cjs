@@ -29,6 +29,7 @@ const { PythonWorker } = require('./lib/python-worker.cjs');
 
 const { parseCommandCard, makeTaskId, makeResultCapsule, hashJson, withinClipboardWriteLimit } = require('./lib/protocol.cjs');
 const { isAllowedNavigation } = require('./lib/navigation-policy.cjs');
+const { createValidatedIpc, IPC_SCHEMAS } = require('./lib/ipc-validation.cjs');
 const { compareVersions, versionFromTag, selectHighestRelease, selectInstallerAsset } = require('./lib/version.cjs');
 const { createUpdateTransaction, transitionUpdate, reconcileFirstBoot } = require('./lib/update-state.cjs');
 const { verifyAuthenticode } = require('./lib/authenticode.cjs');
@@ -1554,7 +1555,12 @@ async function restoreBackup() {
 }
 
 function registerIpc() {
-  ipcMain.handle('app:info', async () => ({
+  const uiIndexPath = path.join(__dirname, '..', 'ui', 'index.html');
+  // Every channel must declare a schema (electron/lib/ipc-validation.cjs); the sender frame must be the packaged UI when known.
+  const ipc = createValidatedIpc(ipcMain, IPC_SCHEMAS, {
+    senderAllowed: (event) => { const url = event?.senderFrame?.url; return !url || isAllowedNavigation(url, uiIndexPath); }
+  });
+  ipc.handle('app:info', async () => ({
     name: 'AI Engineering Control Plane',
     version: app.getVersion(),
     platform: process.platform,
@@ -1563,7 +1569,7 @@ function registerIpc() {
     userDataPath: app.getPath('userData')
   }));
 
-  ipcMain.handle('guidance:recommend', async (_event, payload) => {
+  ipc.handle('guidance:recommend', async (_event, payload) => {
     const state = await loadState();
     const cp = controlPlane ? await controlPlane.status() : null;
     return recommendNextAction({
@@ -1575,19 +1581,19 @@ function registerIpc() {
     });
   });
 
-  ipcMain.handle('backup:export', exportBackup);
-  ipcMain.handle('backup:restore', restoreBackup);
-  ipcMain.handle('data:clear-evidence', clearLocalEvidence);
-  ipcMain.handle('data:remove-workspace', removeCurrentWorkspaceBinding);
-  ipcMain.handle('data:clear-credentials', clearStoredCredentials);
-  ipcMain.handle('data:reset-state', resetAecpLocalState);
+  ipc.handle('backup:export', exportBackup);
+  ipc.handle('backup:restore', restoreBackup);
+  ipc.handle('data:clear-evidence', clearLocalEvidence);
+  ipc.handle('data:remove-workspace', removeCurrentWorkspaceBinding);
+  ipc.handle('data:clear-credentials', clearStoredCredentials);
+  ipc.handle('data:reset-state', resetAecpLocalState);
 
-  ipcMain.handle('state:get', async () => {
+  ipc.handle('state:get', async () => {
     const state = await loadState();
     return { ...state, currentWorkspace: getCurrentWorkspace(state), providers: await publicProviders(state) };
   });
 
-  ipcMain.handle('policy:get', async () => {
+  ipc.handle('policy:get', async () => {
     const state = await loadState();
     const workspace = getCurrentWorkspace(state);
     return {
@@ -1597,7 +1603,7 @@ function registerIpc() {
     };
   });
 
-  ipcMain.handle('policy:save', async (_event, payload) => {
+  ipc.handle('policy:save', async (_event, payload) => {
     await assertDataOperationIdle();
     const state = await loadState();
     const workspace = getCurrentWorkspace(state);
@@ -1626,13 +1632,13 @@ function registerIpc() {
     return { workspaceId: workspace.id, policy: next, actions: editableActions() };
   });
 
-  ipcMain.handle('security:adapter-matrix', async () => {
+  ipc.handle('security:adapter-matrix', async () => {
     const cp = await initControlPlane();
     const status = await cp.status();
     return status.adapterSecurity;
   });
 
-  ipcMain.handle('workspace:select', async () => {
+  ipc.handle('workspace:select', async () => {
     const result = await dialog.showOpenDialog(mainWindow, { title: 'Choose AECP Workspace', properties: ['openDirectory', 'createDirectory'] });
     if (result.canceled || !result.filePaths[0]) return null;
     const state = await loadState();
@@ -1648,7 +1654,7 @@ function registerIpc() {
     return workspace;
   });
 
-  ipcMain.handle('workspace:refresh', async () => {
+  ipc.handle('workspace:refresh', async () => {
     const state = await loadState();
     const workspace = getCurrentWorkspace(state);
     if (!workspace) return null;
@@ -1658,9 +1664,9 @@ function registerIpc() {
     controlPlane?.setPolicyConfig(refreshed.policy || {});
     return refreshed;
   });
-  ipcMain.handle('workspace:add-repo', addWorkspaceRepository);
+  ipc.handle('workspace:add-repo', addWorkspaceRepository);
 
-  ipcMain.handle('workspace:open', async () => {
+  ipc.handle('workspace:open', async () => {
     const state = await loadState();
     const workspace = getCurrentWorkspace(state);
     if (!workspace) throw new Error('Choose a Workspace first.');
@@ -1669,7 +1675,7 @@ function registerIpc() {
     return true;
   });
 
-  ipcMain.handle('workspace:terminal', async () => {
+  ipc.handle('workspace:terminal', async () => {
     const state = await loadState();
     const workspace = getCurrentWorkspace(state);
     if (!workspace) throw new Error('Choose a Workspace first.');
@@ -1680,19 +1686,19 @@ function registerIpc() {
     return true;
   });
 
-  ipcMain.handle('chatgpt:open', async () => {
+  ipc.handle('chatgpt:open', async () => {
     await shell.openExternal('https://chatgpt.com/');
     return true;
   });
 
-  ipcMain.handle('harness:start', async (_event, payload) => startHarness(payload));
-  ipcMain.handle('control-plane:status', async () => (await initControlPlane()).status());
-  ipcMain.handle('control-plane:replay', async (_e,p)=>(await initControlPlane()).replay(p?.runId,p?.limit));
-  ipcMain.handle('control-plane:events', async (_event, payload) => (await initControlPlane()).listEvents(payload?.limit || 500));
-  ipcMain.handle('control-plane:remote-pair', async () => (await initControlPlane()).createRemotePairing());
-  ipcMain.handle('control-plane:remote-devices', async () => (await initControlPlane()).listRemoteDevices());
-  ipcMain.handle('control-plane:remote-revoke', async (_event,payload) => (await initControlPlane()).revokeRemoteDevice(payload?.deviceId));
-  ipcMain.handle('control-plane:create-mission', async (_event, payload) => {
+  ipc.handle('harness:start', async (_event, payload) => startHarness(payload));
+  ipc.handle('control-plane:status', async () => (await initControlPlane()).status());
+  ipc.handle('control-plane:replay', async (_e,p)=>(await initControlPlane()).replay(p?.runId,p?.limit));
+  ipc.handle('control-plane:events', async (_event, payload) => (await initControlPlane()).listEvents(payload?.limit || 500));
+  ipc.handle('control-plane:remote-pair', async () => (await initControlPlane()).createRemotePairing());
+  ipc.handle('control-plane:remote-devices', async () => (await initControlPlane()).listRemoteDevices());
+  ipc.handle('control-plane:remote-revoke', async (_event,payload) => (await initControlPlane()).revokeRemoteDevice(payload?.deviceId));
+  ipc.handle('control-plane:create-mission', async (_event, payload) => {
     const state = await loadState();
     const workspace = getCurrentWorkspace(state);
     if (!workspace) throw new Error('Choose a Workspace first.');
@@ -1708,41 +1714,41 @@ function registerIpc() {
       autoStart: payload?.autoStart !== false
     });
   });
-  ipcMain.handle('control-plane:start', async (_event, payload) => (await initControlPlane()).startMission(payload?.runId));
-  ipcMain.handle('control-plane:pause', async (_event, payload) => (await initControlPlane()).pauseMission(payload?.runId));
-  ipcMain.handle('control-plane:cancel', async (_event, payload) => (await initControlPlane()).cancelMission(payload?.runId));
-  ipcMain.handle('control-plane:cancel-task', async (_event, payload) => (await initControlPlane()).cancelTask(payload?.runId, payload?.taskId));
-  ipcMain.handle('control-plane:approve', async (_event, payload) => (await initControlPlane()).approve(payload?.approvalId, { by: 'human', note: payload?.note || '' }));
-  ipcMain.handle('control-plane:approve-delivery', async (_e,p)=>controlPlane.approveDelivery(p.runId,p.taskId,p));
-  ipcMain.handle('control-plane:reject', async (_event, payload) => (await initControlPlane()).reject(payload?.approvalId, { by: 'human', note: payload?.note || 'Rejected by operator.' }));
+  ipc.handle('control-plane:start', async (_event, payload) => (await initControlPlane()).startMission(payload?.runId));
+  ipc.handle('control-plane:pause', async (_event, payload) => (await initControlPlane()).pauseMission(payload?.runId));
+  ipc.handle('control-plane:cancel', async (_event, payload) => (await initControlPlane()).cancelMission(payload?.runId));
+  ipc.handle('control-plane:cancel-task', async (_event, payload) => (await initControlPlane()).cancelTask(payload?.runId, payload?.taskId));
+  ipc.handle('control-plane:approve', async (_event, payload) => (await initControlPlane()).approve(payload?.approvalId, { by: 'human', note: payload?.note || '' }));
+  ipc.handle('control-plane:approve-delivery', async (_e, p) => (await initControlPlane()).approveDelivery(p.runId, p.taskId, p));
+  ipc.handle('control-plane:reject', async (_event, payload) => (await initControlPlane()).reject(payload?.approvalId, { by: 'human', note: payload?.note || 'Rejected by operator.' }));
 
-  ipcMain.handle('harness:status', harnessStatus);
-  ipcMain.handle('harness:cancel', cancelHarness);
-  ipcMain.handle('autonomy:options', autonomyOptions);
-  ipcMain.handle('autonomy:status', latestAutonomyRecord);
-  ipcMain.handle('autonomy:start', async (_event, payload) => startAutonomy(payload));
-  ipcMain.handle('autonomy:resume', resumeAutonomy);
-  ipcMain.handle('autonomy:cancel', cancelAutonomy);
-  ipcMain.handle('autonomy:open-worktree', openAutonomyWorktree);
-  ipcMain.handle('autonomy:apply', applyAutonomy);
+  ipc.handle('harness:status', harnessStatus);
+  ipc.handle('harness:cancel', cancelHarness);
+  ipc.handle('autonomy:options', autonomyOptions);
+  ipc.handle('autonomy:status', latestAutonomyRecord);
+  ipc.handle('autonomy:start', async (_event, payload) => startAutonomy(payload));
+  ipc.handle('autonomy:resume', resumeAutonomy);
+  ipc.handle('autonomy:cancel', cancelAutonomy);
+  ipc.handle('autonomy:open-worktree', openAutonomyWorktree);
+  ipc.handle('autonomy:apply', applyAutonomy);
 
-  ipcMain.handle('mcp:status', async () => publicMcpStatus());
-  ipcMain.handle('mcp:start', startLocalMcp);
-  ipcMain.handle('mcp:stop', stopLocalMcp);
-  ipcMain.handle('mcp:copy-connection', copyLocalMcpConnection);
+  ipc.handle('mcp:status', async () => publicMcpStatus());
+  ipc.handle('mcp:start', startLocalMcp);
+  ipc.handle('mcp:stop', stopLocalMcp);
+  ipc.handle('mcp:copy-connection', copyLocalMcpConnection);
 
-  ipcMain.handle('agents:list', detectAgents);
-  ipcMain.handle('agents:launch', async (_event, payload) => launchAgent(payload?.agentId));
-  ipcMain.handle('python:syntax-scan', async () => {
+  ipc.handle('agents:list', detectAgents);
+  ipc.handle('agents:launch', async (_event, payload) => launchAgent(payload?.agentId));
+  ipc.handle('python:syntax-scan', async () => {
     const state=await loadState();
     const workspace=getCurrentWorkspace(state);
     if(!workspace) throw new Error('Choose a Workspace before running the Python syntax worker.');
     return pythonWorker.syntaxScan(workspace.rootPath);
   });
-  ipcMain.handle('desktop:list-windows', async () => windowsUiAdapter.listWindows());
-  ipcMain.handle('desktop:inspect-ui', async (_event,payload) => windowsUiAdapter.inspect(payload?.pid,{maxNodes:payload?.maxNodes||120,allowBrowser:false}));
-  ipcMain.handle('desktop:list-browser-windows', async () => desktopAdapter.listBrowserWindows());
-  ipcMain.handle('desktop:dock-browser', async (_event,payload) => {
+  ipc.handle('desktop:list-windows', async () => windowsUiAdapter.listWindows());
+  ipc.handle('desktop:inspect-ui', async (_event,payload) => windowsUiAdapter.inspect(payload?.pid,{maxNodes:payload?.maxNodes||120,allowBrowser:false}));
+  ipc.handle('desktop:list-browser-windows', async () => desktopAdapter.listBrowserWindows());
+  ipc.handle('desktop:dock-browser', async (_event,payload) => {
     const pid=Number(payload?.pid);
     const side=String(payload?.side||'right');
     const approval=await dialog.showMessageBox(mainWindow,{
@@ -1758,27 +1764,27 @@ function registerIpc() {
     if(approval.response!==1) throw new Error('Browser docking was not approved by the operator.');
     return desktopAdapter.dockBrowserWindow({pid,side});
   });
-  ipcMain.handle('github:connection', githubConnection);
-  ipcMain.handle('github:connect', connectGitHub);
-  ipcMain.handle('update:check', checkForUpdate);
-  ipcMain.handle('update:status', getUpdateTransactionStatus);
-  ipcMain.handle('update:apply', applyUpdate);
-  ipcMain.handle('update:rollback', rollbackUpdate);
-  ipcMain.handle('update:open-release', async () => {
+  ipc.handle('github:connection', githubConnection);
+  ipc.handle('github:connect', connectGitHub);
+  ipc.handle('update:check', checkForUpdate);
+  ipc.handle('update:status', getUpdateTransactionStatus);
+  ipc.handle('update:apply', applyUpdate);
+  ipc.handle('update:rollback', rollbackUpdate);
+  ipc.handle('update:open-release', async () => {
     await shell.openExternal(`https://github.com/${UPDATE_REPO}/releases`);
     return true;
   });
 
-  ipcMain.handle('tools:detect', detectTools);
-  ipcMain.handle('clipboard:read', async () => clipboard.readText());
-  ipcMain.handle('clipboard:write', async (_event, payload) => {
+  ipc.handle('tools:detect', detectTools);
+  ipc.handle('clipboard:read', async () => clipboard.readText());
+  ipc.handle('clipboard:write', async (_event, payload) => {
     const text = payload?.text;
     if (typeof text !== 'string' || !withinClipboardWriteLimit(text)) throw new Error('Clipboard write rejected.');
     await clipboard.writeText(text);
     return true;
   });
 
-  ipcMain.handle('task:sample', async () => {
+  ipc.handle('task:sample', async () => {
     const state = await loadState();
     const workspace = getCurrentWorkspace(state);
     if (!workspace) throw new Error('Choose a Workspace first.');
@@ -1794,7 +1800,7 @@ function registerIpc() {
     };
   });
 
-  ipcMain.handle('task:import', async (_event, payload) => {
+  ipc.handle('task:import', async (_event, payload) => {
     const card = parseCommandCard(payload?.text || '');
     const state = await loadState();
     const workspace = getCurrentWorkspace(state);
@@ -1838,10 +1844,10 @@ function registerIpc() {
     return task;
   });
 
-  ipcMain.handle('task:list', async () => (await loadState()).tasks);
-  ipcMain.handle('task:execute', async (_event, payload) => runTask(payload?.taskId));
+  ipc.handle('task:list', async () => (await loadState()).tasks);
+  ipc.handle('task:execute', async (_event, payload) => runTask(payload?.taskId));
 
-  ipcMain.handle('task:trace', async (_event, payload) => {
+  ipc.handle('task:trace', async (_event, payload) => {
     const file = dataPath('evidence', payload?.taskId || '', 'trace.jsonl');
     try {
       const text = await fsp.readFile(file, 'utf8');
@@ -1852,7 +1858,7 @@ function registerIpc() {
     }
   });
 
-  ipcMain.handle('task:evidence', async (_event, payload) => {
+  ipc.handle('task:evidence', async (_event, payload) => {
     const dir = dataPath('evidence', payload?.taskId || '');
     return {
       task: await readJson(path.join(dir, 'task.json'), null),
@@ -1862,12 +1868,12 @@ function registerIpc() {
     };
   });
 
-  ipcMain.handle('provider:list', async () => publicProviders(await loadState()));
-  ipcMain.handle('worker:list', async () => (await getWorkerRegistry()).list());
-  ipcMain.handle('worker:login-official', loginOfficialCodexWorker);
-  ipcMain.handle('provider:health', async (_event, payload) => checkProviderHealth(payload?.providerId, payload || {}));
-  ipcMain.handle('provider:save', async (_event, payload) => saveProvider(payload));
-  ipcMain.handle('provider:delete', async (_event, payload) => deleteProvider(payload?.providerId));
+  ipc.handle('provider:list', async () => publicProviders(await loadState()));
+  ipc.handle('worker:list', async () => (await getWorkerRegistry()).list());
+  ipc.handle('worker:login-official', loginOfficialCodexWorker);
+  ipc.handle('provider:health', async (_event, payload) => checkProviderHealth(payload?.providerId, payload || {}));
+  ipc.handle('provider:save', async (_event, payload) => saveProvider(payload));
+  ipc.handle('provider:delete', async (_event, payload) => deleteProvider(payload?.providerId));
 }
 
 async function createMainWindow() {

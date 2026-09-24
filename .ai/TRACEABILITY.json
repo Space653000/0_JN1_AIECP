@@ -582,16 +582,40 @@
         "section": "## 3. Electron baseline"
       },
       "text": "- validate every IPC argument in main process",
-      "status": "CONFIRMED_GAP",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/main.cjs",
-          "symbol": "control-plane:approve-delivery",
-          "description": "IPC handler forwards a raw payload without a complete per-channel argument schema."
+          "file": "tests/ipc-validation.test.cjs",
+          "kind": "test",
+          "name": "B04-ELECTRON-L33 every registered IPC channel declares a validation schema and none bypasses the wrapper"
+        },
+        {
+          "file": "tests/ipc-validation.test.cjs",
+          "kind": "test",
+          "name": "B04-ELECTRON-L33 registering a channel without a schema fails fast"
+        },
+        {
+          "file": "tests/ipc-validation.test.cjs",
+          "kind": "test",
+          "name": "B04-ELECTRON-L33 the preload bridge only calls channels that have schemas"
+        },
+        {
+          "file": "tests/ipc-validation.test.cjs",
+          "kind": "test",
+          "name": "B04-ELECTRON-L33 rejected requests never echo the payload back in the error"
+        },
+        {
+          "file": "tests/ipc-validation.test.cjs",
+          "kind": "test",
+          "name": "B04-ELECTRON-L33 extra positional arguments and oversized payloads are rejected"
+        },
+        {
+          "file": "tests/ipc-validation.test.cjs",
+          "kind": "test",
+          "name": "B04-ELECTRON-L33 a sender that is not the packaged UI is rejected before any validation or handler"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Add uniform main-process argument validation for every IPC channel; preserve existing permission checks."
+      "note": "Fixed by Claude Code (was CONFIRMED_GAP): electron/lib/ipc-validation.cjs declares a schema for all 75 channels and main.cjs registers every one through createValidatedIpc; malformed payloads are rejected before the handler runs. Sabotage-checked five ways (no-op validation, missing schema, missing wrapper declaration, reserved keys, path-like ids). Also closes a path-traversal route through task:trace and task:evidence taskId."
     },
     {
       "id": "B04-ELECTRON-L34",
