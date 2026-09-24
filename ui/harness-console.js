@@ -134,6 +134,14 @@ function render(){
  h+='<div class="hc-actions" role="group" aria-label="'+esc(tr('dashboard.selectTask','Select task'))+'">'+tasks.map(t=>'<button type="button" class="secondary-button" data-select-task="'+esc(t.id)+'" aria-pressed="'+String(focusTask?.id===t.id)+'">'+esc(t.title||t.id)+'</button>').join('')+'</div>';
  h+='<div class="hc-events">'+(timeline.entries.map(e=>'<button type="button" class="hc-event hc-event-button" data-event-id="'+esc(e.id)+'" aria-label="'+esc(tr('dashboard.openEvidence','Open event evidence'))+' '+esc(e.type)+'"><time>'+esc(fmt(e.at))+'</time><b>'+esc(e.type)+'</b><span>ID '+esc(e.id)+'</span></button>').join('')||'<div class="empty-list">UNKNOWN · '+esc(tr('dashboard.noTimeline','No verified timeline'))+'</div>')+'</div>';
  h+='<div class="hc-event-evidence" role="region" aria-live="polite" aria-label="'+esc(tr('dashboard.evidence','Event evidence'))+'">'+(selectedEvent?'<strong>'+esc(tr('dashboard.evidence','Event evidence'))+'</strong><small>ID '+esc(selectedEvent.id)+'</small><small>'+esc(tr('dashboard.path','Path'))+': '+esc(selectedEvent.evidence.path)+'</small><small>SHA-256: '+esc(selectedEvent.evidence.sha256)+'</small><small>'+esc(tr('dashboard.summary','Summary'))+': '+esc(selectedEvent.evidence.summary)+'</small>':'UNKNOWN')+'</div></section>';
+ const diffView=window.AECPDashboard.diffView(focusTask);
+ const list=value=>Array.isArray(value)?(value.length?value.join(', '):'0'):value;
+ h+='<section class="hc-card" id="hcDiff"><div class="section-title"><h2>'+esc(tr('dashboard.diff','Diff view'))+'</h2><span class="status neutral">'+esc(diffView.state)+'</span></div><div class="hc-detail-grid">'
+   +'<div>'+esc(tr('dashboard.changedFiles','Changed files'))+': '+esc(list(diffView.changedFiles))+'</div>'
+   +'<div>'+esc(tr('dashboard.additions','Additions'))+': '+esc(diffView.additions)+'</div><div>'+esc(tr('dashboard.deletions','Deletions'))+': '+esc(diffView.deletions)+'</div>'
+   +'<div>'+esc(tr('dashboard.untracked','Untracked files'))+': '+esc(list(diffView.untrackedFiles))+'</div><div>'+esc(tr('dashboard.patchBytes','Patch bytes'))+': '+esc(diffView.patchBytes)+'</div>'
+   +'<div>'+esc(tr('dashboard.baseCommit','Base commit'))+': '+esc(diffView.baseCommit)+'</div><div>'+esc(tr('dashboard.currentCommit','Current commit'))+': '+esc(diffView.currentCommit)+'</div>'
+   +'<div>'+esc(tr('dashboard.verifier','Verifier'))+': '+esc(diffView.verifierStatus)+'</div></div></section>';
  host.innerHTML=h;
  document.querySelectorAll('[data-select-task]').forEach(b=>b.onclick=()=>{selectedTaskId=b.dataset.selectTask;selectedEventId=null;render();});
  document.querySelectorAll('[data-event-id]').forEach(b=>b.onclick=()=>{selectedEventId=b.dataset.eventId;render();});

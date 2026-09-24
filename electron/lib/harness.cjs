@@ -10,7 +10,7 @@ const { redactSensitive } = require('./redaction.cjs');
 const { makeExecutionContract, updateExecutionContract, validateExecutionContract } = require('./execution-contract.cjs');
 const {buildReviewInput}=require('./review-context.cjs');
 const {validateReviewReport,saveReviewReport}=require('./review-report.cjs');
-const {gitChangedFiles,makeWorkerReport,saveWorkerReport}=require('./worker-report.cjs');
+const {gitChangedFiles,gitUntrackedFiles,makeWorkerReport,saveWorkerReport}=require('./worker-report.cjs');
 const {discoverRepoKnowledge,knowledgeManifest,formatKnowledge}=require('./repo-knowledge.cjs');
 
 const HARNESS_SCHEMA = 'aecp.harness/v1';
@@ -503,6 +503,7 @@ async function runHarness(options) {
         task.iterations = iteration; await transition('RUNNING', { taskId: task.id, iteration });
         const b = await invokeProvider({router:providerRouter,role:'builder',prompt:builderPrompt(task, goal, done, review,roleKnowledge('builder',roleProviders.builder,repoKnowledge)),cwd:wt.worktree,model:roleModels.builder,providerId:roleProviders.builder,policy:options.policy,signal,timeoutMs:600000,executionApproved:Boolean(options.executionApproved),networkApproved:Boolean(options.providerNetworkApproved),credentialApproved:Boolean(options.providerCredentialApproved),onSpawn:options.onWorkerSpawn});
         task.worker = { workerId:b.workerId||null, workerName:b.workerName||null, provider:b.provider||roleProviders.builder, providerName:b.providerName||b.provider||roleProviders.builder, model:b.model||roleModels.builder||null, processId:b.processId||null, codexHome:b.codexHome||null, command:b.command||b.provider||roleProviders.builder, code:b.code, timedOut:b.timedOut, aborted:Boolean(b.aborted), outputLimitExceeded:Boolean(b.outputLimitExceeded), stdout:b.stdout.slice(-12000), stderr:b.stderr.slice(-12000) };
+        task.untrackedFiles=[...new Set([...(task.untrackedFiles||[]),...await gitUntrackedFiles(wt.worktree)])];
         task.workerReport=makeWorkerReport({taskId:task.id,runId:record.id,worker:task.worker,stdout:b.stdout,changedFiles:await gitChangedFiles(wt.worktree),iteration,baseCommit:record.baseHead});
         task.workerReportEvidence=await saveWorkerReport(runRoot,task.workerReport,iteration);
         repoKnowledge=await discoverRepoKnowledge(root,{targetPaths:task.workerReport.changed_files});
@@ -522,6 +523,7 @@ async function runHarness(options) {
         const diff = await diffSummary(wt.worktree, signal);
         const reviewInput=await buildReviewInput({sourceRoot:root,worktree:wt.worktree,runRoot,runId:record.id,task,plan:record.plan,verification:v,iteration});
         task.reviewInput={file:reviewInput.file,sha256:reviewInput.sha256,changedFiles:reviewInput.input.diff.changedFiles};
+        task.diffStats={...reviewInput.input.diff.stats,verifierStatus:v.passed?'PASS':'FAIL'};
         await persist();
         const reviewerIdentity={provider:roleProviders.reviewer,model:roleModels.reviewer||'UNKNOWN'};
         const rr = await invokeProvider({router:providerRouter,role:'reviewer',prompt:reviewerPrompt(task, goal, done, reviewInput.input, reviewInput.sha256,reviewerIdentity,roleKnowledge('reviewer',roleProviders.reviewer,repoKnowledge)),cwd:root,model:roleModels.reviewer,providerId:roleProviders.reviewer,policy:options.policy,signal,timeoutMs:180000,executionApproved:Boolean(options.executionApproved),networkApproved:Boolean(options.providerNetworkApproved)});

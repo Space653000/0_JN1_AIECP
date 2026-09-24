@@ -44,6 +44,11 @@ test('Run timeline event buttons expose canonical event IDs and evidence by keyb
   assert.match(read('ui/index.html'),/dashboard-projection\.js/);
   assert.match(read('ui/styles.css'),/\.hc-event-button:focus-visible/);
 });
+test('Diff view renders canonical changed-file and verifier fields with UNKNOWN fallback',()=>{
+  const ui=read('ui/harness-console.js');
+  for(const field of ['diffView.changedFiles','diffView.additions','diffView.deletions','diffView.untrackedFiles','diffView.patchBytes','diffView.baseCommit','diffView.currentCommit','diffView.verifierStatus'])assert.ok(ui.includes(field));
+  assert.match(read('ui/dashboard-projection.js'),/UNKNOWN/);
+});
 
 test('Dashboard and shell accessibility provide keyboard focus text status and reduced motion',()=>{
   const html=read('ui/index.html');

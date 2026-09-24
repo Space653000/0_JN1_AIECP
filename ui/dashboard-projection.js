@@ -15,5 +15,15 @@
       .sort((a,b)=>String(a.at).localeCompare(String(b.at))||a.id.localeCompare(b.id));
     return {state:entries.length?'AVAILABLE':UNKNOWN,entries};
   }
-  return Object.freeze({UNKNOWN,timeline});
+  function diffView(task){
+    const inner=task?.result?.tasks?.at?.(-1)||task?.result?.tasks?.[task?.result?.tasks?.length-1];
+    const stats=inner?.diffStats||task?.diffStats;
+    if(!stats)return {state:UNKNOWN,changedFiles:UNKNOWN,additions:UNKNOWN,deletions:UNKNOWN,untrackedFiles:UNKNOWN,
+      patchBytes:UNKNOWN,baseCommit:UNKNOWN,currentCommit:UNKNOWN,verifierStatus:UNKNOWN};
+    return {state:'AVAILABLE',changedFiles:stats.changedFiles||UNKNOWN,additions:stats.additions??UNKNOWN,
+      deletions:stats.deletions??UNKNOWN,untrackedFiles:stats.untrackedFiles||UNKNOWN,
+      patchBytes:task?.result?.patch?.bytes??stats.patchBytes??UNKNOWN,baseCommit:stats.baseCommit||UNKNOWN,
+      currentCommit:stats.currentCommit||UNKNOWN,verifierStatus:stats.verifierStatus||UNKNOWN};
+  }
+  return Object.freeze({UNKNOWN,timeline,diffView});
 });

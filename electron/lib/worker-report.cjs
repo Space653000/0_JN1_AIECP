@@ -7,6 +7,10 @@ const {promisify}=require('node:util');
 const {redactSensitive,redactText}=require('./redaction.cjs');
 const exec=promisify(execFile);
 
+async function gitUntrackedFiles(worktree){
+  const {stdout}=await exec('git',['ls-files','--others','--exclude-standard','-z'],{cwd:worktree,windowsHide:true,timeout:30000,maxBuffer:4*1024*1024});
+  return String(stdout).split('\0').filter(Boolean).map(name=>redactText(name));
+}
 async function gitChangedFiles(worktree){
   await exec('git',['add','-N','.'],{cwd:worktree,windowsHide:true,timeout:30000});
   const {stdout}=await exec('git',['diff','--name-only','-z','HEAD'],{cwd:worktree,windowsHide:true,timeout:30000,maxBuffer:4*1024*1024});
@@ -29,4 +33,4 @@ async function saveWorkerReport(runRoot,report,iteration){
   await fs.mkdir(runRoot,{recursive:true});await fs.writeFile(file,body,'utf8');
   return {file,sha256:crypto.createHash('sha256').update(body).digest('hex')};
 }
-module.exports={gitChangedFiles,makeWorkerReport,saveWorkerReport};
+module.exports={gitChangedFiles,gitUntrackedFiles,makeWorkerReport,saveWorkerReport};

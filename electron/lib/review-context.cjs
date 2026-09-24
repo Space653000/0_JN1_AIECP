@@ -42,30 +42,39 @@ async function git(root,args){
   const {stdout}=await execFileAsync('git',args,{cwd:root,windowsHide:true,maxBuffer:16*1024*1024,timeout:30000});
   return String(stdout);
 }
-async function diffContext(worktree){
+async function diffContext(worktree,knownUntracked=[]){
+  const porcelain=await git(worktree,['status','--porcelain','-z']);
+  const untrackedFiles=[...new Set([...knownUntracked,...porcelain.split('\0').filter(line=>line.startsWith('?? ')).map(line=>redactText(line.slice(3)))])];
   await git(worktree,['add','-N','.']);
   const names=(await git(worktree,['diff','--name-only','-z','HEAD'])).split('\0').filter(Boolean);
-  const files=[];let remaining=DIFF_LIMIT;
+  const files=[];let remaining=DIFF_LIMIT,additions=0,deletions=0,patchBytes=0,hasBinary=false;
   for(const name of names){
     const numstat=await git(worktree,['diff','--numstat','HEAD','--',name]);
     const binary=/^-\s+-\s/.test(numstat);
+    const counts=numstat.match(/^(\d+)\s+(\d+)\s/);
+    if(counts){additions+=Number(counts[1]);deletions+=Number(counts[2]);}
     if(binary){
+      hasBinary=true;
       const current=await fs.stat(path.join(worktree,name)).catch(()=>null);
       const oldSize=current?null:Number((await git(worktree,['cat-file','-s',`HEAD:${name}`])).trim());
       files.push({path:redactText(name),binary:true,bytes:current?.size??oldSize,content:null});continue;
     }
     const raw=await git(worktree,['diff','--no-ext-diff','--unified=3','HEAD','--',name]);
     const bytes=Buffer.byteLength(raw);
+    patchBytes+=bytes;
     const excerpt=boundedText(raw,remaining);
     files.push({path:redactText(name),binary:false,bytes,truncated:excerpt.truncated||remaining===0,content:excerpt.content});
     remaining=Math.max(0,remaining-Buffer.byteLength(excerpt.content));
   }
   const omitted=files.filter(f=>f.binary||f.truncated||!f.content).map(({path,bytes,binary})=>({path,bytes,binary}));
-  return {limitBytes:DIFF_LIMIT,changedFiles:files.map(f=>f.path),files,omitted};
+  const currentCommit=(await git(worktree,['rev-parse','HEAD'])).trim();
+  return {limitBytes:DIFF_LIMIT,changedFiles:files.map(f=>f.path),files,omitted,
+    stats:{changedFiles:files.map(f=>f.path),additions,deletions,untrackedFiles,
+      patchBytes:hasBinary?null:patchBytes,baseCommit:currentCommit,currentCommit}};
 }
 async function buildReviewInput({sourceRoot,worktree,runRoot,runId,task,plan,verification,iteration}){
   const blueprint=await blueprintContext(sourceRoot,task.blueprint_refs);
-  const diff=await diffContext(worktree);
+  const diff=await diffContext(worktree,task.untrackedFiles||[]);
   const input=redactSensitive({schema:'aecp.review-input/v1',taskId:task.id,runId:runId||path.basename(runRoot),iteration,
     blueprint,plan,diff,verification});
   const data=JSON.stringify(input,null,2)+'\n';

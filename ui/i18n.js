@@ -52,7 +52,16 @@ const DICTIONARIES=Object.freeze({
     'dashboard.noTimeline':'No verified timeline',
     'dashboard.evidence':'Event evidence',
     'dashboard.path':'Path',
-    'dashboard.summary':'Summary'
+    'dashboard.summary':'Summary',
+    'dashboard.diff':'Diff view',
+    'dashboard.changedFiles':'Changed files',
+    'dashboard.additions':'Additions',
+    'dashboard.deletions':'Deletions',
+    'dashboard.untracked':'Untracked files',
+    'dashboard.patchBytes':'Patch bytes',
+    'dashboard.baseCommit':'Base commit',
+    'dashboard.currentCommit':'Current commit',
+    'dashboard.verifier':'Verifier'
   }),
   'zh-TW':Object.freeze({
     'workspace.choose':'選擇工作區',
@@ -105,7 +114,16 @@ const DICTIONARIES=Object.freeze({
     'dashboard.noTimeline':'尚無可驗證時間軸',
     'dashboard.evidence':'事件證據',
     'dashboard.path':'路徑',
-    'dashboard.summary':'摘要'
+    'dashboard.summary':'摘要',
+    'dashboard.diff':'差異檢視',
+    'dashboard.changedFiles':'變更檔案',
+    'dashboard.additions':'新增行數',
+    'dashboard.deletions':'刪除行數',
+    'dashboard.untracked':'未追蹤檔案',
+    'dashboard.patchBytes':'補丁位元組',
+    'dashboard.baseCommit':'基底提交',
+    'dashboard.currentCommit':'目前提交',
+    'dashboard.verifier':'驗證器'
   })
 });
 

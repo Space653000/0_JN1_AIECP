@@ -34,6 +34,10 @@ test('Reviewer input includes bounded redacted Blueprint full Plan actual diff a
   assert.doesNotMatch(prompt,/abcdef123456/);
   assert.match(prompt,/\[REDACTED\]/);
   assert.equal(result.input.diff.changedFiles.includes('new.txt'),true);
+  assert.ok(result.input.diff.stats.additions>=2);
+  assert.ok(result.input.diff.stats.deletions>=1);
+  assert.ok(result.input.diff.stats.untrackedFiles.includes('new.txt'));
+  assert.equal(result.input.diff.stats.baseCommit,result.input.diff.stats.currentCommit);
   assert.equal(result.sha256.length,64);
   assert.equal((await fs.readFile(result.file,'utf8')).includes('abcdef123456'),false);
 });
