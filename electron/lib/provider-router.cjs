@@ -11,10 +11,10 @@ const PROVIDERS = Object.freeze({
   ollama: { command: 'ollama', roles: ['planner', 'reviewer', 'general'], mode: 'ollama', network: false, credential: false }
 });
 
-function run(command, args, { cwd, timeoutMs = 180000, signal, env = {}, maxOutputBytes = 4 * 1024 * 1024, onSpawn = null } = {}) {
+function run(command, args, { cwd, timeoutMs = 180000, signal, env = {}, maxOutputBytes = 4 * 1024 * 1024, onSpawn = null, spawnImpl = spawn } = {}) {
   return new Promise((resolve, reject) => {
     const resolved = resolveKnownCommand(command, args);
-    const child = spawn(resolved.command, resolved.args, { cwd, env: { ...process.env, ...env }, windowsHide: true, shell: false, stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawnImpl(resolved.command, resolved.args, { cwd, env: { ...process.env, ...env }, windowsHide: true, shell: false, stdio: ['ignore', 'pipe', 'pipe'] });
     const terminate = () => {
       if (!child?.pid) return;
       try {
@@ -27,9 +27,35 @@ function run(command, args, { cwd, timeoutMs = 180000, signal, env = {}, maxOutp
     const finishReject = (error) => {
       if (settled) return;
       settled = true;
-      clearTimeout(timer);
-      if (signal) signal.removeEventListener('abort', abort);
+      clearWatchers();
       reject(error);
+    };
+    let exitCode = null;
+    let closeGrace = null;
+    let forceDeadline = null;
+    const clearWatchers = () => {
+      clearTimeout(timer);
+      if (closeGrace) clearTimeout(closeGrace);
+      if (forceDeadline) clearTimeout(forceDeadline);
+      if (signal) signal.removeEventListener('abort', abort);
+    };
+    const finishResolve = () => {
+      if (settled) return;
+      settled = true;
+      clearWatchers();
+      resolve({ code: Number.isInteger(exitCode) ? exitCode : -1, stdout, stderr, timedOut, aborted, outputLimitExceeded, processId: child.pid || null });
+    };
+    const dropPipeHolders = () => {
+      try { child.stdout?.destroy?.(); } catch {}
+      try { child.stderr?.destroy?.(); } catch {}
+    };
+    const scheduleForceSettle = () => {
+      if (forceDeadline) clearTimeout(forceDeadline);
+      forceDeadline = setTimeout(() => {
+        if (settled) return;
+        dropPipeHolders();
+        finishResolve();
+      }, 2000);
     };
     const append = (kind, chunk) => {
       if (outputLimitExceeded) return;
@@ -38,22 +64,28 @@ function run(command, args, { cwd, timeoutMs = 180000, signal, env = {}, maxOutp
       if (bytes > maxOutputBytes) {
         outputLimitExceeded = true;
         terminate();
+        scheduleForceSettle();
         return;
       }
       if (kind === 'stdout') stdout += text; else stderr += text;
     };
-    const timer = setTimeout(() => { timedOut = true; terminate(); }, Math.max(1000, timeoutMs));
-    const abort = () => { aborted = true; terminate(); };
+    const timer = setTimeout(() => { timedOut = true; terminate(); scheduleForceSettle(); }, Math.max(1000, timeoutMs));
+    const abort = () => { aborted = true; terminate(); scheduleForceSettle(); };
     if (signal) signal.aborted ? abort() : signal.addEventListener('abort', abort, { once: true });
     child.stdout.on('data', b => append('stdout', b));
     child.stderr.on('data', b => append('stderr', b));
     child.on('error', finishReject);
+    child.on('exit', code => {
+      exitCode = typeof code === 'number' ? code : -1;
+      closeGrace = setTimeout(() => {
+        if (settled) return;
+        dropPipeHolders();
+        finishResolve();
+      }, 500);
+    });
     child.on('close', code => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      if (signal) signal.removeEventListener('abort', abort);
-      resolve({ code: Number.isInteger(code) ? code : -1, stdout, stderr, timedOut, aborted, outputLimitExceeded, processId: child.pid || null });
+      if (typeof code === 'number') exitCode = code;
+      finishResolve();
     });
   });
 }

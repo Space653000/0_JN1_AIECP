@@ -2,7 +2,9 @@
 
 **AI Engineering Control Plane (AECP)** is a Windows-first local control plane that lets you keep using **official ChatGPT Web** as your conversational AI while AECP manages the local engineering side: Workspace boundaries, repositories, task state, local tools, evidence, and future provider adapters.
 
-> **Target release: v0.3.0 Preview.** Official ChatGPT Web remains the normal supervisor. v0.3 adds real bounded autonomous execution: AECP builds in an isolated Git worktree, verifies each iteration, and only applies a verified patch to your real Workspace after your explicit approval.
+> **Current package version: v0.3.0 Preview (`package.json`).**「V3.0 Multi-Worker」是施工藍圖的階段名稱，並非已發布的 3.0.0 版本。官方 ChatGPT Web 仍是主要對話介面；AECP 透過隔離 Git worktree 執行有界施工，驗證後才可經使用者明確操作套用變更。
+
+專案施工依據：[藍圖入口](.ai/BLUEPRINT.md) · [驗收標準](.ai/ACCEPTANCE.md) · [持續維護的施工狀態](.ai/STATUS.md) · [Codex 工作入口](AGENTS.md)。
 
 ## V3.0 Multi-Worker progress
 
@@ -570,7 +572,7 @@ Provider Registry / Router 現在支援：
 
 # Architecture / Blueprint
 
-完整 Source of Truth：[`Blueprint/`](Blueprint/INDEX.md)
+施工入口為 [`.ai/BLUEPRINT.md`](.ai/BLUEPRINT.md)；原始藍圖與歷史資料完整保留於 [`Blueprint/`](Blueprint/INDEX.md)。驗收與施工進度分別見 [`.ai/ACCEPTANCE.md`](.ai/ACCEPTANCE.md) 及 [`.ai/STATUS.md`](.ai/STATUS.md)。
 
 核心文件：
 
@@ -593,6 +595,13 @@ Provider Registry / Router 現在支援：
 - `16_CONSTRAINT_RESOLUTION_DISTRIBUTION_EXECUTION_MODES.md`
 - `17_V0_2_TRIPLE_AUDIT.md`
 - `18_BOUNDED_AUTONOMOUS_EXECUTION.md`
+- `19_V0_3_TRIPLE_AUDIT.md`（歷史稽核）
+- `20_HARNESS_ENGINEERING_MULTI_AGENT_LOOP.md`
+- `21_AGENT_ROLES_AND_HANDOFF_PROTOCOL.md`
+- `22_DASHBOARD_QUEUE_AND_EVENT_ARCHITECTURE.md`
+- `23_IMPLEMENTATION_STATUS.md`（原始實作快照）
+- `24_LOCAL_MODEL_PROVIDER_VERIFICATION.md`
+- `REQUIREMENTS.md`、`INDEX.md`
 
 創始需求與工程決策另外封存於 `Blueprint/Conversation/`。
 

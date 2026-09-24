@@ -43,6 +43,7 @@
 - Exact-HEAD CI 證據：
   - commit `94d86a3f…` → AECP Security #663、AECP CI #792、Packaging #706、Build&Release #454（皆 SUCCESS）
   - commit `2d16de14…`（架構閘門）→ AECP Security #675、AECP CI #804、Packaging #718、Build&Release #466（皆 SUCCESS）
+  - commit `36c7b871…`（新增 `.ai/` 治理入口）→ 2026-09-24 核對 AECP Security、AECP CI、CI/Packaging、Build and Release 均 SUCCESS；本輪新修改仍需各自的 GitHub Actions 結果。
 
 ### 其他已實作 P0–P4.7 範圍
 - 崩潰復原（孤兒執行階段重新排隊、待處理 CI 監控恢復）、CI 失敗日誌落證據、多倉庫資源綁定/鎖、簽章 GitHub webhook 接收器 + polling fallback、維運/保留排程、依賴與安全漂移掃描（診斷用、不自動改動）、遠端唯讀配對監督、Windows UI 唯讀檢視、Provider 健康狀態機（NOT_CONFIGURED/READY/DEGRADED/UNAVAILABLE/AUTH_REQUIRED）、Local-data 治理（清除證據/憑證/重設，工作中禁止）。
@@ -51,8 +52,7 @@
 
 ## 🚧 施工中 / 部分完成
 
-- **本地未提交的工作區變更**（尚未 commit）：`Blueprint/10、15、23`、`README.md`、`Reports/V3_IMPLEMENTATION_PROGRESS_REPORT.md`、`electron/main.cjs`、`tests/release-workflow.test.cjs` — 屬於 PR #7 的進行中內容，建立本文件前尚未整理提交。
-- **README.md 版本標示不一致**：標題仍寫「Target release: v0.3.0 Preview」與對應安裝檔名，但內文已混入 V3.0 Multi-Worker 內容與 2026-09-22/23 的狀態區塊，且 Blueprint 檔案列表只列到 18 號、漏列 19–24 與 REQUIREMENTS.md/INDEX.md。**待辦：下次修訂 README 時一併更新版本橫幅與 Blueprint 索引。**
+- **Codex 施工入口與本輪修正**：`AGENTS.md`、`.ai/CODEX_WORKER.md` 已建立；`provider-router.cjs` 既有未提交的 pipe/程序收斂修正已納入測試；README 已明確區分 `v0.3.0` 套件版本與 V3.0 Multi-Worker 藍圖階段，並補齊 19–24 號藍圖索引。本輪本機 `npm run verify` 通過、`npm test` 254/254 PASS；仍待新 commit 的 GitHub Actions 驗證與 Claude Code Review／驗收。
 - **文件累積雜訊**：README 內多段按日期附加的狀態區塊（2026-09-19/22/23）尚未整併，閱讀體驗差但無實質矛盾。
 
 ---
