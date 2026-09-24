@@ -175,6 +175,14 @@ for(const item of items){
   item.status='IMPLEMENTED';item.evidence=[{file:match[0],kind:'test',name:match[1]}];delete item.workOrder;
   item.note='Named deterministic test exists; mapped for manual equivalence review.';
 }
+const sharedGroups=[
+  ['B18-13-05','B18-13-06','B18-13-10','B18-13-12'],
+  ['B20-27-11',...Array.from({length:8},(_,i)=>`B22-16-${String(i+1).padStart(2,'0')}`)]
+];
+for(const group of sharedGroups)for(const id of group){
+  const item=items.find(x=>x.id===id);
+  if(item?.evidence?.[0]?.kind==='test')item.evidence[0].covers=group;
+}
 items.sort((a,b)=>a.id.localeCompare(b.id));
-fs.writeFileSync(path.join(root,'.ai','TRACEABILITY.json'),JSON.stringify({schema:'aecp.traceability/v1',generatedFrom:'Blueprint normative text; manually reviewed evidence statuses',items},null,2)+'\n');
+fs.writeFileSync(path.join(root,'.ai','TRACEABILITY.json'),JSON.stringify({schema:'aecp.traceability/v2',generatedFrom:'Blueprint normative text; manually reviewed evidence statuses',items},null,2)+'\n');
 process.stdout.write(`${items.length} clauses extracted\n`);

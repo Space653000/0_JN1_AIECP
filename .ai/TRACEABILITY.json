@@ -1,5 +1,5 @@
 {
-  "schema": "aecp.traceability/v1",
+  "schema": "aecp.traceability/v2",
   "generatedFrom": "Blueprint normative text; manually reviewed evidence statuses",
   "items": [
     {
@@ -1519,7 +1519,13 @@
         {
           "file": "tests/autonomy.test.cjs",
           "kind": "test",
-          "name": "bounded runner isolates writes in worktree then applies only after explicit apply call"
+          "name": "bounded runner isolates writes in worktree then applies only after explicit apply call",
+          "covers": [
+            "B18-13-05",
+            "B18-13-06",
+            "B18-13-10",
+            "B18-13-12"
+          ]
         }
       ],
       "note": "Named deterministic test exists; mapped for manual equivalence review."
@@ -1536,7 +1542,13 @@
         {
           "file": "tests/autonomy.test.cjs",
           "kind": "test",
-          "name": "bounded runner isolates writes in worktree then applies only after explicit apply call"
+          "name": "bounded runner isolates writes in worktree then applies only after explicit apply call",
+          "covers": [
+            "B18-13-05",
+            "B18-13-06",
+            "B18-13-10",
+            "B18-13-12"
+          ]
         }
       ],
       "note": "Named deterministic test exists; mapped for manual equivalence review."
@@ -1604,7 +1616,13 @@
         {
           "file": "tests/autonomy.test.cjs",
           "kind": "test",
-          "name": "bounded runner isolates writes in worktree then applies only after explicit apply call"
+          "name": "bounded runner isolates writes in worktree then applies only after explicit apply call",
+          "covers": [
+            "B18-13-05",
+            "B18-13-06",
+            "B18-13-10",
+            "B18-13-12"
+          ]
         }
       ],
       "note": "Named deterministic test exists; mapped for manual equivalence review."
@@ -1638,7 +1656,13 @@
         {
           "file": "tests/autonomy.test.cjs",
           "kind": "test",
-          "name": "bounded runner isolates writes in worktree then applies only after explicit apply call"
+          "name": "bounded runner isolates writes in worktree then applies only after explicit apply call",
+          "covers": [
+            "B18-13-05",
+            "B18-13-06",
+            "B18-13-10",
+            "B18-13-12"
+          ]
         }
       ],
       "note": "Named deterministic test exists; mapped for manual equivalence review."
@@ -1877,7 +1901,18 @@
         {
           "file": "tests/dashboard-acceptance.test.cjs",
           "kind": "test",
-          "name": "Command Center answers the eight Blueprint 22 novice questions from canonical state"
+          "name": "Command Center answers the eight Blueprint 22 novice questions from canonical state",
+          "covers": [
+            "B20-27-11",
+            "B22-16-01",
+            "B22-16-02",
+            "B22-16-03",
+            "B22-16-04",
+            "B22-16-05",
+            "B22-16-06",
+            "B22-16-07",
+            "B22-16-08"
+          ]
         }
       ],
       "note": "Named deterministic test exists; mapped for manual equivalence review."
@@ -2196,7 +2231,18 @@
         {
           "file": "tests/dashboard-acceptance.test.cjs",
           "kind": "test",
-          "name": "Command Center answers the eight Blueprint 22 novice questions from canonical state"
+          "name": "Command Center answers the eight Blueprint 22 novice questions from canonical state",
+          "covers": [
+            "B20-27-11",
+            "B22-16-01",
+            "B22-16-02",
+            "B22-16-03",
+            "B22-16-04",
+            "B22-16-05",
+            "B22-16-06",
+            "B22-16-07",
+            "B22-16-08"
+          ]
         }
       ],
       "note": "Named deterministic test exists; mapped for manual equivalence review."
@@ -2213,7 +2259,18 @@
         {
           "file": "tests/dashboard-acceptance.test.cjs",
           "kind": "test",
-          "name": "Command Center answers the eight Blueprint 22 novice questions from canonical state"
+          "name": "Command Center answers the eight Blueprint 22 novice questions from canonical state",
+          "covers": [
+            "B20-27-11",
+            "B22-16-01",
+            "B22-16-02",
+            "B22-16-03",
+            "B22-16-04",
+            "B22-16-05",
+            "B22-16-06",
+            "B22-16-07",
+            "B22-16-08"
+          ]
         }
       ],
       "note": "Named deterministic test exists; mapped for manual equivalence review."
@@ -2230,7 +2287,18 @@
         {
           "file": "tests/dashboard-acceptance.test.cjs",
           "kind": "test",
-          "name": "Command Center answers the eight Blueprint 22 novice questions from canonical state"
+          "name": "Command Center answers the eight Blueprint 22 novice questions from canonical state",
+          "covers": [
+            "B20-27-11",
+            "B22-16-01",
+            "B22-16-02",
+            "B22-16-03",
+            "B22-16-04",
+            "B22-16-05",
+            "B22-16-06",
+            "B22-16-07",
+            "B22-16-08"
+          ]
         }
       ],
       "note": "Named deterministic test exists; mapped for manual equivalence review."
@@ -2247,7 +2315,18 @@
         {
           "file": "tests/dashboard-acceptance.test.cjs",
           "kind": "test",
-          "name": "Command Center answers the eight Blueprint 22 novice questions from canonical state"
+          "name": "Command Center answers the eight Blueprint 22 novice questions from canonical state",
+          "covers": [
+            "B20-27-11",
+            "B22-16-01",
+            "B22-16-02",
+            "B22-16-03",
+            "B22-16-04",
+            "B22-16-05",
+            "B22-16-06",
+            "B22-16-07",
+            "B22-16-08"
+          ]
         }
       ],
       "note": "Named deterministic test exists; mapped for manual equivalence review."
@@ -2264,7 +2343,18 @@
         {
           "file": "tests/dashboard-acceptance.test.cjs",
           "kind": "test",
-          "name": "Command Center answers the eight Blueprint 22 novice questions from canonical state"
+          "name": "Command Center answers the eight Blueprint 22 novice questions from canonical state",
+          "covers": [
+            "B20-27-11",
+            "B22-16-01",
+            "B22-16-02",
+            "B22-16-03",
+            "B22-16-04",
+            "B22-16-05",
+            "B22-16-06",
+            "B22-16-07",
+            "B22-16-08"
+          ]
         }
       ],
       "note": "Named deterministic test exists; mapped for manual equivalence review."
@@ -2281,7 +2371,18 @@
         {
           "file": "tests/dashboard-acceptance.test.cjs",
           "kind": "test",
-          "name": "Command Center answers the eight Blueprint 22 novice questions from canonical state"
+          "name": "Command Center answers the eight Blueprint 22 novice questions from canonical state",
+          "covers": [
+            "B20-27-11",
+            "B22-16-01",
+            "B22-16-02",
+            "B22-16-03",
+            "B22-16-04",
+            "B22-16-05",
+            "B22-16-06",
+            "B22-16-07",
+            "B22-16-08"
+          ]
         }
       ],
       "note": "Named deterministic test exists; mapped for manual equivalence review."
@@ -2298,7 +2399,18 @@
         {
           "file": "tests/dashboard-acceptance.test.cjs",
           "kind": "test",
-          "name": "Command Center answers the eight Blueprint 22 novice questions from canonical state"
+          "name": "Command Center answers the eight Blueprint 22 novice questions from canonical state",
+          "covers": [
+            "B20-27-11",
+            "B22-16-01",
+            "B22-16-02",
+            "B22-16-03",
+            "B22-16-04",
+            "B22-16-05",
+            "B22-16-06",
+            "B22-16-07",
+            "B22-16-08"
+          ]
         }
       ],
       "note": "Named deterministic test exists; mapped for manual equivalence review."
@@ -2315,7 +2427,18 @@
         {
           "file": "tests/dashboard-acceptance.test.cjs",
           "kind": "test",
-          "name": "Command Center answers the eight Blueprint 22 novice questions from canonical state"
+          "name": "Command Center answers the eight Blueprint 22 novice questions from canonical state",
+          "covers": [
+            "B20-27-11",
+            "B22-16-01",
+            "B22-16-02",
+            "B22-16-03",
+            "B22-16-04",
+            "B22-16-05",
+            "B22-16-06",
+            "B22-16-07",
+            "B22-16-08"
+          ]
         }
       ],
       "note": "Named deterministic test exists; mapped for manual equivalence review."

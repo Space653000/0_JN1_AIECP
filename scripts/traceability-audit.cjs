@@ -4,7 +4,7 @@ const fs=require('node:fs');
 const path=require('node:path');
 
 const ROOT=path.resolve(__dirname,'..');
-const STATUSES=new Set(['IMPLEMENTED','PARTIAL','GAP','ENVIRONMENT','OWNER','DELIBERATE_NON_GOAL']);
+const STATUSES=new Set(['IMPLEMENTED','PARTIAL','GAP','CONFIRMED_GAP','MANUAL','ENVIRONMENT','OWNER','DELIBERATE_NON_GOAL']);
 const SHA_SAFE_PATH=/^[A-Za-z0-9_.\/-]+$/;
 
 function withinRoot(root,file){
@@ -34,10 +34,10 @@ function requiredIds(root){
   return ids;
 }
 
-function auditMatrix(matrix,{root=ROOT,enforceCoverage=false}={}){
+function auditMatrix(matrix,{root=ROOT,enforceCoverage=false,strict=false}={}){
   const errors=[];const warnings=[];const counts=Object.fromEntries([...STATUSES].map(s=>[s,0]));
-  const unresolved=[];const seen=new Set();
-  if(matrix?.schema!=='aecp.traceability/v1'||!Array.isArray(matrix?.items))
+  const unresolved=[];const seen=new Set();const testCitations=new Map();
+  if(matrix?.schema!=='aecp.traceability/v2'||!Array.isArray(matrix?.items))
     return {passed:false,errors:['invalid matrix schema/items'],warnings,counts,unresolved};
   for(const item of matrix.items){
     const id=item?.id||'<missing-id>';
@@ -53,7 +53,20 @@ function auditMatrix(matrix,{root=ROOT,enforceCoverage=false}={}){
     else if(!fs.readFileSync(sourceFile,'utf8').includes(item.source.section))errors.push(`${id}: source section not found`);
     const evidence=Array.isArray(item?.evidence)?item.evidence:[];
     if(item?.status==='IMPLEMENTED'&&!evidence.some(e=>e.kind==='test'))errors.push(`${id}: IMPLEMENTED requires test evidence`);
+    if(item?.status==='CONFIRMED_GAP'&&(!evidence.length||typeof item.note!=='string'||!item.note.trim()))
+      errors.push(`${id}: CONFIRMED_GAP requires located evidence and a repair note`);
     for(const entry of evidence){
+      if(item?.status==='CONFIRMED_GAP'){
+        const file=withinRoot(root,entry?.file);
+        if(!file||!fs.existsSync(file)||typeof entry.description!=='string'||!entry.description.trim()||
+          !(Number.isInteger(entry.line)&&entry.line>0||typeof entry.symbol==='string'&&entry.symbol.trim())){
+          errors.push(`${id}: CONFIRMED_GAP evidence needs file, line or symbol, and description`);continue;
+        }
+        const body=fs.readFileSync(file,'utf8');
+        if(Number.isInteger(entry.line)&&entry.line>body.split(/\r?\n/).length)errors.push(`${id}: evidence line outside file`);
+        if(entry.symbol&&!body.includes(entry.symbol))errors.push(`${id}: evidence symbol not found`);
+        continue;
+      }
       if(!['test','code'].includes(entry?.kind)||typeof entry?.name!=='string'||!entry.name.trim()){
         errors.push(`${id}: invalid evidence kind/name`);continue;
       }
@@ -61,10 +74,27 @@ function auditMatrix(matrix,{root=ROOT,enforceCoverage=false}={}){
       if(!file||!fs.existsSync(file)){errors.push(`${id}: missing evidence file ${entry.file||''}`);continue;}
       const body=fs.readFileSync(file,'utf8');
       if(entry.kind==='test'&&!testNamePresent(body,entry.name))errors.push(`${id}: test name not found: ${entry.name}`);
+      if(entry.kind==='test'){
+        const key=`${entry.file}\u0000${entry.name}`;
+        if(!testCitations.has(key))testCitations.set(key,[]);
+        testCitations.get(key).push({id,entry});
+      }
       if(entry.kind==='code'&&!new RegExp(`\\b${entry.name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}\\b`).test(body))
         errors.push(`${id}: code identifier not found: ${entry.name}`);
     }
-    if(item?.status==='GAP'||item?.status==='PARTIAL'){
+    if(item?.status==='MANUAL'){
+      const protocol=item.protocol;
+      if(protocol?.file!=='.ai/ACCEPTANCE.md'||typeof protocol.section!=='string'||!/^### 6\./.test(protocol.section))
+        errors.push(`${id}: MANUAL requires ACCEPTANCE section 6 protocol`);
+      else{
+        const file=withinRoot(root,protocol.file);
+        if(!file||!fs.existsSync(file)||!fs.readFileSync(file,'utf8').includes(protocol.section)){
+          const message=`${id}: protocol section not found: ${protocol.section}`;
+          if(strict)errors.push(message);else warnings.push(message);
+        }
+      }
+    }
+    if(['GAP','PARTIAL','CONFIRMED_GAP'].includes(item?.status)){
       unresolved.push({id,status:item.status,workOrder:item.workOrder||'<missing>'});
       if(typeof item.workOrder!=='string'||!item.workOrder)errors.push(`${id}: workOrder required`);
       else if(item.workOrder==='UNASSIGNED')warnings.push(`${id}: UNASSIGNED`);
@@ -75,12 +105,22 @@ function auditMatrix(matrix,{root=ROOT,enforceCoverage=false}={}){
           errors.push(`${id}: unresolved item points to CLOSED work order`);
       }
     }
+    if(strict&&item?.status==='GAP')errors.push(`${id}: strict mode rejects unclassified GAP`);
     if(item?.status==='ENVIRONMENT'||item?.status==='OWNER'){
       const ref=item.acceptanceRef;
       const allowed=ref?.file==='.ai/ACCEPTANCE.md'||/^Reports\/[^/]*RUNBOOK[^/]*\.md$/.test(ref?.file||'');
       const file=withinRoot(root,ref?.file);
       if(!allowed||!file||!fs.existsSync(file)||typeof ref.section!=='string'||
         !fs.readFileSync(file,'utf8').includes(ref.section))errors.push(`${id}: acceptance/runbook reference missing`);
+    }
+  }
+  for(const [key,citations] of testCitations){
+    if(citations.length<=3)continue;
+    const ids=citations.map(x=>x.id);
+    warnings.push(`shared test ${key.replace('\u0000',' / ')} cited by ${ids.length} clauses: ${ids.join(', ')}`);
+    for(const citation of citations){
+      if(!Array.isArray(citation.entry.covers)||ids.some(id=>!citation.entry.covers.includes(id)))
+        errors.push(`${citation.id}: shared test requires explicit covers for all cited clauses`);
     }
   }
   if(enforceCoverage){
@@ -91,7 +131,7 @@ function auditMatrix(matrix,{root=ROOT,enforceCoverage=false}={}){
 
 function main(){
   let report;
-  try{report=auditMatrix(JSON.parse(fs.readFileSync(path.join(ROOT,'.ai','TRACEABILITY.json'),'utf8')),{enforceCoverage:true});}
+  try{report=auditMatrix(JSON.parse(fs.readFileSync(path.join(ROOT,'.ai','TRACEABILITY.json'),'utf8')),{enforceCoverage:true,strict:process.argv.includes('--strict')});}
   catch(error){process.stderr.write(`traceability audit cannot read matrix: ${error.code||'INVALID_JSON'}\n`);return 1;}
   process.stdout.write(JSON.stringify(report,null,2)+'\n');
   return report.passed?0:1;
