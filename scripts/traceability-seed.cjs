@@ -151,11 +151,23 @@ const proven={
   'B20-14-MEMORY':['tests/repo-knowledge.test.cjs','repo knowledge discovers layered AGENTS, blueprint entry, scripts and decision names'],
   'B20-15-AGENTS':['tests/repo-knowledge.test.cjs','repo knowledge discovers layered AGENTS, blueprint entry, scripts and decision names'],
   'B20-27-19':['tests/harness-bounds.test.cjs','Harness gives user context priority, routes knowledge by provider capability and stores content-free manifest'],
+  'B20-27-11':['tests/dashboard-acceptance.test.cjs','Command Center answers the eight Blueprint 22 novice questions from canonical state'],
+  'B20-16-OVERVIEW':['tests/event-projection.test.cjs','five-phase progress has deterministic empty, complete, partial-failure and no-mission boundaries'],
+  'B22-5-FIELDS':['tests/dashboard-acceptance.test.cjs','Command Center projects canonical Multi-Worker identity, health and isolated cancellation controls'],
+  'B22-6-TIMELINE':['tests/event-projection.test.cjs','timeline maps immutable event IDs to bounded evidence and remains read-only'],
+  'B22-7-DIFF':['tests/event-projection.test.cjs','Diff projection shows canonical stats or UNKNOWN without changing task state'],
+  'B22-8-REVIEW':['tests/event-projection.test.cjs','Review projection shows six canonical dimensions, human gate and UNKNOWN'],
+  'B22-9-GITHUB':['tests/event-projection.test.cjs','GitHub projection shows existing delivery/CI data and UNKNOWN for missing fields'],
+  'B22-10-EVENT':['tests/event-projection.test.cjs','timeline maps immutable event IDs to bounded evidence and remains read-only'],
+  'B22-11-NOTIFY':['tests/event-projection.test.cjs','notifications map six event categories, dedupe, cap, and never emit token notices'],
+  'R8.6':['tests/dashboard-acceptance.test.cjs','Command Center projects canonical Multi-Worker identity, health and isolated cancellation controls'],
   'B22-16-01':['tests/dashboard-acceptance.test.cjs','Command Center answers the eight Blueprint 22 novice questions from canonical state'],
   'B01-A11Y-L173':['tests/i18n-accessibility.test.cjs','styles provide visible focus and reduced-motion support'],
   'B01-A11Y-L175':['tests/i18n-accessibility.test.cjs','Dashboard and shell accessibility provide keyboard focus text status and reduced motion'],
   'B11-2-CARD':['tests/protocol.test.cjs','rejects unsupported schema']
 };
+for(let number=2;number<=8;number++)proven[`B22-16-${String(number).padStart(2,'0')}`]=
+  ['tests/dashboard-acceptance.test.cjs','Command Center answers the eight Blueprint 22 novice questions from canonical state'];
 for(const item of items){
   const match=proven[item.id];if(!match)continue;
   const file=path.join(root,match[0]);

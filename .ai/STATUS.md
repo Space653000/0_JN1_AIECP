@@ -122,3 +122,9 @@
 
 - A/B/C 已分別提交：repo 內分層 AGENTS/藍圖/驗證指令/ADR 發現；依 provider 能力分送有界內容或 metadata；漂移掃描只給 WARNING，不改檔。`npm test` 312/312 PASS，完整 `npm run verify` 見施工單回報。
 - TRACEABILITY 231 條中 35 IMPLEMENTED、1 PARTIAL、195 GAP（保守證據分類）。0009 Dashboard 視圖仍待施工，ENVIRONMENT／OWNER-EXTERNAL 閘門不變。
+
+### 施工單 0009 施工進度（待 Claude Review）
+
+- A–F 已各自提交；Run timeline、Diff、Review、GitHub、Notifications 與五階段進度皆由正式 task／event／delivery 狀態唯讀投影，缺資料顯示 UNKNOWN。A 另有持久化 Harness 事件日誌的獨立修正 commit；詳見 [0009 回報](WORK_ORDERS/0009.md)。
+- `npm run verify` 通過，`npm test` **326/326 PASS**。TRACEABILITY 231 條中 52 IMPLEMENTED、1 PARTIAL、178 GAP；狀態只表示具名測試證據程度，非整體完成率。尚缺 Electron 實機 UI／輔助技術驗收；本次 HEAD 的 CI 需依 exact SHA workflow 實際結果核對。
+- 0006–0009 均為 Codex 施工完成、待 Claude Review，**未宣稱整體藍圖完成**；ENVIRONMENT／OWNER-EXTERNAL 閘門仍未完成，不自行更改 PR #7 合併狀態。

@@ -1720,10 +1720,15 @@
         "section": "## 16. Dashboard as engineering cockpit"
       },
       "text": "Live project progress shows Planning, Implementation, Testing, Review and Acceptance percentages from canonical state.",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "0009",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/event-projection.test.cjs",
+          "kind": "test",
+          "name": "five-phase progress has deterministic empty, complete, partial-failure and no-mission boundaries"
+        }
+      ],
+      "note": "Named deterministic test exists; mapped for manual equivalence review."
     },
     {
       "id": "B20-27-01",
@@ -1867,10 +1872,15 @@
         "section": "## 27. Acceptance criteria"
       },
       "text": "Dashboard shows canonical Harness state.",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/dashboard-acceptance.test.cjs",
+          "kind": "test",
+          "name": "Command Center answers the eight Blueprint 22 novice questions from canonical state"
+        }
+      ],
+      "note": "Named deterministic test exists; mapped for manual equivalence review."
     },
     {
       "id": "B20-27-12",
@@ -2147,10 +2157,15 @@
         "section": "## 10. Event stream"
       },
       "text": "Every UI event maps to an immutable Harness event.",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "0009",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/event-projection.test.cjs",
+          "kind": "test",
+          "name": "timeline maps immutable event IDs to bounded evidence and remains read-only"
+        }
+      ],
+      "note": "Named deterministic test exists; mapped for manual equivalence review."
     },
     {
       "id": "B22-11-NOTIFY",
@@ -2159,10 +2174,15 @@
         "section": "## 11. Notifications"
       },
       "text": "- INFO — task progress - SUCCESS — task accepted - WARNING — provider degraded / retry - ACTION REQUIRED — approval - ERROR — task failed - CRITICAL — policy/security violation Do not notify on every model token.",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "0009",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/event-projection.test.cjs",
+          "kind": "test",
+          "name": "notifications map six event categories, dedupe, cap, and never emit token notices"
+        }
+      ],
+      "note": "Named deterministic test exists; mapped for manual equivalence review."
     },
     {
       "id": "B22-16-01",
@@ -2188,10 +2208,15 @@
         "section": "## 16. Acceptance"
       },
       "text": "What is being worked on?",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/dashboard-acceptance.test.cjs",
+          "kind": "test",
+          "name": "Command Center answers the eight Blueprint 22 novice questions from canonical state"
+        }
+      ],
+      "note": "Named deterministic test exists; mapped for manual equivalence review."
     },
     {
       "id": "B22-16-03",
@@ -2200,10 +2225,15 @@
         "section": "## 16. Acceptance"
       },
       "text": "Which agent is doing it?",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/dashboard-acceptance.test.cjs",
+          "kind": "test",
+          "name": "Command Center answers the eight Blueprint 22 novice questions from canonical state"
+        }
+      ],
+      "note": "Named deterministic test exists; mapped for manual equivalence review."
     },
     {
       "id": "B22-16-04",
@@ -2212,10 +2242,15 @@
         "section": "## 16. Acceptance"
       },
       "text": "Is it running, waiting or failed?",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/dashboard-acceptance.test.cjs",
+          "kind": "test",
+          "name": "Command Center answers the eight Blueprint 22 novice questions from canonical state"
+        }
+      ],
+      "note": "Named deterministic test exists; mapped for manual equivalence review."
     },
     {
       "id": "B22-16-05",
@@ -2224,10 +2259,15 @@
         "section": "## 16. Acceptance"
       },
       "text": "What is the current test result?",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "0009",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/dashboard-acceptance.test.cjs",
+          "kind": "test",
+          "name": "Command Center answers the eight Blueprint 22 novice questions from canonical state"
+        }
+      ],
+      "note": "Named deterministic test exists; mapped for manual equivalence review."
     },
     {
       "id": "B22-16-06",
@@ -2236,10 +2276,15 @@
         "section": "## 16. Acceptance"
       },
       "text": "What changed?",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "0009",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/dashboard-acceptance.test.cjs",
+          "kind": "test",
+          "name": "Command Center answers the eight Blueprint 22 novice questions from canonical state"
+        }
+      ],
+      "note": "Named deterministic test exists; mapped for manual equivalence review."
     },
     {
       "id": "B22-16-07",
@@ -2248,10 +2293,15 @@
         "section": "## 16. Acceptance"
       },
       "text": "Does it need me?",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/dashboard-acceptance.test.cjs",
+          "kind": "test",
+          "name": "Command Center answers the eight Blueprint 22 novice questions from canonical state"
+        }
+      ],
+      "note": "Named deterministic test exists; mapped for manual equivalence review."
     },
     {
       "id": "B22-16-08",
@@ -2260,10 +2310,15 @@
         "section": "## 16. Acceptance"
       },
       "text": "What happens next?",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "0009",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/dashboard-acceptance.test.cjs",
+          "kind": "test",
+          "name": "Command Center answers the eight Blueprint 22 novice questions from canonical state"
+        }
+      ],
+      "note": "Named deterministic test exists; mapped for manual equivalence review."
     },
     {
       "id": "B22-5-FIELDS",
@@ -2272,10 +2327,15 @@
         "section": "## 5. Agent view"
       },
       "text": "Worker name, Provider, Model, Role, Task, State, Runtime, Repository, Worktree, Verify, Health and heartbeat/cancel state; unverifiable status is UNKNOWN.",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "0009",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/dashboard-acceptance.test.cjs",
+          "kind": "test",
+          "name": "Command Center projects canonical Multi-Worker identity, health and isolated cancellation controls"
+        }
+      ],
+      "note": "Named deterministic test exists; mapped for manual equivalence review."
     },
     {
       "id": "B22-6-TIMELINE",
@@ -2284,10 +2344,15 @@
         "section": "## 6. Run timeline"
       },
       "text": "Run timeline events are chronological; clicking an event opens its evidence.",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "0009",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/event-projection.test.cjs",
+          "kind": "test",
+          "name": "timeline maps immutable event IDs to bounded evidence and remains read-only"
+        }
+      ],
+      "note": "Named deterministic test exists; mapped for manual equivalence review."
     },
     {
       "id": "B22-7-DIFF",
@@ -2296,10 +2361,15 @@
         "section": "## 7. Diff view"
       },
       "text": "Display changed files, additions/deletions, untracked files, patch size, base commit, current commit and verifier status.",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "0009",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/event-projection.test.cjs",
+          "kind": "test",
+          "name": "Diff projection shows canonical stats or UNKNOWN without changing task state"
+        }
+      ],
+      "note": "Named deterministic test exists; mapped for manual equivalence review."
     },
     {
       "id": "B22-8-REVIEW",
@@ -2308,10 +2378,15 @@
         "section": "## 8. Review view"
       },
       "text": "Review view shows six structured dimensions and result.",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "0009",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/event-projection.test.cjs",
+          "kind": "test",
+          "name": "Review projection shows six canonical dimensions, human gate and UNKNOWN"
+        }
+      ],
+      "note": "Named deterministic test exists; mapped for manual equivalence review."
     },
     {
       "id": "B22-9-GITHUB",
@@ -2320,10 +2395,15 @@
         "section": "## 9. GitHub view"
       },
       "text": "Display: - branch; - base; - commit; - PR; - CI status; - workflow; - artifacts; - release; - last event.",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "0009",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/event-projection.test.cjs",
+          "kind": "test",
+          "name": "GitHub projection shows existing delivery/CI data and UNKNOWN for missing fields"
+        }
+      ],
+      "note": "Named deterministic test exists; mapped for manual equivalence review."
     },
     {
       "id": "R1.1",
@@ -2955,10 +3035,15 @@
         "section": "## R8 — UX and human agency"
       },
       "text": "The Dashboard projects canonical Worker, Provider, Model, Role, Task, State, Runtime, Worktree, Verify and Health fields and shows UNKNOWN instead of inventing unverifiable status.",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "0009",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/dashboard-acceptance.test.cjs",
+          "kind": "test",
+          "name": "Command Center projects canonical Multi-Worker identity, health and isolated cancellation controls"
+        }
+      ],
+      "note": "Named deterministic test exists; mapped for manual equivalence review."
     }
   ]
 }
