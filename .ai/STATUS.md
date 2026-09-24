@@ -129,7 +129,8 @@
 - `npm run verify` 通過，`npm test` **326/326 PASS**。TRACEABILITY 231 條中 52 IMPLEMENTED、1 PARTIAL、178 GAP；狀態只表示具名測試證據程度，非整體完成率。尚缺 Electron 實機 UI／輔助技術驗收；本次 HEAD 的 CI 需依 exact SHA workflow 實際結果核對。
 - 0006–0009 已由 Claude 驗收 CLOSED（0009 附通知映射缺陷，0010 修正）；另有 0010、0011 分類與修補中，**未宣稱整體藍圖完成**；ENVIRONMENT／OWNER-EXTERNAL 閘門仍未完成，不自行更改 PR #7 合併狀態。
 
-### 施工單 0010 施工進度（進行中）
+### 施工單 0010 施工進度（待 Claude Review）
 
 - 繁中 Windows PowerShell 輸出改以 UTF-8 傳送與解碼，避免碼頁 950 的 CJK 視窗名稱破壞 JSON。通知事件目錄改對照實際 Control Plane／Harness 事件；WRITE 政策拒絕另記 `policy.violation`，不更改原有決定。
 - Reviewer 程序非零退出或逾時的既有設計維持 **不重試、直接 HUMAN_REQUIRED 交由人處理**；Worker Report 在 Verifier 完成後回填其真實結果並重存證據。舊版 Command Center 其他非新增六視圖區塊仍有硬編碼英文，列為既知在地化限制，未擴大本施工單範圍。
+- 106 條高優先條文逐條分類後，矩陣為 100 IMPLEMENTED、49 PARTIAL、72 待 0011 的 GAP、6 CONFIRMED_GAP、0 MANUAL、0 ENVIRONMENT、1 OWNER、3 DELIBERATE_NON_GOAL；[分類詳表](../Reports/TRACEABILITY_0010_CLASSIFICATION.md) 列出每條未解缺口及定位。0010 的 10 條隨機破壞檢查均令具名測試失敗、已還原。本輪未修補新確認缺口，也未把 owner gate 標完成。
