@@ -2950,16 +2950,40 @@
         "section": "## 10. Handoff rules"
       },
       "text": "Evidence references are immutable.",
-      "status": "CONFIRMED_GAP",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/lib/evidence-manager.cjs",
-          "symbol": "async write",
-          "description": "EvidenceManager.write overwrites a stable file path; an old path reference can point to different bytes."
+          "file": "tests/evidence-immutability.test.cjs",
+          "kind": "test",
+          "name": "B21-10-03 writing different content under an existing name keeps the original and stores a new version"
+        },
+        {
+          "file": "tests/evidence-immutability.test.cjs",
+          "kind": "test",
+          "name": "B21-10-03 writing identical content again is idempotent and creates no new file"
+        },
+        {
+          "file": "tests/evidence-immutability.test.cjs",
+          "kind": "test",
+          "name": "B21-10-03 concurrent writes with different content never lose or overwrite a version"
+        },
+        {
+          "file": "tests/evidence-immutability.test.cjs",
+          "kind": "test",
+          "name": "B21-10-03 verifyEvidence detects tampering, a missing file and a reference outside the evidence root"
+        },
+        {
+          "file": "tests/evidence-immutability.test.cjs",
+          "kind": "test",
+          "name": "B21-10-03 the manifest verifies every listed item and reports the one that was altered"
+        },
+        {
+          "file": "tests/evidence-immutability.test.cjs",
+          "kind": "test",
+          "name": "B21-10-03 model-controlled names cannot write outside the run evidence directory"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Use immutable content-addressed evidence paths or versioned references with SHA verification."
+      "note": "Fixed by Claude Code (was CONFIRMED_GAP): evidence is write-once through writeImmutable (exclusive create); different content becomes a new .vN file, identical content is idempotent, references can be re-verified by hash. Worker Report, verifier evidence, Review Report, review input, repo-knowledge manifest and verified.patch all use it. Design choice: a conflicting write is stored as a new version instead of being rejected, because rework legitimately rewrites the same name. Sabotage-checked six ways. Also fixes a path-traversal route: planner task ids and evidence names are sanitized."
     },
     {
       "id": "B21-10-04",

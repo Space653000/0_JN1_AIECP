@@ -6,6 +6,7 @@ const crypto=require('node:crypto');
 const {execFile}=require('node:child_process');
 const {promisify}=require('node:util');
 const {redactSensitive,redactText}=require('./redaction.cjs');
+const {writeImmutable}=require('./evidence-manager.cjs');
 const execFileAsync=promisify(execFile);
 const BLUEPRINT_LIMIT=24*1024;
 const DIFF_LIMIT=64*1024;
@@ -78,10 +79,8 @@ async function buildReviewInput({sourceRoot,worktree,runRoot,runId,task,plan,ver
   const input=redactSensitive({schema:'aecp.review-input/v1',taskId:task.id,runId:runId||path.basename(runRoot),iteration,
     blueprint,plan,diff,verification});
   const data=JSON.stringify(input,null,2)+'\n';
-  const file=path.join(runRoot,`review-input-${String(task.id).replace(/[^a-zA-Z0-9_-]/g,'_')}-${iteration}.json`);
-  await fs.mkdir(runRoot,{recursive:true});
-  await fs.writeFile(file,data,'utf8');
-  return {input,file,sha256:sha(data)};
+  const saved=await writeImmutable(runRoot,`review-input-${String(task.id).replace(/[^a-zA-Z0-9_-]/g,'_')}-${iteration}.json`,data);
+  return {input,file:saved.file,sha256:saved.sha256};
 }
 
 module.exports={blueprintContext,diffContext,buildReviewInput,BLUEPRINT_LIMIT,DIFF_LIMIT};

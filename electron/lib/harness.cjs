@@ -10,6 +10,7 @@ const { redactSensitive } = require('./redaction.cjs');
 const { makeExecutionContract, updateExecutionContract, validateExecutionContract } = require('./execution-contract.cjs');
 const {buildReviewInput}=require('./review-context.cjs');
 const {validateReviewReport,saveReviewReport}=require('./review-report.cjs');
+const {writeImmutable}=require('./evidence-manager.cjs');
 const {gitChangedFiles,gitUntrackedFiles,makeWorkerReport,saveWorkerReport,saveVerificationEvidence,completeWorkerReport}=require('./worker-report.cjs');
 const {discoverRepoKnowledge,knowledgeManifest,formatKnowledge}=require('./repo-knowledge.cjs');
 
@@ -184,14 +185,17 @@ function cli(role, prompt, cwd, model, providerId, router = new ProviderRouter()
   return router.commandSpec(provider, role, prompt, { model, cwd });
 }
 
+// Task ids are model output and later become file names and IPC ids: keep them to a safe character set.
+const safeTaskId = (value) => String(value ?? '').replace(/[^A-Za-z0-9._-]/g, '_').replace(/^[^A-Za-z0-9]+/, '').slice(0, 100);
+
 function normalizePlan(plan, goal, done, maxTasks) {
   const source = Array.isArray(plan?.tasks) ? plan.tasks : [];
   const tasks = source.slice(0, maxTasks).map((t, i) => ({
-    id: text(t.task_id || t.id, 100) || id(`task-${i + 1}`),
+    id: safeTaskId(text(t.task_id || t.id, 100)) || id(`task-${i + 1}`),
     title: text(t.title || t.objective, 160) || `Task ${i + 1}`,
     objective: text(t.objective || t.description, 3000),
     acceptance: text(t.acceptance || done, 3000),
-    dependencies: Array.isArray(t.dependencies) ? t.dependencies.map(x => text(x, 100)).filter(Boolean) : [],
+    dependencies: Array.isArray(t.dependencies) ? t.dependencies.map(x => safeTaskId(text(x, 100))).filter(Boolean) : [],
     verifier: t.verifier || null,
     risk: ['GREEN', 'YELLOW', 'RED'].includes(t.risk) ? t.risk : 'YELLOW',
     blueprint_refs:Array.isArray(t.blueprint_refs)?t.blueprint_refs.slice(0,16).filter(x=>typeof x==='string'&&x.length<300):[],
@@ -262,10 +266,8 @@ async function createPatch(worktree, runRoot, signal, { maxPatchBytes = DEFAULT_
   if (bytes > maxPatchBytes) {
     throw Object.assign(new Error(`Patch budget exceeded (${bytes} > ${maxPatchBytes}).`), { code: 'PATCH_BUDGET_EXHAUSTED' });
   }
-  const file = path.join(runRoot, 'verified.patch');
-  await fs.writeFile(file, r.stdout, 'utf8');
-  const sha256 = crypto.createHash('sha256').update(r.stdout).digest('hex');
-  return { file, bytes, sha256, changedFiles };
+  const saved = await writeImmutable(runRoot, 'verified.patch', r.stdout);
+  return { file: saved.file, bytes, sha256: saved.sha256, changedFiles };
 }
 
 async function runHarness(options) {
@@ -453,10 +455,9 @@ async function runHarness(options) {
     let repoKnowledge=await discoverRepoKnowledge(root);
     const saveKnowledge=async (knowledge,label)=>{
       const manifest=knowledgeManifest(knowledge);
-      const file=path.join(runRoot,`repo-knowledge-${label}.json`);
       const data=JSON.stringify(manifest,null,2)+'\n';
-      await fs.mkdir(runRoot,{recursive:true});await fs.writeFile(file,data,'utf8');
-      return {manifest,file,sha256:crypto.createHash('sha256').update(data).digest('hex')};
+      const saved=await writeImmutable(runRoot,`repo-knowledge-${label}.json`,data);
+      return {manifest,file:saved.file,sha256:saved.sha256};
     };
     record.repoKnowledge=await saveKnowledge(repoKnowledge,'run');
     await persist();

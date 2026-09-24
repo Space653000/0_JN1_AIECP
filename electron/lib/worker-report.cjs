@@ -6,6 +6,7 @@ const {execFile}=require('node:child_process');
 const {promisify}=require('node:util');
 const {redactSensitive,redactText}=require('./redaction.cjs');
 const exec=promisify(execFile);
+const {writeImmutable}=require('./evidence-manager.cjs');
 
 async function gitUntrackedFiles(worktree){
   const {stdout}=await exec('git',['ls-files','--others','--exclude-standard','-z'],{cwd:worktree,windowsHide:true,timeout:30000,maxBuffer:4*1024*1024});
@@ -28,19 +29,15 @@ function makeWorkerReport({taskId,runId,worker,stdout,changedFiles=[],iteration,
     unresolved:['Deterministic verification pending'],evidence_refs:[],completionProof:false});
 }
 async function saveWorkerReport(runRoot,report,iteration){
-  const file=path.join(runRoot,`worker-report-${String(report.task_id).replace(/[^a-zA-Z0-9_-]/g,'_')}-${iteration}.json`);
   const body=JSON.stringify(report,null,2)+'\n';
-  await fs.mkdir(runRoot,{recursive:true});await fs.writeFile(file,body,'utf8');
-  return {file,sha256:crypto.createHash('sha256').update(body).digest('hex')};
+  return writeImmutable(runRoot,`worker-report-${String(report.task_id).replace(/[^a-zA-Z0-9_-]/g,'_')}-${iteration}.json`,body);
 }
 async function saveVerificationEvidence(runRoot,{taskId,runId,iteration,verification}){
-  const file=path.join(runRoot,`verifier-${String(taskId).replace(/[^a-zA-Z0-9_-]/g,'_')}-${iteration}.json`);
   const body=JSON.stringify(redactSensitive({schema:'aecp.verifier-evidence/v1',task_id:taskId,run_id:runId,
     iteration,command:verification.command,passed:verification.passed===true,exit_code:verification.code,
     timedOut:Boolean(verification.timedOut),aborted:Boolean(verification.aborted),
     outputLimitExceeded:Boolean(verification.outputLimitExceeded),durationMs:verification.durationMs}),null,2)+'\n';
-  await fs.mkdir(runRoot,{recursive:true});await fs.writeFile(file,body,'utf8');
-  return {file,sha256:crypto.createHash('sha256').update(body).digest('hex')};
+  return writeImmutable(runRoot,`verifier-${String(taskId).replace(/[^a-zA-Z0-9_-]/g,'_')}-${iteration}.json`,body);
 }
 function completeWorkerReport(report,verification,evidence){
   return redactSensitive({...report,

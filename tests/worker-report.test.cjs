@@ -41,8 +41,13 @@ test('Worker Report is resaved with verifier-owned test result and evidence refe
   const evidence=await saveVerificationEvidence(root,{taskId:'T1',runId:'R1',iteration:1,verification:verified});
   const updated=completeWorkerReport(report,verified,evidence);
   const saved=await saveWorkerReport(root,updated,1);
-  assert.equal(saved.file,original.file);
+  // Evidence is write-once: the verifier backfill is a new version and the original file is kept unchanged.
+  assert.notEqual(saved.file,original.file);
+  assert.match(path.basename(saved.file),/\.v2\.json$/);
+  assert.equal(saved.version,2);
   assert.notEqual(saved.sha256,original.sha256);
+  assert.deepEqual(JSON.parse(await fs.readFile(original.file,'utf8')).tests,[]);
+  assert.equal(JSON.parse(await fs.readFile(original.file,'utf8')).result,report.result);
   assert.deepEqual(updated.tests,[{command:'npm run verify',passed:false,exit_code:2}]);
   assert.deepEqual(updated.evidence_refs,[evidence]);
   assert.equal(updated.result,'VERIFIER_FAIL');assert.equal(updated.completionProof,false);

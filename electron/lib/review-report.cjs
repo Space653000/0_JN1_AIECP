@@ -3,6 +3,7 @@ const crypto=require('node:crypto');
 const fs=require('node:fs/promises');
 const path=require('node:path');
 const {redactSensitive}=require('./redaction.cjs');
+const {writeImmutable}=require('./evidence-manager.cjs');
 const DIMENSIONS=['blueprint','plan','implementation','tests','security','architecture'];
 const RESULTS=new Set(['PASS','REWORK','BLOCKED','HUMAN_REQUIRED']);
 const GRADES=new Set(['PASS','WARN','FAIL']);
@@ -50,9 +51,7 @@ function validateReviewReport(raw,{taskId,runId,reviewer,verifierPassed}={}){
   return {report,valid:errors.length===0,errors};
 }
 async function saveReviewReport(runRoot,report,iteration){
-  const file=path.join(runRoot,`review-report-${String(report.task_id).replace(/[^a-zA-Z0-9_-]/g,'_')}-${iteration}.json`);
   const data=JSON.stringify(redactSensitive(report),null,2)+'\n';
-  await fs.mkdir(runRoot,{recursive:true});await fs.writeFile(file,data,'utf8');
-  return {file,sha256:crypto.createHash('sha256').update(data).digest('hex')};
+  return writeImmutable(runRoot,`review-report-${String(report.task_id).replace(/[^a-zA-Z0-9_-]/g,'_')}-${iteration}.json`,data);
 }
 module.exports={DIMENSIONS,validateReviewReport,saveReviewReport};
