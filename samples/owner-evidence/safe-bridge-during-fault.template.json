@@ -1,0 +1,16 @@
+{
+  "schema": "aecp.owner-evidence.safe-bridge-during-fault/v1",
+  "sourceCommit": "<placeholder>",
+  "date": "<placeholder>",
+  "machine": { "id": "<placeholder>", "arch": "<placeholder>" },
+  "operatorAttestation": { "name": "<placeholder>", "statement": "<placeholder>", "signedAt": "<placeholder>" },
+  "checklist": {
+    "safeBridgeAvailableDuringPegaFailure": { "passed": false, "note": "<placeholder>" },
+    "safeBridgeAvailableDuringOfficialFailure": { "passed": false, "note": "<placeholder>" },
+    "inspectWorkspaceCardPassedDuringFault": { "passed": false, "note": "<placeholder>" },
+    "bothWorkersRecoveredReady": { "passed": false, "note": "<placeholder>" }
+  },
+  "artifacts": {
+    "providerEvidence": { "fileName": "<placeholder>", "sha256": "<placeholder>" }
+  }
+}

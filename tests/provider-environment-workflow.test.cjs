@@ -1,0 +1,186 @@
+'use strict';
+
+const test=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const os=require('node:os');
+const path=require('node:path');
+const {spawnSync}=require('node:child_process');
+const yaml=require('js-yaml');
+
+const root=path.resolve(__dirname,'..');
+const read=(file)=>fs.readFileSync(path.join(root,file),'utf8');
+
+test('provider evidence writes only selected workflow metadata inside GitHub Actions',()=>{
+  const temporary=fs.mkdtempSync(path.join(os.tmpdir(),'aecp-provider-provenance-'));
+  try{
+    for(const githubActions of ['true','false']){
+      const file=path.join(temporary,`${githubActions}.json`);
+      const env={...process.env,GITHUB_WORKSPACE:root,AECP_PROVIDER_VERIFY_MODE:'invalid',
+        AECP_PROVIDER_EVIDENCE_PATH:file,GITHUB_ACTIONS:githubActions,
+        GITHUB_REPOSITORY:'Space653000/0_JN1_AIECP',GITHUB_WORKFLOW:'AECP Real Provider Evidence',
+        GITHUB_RUN_ID:'123456789',GITHUB_RUN_ATTEMPT:'2',GITHUB_SHA:'a'.repeat(40),
+        GITHUB_TOKEN:'not-for-evidence'};
+      const result=spawnSync(process.execPath,[path.join(root,'scripts','provider-environment-verify.cjs')],
+        {env,encoding:'utf8'});
+      assert.equal(result.status,1);
+      const evidence=JSON.parse(fs.readFileSync(file,'utf8'));
+      if(githubActions==='true')assert.deepEqual(evidence.workflowRun,{repository:env.GITHUB_REPOSITORY,
+        workflow:env.GITHUB_WORKFLOW,runId:env.GITHUB_RUN_ID,runAttempt:env.GITHUB_RUN_ATTEMPT,sha:env.GITHUB_SHA});
+      else assert.equal(Object.hasOwn(evidence,'workflowRun'),false);
+      assert.doesNotMatch(JSON.stringify(evidence),/not-for-evidence/);
+    }
+  }finally{fs.rmSync(temporary,{recursive:true,force:true});}
+});
+
+test('real provider evidence workflow is manual and pinned to the dedicated self-hosted runner label',()=>{
+  const workflow=read('.github/workflows/provider-environment.yml');
+  assert.match(workflow,/workflow_dispatch:/);
+  assert.doesNotMatch(workflow,/pull_request:/);
+  assert.match(workflow,/runs-on:\s*\$\{\{ fromJSON\(inputs\.expected_arch/);
+  assert.match(workflow,/ref:\s*\$\{\{ inputs\.source_ref \}\}/);
+  assert.match(workflow,/persist-credentials:\s*false/);
+  assert.match(workflow,/timeout-minutes:\s*120/);
+});
+
+test('real provider workflow YAML routes exact x64 and ARM64 labels while keeping runtime architecture gate',()=>{
+  const workflow=read('.github/workflows/provider-environment.yml');
+  const parsed=yaml.load(workflow);
+  const selector=parsed.jobs['verify-real-provider']['runs-on'];
+  assert.match(selector,/\["self-hosted","Windows","aecp-provider","X64"\]/);
+  assert.match(selector,/\["self-hosted","Windows","aecp-provider","ARM64"\]/);
+  assert.match(selector,/\["self-hosted","Windows","aecp-provider"\]/);
+  assert.match(workflow,/Runner architecture mismatch/);
+  assert.match(workflow,/Evidence runtime architecture mismatch/);
+});
+
+test('real provider workflow requires explicit model and fixed local command only when relevant',()=>{
+  const workflow=read('.github/workflows/provider-environment.yml');
+  assert.match(workflow,/An explicit model is required for the selected real-provider mode/);
+  assert.match(workflow,/A fixed local\/company worker command is required for local-command\/all mode/);
+  assert.match(workflow,/AECP_PROVIDER_VERIFY_MODEL/);
+  assert.match(workflow,/AECP_PROVIDER_VERIFY_LOCAL_COMMAND/);
+  assert.match(workflow,/AECP_PROVIDER_VERIFY_LOCAL_ARGS_JSON/);
+});
+
+test('provider environment evidence is exact-source, privacy-bounded and uploaded even after failure',()=>{
+  const workflow=read('.github/workflows/provider-environment.yml');
+  assert.match(workflow,/git rev-parse HEAD/);
+  assert.match(workflow,/Evidence source commit mismatch/);
+  assert.match(workflow,/promptBodiesPersisted/);
+  assert.match(workflow,/responseBodiesPersisted/);
+  assert.match(workflow,/credentialsPersisted/);
+  assert.match(workflow,/if:\s*always\(\)[\s\S]*Upload real provider evidence/);
+  assert.match(workflow,/artifacts\/provider-environment-evidence\.json/);
+});
+
+test('real provider evidence runner exercises Ollama OpenCode local-command and canonical Harness paths',()=>{
+  const script=read('scripts/provider-environment-verify.cjs');
+  assert.match(script,/ollama\.real-smoke/);
+  assert.match(script,/opencode\.ollama-real-edit/);
+  assert.match(script,/local-command\.real-smoke/);
+  assert.match(script,/canonical-harness\.ollama-opencode/);
+  assert.match(script,/plannerProvider:'ollama'/);
+  assert.match(script,/builderProvider:'opencode'/);
+  assert.match(script,/reviewerProvider:'ollama'/);
+  assert.match(script,/providerNetworkApproved:false/);
+  assert.match(script,/providerCredentialApproved:false/);
+  assert.match(script,/runHarness/);
+});
+
+test('real provider evidence persists hashes and states instead of model prompt or response bodies',()=>{
+  const script=read('scripts/provider-environment-verify.cjs');
+  assert.match(script,/outputSha256/);
+  assert.match(script,/fileSha256/);
+  assert.match(script,/patchSha256/);
+  assert.match(script,/promptBodiesPersisted:false/);
+  assert.match(script,/responseBodiesPersisted:false/);
+  assert.match(script,/credentialsPersisted:false/);
+  assert.doesNotMatch(script,/evidence\.checks\.push\([^\n]*stdout/);
+  assert.doesNotMatch(script,/evidence\.checks\.push\([^\n]*stderr/);
+});
+
+
+test('real provider workflow has separate OFFICIAL PEGA and concurrent Codex environment evidence modes',()=>{
+  const workflow=read('.github/workflows/provider-environment.yml');
+  const script=read('scripts/provider-environment-verify.cjs');
+  for(const mode of ['codex-official','codex-pega','multi-codex']){
+    assert.ok(workflow.includes('- '+mode));
+    assert.ok(script.includes("'"+mode+"'"));
+  }
+  assert.match(workflow,/AECP_PROVIDER_VERIFY_OFFICIAL_MODEL/);
+  assert.match(workflow,/AECP_PROVIDER_VERIFY_PEGA_MODEL/);
+  assert.match(workflow,/AECP_PROVIDER_VERIFY_PEGA_WIRE_API/);
+  assert.match(workflow,/AECP_PROVIDER_VERIFY_CODEX_ROOT/);
+  assert.match(workflow,/secrets\.AECP_PEGA_API_KEY/);
+  assert.match(script,/codex-official\.real-smoke/);
+  assert.match(script,/codex-pega\.real-smoke/);
+  assert.match(script,/codex\.multi-worker-real-concurrency/);
+  assert.match(script,/OFFICIAL_AUTH_REQUIRED/);
+  assert.match(script,/PEGA_AUTH_REQUIRED/);
+  assert.match(script,/distinctCodexHomes/);
+  assert.match(script,/distinctProcesses/);
+  assert.match(script,/spawnDeltaMs/);
+  assert.doesNotMatch(script,/pegaApiKey.*checks\.push/);
+});
+
+test('real PEGA evidence is executed through the governed Codex worker adapter and never stored as a mock PASS',()=>{
+  const script=read('scripts/provider-environment-verify.cjs');
+  assert.match(script,/PEGA_BASE_URL/);
+  assert.match(script,/makePegaProvider/);
+  assert.match(script,/provider:PEGA_PROVIDER_ID/);
+  assert.match(script,/credentialApproved:true/);
+  assert.match(script,/wireApi:pegaWireApi/);
+  assert.match(script,/outputSha256/);
+  assert.match(script,/codexHomeSha256/);
+  assert.doesNotMatch(script,/status:'PASS'.*PEGA_BASE_URL/);
+});
+
+test('all mode includes Codex prerequisites and real multi-Codex evidence uses isolated Git worktrees',()=>{
+  const workflow=read('.github/workflows/provider-environment.yml');
+  const script=read('scripts/provider-environment-verify.cjs');
+  assert.match(workflow,/@\('codex-official','codex-pega','multi-codex','codex-fault-isolation','all'\)/);
+  assert.match(workflow,/@\('codex-pega','multi-codex','codex-fault-isolation','all'\)/);
+  assert.match(script,/mode==='codex-official'\|\|mode==='all'/);
+  assert.match(script,/mode==='codex-pega'\|\|mode==='all'/);
+  assert.match(script,/mode==='multi-codex'\|\|mode==='all'/);
+  assert.match(script,/makeCodexParallelWorktrees/);
+  assert.match(script,/git\(repo,\['worktree','add','-b','evidence-official'/);
+  assert.match(script,/git\(repo,\['worktree','add','-b','evidence-pega'/);
+  assert.match(script,/codexEditSmoke/);
+  assert.match(script,/worker_result\.txt/);
+  assert.match(script,/worktreeSha256/);
+  assert.match(script,/fileSha256/);
+  assert.match(script,/distinctWorktrees/);
+});
+
+test('fault-isolation mode is exposed in workflow and records scratch registry and recovery',()=>{
+  const workflow=read('.github/workflows/provider-environment.yml');
+  const script=read('scripts/provider-environment-verify.cjs');
+  assert.match(workflow,/\s+- codex-fault-isolation/);
+  assert.match(script,/mode==='codex-fault-isolation'/);
+  assert.match(script,/new WorkerRegistry\(registryRoot\)/);
+  assert.match(script,/check\('recovery'/);
+  assert.match(script,/realOfficialAuthUnchangedInStageB/);
+  assert.match(script,/pegaAuthAbsentThroughout/);
+});
+
+
+
+test('real provider evidence can hard-gate the requested x64 or ARM64 runtime architecture',()=>{
+  const workflow=read('.github/workflows/provider-environment.yml');
+  const script=read('scripts/provider-environment-verify.cjs');
+  assert.match(workflow,/expected_arch:/);
+  assert.match(workflow,/default:\s*any/);
+  assert.match(workflow,/- x64[\s\S]*- arm64/);
+  assert.match(workflow,/AECP_PROVIDER_VERIFY_EXPECTED_ARCH/);
+  assert.match(workflow,/node -p "process\.arch"/);
+  assert.match(workflow,/Runner architecture mismatch/);
+  assert.match(workflow,/Evidence runtime architecture mismatch/);
+  assert.match(script,/AECP_PROVIDER_VERIFY_EXPECTED_ARCH/);
+  assert.match(script,/VALID_ARCHES/);
+  assert.match(script,/expectedArch/);
+  assert.match(script,/ARCH_INVALID/);
+  assert.match(script,/ARCH_MISMATCH/);
+  assert.match(script,/arch:process\.arch/);
+});

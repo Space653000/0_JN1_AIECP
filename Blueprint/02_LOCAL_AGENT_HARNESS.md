@@ -11,7 +11,7 @@ The Local Agent Harness is the permanent runtime. Models/providers are replaceab
 - `PolicyEngine` — calculates capability/risk and denies forbidden actions
 - `ToolRouter` — resolves capability to adapter
 - `ExecutionEngine` — runs bounded capability steps with timeout/cancel semantics
-- `WorkspaceLockManager` — prevents conflicting future write tasks
+- `WorkspaceLockManager` — prevents conflicting write tasks through durable resource locks/leases
 - `Verifier` — deterministic completion checks
 - `EvidenceStore` — trace + artifacts + hashes
 - `RecoveryManager` — retry, cancel, rollback hints and crash recovery
@@ -41,7 +41,7 @@ PASS → READY_TO_COMMIT → DONE
 
 Other terminal/interruption states: `CANCELLED`, `ROLLED_BACK`, `BLOCKED`.
 
-The v0.1.0 preview implements the simplified safe path `READY → RUNNING → DONE/FAILED` for read-only capabilities while preserving the same canonical Task model.
+The legacy v0.1 Safe Bridge used the simplified read-only path. The current runtime uses durable Mission/Task state, dependencies, leases, bounded execution/rework, verification, approval and terminal states while preserving the canonical Task model.
 
 ## 4. Pipeline model
 
@@ -55,9 +55,9 @@ Default logical stages:
 4. `VERIFY` — deterministic assertions
 5. `PACKAGE_RESULT` — evidence + Result Capsule
 
-Future mutating adapters add locks/worktrees/approval/rollback stages without replacing the task model.
+The current governed mutating path adds locks, isolated worktrees, policy/approval, deterministic verification, evidence and rollback/recovery stages without replacing the task model.
 
-Each future step can carry:
+Each bounded step can carry:
 - `id`
 - `type`
 - `inputs`
@@ -79,9 +79,9 @@ Only two Command Card capabilities are executable from imported conversation tex
 
 Both are read-only and GREEN. AECP itself invokes fixed local operations; the conversation does not provide a shell string.
 
-### Future write/command adapters
+### Governed write/command adapters
 
-Before exposing file mutation or project command execution, the implementation must add:
+File mutation/project command execution is exposed only through adapters that enforce:
 - explicit Workspace-scoped capability declaration;
 - path canonicalization;
 - risk preview/approval;
@@ -96,9 +96,7 @@ Raw AI text must never grant its own permission.
 
 ## 6. Workspace locks and concurrency
 
-v0.1.0 read-only tasks do not require write locks.
-
-Future default: one write task per repository/workspace resource. Multiple read-only tasks may coexist. Coding tasks should prefer one Git worktree per task to isolate branches and reduce cross-agent collisions.
+Read-only tasks do not require write locks. Write tasks use durable repository/workspace locks; one conflicting writer per resource is allowed at a time. Coding tasks use isolated Git worktrees to keep the user's main checkout undisturbed.
 
 Lock record:
 - task ID
@@ -114,9 +112,7 @@ A stale write lock never disappears silently; recovery records why it was releas
 
 Verification is independent of the provider.
 
-v0.1.0 uses `operation-success` verification for the two fixed read-only adapters.
-
-Future examples:
+The Safe Bridge still supports `operation-success` verification for fixed read-only adapters. Governed engineering tasks use deterministic verification profiles such as:
 - process exit code == expected
 - expected file exists
 - JSON/YAML parses
@@ -125,7 +121,7 @@ Future examples:
 - build artifact exists and hash is recorded
 - user-specified output matches
 
-A future write task cannot reach `DONE` without at least one configured verifier or an explicit `MANUAL_VERIFICATION_REQUIRED` terminal gate.
+A write task cannot reach accepted completion without deterministic verifier evidence or an explicit human/manual verification gate.
 
 ## 8. Evidence
 
@@ -157,16 +153,16 @@ Context Capsule contains only the minimum needed for reasoning:
 
 ## 10. Crash/restart behavior
 
-On startup, future mutating runtime must:
+On startup, the mutating runtime must:
 1. load non-terminal tasks;
 2. identify orphaned executions;
 3. verify Workspace locks;
 4. show recovery state;
 5. never blindly replay a mutating operation.
 
-Read-only v0.1.0 operations are short-lived and persist Task/Evidence state after completion.
+Read-only Safe Bridge operations remain short-lived; the current control plane also persists mutating Task/Harness state at each transition for restart recovery.
 
-## 11. v0.1.0 executable scope
+## 11. Current executable scope
 
 Implemented:
 - explicit Command Card import
@@ -180,16 +176,16 @@ Implemented:
 - official ChatGPT browser launcher and explicit copy-back
 - Provider Registry metadata and encrypted secret storage
 
-Deliberately not exposed yet:
-- arbitrary shell execution from conversation text
-- autonomous file mutation/deletion
-- Git commit/push
-- desktop GUI automation
-- remote mobile gateway
-- official MCP write path
-- external API invocation
+Current boundaries:
+- arbitrary shell execution from conversation text — **not exposed**;
+- bounded workspace mutation — implemented only inside policy-scoped worktrees/workspace-write adapters;
+- governed Git commit/push/Draft PR — implemented; merge remains human-gated;
+- Windows desktop integration — scoped docking plus read-only general-app UI Automation; browser/ChatGPT inspection remains deny-by-default;
+- remote supervision — authenticated READ_ONLY + APPROVAL_ONLY pairing/revocation; remote task submission remains intentionally disabled;
+- official MCP/local MCP — local authenticated MCP foundation implemented; any public/official tunnel remains deployment/product support dependent;
+- external/OpenAI-compatible provider invocation — implemented behind NETWORK/CREDENTIAL approval.
 
-Those are governed roadmap adapters, not hidden v0.1.0 behavior.
+These boundaries are enforced capabilities, not hidden permissions.
 
 
 ## 12. Harness Engineering expansion

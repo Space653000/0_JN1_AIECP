@@ -1,0 +1,33 @@
+{
+  "schema": "aecp.store-metadata/v1",
+  "channel": "Microsoft Store Private Audience",
+  "package": {
+    "identityName": "<Partner Center Package/Identity/Name>",
+    "publisher": "<Partner Center Package/Identity/Publisher>",
+    "publisherDisplayName": "<Partner Center Publisher display name>",
+    "applicationId": "AECP",
+    "displayName": "AI Engineering Control Plane",
+    "architectures": ["x64", "arm64"],
+    "languages": ["en-US", "zh-TW"],
+    "minWindowsVersion": "10.0.17763.0"
+  },
+  "listing": {
+    "en-US": {
+      "productName": "AI Engineering Control Plane",
+      "shortDescription": "A governed local-first AI engineering control plane for Windows.",
+      "releaseNotes": "See RELEASE_NOTES.md for the exact release."
+    },
+    "zh-TW": {
+      "productName": "AI Engineering Control Plane",
+      "shortDescription": "Windows 本機優先、具治理與驗證機制的 AI 工程控制平面。",
+      "releaseNotes": "實際版本說明以 RELEASE_NOTES.md 為準。"
+    }
+  },
+  "ownerGates": [
+    "Partner Center app reservation and exact package identity",
+    "Microsoft Store certification",
+    "Private audience assignment",
+    "Clean-account acquisition verification",
+    "Microsoft publisher trust verification"
+  ]
+}

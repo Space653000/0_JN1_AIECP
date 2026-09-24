@@ -39,8 +39,8 @@ OpenAI's published harness-engineering work emphasizes repository legibility, ex
 └──────────────┬───────────────┬──────────────────┬────────────────┘
                │               │                  │
                ▼               ▼                  ▼
-        Claude Code        Codex CLI          Other Adapters
-        Planner/Review     Local Worker       Gemini / Local / API
+        Claude Code       Codex Workers       Other Adapters
+        Planner/Review    OFFICIAL / PEGA     Gemini / Local / API
                │               │                  │
                └───────────────┼──────────────────┘
                                ▼
@@ -60,6 +60,34 @@ OpenAI's published harness-engineering work emphasizes repository legibility, ex
                                │
                                └──────────→ Harness Loop
 ~~~
+
+## 2A. Multi-Worker execution topology
+
+AECP is the only operator entry point. Harness may run multiple isolated Worker processes concurrently:
+
+~~~text
+AECP
+ ↓
+Harness / Scheduler / Locks / Policy / Budgets
+ ├─ Codex OFFICIAL Worker → isolated CODEX_HOME → task worktree A
+ ├─ Codex PEGA Worker     → isolated CODEX_HOME → task worktree B
+ ├─ Claude Code Planner / Reviewer
+ └─ future Workers / Providers
+~~~
+
+Concurrency is allowed only when dependencies and resources permit it.
+
+Hard invariants:
+
+- one Worker process has one explicit `worker_id`, provider identity and task assignment;
+- each Codex Worker receives a dedicated `CODEX_HOME` and process environment;
+- same-repository parallel mutations use distinct isolated Git worktrees;
+- two Workers cannot hold the same conflicting mutating resource lock;
+- cancel is task/worker scoped; STOP ALL is global;
+- Worker/provider failure is isolated and does not redefine another Worker health;
+- no Worker may bypass Harness to write directly into an unassigned Workspace/worktree.
+
+Harness remains the owner of Queue / Dependency / Lock / Timeout / Retry / Cancel / Evidence / Verify / Review / Recovery.
 
 ## 3. Separation of responsibilities
 
@@ -95,7 +123,9 @@ Primary roles:
 
 Claude Code should operate at the highest useful abstraction level rather than editing every line.
 
-### Codex CLI
+### Codex Workers
+
+Codex is represented as isolated Worker runtime identities rather than one shared global process. Initial canonical workers are **Codex OFFICIAL** and **Codex PEGA**.
 
 Primary roles:
 
@@ -283,6 +313,8 @@ Every autonomous run requires:
 - stop conditions;
 - risk policy.
 
+The current Harness and bounded Autonomy runtime enforce these as process-side limits rather than prompt suggestions. Provider-call exhaustion, worker-output overflow, patch-byte overflow and changed-file overflow terminate as `BUDGET_EXHAUSTED`; oversized output is killed rather than silently truncated into an apparently successful run.
+
 There is never an implicit infinite loop.
 
 ## 8. Queue
@@ -301,16 +333,15 @@ The queue is a first-class control-plane object.
 Scheduler decisions consider:
 
 - dependencies;
-- locks;
-- agent availability;
-- provider health;
-- Workspace policy;
+- repository/write locks;
+- agent/provider availability and provider health;
+- Workspace/provider policy and required approvals;
 - priority;
 - estimated cost/runtime;
 - risk;
 - retry budget.
 
-The scheduler must be deterministic enough that the same queue state can be explained after restart.
+The current scheduler persists `aecp.scheduler-decision/v1` on queued tasks, including eligibility, reasons, normalized priority/risk/cost/runtime, retry budget, repository lock keys and provider states. Eligible tasks are deterministically ranked by priority → lower risk → lower estimated cost → shorter runtime → age/task ID. Repository locks are owned by **task ID**, not process ID, and are renewed by heartbeat; loss of lock ownership aborts the task rather than silently continuing. This makes dispatch explainable after restart and prevents two tasks in one AECP process from bypassing the one-writer rule.
 
 ## 9. Locks
 
@@ -722,11 +753,11 @@ evidence
 
 The Harness is the trust boundary.
 
-## 25. Remote/mobile future
+## 25. Remote/mobile supervision
 
-A future phone/browser interface submits Goal, Workspace, Task policy and Approval, then receives state, current agent, current step, test result, review, evidence and approval requests.
+The software-side Remote Gateway is implemented with one-time pairing, READ_ONLY and APPROVAL_ONLY scopes, revocation, request-id replay protection and TLS requirements for explicitly enabled non-loopback binding. Remote clients can inspect bounded state/evidence and decide already-existing approval requests. **Remote task submission remains intentionally disabled** until a separate acceptance gate explicitly authorizes it.
 
-It must not require ChatGPT Web DOM automation.
+No remote path requires or permits ChatGPT Web DOM automation.
 
 ## 26. Maturity model
 
@@ -739,7 +770,7 @@ It must not require ChatGPT Web DOM automation.
 
 ## 27. Acceptance criteria
 
-The implementation must eventually demonstrate:
+The implementation acceptance matrix requires:
 
 1. Goal becomes durable Plan and Task graph.
 2. Harness dispatches a task without manual copy/paste between Claude and Codex.
@@ -753,12 +784,12 @@ The implementation must eventually demonstrate:
 10. GitHub CI results return as correlated events.
 11. Dashboard shows canonical Harness state.
 12. Restart recovers or safely interrupts in-flight tasks.
-13. No loop runs without finite budget/timeout.
+13. No loop runs without finite iteration/provider-call/output/patch/file-count budgets and process timeouts.
 14. No agent can grant itself permissions.
 15. Human approval protects configured high-risk operations.
 16. Provider can be changed without rewriting Task state.
 17. Official ChatGPT Web remains untouched.
-18. External API providers can be attached later through adapters.
+18. External/OpenAI-compatible providers can be attached through adapters without changing Task state; actual provider credentials/environment remain explicit approval/evidence requirements.
 19. Repository knowledge is legible to agents.
 20. Every accepted task has reproducible evidence.
 
@@ -767,3 +798,15 @@ The implementation must eventually demonstrate:
 > **AECP is a local-first control plane that turns AI reasoning into governed, observable, testable and recoverable software engineering.**
 
 The model supplies intelligence. The Harness supplies discipline. Git supplies history. CI supplies deterministic validation. Dashboard supplies visibility. The human remains the final authority.
+
+
+## 29. Implementation status — 2026-09-22
+
+The Planner → Queue → Builder → Verify → Reviewer loop is now a real bounded runtime rather than a design-only concept. It has durable task state, leases, heartbeat, recovery, evidence, policy/locks, GitHub delivery and CI feedback. CI failure can automatically return a task to bounded rework; CI success can advance it toward a human approval gate.
+
+The repository-verifiable hardening items listed above are implemented: signed/idempotent external events, crash-safe bounded resume, repository-per-task scheduling, explicit adapter policy audit, canonical deterministic E2E and Windows release/install/rollback evidence. Mission-level hard budgets are durable Control Plane fields and are propagated into each Harness execution: finite provider calls, failed attempts, no-progress attempts, optional wall-clock time, output limits, patch bytes, changed-file count, task count, iteration count and process timeouts. The Command Center exposes the operator-facing budget controls rather than hiding them in model prompts. Remaining claims are limited to real provider/environment evidence and owner-controlled production trust/deployment gates.
+
+
+## Runtime closure update — 2026-09-19
+
+The current implementation also includes: signed GitHub webhook ingestion (opt-in), external-event idempotency, CI failed-log evidence, crash/restart recovery, repository-per-task routing, maintenance/worktree garbage collection, and an authenticated local read-only supervision gateway. GitHub commit-SHA polling remains the fallback when no webhook transport is configured. These capabilities are governed by the same Control Plane policy and are reflected in the Harness Command Center.

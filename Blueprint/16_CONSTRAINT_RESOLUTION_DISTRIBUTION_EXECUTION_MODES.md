@@ -162,9 +162,11 @@ ChatGPT Web is still the preferred supervisor/architect, but it does not need to
 - Local Ollama model / local agent runtime
 - Gemini CLI
 - Claude Code
-- Codex CLI
-- future OpenCode/local agent
-- external API providers if explicitly enabled later
+- Codex CLI through isolated Worker profiles
+  - `codex-official` → OpenAI Official → dedicated `CODEX_HOME`
+  - `codex-pega` → PEGA → dedicated `CODEX_HOME`
+- OpenCode/local agent with deny-first permissions
+- external/OpenAI-compatible API providers when explicitly enabled and approved
 
 Each adapter has its own authentication/quota rules. AECP must not imply that a provider is unlimited.
 
@@ -185,7 +187,7 @@ AECP owns:
 
 ### Provider-specific notes
 
-Claude Code and Gemini CLI both expose non-interactive modes suitable for controlled worker adapters. Provider automation may have its own subscription/credit/quota semantics and must be surfaced in the capability/status UI.
+Claude Code, Gemini CLI, Codex CLI and OpenCode are represented through governed role/capability adapters. Codex execution may have multiple isolated Worker identities; switching Provider by mutating a shared `CODEX_HOME` is not considered isolation. Provider automation may have its own subscription/credit/quota semantics and must be surfaced in capability/status rather than treated as unlimited.
 
 Local-only workers are the only path that can truthfully avoid external model quotas entirely.
 
@@ -281,7 +283,7 @@ Uses detected local/CLI worker
 Requires supported ChatGPT workspace + MCP tunnel
 ```
 
-Never label E3 as available merely because a local MCP server exists. The end-to-end connector/tunnel health check must pass.
+Never label E3 as available merely because a local MCP server exists **or because a generic Remote MCP endpoint responds successfully**. Endpoint reachability is only one diagnostic. E3 becomes Ready only after the complete Official Full MCP acceptance gate passes against a supported ChatGPT workspace: connector/tunnel health, read tool, policy-gated write tool, same-task result return, disconnected AECP fallback, and no ChatGPT DOM automation. Until that external/product evidence exists, the current UI keeps E3 Not ready and does not auto-recommend it.
 
 ---
 
@@ -394,11 +396,11 @@ Implemented on the v0.2 feature branch:
 - workspace traversal rejection and 256 KiB text-read limit;
 - CI integration test that starts the MCP server, checks health, verifies missing bearer returns 401, and shuts it down.
 
-Not yet claimed complete:
-- Local Autonomous write-capable loop;
-- Secure MCP Tunnel provisioning against a real supported ChatGPT workspace;
-- Full MCP write tools;
-- Microsoft Partner Center / Store certification;
-- signed/stable public distribution.
+Current status:
+- Local Autonomous write-capable loop — **repository-verifiable implementation complete**: isolated worktree, deny-first worker policy, bounded turns/time/output/patch/changed-files, deterministic verification, explicit apply, checkpoint/recovery and failure-state preservation are covered by tests;
+- Secure MCP Tunnel provisioning against a real supported ChatGPT workspace — **EXTERNAL PRODUCT/DEPLOYMENT GATE**;
+- Full MCP write tools — intentionally not claimed until an approved end-to-end connector/tunnel and policy-gated write path are available;
+- Microsoft Partner Center / Store certification — **EXTERNAL OWNER GATE**;
+- production signed/stable public distribution — software lane implemented; actual owner certificate/signing remains **EXTERNAL OWNER GATE**.
 
-These remain acceptance-gated rather than simulated.
+External/product gates remain acceptance-gated rather than simulated.

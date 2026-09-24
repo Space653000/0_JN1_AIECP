@@ -2,7 +2,8 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { safeJson, normalizePlan, STATES } = require('../electron/lib/harness.cjs');
+const { SecurityPolicy } = require('../electron/lib/security-policy.cjs');
+const { safeJson, normalizePlan, STATES, cli, invokeRole } = require('../electron/lib/harness.cjs');
 
 test('Harness exposes bounded state machine states', () => {
   assert.ok(STATES.includes('PLANNING'));
@@ -26,4 +27,63 @@ test('Planner output is normalized and bounded', () => {
   assert.equal(plan.schema, 'aecp.plan/v1');
   assert.equal(plan.tasks.length, 2);
   assert.deepEqual(plan.tasks[1].dependencies, ['T1']);
+});
+
+test('Provider Router-backed Harness role selection is explicit and vendor-neutral', () => {
+  const calls = [];
+  const router = {
+    commandSpec(provider, role, prompt, options) {
+      calls.push({ provider, role, prompt, options });
+      return { command: 'worker', args: [prompt], provider, model: options.model || null, cwd: options.cwd };
+    }
+  };
+  const spec = cli('builder', 'build safely', 'C:\\repo', 'local-model', 'local-agent', router);
+  assert.equal(spec.provider, 'local-agent');
+  assert.equal(spec.command, 'worker');
+  assert.equal(calls[0].role, 'builder');
+  assert.equal(calls[0].options.model, 'local-model');
+});
+
+test('safeJson unwraps provider CLI result envelopes', () => {
+  const value = safeJson(JSON.stringify({ type: 'result', result: '{"result":"PASS","findings":[],"required_changes":[]}' }));
+  assert.equal(value.result, 'PASS');
+});
+
+test('direct network providers cannot run without NETWORK and CREDENTIAL approval', async () => {
+  const actions = [];
+  const policy = { assert(input) { actions.push(input); if (!input.approved) throw Object.assign(new Error('approval required'), { code: 'APPROVAL_REQUIRED' }); } };
+  const router = {
+    capabilities() { return { process: false, network: true, credential: true }; },
+    async execute() { return { code: 0, stdout: '{}', stderr: '' }; }
+  };
+  await assert.rejects(() => invokeRole({ router, role: 'planner', prompt: 'plan', cwd: 'C:\\repo', providerId: 'corp-api', policy }), /approval required/);
+  const result = await invokeRole({ router, role: 'planner', prompt: 'plan', cwd: 'C:\\repo', providerId: 'corp-api', policy, networkApproved: true, credentialApproved: true });
+  assert.equal(result.code, 0);
+  assert.ok(actions.some(x => x.action === 'NETWORK' && x.approved));
+  assert.ok(actions.some(x => x.action === 'CREDENTIAL' && x.approved));
+});
+
+test('invokeRole applies network and credential policy before an API provider call', async () => {
+  const calls = [];
+  const router = {
+    capabilities() { return { process: false, network: true, credential: true }; },
+    async execute(role, prompt, opts) { calls.push({ role, prompt, opts }); return { code: 0, stdout: '{}', stderr: '' }; }
+  };
+  const policy = new SecurityPolicy({ allowRoots: ['C:\\repo'] });
+  await assert.rejects(
+    () => invokeRole({ router, role: 'planner', prompt: 'p', cwd: 'C:\\repo', providerId: 'api', policy }),
+    (error) => error?.code === 'APPROVAL_REQUIRED' && error?.policy?.action === 'NETWORK'
+  );
+  await assert.rejects(
+    () => invokeRole({ router, role: 'planner', prompt: 'p', cwd: 'C:\\repo', providerId: 'api', policy, networkApproved: true }),
+    (error) => error?.code === 'APPROVAL_REQUIRED' && error?.policy?.action === 'CREDENTIAL'
+  );
+  const result = await invokeRole({
+    router, role: 'planner', prompt: 'p', cwd: 'C:\\repo', providerId: 'api', policy,
+    networkApproved: true, credentialApproved: true
+  });
+  assert.equal(result.code, 0);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].opts.networkApproved, true);
+  assert.equal(calls[0].opts.credentialApproved, true);
 });

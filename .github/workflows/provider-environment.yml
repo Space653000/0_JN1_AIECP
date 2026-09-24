@@ -1,0 +1,175 @@
+name: AECP Real Provider Evidence
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: Exact source commit/tag/branch to verify
+        required: true
+        type: string
+      mode:
+        description: Real provider evidence mode
+        required: true
+        type: choice
+        options:
+          - ollama
+          - opencode-ollama
+          - canonical-local
+          - local-command
+          - codex-official
+          - codex-pega
+          - multi-codex
+          - codex-fault-isolation
+          - all
+      model:
+        description: Explicit Ollama model, required for Ollama/OpenCode/canonical modes
+        required: false
+        type: string
+      local_command:
+        description: Fixed registered local/company worker command path, required for local-command/all
+        required: false
+        type: string
+      local_args_json:
+        description: Fixed local worker arguments as a JSON array
+        required: false
+        default: "[]"
+        type: string
+      official_model:
+        description: Optional explicit model for the real Codex OFFICIAL worker
+        required: false
+        type: string
+      pega_model:
+        description: Explicit PEGA model for codex-pega and multi-codex modes
+        required: false
+        type: string
+      pega_wire_api:
+        description: PEGA Codex wire API supported by the real endpoint
+        required: false
+        default: responses
+        type: choice
+        options:
+          - responses
+          - chat
+      codex_worker_root:
+        description: Persistent AECP Codex worker root on the self-hosted runner; OFFICIAL auth must exist here
+        required: false
+        type: string
+      expected_arch:
+        description: Required runtime architecture for this evidence run
+        required: true
+        default: any
+        type: choice
+        options:
+          - any
+          - x64
+          - arm64
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aecp-real-provider-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  verify-real-provider:
+    name: Real provider evidence on self-hosted Windows
+    runs-on: ${{ fromJSON(inputs.expected_arch == 'arm64' && '["self-hosted","Windows","aecp-provider","ARM64"]' || inputs.expected_arch == 'x64' && '["self-hosted","Windows","aecp-provider","X64"]' || '["self-hosted","Windows","aecp-provider"]') }}
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_ref }}
+          clean: true
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Record exact checked-out source
+        shell: pwsh
+        run: |
+          $sha = (git rev-parse HEAD).Trim()
+          if ($LASTEXITCODE -ne 0 -or $sha -notmatch '^[0-9a-f]{40}$') { throw 'Unable to resolve exact checked-out source commit.' }
+          "AECP_PROVIDER_SOURCE_COMMIT=$sha" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Validate local verification prerequisites
+        shell: pwsh
+        env:
+          AECP_MODE: ${{ inputs.mode }}
+          AECP_MODEL: ${{ inputs.model }}
+          AECP_LOCAL_COMMAND: ${{ inputs.local_command }}
+          AECP_PEGA_MODEL: ${{ inputs.pega_model }}
+          AECP_PEGA_API_KEY: ${{ secrets.AECP_PEGA_API_KEY }}
+          AECP_EXPECTED_ARCH: ${{ inputs.expected_arch }}
+        run: |
+          node --version
+          git --version
+          npm --version
+          $actualArch = (node -p "process.arch").Trim()
+          if ($env:AECP_EXPECTED_ARCH -ne 'any' -and $actualArch -ne $env:AECP_EXPECTED_ARCH) {
+            throw "Runner architecture mismatch: expected $env:AECP_EXPECTED_ARCH but Node reports $actualArch."
+          }
+          if ($env:AECP_MODE -in @('ollama','opencode-ollama','canonical-local','all')) {
+            if ([string]::IsNullOrWhiteSpace($env:AECP_MODEL)) { throw 'An explicit model is required for the selected real-provider mode.' }
+            ollama --version
+          }
+          if ($env:AECP_MODE -in @('opencode-ollama','canonical-local','all')) {
+            opencode --version
+          }
+          if ($env:AECP_MODE -in @('local-command','all') -and [string]::IsNullOrWhiteSpace($env:AECP_LOCAL_COMMAND)) {
+            throw 'A fixed local/company worker command is required for local-command/all mode.'
+          }
+          if ($env:AECP_MODE -in @('codex-official','codex-pega','multi-codex','codex-fault-isolation','all')) {
+            codex --version
+            if ($LASTEXITCODE -ne 0) { throw 'Codex CLI is required for real Codex worker evidence.' }
+          }
+          if ($env:AECP_MODE -in @('codex-pega','multi-codex','codex-fault-isolation','all')) {
+            if ([string]::IsNullOrWhiteSpace($env:AECP_PEGA_MODEL)) { throw 'An explicit PEGA model is required for codex-pega/multi-codex/all mode.' }
+            if ([string]::IsNullOrWhiteSpace($env:AECP_PEGA_API_KEY)) { throw 'AECP_PEGA_API_KEY repository/environment secret is required for real PEGA evidence.' }
+          }
+
+      - name: Run real provider verification
+        id: provider_verify
+        shell: pwsh
+        env:
+          AECP_PROVIDER_VERIFY_MODE: ${{ inputs.mode }}
+          AECP_PROVIDER_VERIFY_MODEL: ${{ inputs.model }}
+          AECP_PROVIDER_VERIFY_LOCAL_COMMAND: ${{ inputs.local_command }}
+          AECP_PROVIDER_VERIFY_LOCAL_ARGS_JSON: ${{ inputs.local_args_json }}
+          AECP_PROVIDER_VERIFY_OFFICIAL_MODEL: ${{ inputs.official_model }}
+          AECP_PROVIDER_VERIFY_PEGA_MODEL: ${{ inputs.pega_model }}
+          AECP_PROVIDER_VERIFY_PEGA_WIRE_API: ${{ inputs.pega_wire_api }}
+          AECP_PROVIDER_VERIFY_CODEX_ROOT: ${{ inputs.codex_worker_root }}
+          AECP_PROVIDER_VERIFY_EXPECTED_ARCH: ${{ inputs.expected_arch }}
+          AECP_PEGA_API_KEY: ${{ secrets.AECP_PEGA_API_KEY }}
+          AECP_PROVIDER_VERIFY_TIMEOUT_MS: "1800000"
+          AECP_PROVIDER_EVIDENCE_PATH: artifacts/provider-environment-evidence.json
+        run: |
+          node scripts/provider-environment-verify.cjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Verify evidence provenance
+        if: always()
+        shell: pwsh
+        env:
+          AECP_EXPECTED_ARCH: ${{ inputs.expected_arch }}
+        run: |
+          if (-not (Test-Path artifacts/provider-environment-evidence.json)) { throw 'Provider evidence artifact is missing.' }
+          $evidence = Get-Content artifacts/provider-environment-evidence.json -Raw | ConvertFrom-Json
+          if ($evidence.schema -ne 'aecp.provider-environment-evidence/v1') { throw 'Provider evidence schema mismatch.' }
+          if ($evidence.sourceCommit -ne $env:AECP_PROVIDER_SOURCE_COMMIT) { throw "Evidence source commit mismatch: $($evidence.sourceCommit)" }
+          if ($evidence.expectedArch -ne $env:AECP_EXPECTED_ARCH) { throw "Evidence expected architecture mismatch: $($evidence.expectedArch)" }
+          if ($env:AECP_EXPECTED_ARCH -ne 'any' -and $evidence.arch -ne $env:AECP_EXPECTED_ARCH) {
+            throw "Evidence runtime architecture mismatch: expected $env:AECP_EXPECTED_ARCH but artifact reports $($evidence.arch)."
+          }
+          if ($evidence.privacy.promptBodiesPersisted -ne $false -or $evidence.privacy.responseBodiesPersisted -ne $false -or $evidence.privacy.credentialsPersisted -ne $false) {
+            throw 'Provider evidence privacy declaration is invalid.'
+          }
+
+      - name: Upload real provider evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aecp-real-provider-${{ inputs.mode }}-${{ github.run_id }}
+          path: artifacts/provider-environment-evidence.json
+          if-no-files-found: error
+          retention-days: 30

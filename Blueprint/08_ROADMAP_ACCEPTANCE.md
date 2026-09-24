@@ -86,7 +86,7 @@ Acceptance:
 - local worker detection is factual
 - changing execution mode never changes Workspace permissions implicitly
 - Full MCP mode requires end-to-end connector/tunnel health before write capability is enabled
-- Local Autonomous mode must enforce iteration/time/permission limits outside the model
+- Local Autonomous mode must enforce iteration/turn/output/patch/file-count/time/permission limits outside the model
 
 ## P4.6 — Bounded autonomous execution
 
@@ -148,9 +148,9 @@ Acceptance:
 Deliverables:
 - authenticated Remote Gateway or supported official integration
 - device pairing/revocation
-- encrypted task transport
+- encrypted supervision/status/approval transport
 - replay protection
-- remote task/result status
+- remote task/result status as a read-only projection; remote task submission remains intentionally disabled
 
 Acceptance:
 - no public inbound port by default
@@ -190,3 +190,20 @@ Required:
 ## MVP definition used for first executable
 
 The first executable is **not** claimed to be P7. It is considered a usable preview only if P0 + P1 + the safe subset of P2 are working and independently audited against this Blueprint.
+
+
+## Current gate status — 2026-09-22
+
+P4.7 core software acceptance is implemented: durable queue/scheduler, dependency/resource routing, isolated worktrees, bounded Planner → Builder → deterministic Verify → Reviewer, leases/recovery, event ledger, signed/idempotent GitHub webhook ingestion, governed GitHub delivery, CI-driven rework, adapter security audit and deterministic canonical E2E.
+
+P5 desktop capability is implemented only within its intended boundary: general Windows UI Automation is read-only, browser/ChatGPT automation-tree inspection is deny-by-default, and state-changing window docking requires SYSTEM approval. Arbitrary GUI control is not exposed.
+
+P6 supervision boundary is implemented: loopback-first Remote Gateway, short-lived one-time pairing, READ_ONLY and APPROVAL_ONLY device scopes, revocation, request-id replay protection, encrypted TLS transport for explicitly enabled non-loopback binding, and read-only task/result projection. APPROVAL_ONLY can decide only existing approvals; remote task submission remains intentionally disabled by design.
+
+Distribution software-side acceptance includes x64/ARM64 packaging, universal architecture selection, Windows-runner install/uninstall plus baseline→upgrade→rollback smoke gates, Store AppX x64/ARM64 manifest validation, SHA-256/provenance, updater transaction/first-boot/rollback, backup/restore, localization/accessibility, dependency/license/security and owner-gated signed-release preparation. These are accepted only from successful exact-HEAD GitHub Actions, including the non-publishing `Build and Release` PR dry-run.
+
+The remaining items that repository code must not fabricate are **EXTERNAL OWNER GATE** operations: production Authenticode/code-signing identity, Microsoft Store publisher/certification/submission, real third-party/local provider runtime/model artifacts or credentials for provider-specific production claims, and optional public/LAN deployment identity/domain/TLS ownership.
+
+GitHub Actions PR workflows must explicitly checkout `pull_request.head.sha`; testing only the synthetic PR merge ref is not sufficient evidence for the exact-head acceptance rule.
+
+Canonical verification also runs `scripts/roadmap-gate-audit.cjs`, which parses every normative P0–P7 Deliverable/Acceptance/Required bullet in this file, classifies repository-verifiable vs bounded-security vs owner-required items, and emits `artifacts/roadmap-gates.json`. Any unclassified phase or missing repository evidence fails verification.

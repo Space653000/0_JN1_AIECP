@@ -120,7 +120,7 @@ It should answer four questions immediately:
 
 The app should prefer a single primary action over showing every possible control at once.
 
-Future versions may compute `recommendedNextAction` from state, for example:
+The current Guided Start computes `recommendedNextAction` from runtime state, for example:
 
 ```text
 NO_WORKSPACE      -> CHOOSE_WORKSPACE
@@ -192,12 +192,16 @@ Done requires evidence tied to measurable acceptance criteria, for example:
 
 A loop must be bounded.
 
-Supported budgets should include:
-- maximum iterations
-- optional wall-clock budget
-- optional provider-cost budget for API providers
-- optional local compute budget
-- optional maximum failed attempts
+Supported budgets include:
+- maximum iterations;
+- maximum agent/tool turns;
+- optional wall-clock budget;
+- optional provider-reported cost budget for providers that return numeric cost metadata (AECP does not invent pricing when a provider does not report it);
+- optional local compute budget measured from local provider execution plus deterministic verifier time;
+- optional maximum failed attempts;
+- patch-byte and changed-file hard limits for write-capable Harness execution.
+
+All enforced runtime budgets terminate as `BUDGET_EXHAUSTED`; they are persisted in the Goal Loop contract and exposed in the Goal Loop / Harness Command Center controls.
 
 ### 5.5 Checkpoints
 
@@ -265,7 +269,7 @@ Provider roles:
 - `reviewer` — independent verification/review
 - `vision` — optional visual inspection
 
-Example future configurations:
+Supported provider-neutral configurations include:
 
 ```text
 Supervisor = ChatGPT Web
@@ -291,7 +295,7 @@ Provider failure must not corrupt Workspace state. The Harness owns task state, 
 
 ## 8. Loop presets
 
-Future UI should offer task-shaped presets so users do not have to design loops manually.
+The Goal Loop UI provides task-shaped presets so users do not have to design loops manually. Presets populate editable Goal/Done/budget defaults; they never bypass policy or approval:
 
 ### Research Loop
 - gather evidence
@@ -360,7 +364,7 @@ Requires configured policy or checkpoint approval:
 - desktop UI changes
 
 ### Red
-Always requires explicit approval unless a future enterprise policy explicitly authorizes it:
+Always requires explicit approval unless an explicitly configured, separately audited enterprise policy authorizes it:
 - delete outside Workspace
 - Git push / force push
 - credentials/account changes
@@ -374,7 +378,7 @@ The model cannot grant itself more permission.
 
 ## 10. Remote supervision direction
 
-A future remote layer should copy the collaboration pattern of modern long-running agent systems without exposing the local machine directly to the public Internet.
+The implemented Remote Gateway provides bounded read-only/approval-only collaboration without exposing unrestricted local execution. It remains loopback-first; non-loopback requires explicit enablement + TLS, and remote task submission is intentionally disabled.
 
 Remote clients should see only:
 - active loops/tasks

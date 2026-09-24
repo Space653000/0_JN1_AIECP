@@ -68,20 +68,39 @@ CI: pending
 
 ## 5. Agent view
 
-Each agent card shows:
+Each Worker/agent card shows canonical runtime projection:
 
 ~~~text
-Claude-01
-Role: Reviewer
-State: WAITING
-Task: TASK-023-B
+Codex OFFICIAL
+Provider: OpenAI
+Model: <actual configured model>
+Role: Builder
+Task: TASK-023-A
+State: RUNNING
+Runtime: 00:12:31
+Repository: control-plane
+Worktree: <task-scoped worktree>
+Verify: PENDING
 Health: READY
-Provider: Claude Code
-Version: detected
-Workspace: control-plane
 ~~~
 
-No fake status is allowed. If the process cannot be verified, show UNKNOWN.
+~~~text
+Codex PEGA
+Provider: PEGA
+Model: <actual configured model>
+Role: Builder
+Task: TASK-023-B
+State: RUNNING
+Runtime: 00:08:04
+Repository: control-plane
+Worktree: <different task-scoped worktree>
+Verify: PASS
+Health: READY
+~~~
+
+Required fields are Worker name, Provider, Model, Role, Task, State, Runtime, Repository, Worktree, Verify state, Health and heartbeat/cancel state.
+
+No fake status is allowed. If process/provider/model/runtime state cannot be verified, show UNKNOWN. Dashboard must never infer state independently of the canonical Control Plane/Harness record.
 
 ## 6. Run timeline
 
@@ -159,9 +178,9 @@ Do not notify on every model token.
 
 ## 12. Mobile-ready design
 
-Desktop Dashboard exposes a compact read-only representation suitable for a future authenticated remote supervision gateway.
+Desktop Dashboard exposes a compact projection backed by the implemented authenticated Remote Gateway. Paired READ_ONLY devices can inspect bounded status/tasks/approvals/events; APPROVAL_ONLY devices may approve/reject only already-existing approval requests. Device revocation and replay protection are enforced.
 
-Remote commands remain a future capability and inherit local policy.
+Remote task submission remains intentionally disabled. Any future expansion inherits the same local policy and cannot widen authority implicitly.
 
 ## 13. Event retention
 
@@ -207,3 +226,17 @@ A novice should answer within one screen:
 6. What changed?
 7. Does it need me?
 8. What happens next?
+
+
+## 17. Runtime status — 2026-09-22
+
+The Harness Command Center is implemented as a live projection of the durable Control Plane. It currently exposes mission metrics, queue state, approvals, task state, PR/CI status, pause/resume/cancel, emergency STOP ALL and a journaled event stream. Delivery approval is explicitly separated from normal task approval and requires CI success plus human approval.
+
+The Dashboard remains a projection: canonical runtime state lives in the Control Plane, engineering truth remains GitHub, and event/evidence records provide replayable history.
+
+Required dashboard projection, remote read-only supervision foundation and accessibility hardening are implemented and covered by tests. Deeper visual artifact inspection or a dedicated mobile client are optional presentation enhancements, not missing control-plane authority or acceptance requirements.
+
+
+## Runtime closure update — 2026-09-19
+
+The current implementation also includes: signed GitHub webhook ingestion (opt-in), external-event idempotency, CI failed-log evidence, crash/restart recovery, repository-per-task routing, maintenance/worktree garbage collection, and an authenticated local read-only supervision gateway. GitHub commit-SHA polling remains the fallback when no webhook transport is configured. These capabilities are governed by the same Control Plane policy and are reflected in the Harness Command Center.

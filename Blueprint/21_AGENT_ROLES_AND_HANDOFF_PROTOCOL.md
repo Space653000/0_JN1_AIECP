@@ -4,6 +4,24 @@
 
 Define a vendor-neutral protocol so Claude Code, Codex CLI, Gemini CLI, local models, API providers and future agents cooperate without sharing hidden sessions.
 
+## 1A. Worker identity is separate from engineering role
+
+Planner / Builder / Reviewer remain stable roles. A Worker is the concrete runtime identity selected to perform a role.
+
+Examples:
+
+```text
+role: Builder
+worker: codex-official
+provider: openai-official
+
+role: Builder
+worker: codex-pega
+provider: pega
+```
+
+Role handoff schemas must not encode PEGA/OpenAI-specific state. Worker handoff includes only canonical worker/provider/model/task/worktree/evidence identifiers. Auth/session/CODEX_HOME internals are never passed between workers.
+
 ## 2. Stable roles
 
 | Role | Responsibility | May write code? |
@@ -179,3 +197,15 @@ without changing the Task schema.
 ~~~
 
 This is the primary observability contract for beginners.
+
+
+## 13. Runtime status — 2026-09-22
+
+The role contracts are now backed by a Provider Router foundation and the Control Plane uses Planner/Builder/Reviewer roles without making vendor identity part of Task state. Worker reports and evidence are persisted; reviewer outcomes drive bounded state transitions.
+
+A provider may be substituted without changing the task contract. Adapter-level policy coverage and deterministic integration tests are now part of canonical verification; real provider-specific production claims still require the corresponding actual runtime/credentials/environment.
+
+
+## Runtime closure update — 2026-09-19
+
+The current implementation also includes: signed GitHub webhook ingestion (opt-in), external-event idempotency, CI failed-log evidence, crash/restart recovery, repository-per-task routing, maintenance/worktree garbage collection, and an authenticated local read-only supervision gateway. GitHub commit-SHA polling remains the fallback when no webhook transport is configured. These capabilities are governed by the same Control Plane policy and are reflected in the Harness Command Center.

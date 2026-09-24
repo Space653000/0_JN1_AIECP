@@ -1,0 +1,418 @@
+# 23 — Implementation Status, Decisions and Remaining Work
+
+**Status date:** 2026-09-23  
+**Repository:** `Space653000/0_JN1_AIECP`
+**Current operator checkout:** `C:\0_JN1_AIECP`
+**Branch:** `feat/control-plane-complete-loop`  
+**Current integration vehicle:** PR #7  
+**Purpose:** This document is the authoritative implementation snapshot for the current AECP Harness / Control Plane expansion.
+
+## 0A. Approved Blueprint extension — isolated OFFICIAL / PEGA Multi-Worker
+
+The Master Blueprint now formally adopts the following target architecture:
+
+```text
+AECP
+ ↓
+Harness / Control Plane
+ ├─ Codex OFFICIAL Worker → OpenAI Official → isolated CODEX_HOME
+ ├─ Codex PEGA Worker     → PEGA           → isolated CODEX_HOME
+ ├─ Claude Code Planner / Reviewer
+ └─ Future Provider / Worker
+```
+
+This is an extension of the existing Harness architecture. It is **not** Dual Codex Desktop, a Dual Launcher, a second GUI, or a second Control Plane.
+
+### Blueprint / Runtime status
+
+- Master architecture integration: **DOCUMENTED**
+- Provider-vs-Worker contract: **IMPLEMENTED + TESTED**
+- PEGA Provider Adapter contract: **IMPLEMENTED + TESTED**; real endpoint behavior remains ENVIRONMENT-gated
+- isolated OFFICIAL/PEGA `CODEX_HOME`: **IMPLEMENTED + TESTED**
+- Worker Registry/runtime persistence: **IMPLEMENTED + TESTED**
+- Worker pool scheduling with distinct Worker selection: **IMPLEMENTED + TESTED**
+- same-repository parallel task isolation through task-scoped worktrees/locks: **IMPLEMENTED + TESTED**
+- task-scoped cancel isolation and mission STOP ALL authority: **IMPLEMENTED + TESTED**
+- Worker-specific Dashboard projection for Worker/Provider/Model/Role/Task/State/Runtime/Worktree/Verify/Health: **IMPLEMENTED + TESTED**
+- Codex OFFICIAL explicit isolated login flow: **IMPLEMENTED + TESTED**
+- Mission-start provider refresh after login/config changes: **IMPLEMENTED + TESTED**
+- real PEGA endpoint/model/auth evidence: **ENVIRONMENT NOT YET VERIFIED**
+- real OFFICIAL + PEGA simultaneous provider execution on the target Windows machine: **ENVIRONMENT NOT YET VERIFIED**
+- Windows x64/ARM64 repository build/package gates for the extension: **CI VERIFIED on exact source commits when the matching workflows are green**; real provider execution on ARM64 remains ENVIRONMENT-gated
+
+The extension reuses the existing Provider Router, Scheduler, isolated worktrees, locks, bounded execution, deterministic verification, Evidence, GitHub/CI and Dashboard foundations; no duplicate Control Plane or Dual Codex GUI was introduced.
+
+The authoritative acceptance rule remains: **Blueprint presence is not Runtime completion, and repository tests are not real-provider evidence.** Runtime claims require implementation + deterministic tests + exact-HEAD CI. Real PEGA/OpenAI Worker claims additionally require ENVIRONMENT evidence from the actual endpoint/model/auth/runtime.
+
+## 0C. Provider evidence architecture hard gate — 2026-09-23
+
+- Real-provider workflow now accepts an explicit `expected_arch: any | x64 | arm64`.
+- The self-hosted runner fails before provider execution when `process.arch` does not match the requested architecture.
+- Provider evidence persists both actual `arch` and `expectedArch`; provenance verification rejects mismatches.
+- Deterministic tests and canonical acceptance audit cover the architecture gate.
+- Exact-head commit `2d16de141d52e1f3a38c4803435b9235a2953300` passed AECP Security #675, AECP CI #804, AECP Packaging #718 and Build and Release #466.
+- This closes the **software-side ARM64 evidence selection gate only**. A real ARM64 OFFICIAL/PEGA run is still **ENVIRONMENT NOT YET VERIFIED**.
+
+## 0B. V3.0 progress visibility and audit — 2026-09-23
+
+- Added `Reports/V3_IMPLEMENTATION_PROGRESS_REPORT.md` as the detailed V3.0 progress ledger.
+- Command Center now includes **V3.0 Multi-Worker Readiness** using canonical Worker state for Worker Registry, CODEX_HOME isolation, parallel runtime, OFFICIAL health and PEGA health.
+- Real OFFICIAL/PEGA execution is explicitly displayed as **ENVIRONMENT GATE** and cannot become green from source tests or provider health alone.
+- Acceptance audit now requires the V3.0 report and verifies that DOCUMENTED / IMPLEMENTED / TESTED / CI / ENVIRONMENT / OWNER-EXTERNAL evidence classes remain separated.
+- The latest exact-HEAD CI result must always be re-read after these reporting/UI commits; the prior green commit does not automatically certify a newer source commit.
+
+## 1. Current architecture actually implemented
+
+The implemented runtime now contains these layers:
+
+```text
+Official ChatGPT Web
+        │
+        │ Safe Bridge / future official MCP
+        ▼
+AECP Command Center
+        │
+        ▼
+Control Plane
+  Mission / Plan / Task DAG
+  Queue / Scheduler / Lease
+  Policy / Approval
+  Lock / Recovery
+  Event Journal
+  Evidence / Context Capsule
+        │
+        ├── Planner / Reviewer → provider router
+        ├── Builder → isolated worktree
+        └── Verifier → deterministic gate
+        │
+        ▼
+Git / GitHub
+        │
+        ├── governed branch
+        ├── Draft PR
+        └── GitHub Actions CI
+                │
+        ┌───────┴────────┐
+        │                │
+       PASS             FAIL
+        │                │
+ Human approval       bounded REWORK
+        │                │
+      MERGE ◄───────────┘
+        │
+       DONE
+```
+
+## 2. Implemented baseline
+
+### Control Plane
+- Durable mission/task state.
+- Planner-driven task decomposition.
+- Bounded scheduler and configurable concurrency.
+- Task dependency checks.
+- Task leases and heartbeat.
+- Stale lease recovery after restart.
+- Pause / resume / cancel.
+- Human approval queue.
+- Mission/task/event status exposed through Electron IPC.
+- Emergency STOP ALL.
+
+### Harness execution
+- Planner → Builder → deterministic Verify → Reviewer.
+- Isolated task worktrees.
+- Bounded iterations.
+- Reviewer outcomes including PASS / REWORK / HUMAN_REQUIRED.
+- Per-run evidence roots.
+- Result capsules.
+
+### Governance
+- Security action classes: READ, TEST, WRITE, INSTALL, COMMIT, PUSH, PR, MERGE, DELETE, CREDENTIAL, SYSTEM.
+- GREEN / YELLOW / RED risk model.
+- Workspace write policy enforced before Builder execution.
+- High-risk merge requires explicit human approval.
+- CI must pass before governed merge.
+- Agent cannot grant itself permission.
+
+### GitHub delivery
+- GitHub CLI gateway.
+- Task branch convention: `agent/<task-id>`.
+- Idempotent Draft PR creation on retries.
+- CI monitoring by commit SHA.
+- CI failure returns task to bounded rework.
+- CI success is persisted as task evidence/state.
+- Governed human merge path.
+- No unrestricted automatic merge/push.
+
+### Observability
+- Durable JSON state.
+- JSONL event journal.
+- Per-run event evidence.
+- Event replay API.
+- Evidence hashing / manifests.
+- Command Center with missions, tasks, approvals, CI, PR and event stream.
+
+### Extensibility
+- Role-based Provider Router.
+- Claude / Codex / Gemini / OpenCode / Ollama adapter foundation.
+- Context Bus with bounded capsules and TTL.
+- GitHub / CI / Delivery adapters separated from core state machine.
+
+### CI
+- Canonical AECP verification workflow runs the full `npm verify` gate on Windows.
+- Security workflow runs independently on Ubuntu.
+- Packaging workflow is separated from canonical verification to avoid duplicate/cancelled verification runs.
+- Current-head CI status is always read from GitHub Actions and is **not** recorded as passed until the exact commit reports success.
+
+## 3. Important decisions now frozen
+
+1. **GitHub is engineering Source of Truth.**
+2. **Harness runtime state is separate from GitHub source state.**
+3. **Dashboard is a projection, never an independent source of truth.**
+4. **Official ChatGPT Web is not scraped or DOM-controlled.**
+5. **Roles are stable; vendors/providers are replaceable.**
+6. **Worker success claims are never sufficient.**
+7. **Deterministic verification is mandatory.**
+8. **All autonomous loops are bounded.**
+9. **High-risk operations require policy + explicit human approval.**
+10. **Task retries reuse the task identity and delivery branch where possible.**
+11. **CI failure is engineering feedback, not a terminal mystery.**
+12. **Evidence and event history must survive process restart.**
+13. **Parallelism is allowed only when task/resource isolation is proven.**
+14. **No secret, cookie, password or ChatGPT session token is copied into the project.**
+
+## 4. Current maturity assessment
+
+| Layer | State |
+|---|---|
+| Safe Bridge | Implemented |
+| Local bounded worker | Implemented |
+| Planner / Worker / Reviewer | Implemented |
+| Durable Task Queue | Implemented |
+| Bounded scheduler | Implemented |
+| Locks / leases / heartbeat | Implemented |
+| Evidence / event journal | Implemented |
+| Security policy / adapter audit | Implemented; high-risk actions remain approval-gated |
+| Provider routing | Implemented in canonical Harness with role-specific selection |
+| Governed GitHub delivery | Implemented for branch/commit/push/Draft PR/CI; merge human-gated |
+| CI monitoring / bounded rework | Implemented |
+| Governed PR approval / merge path | Implemented |
+| Full crash-safe substep resume | Implemented |
+| Full multi-repository routing | Implemented for repository-per-task execution |
+| Complete GitHub event/webhook/event-bus integration | Hardened — signed inbound receiver + polling fallback; production deployment/tunnel remains external |
+| Full security enforcement across every adapter | Implemented through explicit adapter security matrix + runtime SecurityPolicy; high-risk/credential/system actions remain approval-gated |
+| Remote authenticated supervision | READ_ONLY + APPROVAL_ONLY pairing/revocation implemented; remote task submission disabled; non-loopback requires explicit enablement + TLS |
+| Windows UI automation | Scoped read-only inspection implemented; browser/ChatGPT deny-by-default; state-changing docking requires SYSTEM approval |
+| Public/remote gateway | Software boundary implemented; public deployment disabled by default and remains operator-owned |
+| Private Store distribution | Software-side implemented: x64/ARM64 AppX build, manifest validation, owner-identity bundle/provenance; Partner Center submission/certification remains EXTERNAL OWNER GATE |
+| One-click production-grade updater | Software-side implemented: SHA-256, durable transaction, first-boot health, retained rollback, x64/ARM64 upgrade→rollback smoke, optional pinned Authenticode signer; production signing trust remains EXTERNAL OWNER GATE |
+| Full integration/E2E test suite | Repository-verifiable canonical/provider/pairing/security + Windows x64/ARM64/Store/install/upgrade/rollback/Universal smoke implemented; real-provider execution remains environment-specific |
+| Maintenance / garbage collection automation | Implemented bounded scheduler/retention |
+
+## 5. Closure status — repository work vs external gates
+
+### P0 — Make the current loop production-correct
+- Crash-safe phase persistence/resume — completed for orphaned execution and pending CI monitoring.
+- CI state transitions/idempotency — completed in delivery/event paths.
+- Correlation IDs/idempotency keys — implemented via event ledger and GitHub delivery IDs.
+- PR rework idempotency — completed; existing delivery branch/PR is reused.
+- GitHub workflow/job/log evidence — completed for CI completion and failed logs.
+- Temporary Git/infrastructure hardening tests — implemented with canonical-loop E2E plus requirements/Blueprint/acceptance coverage audits; real provider-backed execution remains environment-specific.
+- High-risk SecurityPolicy enforcement — implemented across the audited adapter matrix; missing adapter decisions fail deterministic verification.
+
+### P1 — Multi-repository engineering
+- Resource graph bindings for tasks — completed.
+- Per-repository locks — completed.
+- Multiple worktrees/repositories in one mission — completed at task routing layer.
+- Cross-repo dependency scheduling — completed through task DAG/resource binding.
+- GitHub repository routing — completed.
+- Branch/PR/CI/evidence/event state projection into Dashboard — implemented; Dashboard remains a projection rather than Source of Truth.
+
+### P2 — Event-driven Control Plane
+- Authenticated GitHub webhook receiver — completed, opt-in.
+- Event signature verification — completed.
+- Correlation and replay protection — completed.
+- External event deduplication — completed.
+- Polling fallback retained when webhook is unavailable.
+- Materialized event projection — implemented; Dashboard remains a projection and never Source of Truth.
+
+### P3 — Maintenance / self-healing
+- Expired lease cleanup — completed.
+- Evidence/artifact retention policy — completed.
+- Orphan worktree cleanup — completed.
+- Failed-run recovery assistant — bounded evidence/log-aware classifier + safe auto-rework implemented; credential/permission/policy/production/unknown classes remain HUMAN_REQUIRED.
+- Dependency/security/documentation drift scans — bounded scanners implemented and covered by canonical verification; they diagnose but never silently mutate dependencies or documentation.
+- Scheduled maintenance tasks with bounded budgets — completed.
+
+### P4 — Distribution
+- x64/ARM64 architecture-specific builds — implemented in Packaging workflow; exact-HEAD Actions determine PASS.
+- Universal architecture-selecting bootstrap — implemented with Windows-runner x64/ARM64 selection/install/uninstall smoke.
+- Silent install/uninstall smoke on x64/ARM64 — repository-verifiable on GitHub Windows runners.
+- Store AppX x64/ARM64 build + manifest/identity/architecture/capability validation — implemented in PR Packaging.
+- Owner-identity Store submission bundle + SHA-256 + provenance preparation — implemented; Partner Center submission/certification/private-audience acquisition is **EXTERNAL OWNER GATE**.
+- SHA-256 release verification, durable updater transaction, first-boot reconciliation, retained rollback and backup/restore — implemented.
+- Real NSIS baseline → upgrade → rollback smoke — implemented on x64 and ARM64 Windows runners.
+- Stable signed builds support pinned Authenticode signer verification for target + rollback installers.
+- Owner-gated signed-release workflow prepares/verifies signed x64/ARM64/Universal artifacts and signed provenance when owner certificate secrets are supplied.
+- Production certificate ownership/secrets and owner-authorized signed publication remain **EXTERNAL OWNER GATE**.
+
+### P5 — Remote/mobile
+- One-time authenticated device pairing and revocation — implemented.
+- READ_ONLY status/tasks/approvals/events supervision — implemented.
+- APPROVAL_ONLY decision of existing approvals — implemented with request-id replay safety.
+- Remote task submission — intentionally disabled.
+- Non-loopback binding — requires explicit `allowRemote=true` plus TLS; public deployment/domain/device identity is **EXTERNAL OWNER GATE**.
+- No public inbound port by default.
+
+## 6. Non-goals / permanent boundaries
+
+AECP will not use:
+- ChatGPT DOM scraping;
+- undocumented ChatGPT APIs;
+- cookie/session-token extraction;
+- unrestricted AI shell execution;
+- hidden background clipboard polling;
+- automatic high-risk merge without explicit approval;
+- infinite autonomous loops;
+- public exposure of the local machine by default.
+
+## 7. Completion definition
+
+AECP should not be called production-complete until:
+
+- all P0 items are green;
+- multi-repo state is deterministic;
+- external GitHub events are authenticated/idempotent;
+- crash recovery is demonstrated;
+- every high-risk action is policy-enforced;
+- clean-machine install/update tests pass;
+- integration/E2E tests cover the canonical loop;
+- evidence can reconstruct every accepted task;
+- mobile/remote controls inherit exactly the same local policy;
+- release artifacts are trusted and rollbackable.
+
+**Bottom line:** the project has moved from a Blueprint-only concept to a governed Control Plane whose repository-verifiable normative requirements are covered by deterministic tests/audits/workflows. Remaining incompleteness is external trust/account/provider/deployment evidence or capabilities intentionally denied by the current security boundary—not an untracked repository implementation backlog.
+
+
+## Latest hardening completed
+
+- Crash recovery now re-queues orphaned execution phases and resumes pending GitHub CI monitoring after restart.
+- CI failures now capture failed GitHub logs into immutable evidence.
+- CI-passing delivery transitions to HUMAN_REQUIRED and creates the explicit merge approval record.
+- Rework resumes from the existing delivery branch instead of silently restarting from main.
+- Delivery commit/push/PR paths are explicitly policy-gated by the mission's governed delivery opt-in.
+- Repository discovery and task-to-repository routing are now part of mission planning; each task executes against its selected Git repository and locks its resources.
+- External event idempotency ledger, signed GitHub webhook receiver, maintenance/retention service and local authenticated read-only gateway are implemented.
+- Release pipeline runs a non-publishing PR dry-run and publishes only on explicit version tags; production Authenticode publication remains a separate owner-authorized manual workflow.
+
+## Multi-Worker Runtime implementation update — 2026-09-23
+
+- Added durable `WorkerRegistry` with independent Worker identity, process/task assignment, heartbeat, verification state, cancellation state and restart-safe UNKNOWN recovery semantics.
+- Added `CodexWorkerRuntime` with physically distinct `CODEX_HOME` roots for `codex-official` and `codex-pega`; PEGA credentials are injected through the Worker process environment and are not written into Codex config.
+- Added first-class PEGA Provider Adapter for `https://aiapi.t-cyber.com/v1`, with explicit `responses` / `chat` wire selection and no PEGA-specific Task/Queue state machine.
+- Control Plane missions can select a Builder Worker pool. Scheduler reserves distinct idle Workers, records Worker/Provider/Model decisions and refuses silent fallback when the selected Worker authority is unavailable.
+- Same-repository parallel tasks use distinct task-scoped worktree roots/locks; Git worktree administrative mutation remains serialized behind a repository-level admin lock.
+- Task cancellation marks/aborts only its selected Worker/task. Mission cancellation remains global for that mission, and Dashboard STOP ALL retains operator authority over all active missions.
+- Harness Builder invocation receives the selected Worker's Provider/Model and isolated runtime environment. Deterministic Verify/Reviewer/Evidence remain authoritative over Worker self-report.
+- Dashboard now projects canonical Worker runtime fields and health; it shows UNKNOWN when runtime/provider state cannot be verified.
+- Mission creation now refreshes runtime Provider state immediately before scheduling so a newly completed isolated OFFICIAL login or updated provider credential/model cannot leave a stale Control Plane auth snapshot.
+- Deterministic tests cover CODEX_HOME isolation, secret non-persistence, concurrent Worker assignment, same-Worker double-assignment denial, cancel isolation, restart UNKNOWN state, scheduler Worker selection, same-repository worktree-lock isolation and mission-time Provider refresh.
+- Real OFFICIAL/PEGA network/model execution is still an **ENVIRONMENT gate** and must not be inferred from mocks, source tests or CI packaging.
+
+## Latest repository closure hardening — 2026-09-23
+
+- Provider health now exposes bounded `NOT_CONFIGURED / READY / DEGRADED / UNAVAILABLE / AUTH_REQUIRED` states; live network/credential health probes require explicit approval.
+- Provider usage observability persists only bounded numeric metadata (request outcome, model/role, latency, token/cost fields when supplied); prompts, responses, credentials and error bodies are excluded.
+- A dedicated self-hosted Windows provider-evidence workflow now exists for real Ollama, OpenCode+Ollama, fixed company/local worker and canonical local Harness execution. It is an **ENVIRONMENT gate** until an actual `aecp-provider` runner produces exact-source PASS evidence.
+- Mission-level Harness budgets are durable and operator-visible: provider calls, failed/no-progress attempts, optional wall-clock, output, patch bytes, changed files, task count, iterations and process timeouts.
+- Local-data governance is implemented in Settings with native confirmation: clear evidence, remove Workspace binding, clear credentials and reset AECP active state. These operations are blocked while mutating work is active and do not delete Workspace/project files.
+- Harness, bounded Autonomy and Control Plane mutating execution are mutually exclusive on the desktop runtime.
+- Dashboard acceptance is now deterministic: the novice eight-question view, authoritative human controls, event projection and accessibility requirements are regression-tested.
+
+## Remaining external dependency
+
+The remaining capabilities that cannot be made genuinely production-complete by repository code alone are external trust/account/environment operations: Microsoft Store publisher identity/certification/submission/private-audience acquisition, production code-signing certificate ownership/secrets and authorized signing run, optional LAN/Internet remote-gateway deployment with a user-owned domain/device identity, and real provider execution requiring actual local/company/provider runtimes or credentials. AECP contains the software-side packaging, Store bundle, signer verification, signed-release preparation, checksum/provenance, release, policy and gateway foundations for those operations. Real provider execution now has a dedicated self-hosted Windows evidence workflow; until that workflow runs on the actual machine/model/worker and emits a matching exact-source PASS artifact, the provider environment remains an external evidence gate.
+
+
+## Autonomous hardening record — 2026-09-19
+
+### Engineering gates closed in this tranche
+1. **Failure Recovery Assistant** — bounded classifier + low-risk auto-rework implemented; richer evidence-driven diagnosis remains bounded by existing authority.
+2. **Adapter Security Audit Matrix** — explicit SecurityPolicy decisions are now required for READ/WRITE/EXECUTE/NETWORK/CREDENTIAL actions.
+3. **Clean E2E Matrix** — temporary-Git infrastructure coverage plus x64/ARM64/Universal Windows-runner install/uninstall, Store package validation and upgrade→rollback smoke workflows are implemented. Real Ollama/OpenCode/company-worker execution is wired to the dedicated self-hosted provider evidence workflow and remains environment-gated until that machine reports PASS.
+4. **Release Gate** — repository CI proves unsigned x64/ARM64/Universal build/install/uninstall, Store AppX build/manifest validation, SHA-256/provenance, and x64/ARM64 installer upgrade→rollback behavior; signer pinning/signed-release software is implemented, while actual production signing/Store trust remains an owner gate.
+5. **Remote Pairing Gate** — authenticated one-time pairing, read-only credentials and revocation are implemented; LAN/Internet transport remains gated.
+6. **Drift Scans** — scheduled dependency, security, Blueprint/code and documentation consistency scanners are implemented.
+7. **Normative coverage** — R1–R8 requirements coverage, Blueprint 00–24 evidence coverage and P0–P7 phase-by-phase roadmap-gate coverage are canonical `npm verify` gates.
+
+### Definition of done
+Repository-verifiable engineering completion requires all six software gates, normative requirement/Blueprint coverage and exact-HEAD CI/Security/Packaging/release-dry-run evidence. The canonical acceptance report now lists all four exact-commit workflows explicitly; no documentation-only PASS is accepted. A separate **Production Trust Ready** claim additionally requires owner-controlled signing/Store/provider/deployment evidence; those external operations are never fabricated by repository tests.
+
+
+### Latest implementation update
+The bounded Failure Recovery Assistant is now in the runtime path: transient/deterministic failures receive a constrained rework recommendation; credential, permission, policy, production and unknown failures remain HUMAN_REQUIRED. It never executes arbitrary remediation.
+
+
+### Autonomous maintenance hardening — 2026-09-19
+
+The maintenance loop now includes a bounded, non-mutating Blueprint/documentation drift scanner. It checks the authoritative Blueprint/README/status files and emits findings into maintenance results; it does not silently rewrite project documentation. This is a diagnostic gate, not a claim of production readiness.
+
+
+### Security / recovery hardening — 2026-09-19
+
+- Added an explicit adapter security matrix covering filesystem, shell, git, GitHub, browser, desktop, Python, local compute, all provider adapters, remote gateway and webhook ingestion.
+- Every adapter now has an explicit READ/WRITE/EXECUTE/NETWORK/CREDENTIAL decision; missing decisions fail the audit.
+- Workspace WRITE remains policy-governed but no longer forces a human gate for ordinary bounded local engineering. High-risk publish/merge/delete/credential/system actions remain approval-gated.
+- Failure Recovery Assistant now consumes error/phase/CI/evidence/log signals, emits a bounded recovery plan, records NO_NEW_PERMISSIONS, and requires evidence for the recovery decision.
+- CI failure recovery now uses the same classifier rather than treating every CI failure as automatically safe to rework.
+- Maintenance scans actual mission repository roots for Blueprint/documentation drift and reports adapter-security audit findings.
+
+
+### Remote supervision hardening — 2026-09-19
+
+- Added expiring one-time device pairing codes with short-lived read-only device tokens.
+- Added device revocation and device inventory endpoints behind bootstrap authorization.
+- Remote Gateway remains loopback-only by default; pairing does not open a public port and does not grant task execution or write capability.
+
+### Deterministic E2E hardening — 2026-09-19
+
+- Added a clean temporary-Git canonical-loop infrastructure test covering repository discovery, policy gates, locks, event idempotency, evidence, bounded recovery and maintenance drift/security results without requiring external model credentials.
+- This is an infrastructure E2E layer; Windows packaging/install smoke is repository-verifiable in Actions, while provider-backed execution and owner trust credentials remain separate environment/owner gates.
+- Harness provider execution now passes through the Control Plane EXECUTE policy before Planner, Builder, Reviewer and deterministic verifier processes start.
+
+### Dependency/security drift hardening — 2026-09-19
+
+- Added a bounded dependency/security drift scanner using npm audit results and optional outdated-package inspection.
+- Maintenance runs security drift scans on mission repositories on a long interval rather than every scheduler tick; failures are recorded as diagnostics instead of silently changing dependencies.
+- High/critical npm vulnerabilities are represented as an ERROR finding; no automatic dependency upgrade is performed.
+
+### Crash-safe substep resume — 2026-09-19
+
+- Harness run state is persisted in harness.json at each transition/event.
+- Restart recovery now reuses the same task run root and resumes persisted task state instead of always rebuilding from a fresh Harness run.
+- Completed tasks are skipped, human-gated tasks remain gated, and unfinished tasks continue within the original bounded iteration budget.
+
+### Release installer hardening — 2026-09-19
+
+- Added a self-contained Windows bootstrap installer source that detects x64 vs ARM64 at runtime and launches the matching embedded NSIS payload.
+- Release workflow now verifies source, builds x64/ARM64/Auto/Universal artifacts, performs Store dry-run packaging, executes x64/ARM64 upgrade→rollback smoke, emits SHA-256/provenance, and publishes only for explicit version tags.
+- Packaging performs architecture-specific + Universal Windows-runner install/uninstall smoke, Store AppX manifest validation, and real installer upgrade/rollback smoke. PASS is accepted only from the exact PR HEAD Actions run.
+- Stable update software now supports pinned Authenticode signer verification; the owner-gated signed-release workflow verifies signed x64/ARM64/Universal artifacts and emits signed provenance without storing certificate material in the repository.
+
+
+## Exact-HEAD verification hardening — 2026-09-22
+
+- AECP CI, AECP Security and AECP Packaging explicitly checkout `pull_request.head.sha` for PR verification instead of implicitly testing GitHub's synthetic merge commit.
+- Acceptance Audit fails if the exact-head checkout contract is removed.
+- Workflow artifacts/evidence are tied to the exact PR HEAD where applicable.
+- Documentation never records a static PASS as a substitute for the live GitHub Actions result.
+
+## 2026-09-24 施工單 0001–0004 更新
+
+本節為既有實作快照的 append-only 補記；即時、整併狀態以 [`.ai/STATUS.md`](../.ai/STATUS.md) 為準。以下是倉庫內施工與測試能力，不等同外部實機驗收或正式發行。
+
+- **0001：** 補上 `run()` 的 timeout、abort、輸出上限、exit 寬限資料及 late close 收斂測試；將 README 舊狀態封存到 `Reports/README_STATUS_HISTORY.md`，保留單一 Current status；新增 `Reports/ENVIRONMENT_EVIDENCE_RUNBOOK.md`，逐項列明環境證據、操作與缺口。0001 已由 Claude Code 驗收 CLOSED。
+- **0002：** 擴充真實供應商證據協定：OFFICIAL、PEGA、固定 local-command 透過暫存 Git worktree 做獨立檔案 verifier；新增 `codex-fault-isolation` 階段、暫存 WorkerRegistry 觀察、健康方不代跑、auth/config 保護斷言與 recovery health；同步更新環境 runbook。Safe Bridge 純 Node 唯讀路徑未能在無 Electron 下驗證，保留缺口。
+- **0003：** 新增唯讀 JSON 證據驗證器與機密掃描；供應商 workflow 依 `X64`／`ARM64` 標籤選擇 self-hosted runner，並保留 runtime architecture hard gate；新增 `Reports/PR7_MERGE_READINESS.md` 作為 PR #7 的時間點快照與人工合併清單，未合併 PR。
+- **0004：** 新增 ARM64 UI、使用者筆電 verifier 安全、Official Full MCP 三種 owner JSON 範本及姊妹驗證器；新增 `Reports/OWNER_GATES_RUNBOOK.md`，列出 Authenticode、Partner Center、選用遠端閘道與正式生產供應商宣稱的 owner 操作和缺口。
+
+所有 **ENVIRONMENT** 與 **OWNER-EXTERNAL** 閘門仍未完成；真實機器、帳號、憑證、供應商、Store 和受支援 ChatGPT workspace 證據必須另行取得並依 [`.ai/ACCEPTANCE.md`](../.ai/ACCEPTANCE.md) 驗收。倉庫測試、範本或 CI PASS 不可代替這些證據，亦不可據此宣稱 Official Full MCP Ready、Store 認證或正式生產供應商就緒。

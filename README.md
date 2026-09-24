@@ -2,7 +2,9 @@
 
 **AI Engineering Control Plane (AECP)** is a Windows-first local control plane that lets you keep using **official ChatGPT Web** as your conversational AI while AECP manages the local engineering side: Workspace boundaries, repositories, task state, local tools, evidence, and future provider adapters.
 
-> **Target release: v0.3.0 Preview.** Official ChatGPT Web remains the normal supervisor. v0.3 adds real bounded autonomous execution: AECP builds in an isolated Git worktree, verifies each iteration, and only applies a verified patch to your real Workspace after your explicit approval.
+> **Current package version: v0.3.0 Preview (`package.json`).**「V3.0 Multi-Worker」是施工藍圖的階段名稱，並非已發布的 3.0.0 版本。官方 ChatGPT Web 仍是主要對話介面；AECP 透過隔離 Git worktree 執行有界施工，驗證後才可經使用者明確操作套用變更。
+
+專案施工依據：[藍圖入口](.ai/BLUEPRINT.md) · [驗收標準](.ai/ACCEPTANCE.md) · [持續維護的施工狀態](.ai/STATUS.md) · [Codex 工作入口](AGENTS.md)。
 
 ## The idea in one picture
 
@@ -198,8 +200,35 @@ AECP verifier
 - 原 Workspace 在執行期間不會被 Worker 直接修改。
 - OpenCode autonomous 模式拒絕 external directory 與任意 shell；只開放 worktree 內的讀寫與少量 read-only Git。
 - Codex autonomous 模式使用 `workspace-write` sandbox 並關閉 sandbox network。
-- AECP 不會自動 commit / push / release。
+- AECP 只有在 mission 明確啟用 governed delivery 且 SecurityPolicy 允許時，才會在 agent branch 進行 bounded commit / push / Draft PR；**Merge 與正式 Release 仍必須通過 CI 與人工授權**。
 - 原 Workspace 如果在執行期間被你改過、HEAD 變了、或變 Dirty，**Apply 會拒絕**。
+
+---
+
+# Multi-Worker：Codex OFFICIAL + Codex PEGA
+
+AECP 現在把 **Provider** 與 **Worker** 分開管理。使用者仍只操作一個 AECP；Harness/Control Plane 可以把不同 Builder task 派給不同、彼此隔離的 Codex Worker。
+
+```text
+AECP
+ ↓
+Harness / Control Plane
+ ├─ Codex OFFICIAL → OpenAI Official → isolated CODEX_HOME
+ └─ Codex PEGA     → PEGA            → isolated CODEX_HOME
+```
+
+核心規則：
+
+- OFFICIAL 與 PEGA 使用不同 `CODEX_HOME`、auth/session/runtime state。
+- 同一 repository 要平行施工時，各 task 使用不同 Git worktree。
+- Worker 不可繞過 Harness 自行取得 Workspace、網路、credential、push 或 merge 權限。
+- NETWORK / CREDENTIAL 仍需受控批准。
+- 單一 task cancel 只取消該 task / Worker；Dashboard 的 **STOP ALL** 才是全域停止入口。
+- Dashboard 顯示 Worker / Provider / Model / Role / Task / State / Runtime / Worktree / Verify / Health；無法驗證時顯示 UNKNOWN。
+- PEGA 固定以 Provider Adapter 接到 `https://aiapi.t-cyber.com/v1`，目前支援明確選擇 Responses 或 Chat Completions wire API。
+- repository tests/CI 可以證明隔離、排程與介面；**真 OFFICIAL / PEGA endpoint、model、auth、雙 Worker 同時執行仍必須由 self-hosted Windows ENVIRONMENT evidence 證明**。
+
+這不是 Dual Codex Desktop、Dual Launcher，也不是兩套 Control Plane。
 
 ---
 
@@ -290,7 +319,7 @@ AECP 不會把 GitHub Token 抽出來交給 ChatGPT，也不會把 Token 存進�
 
 更新時 AECP 只接受固定 repository：
 
-`Space653000/AI-Engineering-Control-Plane`
+`Space653000/0_JN1_AIECP`
 
 並且只會：
 
@@ -439,14 +468,16 @@ OpenCode 特別適合作為 Local Autonomous worker，因為它可以作為本�
 | Arbitrary AI shell execution | ❌ | v0.3.0 刻意禁止 |
 | Bounded autonomous file modification | ✅ | isolated Git worktree + deterministic verification + verified patch/apply |
 | Harness Planner → Builder → Verify → Reviewer | ✅ | bounded multi-task orchestration with rework and HUMAN_REQUIRED stop states |
-| Durable multi-process scheduler / parallel workers | ⏳ | architecture documented; runtime hardening remains |
-| Automated GitHub PR / CI event feedback loop | ⏳ | GitHub integration is present, full Harness callback loop remains |
-| Autonomous Git commit/push | ❌ | v0.3 刻意保持未 commit；push/publish 仍需後續高風險 gate |
-| Arbitrary Windows GUI control | ❌ | 後續 desktop-control adapter |
+| Durable scheduler / bounded parallel workers | ✅ | persisted queue, leases, recovery, concurrency and locks |
+| Governed GitHub delivery / CI | ✅ | governed branch/commit/push/Draft PR, exact-HEAD CI feedback, signed webhook ingestion; merge remains human-gated |
+| Unrestricted autonomous publish/merge | ❌ | commit/push/PR only through governed delivery policy; merge/delete/credential/system remain approval-gated |
+| Windows UI Automation (read-only) | ✅ scoped | general Windows UI tree inspection; browser/ChatGPT inspection deny-by-default; window-state changes require SYSTEM approval |
+| Arbitrary Windows GUI control | ❌ | unrestricted desktop control is intentionally not exposed |
 | ChatGPT DOM scraping/injection | ❌ | 不是產品方向 |
-| External API provider execution | ❌ | v0.3.0 只有 Registry foundation |
-| Public Remote MCP exposure | ❌ | 不自動把本機暴露到公網 |
-| Mobile remote local execution | ❌ | Roadmap，不是 v0.3.0 功能 |
+| Role-based provider router | ✅ | Claude/Codex/Gemini/OpenCode/Ollama plus fixed local-command/OpenAI-compatible foundations behind stable roles |
+| Remote supervision / pairing | ✅ scoped | READ_ONLY and APPROVAL_ONLY paired devices, revocation and replay-safe approval of existing requests |
+| Public Remote MCP exposure | ❌ | non-loopback requires explicit enablement + TLS; no public inbound port by default |
+| Remote task submission | ❌ | paired remote clients cannot create tasks; this remains intentionally disabled |
 
 ---
 
@@ -489,15 +520,15 @@ OpenCode 特別適合作為 Local Autonomous worker，因為它可以作為本�
 
 - **ChatGPT Web** — 不需 API key，使用 Safe Bridge
 
-架構已預留：
+Provider Registry / Router 現在支援：
 
-- API Provider
-- Local Provider
-- Remote MCP Provider
+- API Provider（明確設定的 OpenAI-compatible endpoint）
+- Local Provider（Ollama / OpenCode / fixed local-command）
+- Remote MCP Provider metadata / readiness foundation
 
-如果未來輸入 API key，AECP 使用 Electron/Windows OS-backed `safeStorage` 保存；plaintext 不寫進 project repository。
+輸入 API key 時，AECP 使用 Electron/Windows OS-backed `safeStorage` 保存；plaintext 不寫進 project repository。
 
-**v0.3.0 尚未呼叫這些外部 API。** Provider Registry 先建立是為了未來換模型時不用重寫 Local Harness。
+**v0.3.0 已具備受治理的 Provider execution foundation。** 固定 CLI/local-command、Ollama/OpenCode 與明確設定的 OpenAI-compatible API adapter 可由同一個 Provider Router 執行；API/Remote health 或 credential-backed live probe 仍需明確 NETWORK/CREDENTIAL approval。實際第三方帳號、公司端點或本機模型的 production claim 仍必須由真實環境 evidence 證明。
 
 ---
 
@@ -511,7 +542,7 @@ OpenCode 特別適合作為 Local Autonomous worker，因為它可以作為本�
 - 任意控制 Windows GUI
 - scrape / automate ChatGPT DOM
 - 規避 ChatGPT usage limit
-- 實際呼叫已保存的外部 API provider
+- 未經 NETWORK/CREDENTIAL approval 就呼叫外部 API provider
 - 自動把本地 MCP server 暴露到 Internet
 - 提供手機遠端本地施工
 
@@ -521,7 +552,7 @@ OpenCode 特別適合作為 Local Autonomous worker，因為它可以作為本�
 
 # Architecture / Blueprint
 
-完整 Source of Truth：[`Blueprint/`](Blueprint/INDEX.md)
+施工入口為 [`.ai/BLUEPRINT.md`](.ai/BLUEPRINT.md)；原始藍圖與歷史資料完整保留於 [`Blueprint/`](Blueprint/INDEX.md)。驗收與施工進度分別見 [`.ai/ACCEPTANCE.md`](.ai/ACCEPTANCE.md) 及 [`.ai/STATUS.md`](.ai/STATUS.md)。
 
 核心文件：
 
@@ -544,6 +575,13 @@ OpenCode 特別適合作為 Local Autonomous worker，因為它可以作為本�
 - `16_CONSTRAINT_RESOLUTION_DISTRIBUTION_EXECUTION_MODES.md`
 - `17_V0_2_TRIPLE_AUDIT.md`
 - `18_BOUNDED_AUTONOMOUS_EXECUTION.md`
+- `19_V0_3_TRIPLE_AUDIT.md`（歷史稽核）
+- `20_HARNESS_ENGINEERING_MULTI_AGENT_LOOP.md`
+- `21_AGENT_ROLES_AND_HANDOFF_PROTOCOL.md`
+- `22_DASHBOARD_QUEUE_AND_EVENT_ARCHITECTURE.md`
+- `23_IMPLEMENTATION_STATUS.md`（原始實作快照）
+- `24_LOCAL_MODEL_PROVIDER_VERIFICATION.md`
+- `REQUIREMENTS.md`、`INDEX.md`
 
 創始需求與工程決策另外封存於 `Blueprint/Conversation/`。
 
@@ -560,8 +598,8 @@ OpenCode 特別適合作為 Local Autonomous worker，因為它可以作為本�
 - Windows（建 Windows installer 時）
 
 ```powershell
-git clone https://github.com/Space653000/AI-Engineering-Control-Plane.git
-cd AI-Engineering-Control-Plane
+git clone https://github.com/Space653000/0_JN1_AIECP.git
+cd 0_JN1_AIECP
 npm install
 npm run verify
 npm start
@@ -595,22 +633,27 @@ Renderer：
 
 # Automated CI / Release
 
-Pull Request 會驗證：
+Pull Request 會對 **exact PR HEAD** 驗證：
 
-1. syntax checks
-2. unit tests
-3. Windows x64 fallback installer
-4. Windows ARM64 fallback installer
-5. Windows x64+ARM64 Auto-Detect installer
+1. syntax / unit / requirements / Blueprint / license / acceptance audits
+2. Windows x64 與 ARM64 fallback installer
+3. Windows x64+ARM64 Auto-Detect / Universal Bootstrap
+4. x64 / ARM64 silent install → smoke launch → uninstall
+5. x64 / ARM64 Store AppX build + manifest validation
+6. synthetic previous-version → current-version upgrade → previous-version rollback smoke
+7. release dry-run、SHA-256 與 provenance contract
 
-Merge / push 到 `main` 後，Release workflow 會重新 build 並建立該版本的 GitHub **pre-release**，內容包含：
+正式 GitHub Release **只在明確的版本 tag（`v*`）或 owner-authorized signed-release workflow 下發佈**，不會因一般 `main` push 自動發布。Preview release bundle 包含：
 
-- `AI-Engineering-Control-Plane-Setup-0.3.0.exe` — **一般使用者下載這個**
+- `AI-Engineering-Control-Plane-Setup-<version>.exe` — 一般使用者優先下載的 Universal installer
 - x64 fallback installer
 - ARM64 fallback installer
 - blockmaps
 - `SHA256SUMS.txt`
+- `RELEASE_PROVENANCE.json`
 - release notes
+
+Production Authenticode 另走 owner-gated signed-release lane；Microsoft Store 另走 owner-gated Store package lane。
 
 ---
 
@@ -632,51 +675,6 @@ Local AECP application data 存在 Electron per-user application-data directory�
 
 MIT. See [`LICENSE`](LICENSE).
 
-# Status
+# Current status
 
-This repository is an active preview. A `1.0.0` claim is blocked until the Blueprint's stable-release gates—including signed installers, broader harness adapters, migration/update testing, accessibility, and security review—are satisfied.
-
-
-# Blueprint / Architecture
-
-The **Blueprint is the product source of truth**. The complete architecture is now consolidated into `Blueprint/`, including the Harness engineering expansion:
-
-- `20_HARNESS_ENGINEERING_MULTI_AGENT_LOOP.md` — Planner → Queue → Worker → Verify → CI → Reviewer → Rework/Accept, bounded autonomy, scheduler/locks/recovery.
-- `21_AGENT_ROLES_AND_HANDOFF_PROTOCOL.md` — vendor-neutral Supervisor/Planner/Builder/Reviewer/Verifier roles and versioned handoff contracts.
-- `22_DASHBOARD_QUEUE_AND_EVENT_ARCHITECTURE.md` — Board/Queue/Agents/Trace/Git/CI/Evidence dashboard, event stream and mobile-ready supervision model.
-
-### What is designed vs. what is implemented
-
-**Blueprint complete:** the target end-state architecture, contracts, security boundaries, UX, event model, multi-repo model, provider abstraction, autonomous loop and acceptance gates are documented.
-
-**Implementation is staged:** v0.3.0 Preview currently provides the safe bridge, workspace/task UI, local detection, bounded isolated-worktree autonomous worker, deterministic verification, evidence and verified-patch apply flow. The v0.3.x runtime now includes a bounded Planner → Builder → Verify → Reviewer orchestration path. It is deliberately sequential and bounded; durable multi-process scheduling, parallel workers, GitHub PR automation and CI-event feedback remain the next hardening stage.
-
-### Canonical end-state loop
-
-```text
-Goal / Blueprint
-      ↓
-Planner (Claude / replaceable provider)
-      ↓
-Durable Task Queue
-      ↓
-Harness Scheduler + Policy + Locks
-      ↓
-Builder Worker (Codex / replaceable provider)
-      ↓
-Deterministic Verify
-      ↓
-Git / PR / GitHub Actions
-      ↓
-Reviewer (Claude / replaceable provider)
-   ├─ PASS → ACCEPT → next task
-   ├─ REWORK → Builder
-   └─ HUMAN_REQUIRED → user approval
-```
-
-The Harness owns state, permissions, budgets, retries, timeouts, evidence and recovery. A model never grants itself permission or declares technical completion by itself.
-
-### Current release truth
-
-Do not treat Blueprint roadmap items as installed features. The **Complete Feature Map** below is the authoritative v0.3.0 Preview status table. Future features must pass the Blueprint acceptance gates before being marked implemented.
-
+目前套件版本為 `v0.3.0 Preview`；V3.0 Multi-Worker 是藍圖施工階段名稱。最新施工進度與待辦見 [`.ai/STATUS.md`](.ai/STATUS.md)，原始實作快照見 [`Blueprint/23_IMPLEMENTATION_STATUS.md`](Blueprint/23_IMPLEMENTATION_STATUS.md)。按日期追加的舊狀態已逐字封存於 [`Reports/README_STATUS_HISTORY.md`](Reports/README_STATUS_HISTORY.md)。

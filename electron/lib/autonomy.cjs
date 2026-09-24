@@ -4,10 +4,14 @@ const crypto = require('node:crypto');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
+const { resolveKnownCommand } = require('./command-resolver.cjs');
+const { redactSensitive } = require('./redaction.cjs');
+const { makeExecutionContract, validateExecutionContract } = require('./execution-contract.cjs');
 
 const AUTONOMY_SCHEMA = 'aecp.autonomous/v1';
 const MAX_OUTPUT_BYTES = 1024 * 1024;
 const MAX_PATCH_BYTES = 8 * 1024 * 1024;
+const MAX_CHANGED_FILES = 100;
 
 const VERIFICATION_PROFILES = Object.freeze({
   'npm-verify': { id: 'npm-verify', label: 'npm run verify', command: 'npm', args: ['run', 'verify'], timeoutMs: 180000 },
@@ -57,15 +61,20 @@ function validateAutonomySpec(input = {}) {
   if (!AUTONOMOUS_WORKERS[workerId]) throw new Error('Selected worker is not enabled for bounded autonomous execution.');
   if (!VERIFICATION_PROFILES[verificationProfile]) throw new Error('Choose a supported deterministic verification profile.');
 
+  const maxIterations = clampInteger(input.maxIterations, 1, 12, 4);
   return {
     schema: AUTONOMY_SCHEMA,
     goal,
     done,
     workerId,
     verificationProfile,
-    maxIterations: clampInteger(input.maxIterations, 1, 12, 4),
+    maxIterations,
+    maxTurns: maxIterations,
     iterationTimeoutSeconds: clampInteger(input.iterationTimeoutSeconds, 30, 1800, 300),
     checkpointEvery: clampInteger(input.checkpointEvery, 1, 6, 1),
+    maxOutputBytes: MAX_OUTPUT_BYTES,
+    maxPatchBytes: clampInteger(input.maxPatchBytes, 1024, MAX_PATCH_BYTES, MAX_PATCH_BYTES),
+    maxChangedFiles: clampInteger(input.maxChangedFiles, 1, 1000, MAX_CHANGED_FILES),
     model: cleanText(input.model, 160) || null
   };
 }
@@ -210,7 +219,8 @@ function runProcess(command, args, options = {}) {
   } = options;
 
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, {
+    const resolved = resolveKnownCommand(command, args);
+    const child = spawn(resolved.command, resolved.args, {
       cwd,
       env: { ...process.env, ...env },
       windowsHide: true,
@@ -222,10 +232,17 @@ function runProcess(command, args, options = {}) {
     let stderr = Buffer.alloc(0);
     let timedOut = false;
     let aborted = false;
+    let outputLimitExceeded = false;
 
     const append = (current, chunk) => {
+      if (outputLimitExceeded) return current;
       const next = Buffer.concat([current, Buffer.from(chunk)]);
-      return next.length > maxOutputBytes ? next.subarray(next.length - maxOutputBytes) : next;
+      if (next.length > maxOutputBytes) {
+        outputLimitExceeded = true;
+        killProcessTree(child);
+        return current;
+      }
+      return next;
     };
 
     child.stdout.on('data', (chunk) => { stdout = append(stdout, chunk); });
@@ -259,6 +276,7 @@ function runProcess(command, args, options = {}) {
         signal: childSignal || null,
         timedOut,
         aborted,
+        outputLimitExceeded,
         stdout: stdout.toString('utf8'),
         stderr: stderr.toString('utf8')
       });
@@ -335,29 +353,41 @@ async function runVerification(worktree, profileId, signal, runner = runProcess)
     profile: profile.id,
     label: profile.label,
     command: [profile.command, ...profile.args].join(' '),
-    passed: result.code === 0 && !result.timedOut && !result.aborted,
+    passed: result.code === 0 && !result.timedOut && !result.aborted && !result.outputLimitExceeded,
     code: result.code,
     timedOut: result.timedOut,
     aborted: result.aborted,
+    outputLimitExceeded: Boolean(result.outputLimitExceeded),
     stdout: result.stdout.slice(-20000),
     stderr: result.stderr.slice(-20000)
   };
 }
 
-async function createPatch({ worktree, runRoot, signal }) {
+async function createPatch({ worktree, runRoot, signal, maxPatchBytes = MAX_PATCH_BYTES, maxChangedFiles = MAX_CHANGED_FILES }) {
   await git(worktree, ['add', '-N', '.'], { signal });
+  const names = await git(worktree, ['diff', '--name-only', 'HEAD'], { signal });
+  const changedFiles = names.split(/\r?\n/).map(x => x.trim()).filter(Boolean);
+  if (changedFiles.length > maxChangedFiles) {
+    throw Object.assign(new Error(`Changed-file budget exceeded (${changedFiles.length} > ${maxChangedFiles}).`), { code: 'CHANGED_FILE_BUDGET_EXHAUSTED' });
+  }
   const result = await runProcess('git', ['diff', '--binary', '--no-ext-diff', 'HEAD'], {
     cwd: worktree,
     timeoutMs: 30000,
     signal,
-    maxOutputBytes: MAX_PATCH_BYTES + 1024
+    maxOutputBytes: maxPatchBytes + 1
   });
+  if (result.outputLimitExceeded) {
+    throw Object.assign(new Error(`Patch budget exceeded (maximum ${maxPatchBytes} bytes).`), { code: 'PATCH_BUDGET_EXHAUSTED' });
+  }
   if (result.code !== 0) throw new Error(`Unable to create patch: ${result.stderr.slice(0, 1000)}`);
   const bytes = Buffer.byteLength(result.stdout, 'utf8');
-  if (bytes > MAX_PATCH_BYTES) throw new Error(`Autonomous patch is too large (${bytes} bytes; maximum ${MAX_PATCH_BYTES}).`);
+  if (bytes > maxPatchBytes) {
+    throw Object.assign(new Error(`Patch budget exceeded (${bytes} > ${maxPatchBytes}).`), { code: 'PATCH_BUDGET_EXHAUSTED' });
+  }
   const patchFile = path.join(runRoot, 'verified.patch');
   await fs.writeFile(patchFile, result.stdout, 'utf8');
-  return { patchFile, bytes };
+  const sha256 = crypto.createHash('sha256').update(result.stdout).digest('hex');
+  return { patchFile, bytes, sha256, changedFiles };
 }
 
 async function applyVerifiedPatch({ sourceRoot, runRecord, signal }) {
@@ -365,8 +395,12 @@ async function applyVerifiedPatch({ sourceRoot, runRecord, signal }) {
   const current = await assertCleanGitRoot(sourceRoot, signal);
   if (current.head !== runRecord.baseHead) throw new Error('Workspace HEAD changed since this autonomous run started. Refusing to apply a stale patch.');
   const patch = await fs.readFile(runRecord.patchFile);
-  if (patch.length > MAX_PATCH_BYTES) throw new Error('Patch exceeds the configured safety limit.');
+  const maxPatchBytes = Math.min(MAX_PATCH_BYTES, Math.max(1024, Number(runRecord.maxPatchBytes || MAX_PATCH_BYTES)));
+  if (patch.length > maxPatchBytes) throw new Error('Patch exceeds the verified run safety limit.');
   if (!patch.length) return { applied: false, reason: 'no-changes' };
+  if (!/^[a-f0-9]{64}$/i.test(String(runRecord.patchSha256 || ''))) throw new Error('Verified patch SHA-256 evidence is missing.');
+  const actualPatchSha256 = crypto.createHash('sha256').update(patch).digest('hex');
+  if (actualPatchSha256.toLowerCase() !== String(runRecord.patchSha256).toLowerCase()) throw new Error('Verified patch changed after verification. Refusing to apply.');
 
   const check = await runProcess('git', ['apply', '--check', runRecord.patchFile], { cwd: sourceRoot, timeoutMs: 30000, signal });
   if (check.code !== 0) throw new Error(`Verified patch no longer applies cleanly: ${(check.stderr || check.stdout).slice(0, 1200)}`);
@@ -391,9 +425,54 @@ async function runBoundedAutonomy(options, deps = {}) {
     return (result.stdout || result.stderr).trim().split(/\r?\n/)[0];
   });
 
-  const runId = options.runId || makeRunId();
-  const startedAt = new Date().toISOString();
-  const record = {
+  const resumeRecord = options.resumeRecord && options.resumeRecord.schema === AUTONOMY_SCHEMA ? options.resumeRecord : null;
+  if (resumeRecord && resumeRecord.state !== 'INTERRUPTED') throw new Error('Only an INTERRUPTED autonomous run can resume.');
+  if (resumeRecord && !resumeRecord.spec) throw new Error('Interrupted run predates crash-safe resume metadata and cannot be resumed safely.');
+  if (resumeRecord) {
+    const persistedSpec = validateAutonomySpec(resumeRecord.spec);
+    const immutableKeys = ['goal','done','workerId','verificationProfile','maxIterations','iterationTimeoutSeconds','checkpointEvery','maxPatchBytes','maxChangedFiles','model'];
+    if (immutableKeys.some((key) => persistedSpec[key] !== spec[key])) throw new Error('Autonomous resume cannot change the persisted run specification.');
+  }
+  if (resumeRecord && normalizePathForCompare(resumeRecord.sourceRoot) !== normalizePathForCompare(sourceRoot)) throw new Error('Resume sourceRoot does not match the persisted run.');
+  if (resumeRecord && normalizePathForCompare(resumeRecord.runRoot) !== normalizePathForCompare(runRoot)) throw new Error('Resume runRoot does not match the persisted run.');
+  const runId = resumeRecord?.id || options.runId || makeRunId();
+  const incomingContract = options.executionContract || resumeRecord?.executionContract || makeExecutionContract({
+    goal: spec.goal,
+    done: spec.done,
+    workspaceRoot: sourceRoot,
+    permissionPolicy: {
+      mode: 'LOCAL_AUTONOMOUS',
+      workspaceWrite: 'isolated-worktree-only',
+      applyToWorkspace: 'explicit-user-approval',
+      highRisk: 'HUMAN_REQUIRED'
+    },
+    taskIds: [runId],
+    resultCapsuleRef: `local://autonomy/${runId}/run.json`,
+    evidenceRef: `local://autonomy/${runId}/verified.patch`,
+    traceRef: `local://autonomy/${runId}/run.json`,
+    transport: 'local-autonomous',
+    worker: spec.workerId
+  });
+  if (!validateExecutionContract(incomingContract).ok) throw new Error('A valid canonical execution contract is required for bounded autonomy.');
+  if (resumeRecord?.executionContract && JSON.stringify(resumeRecord.executionContract) !== JSON.stringify(incomingContract)) {
+    throw new Error('Autonomous resume cannot change the persisted execution contract.');
+  }
+  const startedAt = resumeRecord?.startedAt || new Date().toISOString();
+  const record = resumeRecord ? {
+    ...resumeRecord,
+    state: 'PREPARING',
+    completedAt: null,
+    error: null,
+    spec,
+    maxIterations: spec.maxIterations,
+    maxTurns: spec.maxTurns,
+    maxOutputBytes: spec.maxOutputBytes,
+    maxPatchBytes: spec.maxPatchBytes,
+    maxChangedFiles: spec.maxChangedFiles,
+    executionContract: incomingContract,
+    updatedAt: new Date().toISOString(),
+    iterations: Array.isArray(resumeRecord.iterations) ? resumeRecord.iterations : []
+  } : {
     schema: AUTONOMY_SCHEMA,
     id: runId,
     state: 'PREPARING',
@@ -403,7 +482,13 @@ async function runBoundedAutonomy(options, deps = {}) {
     verificationProfile: spec.verificationProfile,
     goal: spec.goal,
     done: spec.done,
+    spec,
     maxIterations: spec.maxIterations,
+    maxTurns: spec.maxTurns,
+    maxOutputBytes: spec.maxOutputBytes,
+    maxPatchBytes: spec.maxPatchBytes,
+    maxChangedFiles: spec.maxChangedFiles,
+    executionContract: incomingContract,
     currentIteration: 0,
     startedAt,
     updatedAt: startedAt,
@@ -413,7 +498,7 @@ async function runBoundedAutonomy(options, deps = {}) {
   const persist = async () => {
     record.updatedAt = new Date().toISOString();
     await fs.mkdir(runRoot, { recursive: true });
-    await fs.writeFile(path.join(runRoot, 'run.json'), JSON.stringify(record, null, 2) + '\n', 'utf8');
+    await fs.writeFile(path.join(runRoot, 'run.json'), JSON.stringify(redactSensitive(record), null, 2) + '\n', 'utf8');
   };
   const emit = async (type, data = {}) => {
     await persist();
@@ -421,21 +506,52 @@ async function runBoundedAutonomy(options, deps = {}) {
   };
 
   try {
-    await emit('run.preparing', { workerId: spec.workerId });
+    await emit(resumeRecord ? 'run.resuming' : 'run.preparing', { workerId: spec.workerId });
     const workerVersion = await workerProbe(spec.workerId);
     record.workerVersion = workerVersion;
 
-    const prepared = await prepareWorktree({ sourceRoot, runRoot, signal });
-    record.worktree = prepared.worktree;
-    record.baseHead = prepared.baseHead;
-    record.linkedNodeModules = prepared.linkedNodeModules;
-    record.state = 'RUNNING';
-    await emit('worktree.ready', { worktree: prepared.worktree, baseHead: prepared.baseHead });
+    let prepared;
+    let startIteration = 1;
+    if (resumeRecord) {
+      const current = await assertCleanGitRoot(sourceRoot, signal);
+      if (!record.baseHead || current.head !== record.baseHead) throw new Error('Workspace HEAD changed since the interrupted autonomous run. Refusing to resume.');
+      if (!record.worktree) throw new Error('Interrupted autonomous run has no persisted worktree.');
+      const worktree = path.resolve(record.worktree);
+      const runBase = path.resolve(runRoot);
+      const relative = path.relative(runBase, worktree);
+      if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) throw new Error('Persisted autonomous worktree is outside the run root.');
+      const stat = await fs.stat(worktree).catch(() => null);
+      if (!stat?.isDirectory()) throw new Error('Persisted autonomous worktree is unavailable.');
+      const top = await git(worktree, ['rev-parse', '--show-toplevel'], { signal });
+      if (!(await samePhysicalPath(top, worktree))) throw new Error('Persisted autonomous worktree identity is invalid.');
+      prepared = { worktree, baseHead: record.baseHead, linkedNodeModules: Boolean(record.linkedNodeModules) };
+      const last = record.iterations.at(-1);
+      const currentIteration = Math.max(1, Number(record.currentIteration || 1));
+      startIteration = last && Number(last.iteration) === currentIteration ? currentIteration + 1 : currentIteration;
+      if (startIteration > spec.maxIterations) {
+        record.state = 'BUDGET_EXHAUSTED';
+        record.completedAt = new Date().toISOString();
+        await emit('run.budget_exhausted', { iterations: spec.maxIterations, reason: 'resume-budget-exhausted' });
+        return record;
+      }
+      record.state = 'RUNNING';
+      await emit('worktree.resumed', { worktree, baseHead: record.baseHead, startIteration });
+    } else {
+      prepared = await prepareWorktree({ sourceRoot, runRoot, signal });
+      record.worktree = prepared.worktree;
+      record.baseHead = prepared.baseHead;
+      record.linkedNodeModules = prepared.linkedNodeModules;
+      record.state = 'RUNNING';
+      await emit('worktree.ready', { worktree: prepared.worktree, baseHead: prepared.baseHead });
+    }
 
-    let previousVerification = '';
-    let currentDiff = '';
+    const lastVerification = record.iterations.at(-1)?.verification;
+    let previousVerification = resumeRecord && lastVerification && !lastVerification.passed
+      ? ['Previous checkpoint verification failed.', lastVerification.command || '', lastVerification.stderr || '', lastVerification.stdout || ''].filter(Boolean).join('\n').slice(-6000)
+      : '';
+    let currentDiff = resumeRecord ? await diffSummary(record.worktree, signal) : '';
 
-    for (let iteration = 1; iteration <= spec.maxIterations; iteration += 1) {
+    for (let iteration = startIteration; iteration <= spec.maxIterations; iteration += 1) {
       if (signal?.aborted) throw Object.assign(new Error('Autonomous run cancelled.'), { name: 'AbortError' });
       record.currentIteration = iteration;
       record.state = 'RUNNING';
@@ -471,11 +587,20 @@ async function runBoundedAutonomy(options, deps = {}) {
           aborted: worker.aborted,
           durationMs: Date.now() - workerStarted,
           stdout: worker.stdout.slice(-20000),
-          stderr: worker.stderr.slice(-20000)
+          stderr: worker.stderr.slice(-20000),
+          outputLimitExceeded: Boolean(worker.outputLimitExceeded)
         }
       };
 
       if (worker.aborted || signal?.aborted) throw Object.assign(new Error('Autonomous run cancelled.'), { name: 'AbortError' });
+      if (worker.outputLimitExceeded) {
+        iterationRecord.verification = { passed: false, reason: 'worker-output-limit' };
+        record.iterations.push(iterationRecord);
+        record.state = 'BUDGET_EXHAUSTED';
+        record.completedAt = new Date().toISOString();
+        await emit('run.budget_exhausted', { iteration, reason: 'worker-output-limit', maxOutputBytes: spec.maxOutputBytes });
+        return record;
+      }
       if (worker.timedOut) {
         iterationRecord.verification = { passed: false, reason: 'worker-timeout' };
         record.iterations.push(iterationRecord);
@@ -499,12 +624,21 @@ async function runBoundedAutonomy(options, deps = {}) {
       iterationRecord.diffSummary = currentDiff;
       record.iterations.push(iterationRecord);
 
+      if (verification.outputLimitExceeded) {
+        record.state = 'BUDGET_EXHAUSTED';
+        record.completedAt = new Date().toISOString();
+        await emit('run.budget_exhausted', { iteration, reason: 'verification-output-limit', maxOutputBytes: spec.maxOutputBytes });
+        return record;
+      }
+
       if (verification.passed) {
         record.state = 'DONE';
         record.completedAt = new Date().toISOString();
-        const patch = await createPatch({ worktree: record.worktree, runRoot, signal });
+        const patch = await createPatch({ worktree: record.worktree, runRoot, signal, maxPatchBytes: spec.maxPatchBytes, maxChangedFiles: spec.maxChangedFiles });
         record.patchFile = patch.patchFile;
         record.patchBytes = patch.bytes;
+        record.patchSha256 = patch.sha256;
+        record.patchChangedFiles = patch.changedFiles;
         await emit('run.done', {
           iteration,
           patchBytes: patch.bytes,
@@ -534,10 +668,12 @@ async function runBoundedAutonomy(options, deps = {}) {
     await emit('run.budget_exhausted', { iterations: spec.maxIterations });
     return record;
   } catch (error) {
-    record.state = error?.name === 'AbortError' ? 'CANCELLED' : 'FAILED';
+    record.state = error?.name === 'AbortError'
+      ? 'CANCELLED'
+      : (['PATCH_BUDGET_EXHAUSTED','CHANGED_FILE_BUDGET_EXHAUSTED'].includes(error?.code) ? 'BUDGET_EXHAUSTED' : 'FAILED');
     record.completedAt = new Date().toISOString();
     record.error = String(error?.message || error);
-    await emit(record.state === 'CANCELLED' ? 'run.cancelled' : 'run.failed', { error: record.error });
+    await emit(record.state === 'CANCELLED' ? 'run.cancelled' : (record.state === 'BUDGET_EXHAUSTED' ? 'run.budget_exhausted' : 'run.failed'), { error: record.error, reason: error?.code || null });
     return record;
   }
 }

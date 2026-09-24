@@ -1,4 +1,4 @@
-name: CI
+name: AECP Packaging
 
 on:
   pull_request:
@@ -7,22 +7,14 @@ on:
 permissions:
   contents: read
 
-jobs:
-  verify:
-    name: Static checks and tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-      - name: Install dependencies
-        run: npm install --no-audit --no-fund
-      - run: npm run verify
+concurrency:
+  group: aecp-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
+jobs:
   package-windows:
     name: Package Windows ${{ matrix.arch }}
-    needs: verify
+    timeout-minutes: 45
     runs-on: windows-latest
     strategy:
       fail-fast: false
@@ -30,13 +22,15 @@ jobs:
         arch: [x64, arm64]
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
       - name: Install build dependencies
         run: npm install --no-audit --no-fund
-      - name: Verify again on Windows
-        run: npm run verify
+      - name: Syntax-check release tree on Windows
+        run: npm run check
       - name: Build architecture-specific fallback installer
         shell: pwsh
         run: npx electron-builder --win nsis --${{ matrix.arch }} --publish never
@@ -50,19 +44,59 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  smoke-install:
+    name: Smoke install Windows ${{ matrix.arch }}
+    needs: package-windows
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: windows-latest
+          - arch: arm64
+            runner: windows-11-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: aecp-windows-${{ matrix.arch }}
+          path: smoke
+      - name: Silent install and uninstall smoke test
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem smoke -Filter '*.exe' -Recurse | Where-Object { $_.Name -match '-${{ matrix.arch }}-' } | Select-Object -First 1
+          if (-not $installer) { throw 'Architecture installer artifact not found.' }
+          $installDir = Join-Path $env:RUNNER_TEMP 'aecp-smoke-${{ matrix.arch }}'
+          Remove-Item $installDir -Recurse -Force -ErrorAction SilentlyContinue
+          $install = Start-Process -FilePath $installer.FullName -ArgumentList @('/S', "/D=$installDir") -PassThru -Wait
+          if ($install.ExitCode -ne 0) { throw "Installer exited with $($install.ExitCode)." }
+          $app = Get-ChildItem $installDir -Filter 'AI Engineering Control Plane.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $app) { throw 'Installed AECP executable not found.' }
+          $launch = Start-Process -FilePath $app.FullName -ArgumentList '--smoke-test' -PassThru -Wait
+          if ($launch.ExitCode -ne 0) { throw "Installed AECP smoke launch exited with $($launch.ExitCode)." }
+          $uninstaller = Get-ChildItem $installDir -Filter 'Uninstall*.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $uninstaller) { throw 'AECP uninstaller not found.' }
+          $uninstall = Start-Process -FilePath $uninstaller.FullName -ArgumentList '/S' -PassThru -Wait
+          if ($uninstall.ExitCode -ne 0) { throw "Uninstaller exited with $($uninstall.ExitCode)." }
+          Start-Sleep -Seconds 2
+          if (Test-Path $app.FullName) { throw 'AECP executable still exists after uninstall.' }
+
   package-windows-auto:
     name: Package Windows Auto Detect (x64 + ARM64)
-    needs: verify
+    timeout-minutes: 45
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
       - name: Install build dependencies
         run: npm install --no-audit --no-fund
-      - name: Verify again on Windows
-        run: npm run verify
+      - name: Syntax-check release tree on Windows
+        run: npm run check
       - name: Build single auto-detect installer
         run: npm run dist:auto
       - name: Upload primary installer artifact
@@ -74,3 +108,222 @@ jobs:
             release/*.blockmap
           if-no-files-found: error
           retention-days: 14
+
+  package-universal-bootstrap:
+    name: Package Universal Bootstrap
+    needs: package-windows
+    timeout-minutes: 45
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - uses: actions/download-artifact@v4
+        with:
+          name: aecp-windows-x64
+          path: staging/x64
+      - uses: actions/download-artifact@v4
+        with:
+          name: aecp-windows-arm64
+          path: staging/arm64
+      - name: Stage architecture payloads
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path release/universal-bootstrap/payloads | Out-Null
+          $x = Get-ChildItem staging/x64 -Filter '*x64*.exe' -Recurse | Select-Object -First 1
+          $a = Get-ChildItem staging/arm64 -Filter '*arm64*.exe' -Recurse | Select-Object -First 1
+          if (-not $x -or -not $a) { throw 'Architecture installer payloads not found.' }
+          Copy-Item $x.FullName release/universal-bootstrap/payloads/AI-Engineering-Control-Plane-Setup-x64.exe
+          Copy-Item $a.FullName release/universal-bootstrap/payloads/AI-Engineering-Control-Plane-Setup-arm64.exe
+      - name: Build self-contained universal bootstrap
+        shell: pwsh
+        working-directory: release/universal-bootstrap
+        run: dotnet publish UniversalBootstrap.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o ../../release/universal-ci
+      - name: Normalize universal artifact name
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem release/universal-ci -Filter '*.exe' | Select-Object -First 1
+          if (-not $exe) { throw 'Universal bootstrap executable not found.' }
+          Rename-Item $exe.FullName 'AI-Engineering-Control-Plane-Setup-universal.exe'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aecp-universal-bootstrap
+          path: release/universal-ci/AI-Engineering-Control-Plane-Setup-universal.exe
+          if-no-files-found: error
+          retention-days: 14
+
+  smoke-universal-bootstrap:
+    name: Smoke universal bootstrap Windows ${{ matrix.arch }}
+    needs: package-universal-bootstrap
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: windows-latest
+          - arch: arm64
+            runner: windows-11-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: aecp-universal-bootstrap
+          path: smoke-universal
+      - name: Install through architecture-selecting bootstrap and uninstall
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem smoke-universal -Filter '*.exe' -Recurse | Select-Object -First 1
+          if (-not $installer) { throw 'Universal bootstrap artifact not found.' }
+          $installDir = Join-Path $env:RUNNER_TEMP 'aecp-universal-${{ matrix.arch }}'
+          Remove-Item $installDir -Recurse -Force -ErrorAction SilentlyContinue
+          $env:AECP_BOOTSTRAP_INSTALL_ARGS = "/S /D=$installDir"
+          $process = Start-Process -FilePath $installer.FullName -PassThru -Wait
+          if ($process.ExitCode -ne 0) { throw "Universal bootstrap exited with $($process.ExitCode)." }
+          $app = Get-ChildItem $installDir -Filter 'AI Engineering Control Plane.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $app) { throw 'AECP executable not found after universal bootstrap install.' }
+          $launch = Start-Process -FilePath $app.FullName -ArgumentList '--smoke-test' -PassThru -Wait
+          if ($launch.ExitCode -ne 0) { throw "Universal-installed AECP smoke launch exited with $($launch.ExitCode)." }
+          $uninstaller = Get-ChildItem $installDir -Filter 'Uninstall*.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $uninstaller) { throw 'AECP uninstaller not found after universal bootstrap install.' }
+          $uninstall = Start-Process -FilePath $uninstaller.FullName -ArgumentList '/S' -PassThru -Wait
+          if ($uninstall.ExitCode -ne 0) { throw "Universal bootstrap uninstall exited with $($uninstall.ExitCode)." }
+          Start-Sleep -Seconds 2
+          if (Test-Path $app.FullName) { throw 'AECP executable still exists after universal bootstrap uninstall.' }
+
+  package-store:
+    name: Package Store AppX ${{ matrix.arch }}
+    timeout-minutes: 45
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x64, arm64]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install build dependencies
+        run: npm install --no-audit --no-fund
+      - name: Syntax-check Store release path
+        run: npm run check
+      - name: Build Store AppX
+        shell: pwsh
+        run: |
+          if ('${{ matrix.arch }}' -eq 'x64') {
+            npm run dist:store:x64
+          } else {
+            npm run dist:store:arm64
+          }
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Validate Store package manifest
+        shell: pwsh
+        run: |
+          $package = Get-ChildItem release -Filter '*.appx' -Recurse | Where-Object { $_.Name -match '-${{ matrix.arch }}-' } | Select-Object -First 1
+          if (-not $package) { throw 'Store AppX artifact not found.' }
+          ./scripts/validate-store-package.ps1 -PackagePath $package.FullName -ExpectedArchitecture '${{ matrix.arch }}' -ExpectedIdentityName 'Space653000.AECPPreview' -EvidencePath "release/store-evidence-${{ matrix.arch }}.json"
+      - name: Upload Store package evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: aecp-store-${{ matrix.arch }}
+          path: |
+            release/*.appx
+            release/store-evidence-${{ matrix.arch }}.json
+          if-no-files-found: error
+          retention-days: 14
+
+  package-upgrade-baseline:
+    name: Package upgrade baseline ${{ matrix.arch }}
+    timeout-minutes: 45
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x64, arm64]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm install --no-audit --no-fund
+      - name: Build synthetic previous-version installer
+        shell: pwsh
+        run: |
+          node -e "const fs=require('fs');const p=require('./package.json');p.version='0.2.99';fs.writeFileSync('package.json',JSON.stringify(p,null,2)+'\n')"
+          npx electron-builder --win nsis --${{ matrix.arch }} --publish never --config.directories.output=release/upgrade-baseline
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aecp-upgrade-baseline-${{ matrix.arch }}
+          path: release/upgrade-baseline/*.exe
+          if-no-files-found: error
+          retention-days: 14
+
+  smoke-upgrade-rollback:
+    name: Smoke upgrade and rollback Windows ${{ matrix.arch }}
+    needs: [package-windows, package-upgrade-baseline]
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: windows-latest
+          - arch: arm64
+            runner: windows-11-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: aecp-upgrade-baseline-${{ matrix.arch }}
+          path: upgrade/baseline
+      - uses: actions/download-artifact@v4
+        with:
+          name: aecp-windows-${{ matrix.arch }}
+          path: upgrade/current
+      - name: Install baseline, upgrade current, then rollback baseline
+        shell: pwsh
+        run: |
+          $baseline = Get-ChildItem upgrade/baseline -Filter '*.exe' -Recurse | Where-Object { $_.Name -match '-${{ matrix.arch }}-' } | Select-Object -First 1
+          $current = Get-ChildItem upgrade/current -Filter '*.exe' -Recurse | Where-Object { $_.Name -match '-${{ matrix.arch }}-' } | Select-Object -First 1
+          if (-not $baseline -or -not $current) { throw 'Upgrade smoke installers are missing.' }
+          $installDir = Join-Path $env:RUNNER_TEMP 'aecp-upgrade-${{ matrix.arch }}'
+          Remove-Item $installDir -Recurse -Force -ErrorAction SilentlyContinue
+
+          function Install-Aecp([string]$Installer) {
+            $p = Start-Process -FilePath $Installer -ArgumentList @('/S', "/D=$installDir") -PassThru -Wait
+            if ($p.ExitCode -ne 0) { throw "Installer $Installer exited with $($p.ExitCode)." }
+            $exe = Get-ChildItem $installDir -Filter 'AI Engineering Control Plane.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+            if (-not $exe) { throw 'AECP executable not found after install.' }
+            $smoke = Start-Process -FilePath $exe.FullName -ArgumentList '--smoke-test' -PassThru -Wait
+            if ($smoke.ExitCode -ne 0) { throw "AECP smoke launch exited with $($smoke.ExitCode)." }
+            return $exe
+          }
+
+          $baselineExe = Install-Aecp $baseline.FullName
+          $baselineVersion = $baselineExe.VersionInfo.FileVersion
+          if ($baselineVersion -notlike '0.2.99*') { throw "Expected baseline 0.2.99, got $baselineVersion." }
+
+          $currentExe = Install-Aecp $current.FullName
+          $currentVersion = $currentExe.VersionInfo.FileVersion
+          if ($currentVersion -notlike '0.3.0*') { throw "Expected current 0.3.0, got $currentVersion." }
+
+          $rolledBackExe = Install-Aecp $baseline.FullName
+          $rollbackVersion = $rolledBackExe.VersionInfo.FileVersion
+          if ($rollbackVersion -notlike '0.2.99*') { throw "Rollback did not restore baseline version: $rollbackVersion." }
+
+          $uninstaller = Get-ChildItem $installDir -Filter 'Uninstall*.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $uninstaller) { throw 'AECP uninstaller missing after rollback.' }
+          $uninstall = Start-Process -FilePath $uninstaller.FullName -ArgumentList '/S' -PassThru -Wait
+          if ($uninstall.ExitCode -ne 0) { throw "Uninstaller exited with $($uninstall.ExitCode)." }
+          Start-Sleep -Seconds 2
+          if (Test-Path $rolledBackExe.FullName) { throw 'AECP executable remains after rollback uninstall.' }
+

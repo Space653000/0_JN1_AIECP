@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
+  <a class="skip-link" href="#controlContent">Skip to main control plane</a>
   <div id="app" class="app-shell">
     <header class="topbar">
       <div class="brand">
@@ -19,49 +20,51 @@
         <span id="healthBadge" class="health-badge">Local</span>
       </div>
       <div class="top-actions">
-        <button id="modeButton" class="ghost-button" type="button">Beginner</button>
+        <button id="modeButton" class="ghost-button" type="button" data-i18n="mode.beginner">Beginner</button>
         <button id="themeButton" class="icon-button" type="button" aria-label="Toggle theme">◐</button>
-        <button id="settingsButton" class="ghost-button" type="button">Providers</button>
+        <button id="languageButton" class="ghost-button" type="button" data-i18n="language.toggle">中文</button>
+        <button id="settingsButton" class="ghost-button" type="button" data-i18n="providers">Providers</button>
       </div>
     </header>
 
     <main class="workspace-grid">
       <aside class="pane local-pane">
-        <div class="pane-heading"><div><span class="eyebrow">LOCAL</span><h2>Computer</h2></div><button id="refreshButton" class="icon-button" type="button" aria-label="Refresh">↻</button></div>
+        <div class="pane-heading"><div><span class="eyebrow" data-i18n="local">LOCAL</span><h2 data-i18n="computer">Computer</h2></div><button id="refreshButton" class="icon-button" type="button" aria-label="Refresh">↻</button></div>
 
         <section class="card workspace-card">
-          <div class="card-title-row"><h3>Workspace</h3><span id="workspaceState" class="status neutral">Not set</span></div>
+          <div class="card-title-row"><h3 data-i18n="workspace">Workspace</h3><span id="workspaceState" class="status neutral">Not set</span></div>
           <p id="workspacePath" class="path-text">Choose the folder AECP is allowed to inspect.</p>
           <div class="button-row">
-            <button id="chooseWorkspaceButton" class="secondary-button" type="button">Choose folder</button>
-            <button id="openWorkspaceButton" class="secondary-button" type="button" disabled>Open</button>
-            <button id="terminalButton" class="secondary-button engineering-only" type="button" disabled>Terminal</button>
+            <button id="chooseWorkspaceButton" class="secondary-button" type="button" data-i18n="workspace.chooseFolder">Choose folder</button>
+            <button id="openWorkspaceButton" class="secondary-button" type="button" disabled data-i18n="open">Open</button>
+            <button id="terminalButton" class="secondary-button engineering-only" type="button" disabled data-i18n="terminal">Terminal</button>
+            <button id="addRepoButton" class="secondary-button engineering-only" type="button" disabled>Add Repo</button>
           </div>
         </section>
 
         <section class="section-block">
-          <div class="section-title"><h3>Repositories</h3><span id="repoCount" class="count-badge">0</span></div>
+          <div class="section-title"><h3 data-i18n="repositories">Repositories</h3><span id="repoCount" class="count-badge">0</span></div>
           <div id="repoList" class="stack-list empty-list">No repositories detected.</div>
         </section>
 
         <section class="section-block">
-          <div class="section-title"><h3>Local tools</h3><span id="toolCount" class="count-badge">0</span></div>
+          <div class="section-title"><h3 data-i18n="localTools">Local tools</h3><span id="toolCount" class="count-badge">0</span></div>
           <div id="toolList" class="tool-grid"></div>
         </section>
       </aside>
 
       <section class="pane control-pane">
         <div class="control-header">
-          <div><span class="eyebrow">CONTROL PLANE</span><h2 id="controlTitle">Start</h2></div>
+          <div><span class="eyebrow" data-i18n="controlPlane">CONTROL PLANE</span><h2 id="controlTitle" data-i18n="start">Start</h2></div>
           <div class="segmented" role="tablist" aria-label="Control plane views">
-            <button class="view-tab active" data-view="start" type="button">Start</button>
-            <button class="view-tab" data-view="command" type="button">Harness</button>
-            <button class="view-tab" data-view="board" type="button">Board</button>
-            <button class="view-tab" data-view="pipeline" type="button">Pipeline</button>
-            <button class="view-tab" data-view="loop" type="button">Goal Loop</button>
-            <button class="view-tab" data-view="graph" type="button">Graph</button>
-            <button class="view-tab engineering-only" data-view="trace" type="button">Trace</button>
-            <button class="view-tab" data-view="evidence" type="button">Evidence</button>
+            <button class="view-tab active" data-view="start" role="tab" aria-selected="true" type="button" data-i18n="start">Start</button>
+            <button class="view-tab" data-view="command" role="tab" aria-selected="false" type="button" data-i18n="harness">Harness</button>
+            <button class="view-tab" data-view="board" role="tab" aria-selected="false" type="button" data-i18n="board">Board</button>
+            <button class="view-tab" data-view="pipeline" role="tab" aria-selected="false" type="button" data-i18n="pipeline">Pipeline</button>
+            <button class="view-tab" data-view="loop" role="tab" aria-selected="false" type="button" data-i18n="goalLoop">Goal Loop</button>
+            <button class="view-tab" data-view="graph" role="tab" aria-selected="false" type="button" data-i18n="graph">Graph</button>
+            <button class="view-tab engineering-only" data-view="trace" role="tab" aria-selected="false" type="button" data-i18n="trace">Trace</button>
+            <button class="view-tab" data-view="evidence" role="tab" aria-selected="false" type="button" data-i18n="evidence">Evidence</button>
           </div>
         </div>
 
@@ -69,16 +72,25 @@
       </section>
 
       <aside class="pane chat-pane">
-        <div class="pane-heading"><div><span class="eyebrow">AI AGENTS</span><h2>Supervisor & Workers</h2></div><span class="status ready">Local Fabric</span></div>
+        <div class="pane-heading"><div><span class="eyebrow" data-i18n="agents">AI AGENTS</span><h2 data-i18n="supervisorWorkers">Supervisor & Workers</h2></div><span class="status ready">Local Fabric</span></div>
 
         <section class="chat-provider-card">
           <div class="provider-symbol" aria-hidden="true">AI</div>
-          <div><h3>Official ChatGPT</h3><p>Opens in your normal browser. AECP does not inject, scrape, or modify chatgpt.com.</p></div>
-          <button id="openChatGPTButton" class="primary-button full" type="button">Open official ChatGPT</button>
+          <div><h3 data-i18n="officialChatGPT">Official ChatGPT</h3><p>Opens in your normal browser. AECP does not inject, scrape, or modify chatgpt.com.</p></div>
+          <button id="openChatGPTButton" class="primary-button full" type="button" data-i18n="openOfficialChatGPT">Open official ChatGPT</button>
+          <div class="form-grid">
+            <label class="wide">Browser window<select id="browserWindowSelect"><option value="">Detect browser windows</option></select></label>
+          </div>
+          <div class="button-row">
+            <button id="refreshBrowserWindowsButton" class="secondary-button" type="button" data-i18n="detectWindows">Detect windows</button>
+            <button id="dockBrowserLeftButton" class="secondary-button" type="button" disabled data-i18n="dockLeft">Dock left</button>
+            <button id="dockBrowserRightButton" class="secondary-button" type="button" disabled data-i18n="dockRight">Dock right</button>
+          </div>
+          <small class="muted">AECP uses only the browser process ID/window handle for docking. It does not read the page title or ChatGPT DOM.</small>
         </section>
 
         <section class="handoff-card">
-          <div class="section-title"><h3>Agent Switcher</h3><span class="status safe">Provider-neutral</span></div>
+          <div class="section-title"><h3 data-i18n="agentSwitcher">Agent Switcher</h3><span class="status safe">Provider-neutral</span></div>
           <p class="muted">Use ChatGPT Web as the normal supervisor, or launch detected local/CLI agents in the same Workspace. AECP never gives one agent hidden access to another agent's session.</p>
           <div id="agentList" class="agent-list"></div>
         </section>
@@ -99,6 +111,7 @@
           <div class="button-row">
             <button id="checkUpdateButton" class="secondary-button" type="button">Check update</button>
             <button id="applyUpdateButton" class="primary-button" type="button" disabled>Apply update</button>
+            <button id="rollbackUpdateButton" class="secondary-button" type="button" disabled>Rollback</button>
             <button id="connectGitHubButton" class="secondary-button" type="button">Connect GitHub</button>
           </div>
           <button id="openReleasesButton" class="secondary-button full" type="button">Open Releases</button>
@@ -114,6 +127,15 @@
           </ol>
           <button id="importClipboardButton" class="primary-button full" type="button">Import from Clipboard</button>
           <button id="sampleButton" class="secondary-button full" type="button">Create safe sample task</button>
+        </section>
+
+        <section class="handoff-card">
+          <div class="section-title"><h3 data-i18n="backup">Local Backup</h3><span class="status safe">Secrets excluded</span></div>
+          <p class="muted">Export state, runtime and evidence with per-file SHA-256. Provider credentials are never included. Restore is staged and keeps a pre-restore copy.</p>
+          <div class="button-row">
+            <button id="exportBackupButton" class="secondary-button" type="button" data-i18n="exportBackup">Export backup</button>
+            <button id="restoreBackupButton" class="secondary-button" type="button" data-i18n="restoreBackup">Restore backup</button>
+          </div>
         </section>
 
         <section class="privacy-note"><strong>Local-first</strong><p>Repository details, tool status, traces, and evidence remain on this computer unless you explicitly copy/share them.</p></section>
@@ -132,6 +154,10 @@
         <div><strong>2</strong><span>AECP automatically detects Git, PowerShell, Python, Node, GitHub CLI, Ollama and repositories.</span></div>
         <div><strong>3</strong><span>Use Start for guided work or Goal Loop for longer research/build/verify cycles.</span></div>
       </div>
+      <div class="privacy-note" aria-label="Safety summary">
+        <strong>Safety summary</strong>
+        <p>GREEN = read-only local inspection. YELLOW = reversible Workspace mutation governed by policy/approval. RED = push, merge, delete, credentials, system changes and other high-impact actions always require explicit approval.</p>
+      </div>
       <button id="welcomeChooseButton" class="primary-button full" type="button">Choose Workspace and continue</button>
       <small>No API key is needed for the default ChatGPT Web workflow.</small>
     </div>
@@ -139,23 +165,75 @@
 
   <div id="providerOverlay" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="providerTitle">
     <div class="modal provider-modal">
-      <div class="modal-header"><div><span class="eyebrow">PROVIDER REGISTRY</span><h2 id="providerTitle">Intelligence providers</h2></div><button class="icon-button" id="closeProviderButton" type="button">×</button></div>
-      <p class="muted">ChatGPT Web is built in. Optional API/local/MCP providers can be registered without changing the Local Harness. Preview stores API secrets using OS-protected Electron safeStorage, but does not invoke external APIs yet.</p>
+      <div class="modal-header"><div><span class="eyebrow">PROVIDER REGISTRY</span><h2 id="providerTitle" data-i18n="settings.providers">Intelligence providers</h2></div><button class="icon-button" id="closeProviderButton" type="button" aria-label="Close provider settings">×</button></div>
+      <p class="muted">ChatGPT Web is built in. Optional API/local/MCP providers can be registered without changing the Local Harness. API/local providers can serve governed Planner/Reviewer roles. Secrets stay OS-protected; direct network and credential use require explicit authorization.</p>
       <div id="providerList" class="provider-list"></div>
       <form id="providerForm" class="provider-form">
-        <h3>Add optional provider</h3>
+        <h3 data-i18n="provider.add">Add optional provider</h3>
         <div class="form-grid">
           <label>Name<input id="providerNameInput" maxlength="80" placeholder="Example: Company API" required></label>
-          <label>Kind<select id="providerKindInput"><option value="api">API</option><option value="local">Local</option><option value="remote-mcp">Remote MCP</option></select></label>
-          <label class="wide">Base URL<input id="providerUrlInput" placeholder="https://api.example.com or http://localhost:11434"></label>
+          <label>Kind<select id="providerKindInput"><option value="api">API</option><option value="local">Local OpenAI-compatible</option><option value="local-command">Fixed local command</option><option value="remote-mcp">Remote MCP</option></select></label>
+          <label class="wide">Base URL<input id="providerUrlInput" placeholder="https://api.example.com/v1 or http://localhost:11434/v1"></label>
+          <label class="wide">Default model<input id="providerModelInput" maxlength="200" placeholder="Example: company-code-model or qwen3-coder:30b"></label>
+          <label>Wire API<select id="providerWireApiInput"><option value="responses">Responses</option><option value="chat">Chat Completions</option></select></label>
+          <label class="wide">Fixed command<input id="providerCommandInput" maxlength="2048" placeholder="Example: C:\Tools\my-company-worker.exe"></label>
+          <label class="wide">Fixed arguments<input id="providerArgsInput" maxlength="1024" placeholder="Optional fixed args, separated by spaces"></label>
           <label class="wide">API key (optional)<input id="providerKeyInput" type="password" autocomplete="new-password" placeholder="Stored encrypted by Windows/Electron safeStorage"></label>
         </div>
-        <div class="modal-actions"><button type="button" id="cancelProviderButton" class="secondary-button">Cancel</button><button type="submit" class="primary-button">Save provider</button></div>
+        <div class="modal-actions"><button type="button" id="cancelProviderButton" class="secondary-button" data-i18n="cancel">Cancel</button><button type="submit" class="primary-button" data-i18n="saveProvider">Save provider</button></div>
       </form>
+      <section class="handoff-card" aria-labelledby="appearanceSettingsTitle">
+        <div class="section-title"><h3 id="appearanceSettingsTitle">Appearance & accessibility</h3><span class="status safe">Local preference</span></div>
+        <div class="form-grid">
+          <label>Motion
+            <select id="motionPreference">
+              <option value="system">Follow system preference</option>
+              <option value="reduced">Reduce motion</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
+      <section class="handoff-card engineering-only" aria-labelledby="workspacePolicyTitle">
+        <div class="section-title"><h3 id="workspacePolicyTitle">Workspace Policy</h3><span class="status safe">Canonical</span></div>
+        <p class="muted">Controls approval requirements for future execution in the current Workspace. RED capabilities always require approval and cannot be disabled.</p>
+        <div class="form-grid">
+          <label>Maximum automatic risk
+            <select id="policyMaxRisk">
+              <option value="GREEN">GREEN only</option>
+              <option value="YELLOW">GREEN + policy-approved YELLOW</option>
+            </select>
+          </label>
+        </div>
+        <div id="policyActionList" class="provider-list"></div>
+        <div class="button-row">
+          <button id="savePolicyButton" class="secondary-button" type="button">Save Workspace policy</button>
+        </div>
+      </section>
+
+      <section class="handoff-card engineering-only" aria-labelledby="adapterMatrixTitle">
+        <div class="section-title"><h3 id="adapterMatrixTitle">Adapter Capability Matrix</h3><span id="adapterMatrixBadge" class="status neutral">Not loaded</span></div>
+        <p class="muted">Read-only projection from the runtime adapter security audit. This matrix cannot grant permissions.</p>
+        <div id="adapterMatrix" class="provider-list"></div>
+      </section>
+
+      <section class="handoff-card" aria-labelledby="localDataTitle">
+        <div class="section-title"><h3 id="localDataTitle">Local data controls</h3><span class="status safe">Workspace files protected</span></div>
+        <p class="muted">These controls affect only AECP-owned local state. Removing a Workspace binding or resetting AECP never deletes the original project folder.</p>
+        <div class="button-row">
+          <button id="clearEvidenceButton" class="secondary-button" type="button">Clear evidence</button>
+          <button id="removeWorkspaceBindingButton" class="secondary-button" type="button">Remove Workspace binding</button>
+        </div>
+        <div class="button-row">
+          <button id="clearCredentialsButton" class="secondary-button" type="button">Clear stored credentials</button>
+          <button id="resetLocalStateButton" class="secondary-button" type="button">Reset AECP local state</button>
+        </div>
+      </section>
     </div>
   </div>
 
-  <div id="toastRegion" class="toast-region" aria-live="polite"></div>
+  <div id="toastRegion" class="toast-region" role="status" aria-live="polite" aria-atomic="true"></div>
+  <script src="./i18n.js"></script>
   <script src="./app.js"></script>
   <script src="./harness-console.js"></script>
 </body>

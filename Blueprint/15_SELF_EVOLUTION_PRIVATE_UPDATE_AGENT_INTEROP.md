@@ -47,7 +47,7 @@ The installed app never pulls arbitrary branches and never installs an artifact 
 
 v0.1 is hard-bound to:
 
-`Space653000/AI-Engineering-Control-Plane`
+`Space653000/0_JN1_AIECP`
 
 The update source cannot be changed by a Command Card or by content copied from an AI conversation.
 
@@ -81,11 +81,11 @@ AECP:
 4. launches the verified NSIS installer;
 5. closes the running AECP instance.
 
-Stable releases should later add Authenticode verification in addition to the SHA-256 manifest.
+Stable/signed builds now support Authenticode verification in addition to the SHA-256 manifest. A build can embed a required signer thumbprint; if present, downloaded target and rollback installers are rejected unless Windows reports a valid Authenticode signature from that exact signer. Preview builds may leave the signer pin empty and remain checksum-only.
 
 ### 3.5 Rollback
 
-A future stable update controller should retain the previous installer/version metadata until the new version completes a post-launch health check.
+The update controller now retains verified previous-installer/version metadata when available and persists the update transaction until post-launch first-boot reconciliation determines HEALTHY or ROLLBACK_REQUIRED. A retained rollback installer is re-verified before execution.
 
 Required stable rollback states:
 

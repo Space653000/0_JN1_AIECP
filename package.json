@@ -8,12 +8,19 @@
   "private": false,
   "scripts": {
     "start": "electron .",
-    "check": "node --check electron/main.cjs && node --check electron/mcp-server.mjs && node --check electron/preload.cjs && node --check electron/lib/protocol.cjs && node --check electron/lib/path-safety.cjs && node --check electron/lib/version.cjs && node --check electron/lib/autonomy.cjs && node --check electron/lib/harness.cjs && node --check electron/lib/control-plane.cjs && node --check ui/app.js",
+    "check": "node --check scripts/verify-evidence-bundle.cjs && node --check electron/main.cjs && node --check electron/mcp-server.mjs && node --check electron/preload.cjs && node --check electron/lib/protocol.cjs && node --check electron/lib/path-safety.cjs && node --check electron/lib/version.cjs && node --check electron/lib/update-state.cjs && node --check electron/lib/authenticode.cjs && node --check electron/lib/windows-ui-adapter.cjs && node --check electron/lib/python-worker.cjs && node --check electron/lib/windows-desktop-adapter.cjs && node --check electron/lib/backup-manager.cjs && node --check electron/lib/state-migration.cjs && node --check electron/lib/guidance.cjs && node --check electron/lib/autonomy.cjs && node --check electron/lib/harness.cjs && node --check electron/lib/control-plane.cjs && node --check electron/lib/security-policy.cjs && node --check electron/lib/adapter-security-audit.cjs && node --check electron/lib/pairing.cjs && node --check electron/lib/dependency-drift-scanner.cjs && node --check electron/lib/lock-manager.cjs && node --check electron/lib/evidence-manager.cjs && node --check electron/lib/context-bus.cjs && node --check electron/lib/codex-worker-runtime.cjs && node --check electron/lib/pega-provider.cjs && node --check electron/lib/worker-registry.cjs && node --check electron/lib/provider-router.cjs && node --check electron/lib/provider-usage.cjs && node --check electron/lib/github-gateway.cjs && node --check electron/lib/ci-monitor.cjs && node --check electron/lib/event-ledger.cjs && node --check electron/lib/event-projection.cjs && node --check electron/lib/resource-manager.cjs && node --check electron/lib/maintenance.cjs && node --check electron/lib/remote-gateway.cjs && node --check electron/lib/github-webhook.cjs && node --check electron/lib/delivery.cjs && node --check ui/app.js && node --check ui/i18n.js && node --check ui/harness-console.js && node --check scripts/license-audit.cjs && node --check scripts/requirements-coverage.cjs && node --check scripts/blueprint-coverage.cjs && node --check scripts/acceptance-audit.cjs && node --check tests/release-workflow.test.cjs && node --check scripts/roadmap-gate-audit.cjs && node --check tests/provider-usage.test.cjs && node --check scripts/provider-environment-verify.cjs && node --check tests/provider-environment-workflow.test.cjs && node --check tests/harness-bounds.test.cjs && node --check electron/lib/local-data-manager.cjs && node --check tests/local-data-manager.test.cjs && node --check electron/lib/accepted-evidence.cjs && node --check tests/accepted-evidence.test.cjs && node --check electron/lib/redaction.cjs && node --check tests/redaction.test.cjs && node --check electron/lib/workspace-policy.cjs && node --check tests/workspace-policy.test.cjs && node --check electron/lib/execution-contract.cjs && node --check tests/execution-contract.test.cjs && node --check tests/dashboard-acceptance.test.cjs && node --check electron/lib/command-resolver.cjs && node --check tests/command-resolver.test.cjs && node --check tests/lock-manager.test.cjs && node --check tests/worker-registry.test.cjs",
     "test": "node --test tests/*.test.cjs",
-    "verify": "npm run check && npm test",
+    "verify": "npm run check && npm test && npm run audit:license && npm run audit:requirements && npm run audit:blueprints && npm run audit:roadmap && npm run audit:acceptance",
     "dist:auto": "electron-builder --win nsis --x64 --arm64 --publish never -c.win.artifactName=AI-Engineering-Control-Plane-Setup-${version}.${ext}",
     "dist:x64": "electron-builder --win nsis --x64 --publish never",
-    "dist:arm64": "electron-builder --win nsis --arm64 --publish never"
+    "dist:arm64": "electron-builder --win nsis --arm64 --publish never",
+    "audit:acceptance": "node scripts/acceptance-audit.cjs",
+    "dist:store:x64": "electron-builder --win appx --x64 --publish never",
+    "dist:store:arm64": "electron-builder --win appx --arm64 --publish never",
+    "audit:license": "node scripts/license-audit.cjs",
+    "audit:requirements": "node scripts/requirements-coverage.cjs",
+    "audit:blueprints": "node scripts/blueprint-coverage.cjs",
+    "audit:roadmap": "node scripts/roadmap-gate-audit.cjs"
   },
   "devDependencies": {
     "electron": "44.4.1",
@@ -44,12 +51,28 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "AI Engineering Control Plane",
-      "uninstallDisplayName": "AI Engineering Control Plane"
+      "uninstallDisplayName": "AI Engineering Control Plane",
+      "deleteAppDataOnUninstall": false
+    },
+    "appx": {
+      "applicationId": "AECP",
+      "identityName": "Space653000.AECPPreview",
+      "publisherDisplayName": "Space653000",
+      "displayName": "AI Engineering Control Plane",
+      "languages": [
+        "en-US",
+        "zh-TW"
+      ],
+      "minVersion": "10.0.17763.0",
+      "artifactName": "AI-Engineering-Control-Plane-Store-${arch}-${version}.${ext}"
     }
   },
   "dependencies": {
     "@modelcontextprotocol/server": "2.0.0",
     "@modelcontextprotocol/node": "2.0.0",
     "zod": "4.6.5"
+  },
+  "aecp": {
+    "requiredSignerThumbprint": ""
   }
 }

@@ -1,0 +1,22 @@
+{
+  "schema": "aecp.owner-evidence.arm64-ui-smoke/v1",
+  "sourceCommit": "<placeholder>",
+  "date": "<placeholder>",
+  "machine": { "id": "<placeholder>", "arch": "arm64" },
+  "operatorAttestation": { "name": "<placeholder>", "statement": "<placeholder>", "signedAt": "<placeholder>" },
+  "checklist": {
+    "packagingChecksumMatches": { "passed": false, "note": "<placeholder>" },
+    "nodeArchArm64": { "passed": false, "note": "<placeholder>" },
+    "installed": { "passed": false, "note": "<placeholder>" },
+    "launchedWithoutCrash": { "passed": false, "note": "<placeholder>" },
+    "dashboardEightQuestionsVisible": { "passed": false, "note": "<placeholder>" },
+    "workspaceSelected": { "passed": false, "note": "<placeholder>" },
+    "inspectWorkspaceCardPassed": { "passed": false, "note": "<placeholder>" },
+    "stopAllEffective": { "passed": false, "note": "<placeholder>" },
+    "uninstalledCleanly": { "passed": false, "note": "<placeholder>" }
+  },
+  "artifacts": {
+    "installer": { "fileName": "<placeholder>", "sha256": "<placeholder>", "checksumSha256": "<placeholder>" },
+    "screenshots": [{ "fileName": "<placeholder>", "sha256": "<placeholder>" }]
+  }
+}

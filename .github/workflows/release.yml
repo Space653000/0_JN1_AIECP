@@ -1,15 +1,38 @@
 name: Build and Release
 
 on:
-  push:
+  workflow_dispatch:
+  pull_request:
     branches: [main]
+  push:
+    tags: ["v*"]
 
 permissions:
   contents: read
 
+concurrency:
+  group: aecp-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  verify:
+    name: Verify release source
+    timeout-minutes: 45
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm install --no-audit --no-fund
+      - run: npm run verify
+
   build-fallback:
     name: Build Windows fallback ${{ matrix.arch }}
+    needs: verify
+    timeout-minutes: 45
     runs-on: windows-latest
     strategy:
       fail-fast: false
@@ -17,11 +40,12 @@ jobs:
         arch: [x64, arm64]
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
       - run: npm install --no-audit --no-fund
-      - run: npm run verify
       - name: Build architecture-specific fallback installer
         shell: pwsh
         run: npx electron-builder --win nsis --${{ matrix.arch }} --publish never
@@ -34,18 +58,58 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+  smoke-install:
+    name: Smoke install Windows ${{ matrix.arch }}
+    needs: build-fallback
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: windows-latest
+          - arch: arm64
+            runner: windows-11-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: aecp-windows-${{ matrix.arch }}
+          path: smoke
+      - name: Silent install and uninstall smoke test
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem smoke -Filter '*.exe' -Recurse | Where-Object { $_.Name -match '-${{ matrix.arch }}-' } | Select-Object -First 1
+          if (-not $installer) { throw 'Architecture installer artifact not found.' }
+          $installDir = Join-Path $env:RUNNER_TEMP 'aecp-release-smoke-${{ matrix.arch }}'
+          Remove-Item $installDir -Recurse -Force -ErrorAction SilentlyContinue
+          $install = Start-Process -FilePath $installer.FullName -ArgumentList @('/S', "/D=$installDir") -PassThru -Wait
+          if ($install.ExitCode -ne 0) { throw "Installer exited with $($install.ExitCode)." }
+          $app = Get-ChildItem $installDir -Filter 'AI Engineering Control Plane.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $app) { throw 'Installed AECP executable not found.' }
+          $launch = Start-Process -FilePath $app.FullName -ArgumentList '--smoke-test' -PassThru -Wait
+          if ($launch.ExitCode -ne 0) { throw "Installed AECP smoke launch exited with $($launch.ExitCode)." }
+          $uninstaller = Get-ChildItem $installDir -Filter 'Uninstall*.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $uninstaller) { throw 'AECP uninstaller not found.' }
+          $uninstall = Start-Process -FilePath $uninstaller.FullName -ArgumentList '/S' -PassThru -Wait
+          if ($uninstall.ExitCode -ne 0) { throw "Uninstaller exited with $($uninstall.ExitCode)." }
+          Start-Sleep -Seconds 2
+          if (Test-Path $app.FullName) { throw 'AECP executable still exists after uninstall.' }
+
   build-auto:
-    name: Build Windows Auto Detect (x64 + ARM64)
+    name: Build Windows Auto Detect
+    needs: verify
+    timeout-minutes: 45
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
       - run: npm install --no-audit --no-fund
-      - run: npm run verify
-      - name: Build single auto-detect installer
-        run: npm run dist:auto
+      - run: npm run dist:auto
       - uses: actions/upload-artifact@v4
         with:
           name: aecp-windows-auto
@@ -55,38 +119,294 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-  github-release:
-    name: Publish preview GitHub Release
-    needs: [build-fallback, build-auto]
-    runs-on: ubuntu-latest
+  build-universal:
+    name: Build Universal Bootstrap
+    needs: build-fallback
+    timeout-minutes: 45
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - uses: actions/download-artifact@v4
+        with:
+          name: aecp-windows-x64
+          path: staging/x64
+      - uses: actions/download-artifact@v4
+        with:
+          name: aecp-windows-arm64
+          path: staging/arm64
+      - name: Stage architecture payloads
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path release/universal-bootstrap/payloads | Out-Null
+          $x = Get-ChildItem staging/x64 -Filter '*x64*.exe' -Recurse | Select-Object -First 1
+          $a = Get-ChildItem staging/arm64 -Filter '*arm64*.exe' -Recurse | Select-Object -First 1
+          if (-not $x -or -not $a) { throw 'Architecture installer payloads not found.' }
+          Copy-Item $x.FullName release/universal-bootstrap/payloads/AI-Engineering-Control-Plane-Setup-x64.exe
+          Copy-Item $a.FullName release/universal-bootstrap/payloads/AI-Engineering-Control-Plane-Setup-arm64.exe
+      - name: Build self-contained universal bootstrap
+        shell: pwsh
+        working-directory: release/universal-bootstrap
+        run: dotnet publish UniversalBootstrap.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o ../../release/universal
+      - name: Normalize universal artifact and checksum
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem release/universal -Filter '*.exe' | Select-Object -First 1
+          if (-not $exe) { throw 'Universal bootstrap executable not found.' }
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $finalName = "AI-Engineering-Control-Plane-Setup-$version.exe"
+          Rename-Item $exe.FullName $finalName
+          $final = Join-Path 'release/universal' $finalName
+          $hash = (Get-FileHash $final -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $finalName" | Out-File -Encoding ascii release/universal/SHA256SUMS-universal.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aecp-universal-installer
+          path: release/universal/**
+          if-no-files-found: error
+          retention-days: 30
+
+  smoke-universal:
+    name: Smoke universal bootstrap Windows ${{ matrix.arch }}
+    needs: build-universal
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: windows-latest
+          - arch: arm64
+            runner: windows-11-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: aecp-universal-installer
+          path: smoke-universal
+      - name: Install through universal bootstrap and uninstall
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem smoke-universal -Filter '*.exe' -Recurse | Where-Object { $_.Name -like 'AI-Engineering-Control-Plane-Setup-*.exe' } | Select-Object -First 1
+          if (-not $installer) { throw 'Universal release bootstrap not found.' }
+          $installDir = Join-Path $env:RUNNER_TEMP 'aecp-release-universal-${{ matrix.arch }}'
+          Remove-Item $installDir -Recurse -Force -ErrorAction SilentlyContinue
+          $env:AECP_BOOTSTRAP_INSTALL_ARGS = "/S /D=$installDir"
+          $install = Start-Process -FilePath $installer.FullName -PassThru -Wait
+          if ($install.ExitCode -ne 0) { throw "Universal release bootstrap exited with $($install.ExitCode)." }
+          $app = Get-ChildItem $installDir -Filter 'AI Engineering Control Plane.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $app) { throw 'AECP executable not found after universal release install.' }
+          $launch = Start-Process -FilePath $app.FullName -ArgumentList '--smoke-test' -PassThru -Wait
+          if ($launch.ExitCode -ne 0) { throw "Universal release AECP smoke launch exited with $($launch.ExitCode)." }
+          $uninstaller = Get-ChildItem $installDir -Filter 'Uninstall*.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $uninstaller) { throw 'AECP uninstaller not found after universal release install.' }
+          $uninstall = Start-Process -FilePath $uninstaller.FullName -ArgumentList '/S' -PassThru -Wait
+          if ($uninstall.ExitCode -ne 0) { throw "Universal release uninstall exited with $($uninstall.ExitCode)." }
+          Start-Sleep -Seconds 2
+          if (Test-Path $app.FullName) { throw 'AECP executable still exists after universal release uninstall.' }
+
+  build-store-test:
+    name: Build Store AppX test identity ${{ matrix.arch }}
+    needs: verify
+    timeout-minutes: 45
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x64, arm64]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm install --no-audit --no-fund
+      - name: Build Store package
+        shell: pwsh
+        run: |
+          if ('${{ matrix.arch }}' -eq 'x64') { npm run dist:store:x64 } else { npm run dist:store:arm64 }
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Validate generated AppX manifest
+        shell: pwsh
+        run: |
+          $package = Get-ChildItem release -Filter '*.appx' -Recurse | Where-Object { $_.Name -match '-${{ matrix.arch }}-' } | Select-Object -First 1
+          if (-not $package) { throw 'Store AppX artifact not found.' }
+          ./scripts/validate-store-package.ps1 -PackagePath $package.FullName -ExpectedArchitecture '${{ matrix.arch }}' -ExpectedIdentityName 'Space653000.AECPPreview' -EvidencePath "release/store-evidence-${{ matrix.arch }}.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aecp-store-test-${{ matrix.arch }}
+          path: |
+            release/*.appx
+            release/store-evidence-${{ matrix.arch }}.json
+          if-no-files-found: error
+          retention-days: 30
+
+  package-upgrade-baseline:
+    name: Package upgrade baseline ${{ matrix.arch }}
+    needs: verify
+    timeout-minutes: 45
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x64, arm64]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm install --no-audit --no-fund
+      - name: Build synthetic previous-version installer
+        shell: pwsh
+        run: |
+          node -e "const fs=require('fs');const p=require('./package.json');p.version='0.2.99';fs.writeFileSync('package.json',JSON.stringify(p,null,2)+'\n')"
+          npx electron-builder --win nsis --${{ matrix.arch }} --publish never --config.directories.output=release/upgrade-baseline
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aecp-upgrade-baseline-${{ matrix.arch }}
+          path: release/upgrade-baseline/*.exe
+          if-no-files-found: error
+          retention-days: 30
+
+  smoke-upgrade-rollback:
+    name: Smoke upgrade and rollback Windows ${{ matrix.arch }}
+    needs: [build-fallback, package-upgrade-baseline]
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: windows-latest
+          - arch: arm64
+            runner: windows-11-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: aecp-upgrade-baseline-${{ matrix.arch }}
+          path: upgrade/baseline
+      - uses: actions/download-artifact@v4
+        with:
+          name: aecp-windows-${{ matrix.arch }}
+          path: upgrade/current
+      - name: Install baseline, upgrade current, then rollback baseline
+        shell: pwsh
+        run: |
+          $baseline = Get-ChildItem upgrade/baseline -Filter '*.exe' -Recurse | Where-Object { $_.Name -match '-${{ matrix.arch }}-' } | Select-Object -First 1
+          $current = Get-ChildItem upgrade/current -Filter '*.exe' -Recurse | Where-Object { $_.Name -match '-${{ matrix.arch }}-' } | Select-Object -First 1
+          if (-not $baseline -or -not $current) { throw 'Upgrade smoke installers are missing.' }
+          $installDir = Join-Path $env:RUNNER_TEMP 'aecp-release-upgrade-${{ matrix.arch }}'
+          Remove-Item $installDir -Recurse -Force -ErrorAction SilentlyContinue
+          function Install-Aecp([string]$Installer) {
+            $p = Start-Process -FilePath $Installer -ArgumentList @('/S', "/D=$installDir") -PassThru -Wait
+            if ($p.ExitCode -ne 0) { throw "Installer exited with $($p.ExitCode)." }
+            $exe = Get-ChildItem $installDir -Filter 'AI Engineering Control Plane.exe' -Recurse | Select-Object -First 1
+            if (-not $exe) { throw 'AECP executable not found after install.' }
+            $smoke = Start-Process -FilePath $exe.FullName -ArgumentList '--smoke-test' -PassThru -Wait
+            if ($smoke.ExitCode -ne 0) { throw "AECP smoke launch exited with $($smoke.ExitCode)." }
+            return $exe
+          }
+          $baselineExe = Install-Aecp $baseline.FullName
+          if ($baselineExe.VersionInfo.FileVersion -notlike '0.2.99*') { throw "Baseline version mismatch: $($baselineExe.VersionInfo.FileVersion)" }
+          $currentExe = Install-Aecp $current.FullName
+          if ($currentExe.VersionInfo.FileVersion -notlike '0.3.0*') { throw "Upgrade version mismatch: $($currentExe.VersionInfo.FileVersion)" }
+          $rollbackExe = Install-Aecp $baseline.FullName
+          if ($rollbackExe.VersionInfo.FileVersion -notlike '0.2.99*') { throw "Rollback version mismatch: $($rollbackExe.VersionInfo.FileVersion)" }
+          $uninstaller = Get-ChildItem $installDir -Filter 'Uninstall*.exe' -Recurse | Select-Object -First 1
+          if (-not $uninstaller) { throw 'AECP uninstaller missing after rollback.' }
+          $uninstall = Start-Process -FilePath $uninstaller.FullName -ArgumentList '/S' -PassThru -Wait
+          if ($uninstall.ExitCode -ne 0) { throw "Uninstaller exited with $($uninstall.ExitCode)." }
+
+  provenance:
+    name: Build release provenance
+    needs: [build-fallback, build-auto, build-universal, smoke-install, smoke-universal, build-store-test, smoke-upgrade-rollback]
+    timeout-minutes: 45
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: aecp-windows-x64
+          path: release-assets/x64
+      - uses: actions/download-artifact@v4
+        with:
+          name: aecp-windows-arm64
+          path: release-assets/arm64
+      - uses: actions/download-artifact@v4
+        with:
+          name: aecp-windows-auto
+          path: release-assets/auto
+      - uses: actions/download-artifact@v4
+        with:
+          name: aecp-universal-installer
+          path: release-assets/universal
+      - name: Generate SHA256 and release provenance
+        shell: pwsh
+        run: |
+          $assets = Get-ChildItem release-assets -Recurse -File | Where-Object { $_.Extension -in @('.exe','.blockmap') } | Sort-Object FullName
+          $hashLines = @()
+          $records = @()
+          foreach ($asset in $assets) {
+            $hash = (Get-FileHash $asset.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            $hashLines += "$hash  $($asset.Name)"
+            $records += [ordered]@{ file=$asset.Name; sha256=$hash; bytes=$asset.Length }
+          }
+          $hashLines | Out-File -Encoding ascii release-assets/SHA256SUMS.txt
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $sourceCommit = (git rev-parse HEAD).Trim()
+          if ($LASTEXITCODE -ne 0 -or $sourceCommit -notmatch '^[0-9a-f]{40}$') { throw 'Unable to resolve exact checked-out source commit.' }
+          $prov = [ordered]@{
+            schema='aecp.release-provenance/v1'
+            version=$version
+            sourceCommit=$sourceCommit
+            repository=$env:GITHUB_REPOSITORY
+            workflowRunId=$env:GITHUB_RUN_ID
+            workflowRunAttempt=$env:GITHUB_RUN_ATTEMPT
+            unsignedPreview=$true
+            assets=$records
+            generatedAt=(Get-Date).ToUniversalTime().ToString('o')
+          }
+          $prov | ConvertTo-Json -Depth 6 | Out-File -Encoding utf8 release-assets/RELEASE_PROVENANCE.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aecp-release-bundle
+          path: release-assets/**
+          if-no-files-found: error
+          retention-days: 30
+
+  publish-release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: provenance
+    timeout-minutes: 45
+    runs-on: windows-latest
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          pattern: aecp-windows-*
-          path: dist
-          merge-multiple: true
-      - name: Generate SHA-256 manifest
-        shell: bash
-        run: |
-          cd dist
-          sha256sum *.exe > SHA256SUMS.txt
-          cat SHA256SUMS.txt
-      - name: Create release if this version is new
+          name: aecp-release-bundle
+          path: release-assets
+      - name: Publish GitHub Release
+        shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-        shell: bash
         run: |
-          VERSION=$(node -p "require('./package.json').version")
-          TAG="v${VERSION}"
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "Release $TAG already exists; keeping the existing immutable preview release."
-            exit 0
-          fi
-          gh release create "$TAG" dist/*.exe dist/*.blockmap dist/SHA256SUMS.txt \
-            --target "$GITHUB_SHA" \
-            --title "AI Engineering Control Plane $TAG" \
-            --notes-file RELEASE_NOTES.md \
-            --prerelease
+          $tag = $env:GITHUB_REF_NAME
+          gh release view $tag 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag --title "AECP $tag" --generate-notes
+          }
+          Get-ChildItem release-assets -Recurse -File | ForEach-Object {
+            gh release upload $tag $_.FullName --clobber
+          }

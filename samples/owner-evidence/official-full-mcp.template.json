@@ -1,0 +1,27 @@
+{
+  "schema": "aecp.owner-evidence.official-full-mcp/v1",
+  "sourceCommit": "<placeholder>",
+  "date": "<placeholder>",
+  "machine": { "id": "<placeholder>", "arch": "<placeholder>" },
+  "operatorAttestation": { "name": "<placeholder>", "statement": "<placeholder>", "signedAt": "<placeholder>" },
+  "workspaceType": "<placeholder>",
+  "checklist": {
+    "supportedWorkspaceUsed": { "passed": false, "note": "<placeholder>" },
+    "tunnelConnectorHealthy": { "passed": false, "note": "<placeholder>" },
+    "readToolEventRecorded": { "passed": false, "note": "<placeholder>" },
+    "unapprovedWriteDenied": { "passed": false, "note": "<placeholder>" },
+    "approvedWriteSucceeded": { "passed": false, "note": "<placeholder>" },
+    "disconnectSafeBridgeFallback": { "passed": false, "note": "<placeholder>" }
+  },
+  "eventIds": {
+    "connectorHealth": "<placeholder>",
+    "readTool": "<placeholder>",
+    "writeDenied": "<placeholder>",
+    "writeApproved": "<placeholder>",
+    "safeBridgeFallback": "<placeholder>"
+  },
+  "artifacts": {
+    "eventLedger": { "fileName": "<placeholder>", "sha256": "<placeholder>" },
+    "tunnelHealth": { "fileName": "<placeholder>", "sha256": "<placeholder>" }
+  }
+}
