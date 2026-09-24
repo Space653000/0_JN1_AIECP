@@ -307,10 +307,15 @@
           "file": "electron/lib/control-plane.cjs",
           "kind": "code",
           "name": "createMission"
+        },
+        {
+          "file": "tests/scheduler-parallelism.test.cjs",
+          "kind": "test",
+          "name": "B02-L207 durable task fields, run limits and explainable scheduler decisions survive a restart"
         }
       ],
       "workOrder": "UNASSIGNED",
-      "note": "Durable tasks and bounded scheduler exist, but dependency and decision-explanation persistence across restart lacks a combined proof."
+      "note": "Proven across a real ControlPlane restart: task dependencies, priority, risk, estimates, repository bindings, mission limits/Workspace id/role providers and the explainable aecp.scheduler-decision/v1 (reasons, worker, provider states, locks) plus the journaled scheduler.selected event. Remaining: tasks carry no task-level role or verifier-profile field (only run-level providers/contract), so the clause is not fully evidenced."
     },
     {
       "id": "B02-L95",
@@ -1142,10 +1147,15 @@
           "file": "electron/lib/github-webhook.cjs",
           "kind": "code",
           "name": "GitHubWebhookReceiver"
+        },
+        {
+          "file": "tests/delivery-and-external-events.test.cjs",
+          "kind": "test",
+          "name": "B05-L118 external events are journaled with their correlation id but never change task state, and replays are deduplicated"
         }
       ],
       "workOrder": "UNASSIGNED",
-      "note": "Signed webhook correlation exists; repository_dispatch/workflow_dispatch versioning and task-state non-mutation need end-to-end evidence."
+      "note": "Proven: external events are journaled with their correlation id, deduplicated by idempotency key, and never change task/run state. Remaining: ingestExternalEvent reuses the same idempotencyKey for its external.correlated event so the ledger drops it as a duplicate (never written); repository_dispatch client_payload (versioned AECP event/correlation ids) is not parsed; only workflow_run.id is correlated."
     },
     {
       "id": "B05-L132",
@@ -1154,16 +1164,15 @@
         "section": "## 12. Multi-agent scheduling"
       },
       "text": "Parallel work is allowed only after dependency/resource analysis. Repository write conflicts must be blocked by Harness locks before a Worker starts.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/lib/control-plane.cjs",
-          "kind": "code",
-          "name": "schedulerDecision"
+          "file": "tests/scheduler-parallelism.test.cjs",
+          "kind": "test",
+          "name": "B05-L132 a task is launched only after its dependencies are done and its worktree lock is free"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Task worktree locks exist; dependency analysis before parallel launch needs dedicated proof."
+      "note": "Real schedulerTick: a task is launched only after its dependencies are DONE and only when its worktree lock is free; a write conflict yields LOCK_BUSY and no Worker is started."
     },
     {
       "id": "B05-L20",
@@ -1172,16 +1181,17 @@
         "section": "## 2. Resource model"
       },
       "text": "AECP detects local repositories first. Remote identity is derived from `git remote -v` and normalized for display; credentials are never parsed from URLs into logs.",
-      "status": "PARTIAL",
+      "status": "CONFIRMED_GAP",
       "evidence": [
         {
           "file": "electron/lib/resource-manager.cjs",
           "kind": "code",
-          "name": "ResourceManager"
+          "symbol": "scan",
+          "description": "scan stores the raw output of `git remote get-url origin` (repos[].remote) and persists it to resources.json without normalization or credential stripping; a remote such as https://user:token@github.com/o/r.git is written to disk verbatim. control-plane.cjs planMission also puts r.remote into the planner prompt. Only main.cjs redactRemote (Workspace display path) strips credentials."
         }
       ],
       "workOrder": "UNASSIGNED",
-      "note": "Local discovery and remote normalization exist; embedded URL credential redaction across every log needs a negative test."
+      "note": "Missing: ResourceManager must normalize/redact remote URLs (drop userinfo, normalize for display) before persisting or exposing them. Verified by running scan on a repo whose origin embeds a token: the token appeared in resources.json. Not fixed here (feature code is out of scope for work order 0013)."
     },
     {
       "id": "B05-L34",
@@ -1196,10 +1206,25 @@
           "file": "electron/lib/github-gateway.cjs",
           "kind": "code",
           "name": "GitHubGateway"
+        },
+        {
+          "file": "tests/delivery-and-external-events.test.cjs",
+          "kind": "test",
+          "name": "B05-L34 the governed delivery path only issues fixed, capability-limited git/gh commands and always opens a draft PR"
+        },
+        {
+          "file": "tests/delivery-and-external-events.test.cjs",
+          "kind": "test",
+          "name": "B05-L34 an already-open PR is reused and no second PR is created"
+        },
+        {
+          "file": "tests/delivery-and-external-events.test.cjs",
+          "kind": "test",
+          "name": "B05-L34 the webhook receiver rejects unsigned or wrongly signed deliveries and correlates signed ones to the workflow run"
         }
       ],
       "workOrder": "UNASSIGNED",
-      "note": "Git/gh and signed webhook paths exist; full capability limitation of every delivery action needs an integration test. Direct OAuth is optional."
+      "note": "Proven: DeliveryManager issues only fixed git/gh primitives (draft PR only, no force/merge, single-argv inputs, task worktree cwd) and the signed webhook receiver rejects unsigned/wrong-signature deliveries and correlates workflow_run ids. Remaining defect: GitHubWebhookReceiver.verify throws RangeError (timingSafeEqual length mismatch) for a signature of the wrong length, which becomes an unhandled rejection and a hung request; GitHubGateway is unused and calls non-gh subcommands (gh rev-parse/add/commit/push)."
     },
     {
       "id": "B05-L5",
@@ -1208,16 +1233,25 @@
         "section": "## 1. Principles"
       },
       "text": "GitHub is a first-class resource provider, but local Git operation must continue to work without GitHub authentication. A Workspace may bind zero, one, or many repositories/remotes/accounts.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/lib/resource-manager.cjs",
-          "kind": "code",
-          "name": "ResourceManager"
+          "file": "tests/repository-binding.test.cjs",
+          "kind": "test",
+          "name": "B05-L5 a Workspace can bind zero repositories using only local Git"
+        },
+        {
+          "file": "tests/repository-binding.test.cjs",
+          "kind": "test",
+          "name": "B05-L5 a Workspace can bind one or many repositories with different remotes/accounts and no GitHub authentication"
+        },
+        {
+          "file": "tests/repository-binding.test.cjs",
+          "kind": "test",
+          "name": "B05-L5 a Workspace root that is itself a repository binds exactly that repository once"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Local Git works without GitHub login; multiple remotes/accounts bound to one Workspace lacks an end-to-end test."
+      "note": "Real ResourceManager on temp Git repos: a Workspace binds zero, one or many repositories with different remotes/accounts (https, ssh, none), persists them across reload, and only ever spawns git (no gh/GitHub authentication)."
     },
     {
       "id": "B05-L88",
@@ -1226,16 +1260,17 @@
         "section": "## 7. Concurrency"
       },
       "text": "Write lock/resource ownership is enforced by Harness/Resource Manager/Lock Manager. Read tasks may share. Cross-repo tasks acquire required write locks in deterministic order or fail fast with `BLOCKED`.",
-      "status": "PARTIAL",
+      "status": "CONFIRMED_GAP",
       "evidence": [
         {
-          "file": "electron/lib/lock-manager.cjs",
+          "file": "electron/lib/control-plane.cjs",
           "kind": "code",
-          "name": "LockManager"
+          "symbol": "taskMutationLockKeys",
+          "description": "taskMutationLockKeys returns a single per-task worktree lock key regardless of how many repositories a task is bound to, executeTask uses only resources.repositories[0], and a busy lock sends the task back to QUEUED/WAITING_LOCK instead of failing fast with BLOCKED. There is no deterministic multi-repository write-lock acquisition order."
         }
       ],
       "workOrder": "UNASSIGNED",
-      "note": "Task-scoped write locks exist, but deterministic cross-repository acquisition ordering or BLOCKED fallback lacks a test."
+      "note": "Missing: cross-repository tasks acquiring every required write lock in deterministic order, or failing fast with BLOCKED. Not fixed here (feature code is out of scope for work order 0013). Judgment call for the reviewer: per-task worktree isolation may be considered the intended design, in which case revert this to PARTIAL/DELIBERATE_NON_GOAL."
     },
     {
       "id": "B05-L93",
@@ -1244,16 +1279,15 @@
         "section": "## 7. Concurrency"
       },
       "text": "- `codex-official` and `codex-pega` must never be assigned the same mutating worktree concurrently;",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/lib/control-plane.cjs",
-          "kind": "code",
-          "name": "builderWorkers"
+          "file": "tests/scheduler-parallelism.test.cjs",
+          "kind": "test",
+          "name": "B05-L93 codex-official and codex-pega are never assigned the same mutating worktree or the same worker concurrently"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Worker pool uses task worktrees; a direct OFFICIAL/PEGA same-worktree collision rejection test is absent."
+      "note": "Real ControlPlane + WorkerRegistry with codex-official/codex-pega workers: tasks in one repository get different task worktree lock keys, a lock or Worker already held cannot be taken by another task (LOCK_BUSY/WORKER_BUSY), and a third task gets WORKER_BUSY instead of reusing a Worker."
     },
     {
       "id": "B11-2-CARD",
