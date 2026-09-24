@@ -43,7 +43,8 @@
 - Exact-HEAD CI 證據：
   - commit `94d86a3f…` → AECP Security #663、AECP CI #792、Packaging #706、Build&Release #454（皆 SUCCESS）
   - commit `2d16de14…`（架構閘門）→ AECP Security #675、AECP CI #804、Packaging #718、Build&Release #466（皆 SUCCESS）
-  - commit `36c7b871…`（新增 `.ai/` 治理入口）→ 2026-09-24 核對 AECP Security、AECP CI、CI/Packaging、Build and Release 均 SUCCESS；本輪新修改仍需各自的 GitHub Actions 結果。
+  - commit `36c7b871…`（新增 `.ai/` 治理入口）→ AECP Security run #35949301577、AECP CI #35949301581、CI/Packaging #35949301594、Build and Release #35949301578（皆 SUCCESS）。
+  - commit `268f01d31861d157aaa50895d188ce6a36a0d7fd`（Codex 工作入口、provider process 修正、README 索引）→ [AECP Security #35950467641](https://github.com/Space653000/0_JN1_AIECP/actions/runs/35950467641)、[AECP CI #35950467611](https://github.com/Space653000/0_JN1_AIECP/actions/runs/35950467611)、[CI/Packaging #35950467650](https://github.com/Space653000/0_JN1_AIECP/actions/runs/35950467650)、[Build and Release #35950467606](https://github.com/Space653000/0_JN1_AIECP/actions/runs/35950467606)（皆 SUCCESS）。最新分支 HEAD 的狀態以 [PR #7](https://github.com/Space653000/0_JN1_AIECP/pull/7) 即時檢查為準。
 
 ### 其他已實作 P0–P4.7 範圍
 - 崩潰復原（孤兒執行階段重新排隊、待處理 CI 監控恢復）、CI 失敗日誌落證據、多倉庫資源綁定/鎖、簽章 GitHub webhook 接收器 + polling fallback、維運/保留排程、依賴與安全漂移掃描（診斷用、不自動改動）、遠端唯讀配對監督、Windows UI 唯讀檢視、Provider 健康狀態機（NOT_CONFIGURED/READY/DEGRADED/UNAVAILABLE/AUTH_REQUIRED）、Local-data 治理（清除證據/憑證/重設，工作中禁止）。
@@ -52,7 +53,7 @@
 
 ## 🚧 施工中 / 部分完成
 
-- **Codex 施工入口與本輪修正**：`AGENTS.md`、`.ai/CODEX_WORKER.md` 已建立；`provider-router.cjs` 既有未提交的 pipe/程序收斂修正已納入測試；README 已明確區分 `v0.3.0` 套件版本與 V3.0 Multi-Worker 藍圖階段，並補齊 19–24 號藍圖索引。本輪本機 `npm run verify` 通過、`npm test` 254/254 PASS；仍待新 commit 的 GitHub Actions 驗證與 Claude Code Review／驗收。
+- **Codex 施工入口與本輪修正**：`AGENTS.md`、`.ai/CODEX_WORKER.md` 已建立；`provider-router.cjs` 原有 pipe/程序收斂修正已納入測試；README 已明確區分 `v0.3.0` 套件版本與 V3.0 Multi-Worker 藍圖階段，並補齊 19–24 號藍圖索引。本機 `npm run verify` 通過、`npm test` 254/254 PASS；`268f01d` 的四組 GitHub workflows 皆 SUCCESS。Claude Code Review／驗收仍待執行。
 - **文件累積雜訊**：README 內多段按日期附加的狀態區塊（2026-09-19/22/23）尚未整併，閱讀體驗差但無實質矛盾。
 
 ---
