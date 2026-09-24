@@ -45,7 +45,14 @@ const DICTIONARIES=Object.freeze({
     'provider.add':'Add optional provider',
     'saveProvider':'Save provider',
     'cancel':'Cancel',
-    'language.toggle':'中文'
+    'language.toggle':'中文',
+    'dashboard.timeline':'Run timeline',
+    'dashboard.selectTask':'Select task',
+    'dashboard.openEvidence':'Open event evidence',
+    'dashboard.noTimeline':'No verified timeline',
+    'dashboard.evidence':'Event evidence',
+    'dashboard.path':'Path',
+    'dashboard.summary':'Summary'
   }),
   'zh-TW':Object.freeze({
     'workspace.choose':'選擇工作區',
@@ -91,7 +98,14 @@ const DICTIONARIES=Object.freeze({
     'provider.add':'新增選用 Provider',
     'saveProvider':'儲存 Provider',
     'cancel':'取消',
-    'language.toggle':'EN'
+    'language.toggle':'EN',
+    'dashboard.timeline':'執行時間軸',
+    'dashboard.selectTask':'選擇任務',
+    'dashboard.openEvidence':'開啟事件證據',
+    'dashboard.noTimeline':'尚無可驗證時間軸',
+    'dashboard.evidence':'事件證據',
+    'dashboard.path':'路徑',
+    'dashboard.summary':'摘要'
   })
 });
 

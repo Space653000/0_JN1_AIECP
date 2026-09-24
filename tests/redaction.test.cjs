@@ -61,7 +61,11 @@ test('EvidenceManager and ContextBus persist redacted content instead of secrets
       message:'api_key=abcdefghijk-secret-value',
       credentialRef:'cred:a'
     });
-    await evidence.appendEvent('run-1',{type:'event',secret:'hidden-secret-value'});
+    const firstEvent=await evidence.appendEvent('run-1',{type:'event',secret:'hidden-secret-value'});
+    assert.equal(firstEvent.eventSha256.length,64);
+    await evidence.appendEvent('run-1',{type:'later'});
+    const firstLine=(await fs.readFile(firstEvent.file,'utf8')).split(/\r?\n/)[0];
+    assert.equal(firstEvent.eventSha256,require('node:crypto').createHash('sha256').update(firstLine).digest('hex'));
     const context=new ContextBus(path.join(root,'context'));
     await context.init();
     const capsule=await context.write('result',{password:'password-secret-value',summary:'safe'});

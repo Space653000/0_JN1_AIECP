@@ -35,6 +35,16 @@ test('Dashboard exposes authoritative human controls and event/evidence projecti
   assert.match(ui,/Approve & Merge/);
 });
 
+test('Run timeline event buttons expose canonical event IDs and evidence by keyboard',()=>{
+  const ui=read('ui/harness-console.js');
+  assert.match(ui,/AECPDashboard\.timeline\(events/);
+  assert.match(ui,/data-event-id/);
+  assert.match(ui,/selectedEvent\.evidence\.sha256/);
+  assert.match(ui,/aria-live="polite"/);
+  assert.match(read('ui/index.html'),/dashboard-projection\.js/);
+  assert.match(read('ui/styles.css'),/\.hc-event-button:focus-visible/);
+});
+
 test('Dashboard and shell accessibility provide keyboard focus text status and reduced motion',()=>{
   const html=read('ui/index.html');
   const css=read('ui/styles.css');

@@ -1,6 +1,8 @@
 'use strict';
 (() => {
 let snapshot={runs:[],tasks:[],agents:[],workers:[],approvals:[],locks:[]},events=[],remoteDevices=[],pairing=null;
+let selectedTaskId=null,selectedEventId=null;
+const tr=(key,fallback)=>window.AECPI18N?.t(key,fallback)||fallback;
 const esc=v=>String(v??'').replace(/[&<>"']/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
 const fmt=d=>d?new Date(d).toLocaleString():'—';
 const elapsed=d=>{if(!d)return'—';const ms=Math.max(0,Date.now()-new Date(d).getTime()),s=Math.floor(ms/1000),m=Math.floor(s/60),h=Math.floor(m/60);return h?`${h}h ${m%60}m`:m?`${m}m ${s%60}s`:`${s}s`;};
@@ -124,7 +126,17 @@ function render(){
  h+=tasks.map(t=>{const run=runById[t.runId];return '<article class="hc-task"><div class="hc-task-head"><strong>'+esc(t.title)+'</strong><span class="status '+cls(t.state)+'">'+esc(t.state||'UNKNOWN')+'</span></div><p>'+esc(t.objective||t.acceptance||'')+'</p><small>'+esc(t.id)+' · attempt '+(t.attempts||0)+' · heartbeat '+fmt(t.heartbeatAt||t.updatedAt)+'</small><small>Agent: '+esc(taskAgent(t,run))+'</small><small>Verifier/Test: '+esc(taskTest(t))+'</small><small>Changed: '+esc(taskChanged(t))+'</small><small>Needs me: '+esc(taskNeedsMe(t,apps))+'</small><small>Next: '+esc(taskNext(t))+'</small>'+(t.delivery?.pr?'<div class="hc-actions"><span>PR '+esc(t.delivery.pr)+'</span>'+(t.delivery.state==='DRAFT'?'<button data-merge="1" data-run="'+esc(t.runId)+'" data-task="'+esc(t.id)+'" class="primary-button">Approve & Merge</button>':'')+'</div>':'')+(t.ci?'<small>CI: '+esc(t.ci.state||'UNKNOWN')+'</small>':'')+(!['DONE','FAILED','BLOCKED','BUDGET_EXHAUSTED','CANCELLED'].includes(t.state)?'<div class="hc-actions"><button class="secondary-button" data-cancel-task="1" data-run="'+esc(t.runId)+'" data-task="'+esc(t.id)+'">Cancel task</button></div>':'')+(t.error?'<pre>'+esc(t.error)+'</pre>':'')+'</article>';}).join('')||'<div class="empty-list">Queue is empty.</div>';
  h+='</div></section><section class="hc-card"><div class="section-title"><h2>Live Event Stream</h2><span class="status ready">JOURNALED</span></div><div class="hc-events">';
  h+=events.slice().reverse().slice(0,120).map(e=>'<div class="hc-event"><time>'+esc(fmt(e.at))+'</time><b>'+esc(e.type)+'</b><span>'+esc(e.runId||'')+'</span><span>'+esc(e.taskId||'')+'</span></div>').join('')||'<div class="empty-list">No events yet.</div>';
- h+='</div></section></div>';host.innerHTML=h;
+ h+='</div></section></div>';
+ const focusTask=tasks.find(t=>t.id===selectedTaskId)||latestBy(tasks)||null;
+ const timeline=window.AECPDashboard.timeline(events,focusTask?.id);
+ const selectedEvent=timeline.entries.find(e=>e.id===selectedEventId)||null;
+ h+='<section class="hc-card" id="hcTimeline"><div class="section-title"><h2>'+esc(tr('dashboard.timeline','Run timeline'))+'</h2><span class="status neutral">'+esc(focusTask?.id||'UNKNOWN')+'</span></div>';
+ h+='<div class="hc-actions" role="group" aria-label="'+esc(tr('dashboard.selectTask','Select task'))+'">'+tasks.map(t=>'<button type="button" class="secondary-button" data-select-task="'+esc(t.id)+'" aria-pressed="'+String(focusTask?.id===t.id)+'">'+esc(t.title||t.id)+'</button>').join('')+'</div>';
+ h+='<div class="hc-events">'+(timeline.entries.map(e=>'<button type="button" class="hc-event hc-event-button" data-event-id="'+esc(e.id)+'" aria-label="'+esc(tr('dashboard.openEvidence','Open event evidence'))+' '+esc(e.type)+'"><time>'+esc(fmt(e.at))+'</time><b>'+esc(e.type)+'</b><span>ID '+esc(e.id)+'</span></button>').join('')||'<div class="empty-list">UNKNOWN · '+esc(tr('dashboard.noTimeline','No verified timeline'))+'</div>')+'</div>';
+ h+='<div class="hc-event-evidence" role="region" aria-live="polite" aria-label="'+esc(tr('dashboard.evidence','Event evidence'))+'">'+(selectedEvent?'<strong>'+esc(tr('dashboard.evidence','Event evidence'))+'</strong><small>ID '+esc(selectedEvent.id)+'</small><small>'+esc(tr('dashboard.path','Path'))+': '+esc(selectedEvent.evidence.path)+'</small><small>SHA-256: '+esc(selectedEvent.evidence.sha256)+'</small><small>'+esc(tr('dashboard.summary','Summary'))+': '+esc(selectedEvent.evidence.summary)+'</small>':'UNKNOWN')+'</div></section>';
+ host.innerHTML=h;
+ document.querySelectorAll('[data-select-task]').forEach(b=>b.onclick=()=>{selectedTaskId=b.dataset.selectTask;selectedEventId=null;render();});
+ document.querySelectorAll('[data-event-id]').forEach(b=>b.onclick=()=>{selectedEventId=b.dataset.eventId;render();});
  document.querySelector('#hcRefresh')?.addEventListener('click',refresh);
  document.querySelector('#hcPair')?.addEventListener('click',async()=>{pairing=await window.aecp.createRemotePairing();render();});
  document.querySelectorAll('[data-device-revoke]').forEach(b=>b.onclick=async()=>{if(!confirm('Revoke this paired device?'))return;await window.aecp.revokeRemoteDevice(b.dataset.deviceRevoke);pairing=null;await refresh();});
