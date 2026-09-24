@@ -362,10 +362,15 @@
         "section": "## 3. Electron baseline"
       },
       "text": "- `contextIsolation: true`",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/traceability-first-batch.test.cjs",
+          "kind": "test",
+          "name": "B04-ELECTRON-L28 context isolation remains enabled"
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "B04-ELECTRON-L29",
@@ -374,10 +379,15 @@
         "section": "## 3. Electron baseline"
       },
       "text": "- `nodeIntegration: false`",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/traceability-first-batch.test.cjs",
+          "kind": "test",
+          "name": "B04-ELECTRON-L29 renderer Node integration remains disabled"
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "B04-ELECTRON-L30",
@@ -386,10 +396,15 @@
         "section": "## 3. Electron baseline"
       },
       "text": "- renderer sandbox enabled",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/traceability-first-batch.test.cjs",
+          "kind": "test",
+          "name": "B04-ELECTRON-L30 renderer sandbox remains enabled"
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "B04-ELECTRON-L31",
@@ -398,10 +413,15 @@
         "section": "## 3. Electron baseline"
       },
       "text": "- no `remote` module",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/traceability-first-batch.test.cjs",
+          "kind": "test",
+          "name": "B04-ELECTRON-L31 remote module is not enabled"
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "B04-ELECTRON-L32",
@@ -410,10 +430,15 @@
         "section": "## 3. Electron baseline"
       },
       "text": "- strict IPC allowlist",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/traceability-first-batch.test.cjs",
+          "kind": "test",
+          "name": "B04-ELECTRON-L32 preload exposes named IPC methods rather than generic invoke"
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "B04-ELECTRON-L33",
@@ -422,10 +447,16 @@
         "section": "## 3. Electron baseline"
       },
       "text": "- validate every IPC argument in main process",
-      "status": "GAP",
-      "evidence": [],
+      "status": "CONFIRMED_GAP",
+      "evidence": [
+        {
+          "file": "electron/main.cjs",
+          "symbol": "control-plane:approve-delivery",
+          "description": "IPC handler forwards a raw payload without a complete per-channel argument schema."
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Add uniform main-process argument validation for every IPC channel; preserve existing permission checks."
     },
     {
       "id": "B04-ELECTRON-L34",
@@ -434,10 +465,16 @@
         "section": "## 3. Electron baseline"
       },
       "text": "- deny arbitrary navigation",
-      "status": "GAP",
-      "evidence": [],
+      "status": "CONFIRMED_GAP",
+      "evidence": [
+        {
+          "file": "electron/main.cjs",
+          "symbol": "will-navigate",
+          "description": "Navigation handler permits any file: URL rather than only the packaged local UI origin."
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Restrict navigation to the known local UI document and deny other file: destinations."
     },
     {
       "id": "B04-ELECTRON-L35",
@@ -446,10 +483,15 @@
         "section": "## 3. Electron baseline"
       },
       "text": "- deny unsolicited window creation",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/traceability-first-batch.test.cjs",
+          "kind": "test",
+          "name": "B04-ELECTRON-L35 unsolicited windows are denied"
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "B04-ELECTRON-L36",
@@ -458,10 +500,15 @@
         "section": "## 3. Electron baseline"
       },
       "text": "- external URLs opened through OS browser only after scheme validation",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/traceability-first-batch.test.cjs",
+          "kind": "test",
+          "name": "B04-ELECTRON-L36 external links require HTTPS before OS-browser opening"
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "B04-ELECTRON-L37",
@@ -470,10 +517,15 @@
         "section": "## 3. Electron baseline"
       },
       "text": "- no privileged preload attached to remote ChatGPT origin",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/traceability-first-batch.test.cjs",
+          "kind": "test",
+          "name": "B04-ELECTRON-L37 remote ChatGPT origin receives no preload"
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "B04-ELECTRON-L38",
@@ -482,10 +534,15 @@
         "section": "## 3. Electron baseline"
       },
       "text": "- Content Security Policy on local UI",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/traceability-first-batch.test.cjs",
+          "kind": "test",
+          "name": "B04-ELECTRON-L38 local UI has a restrictive Content Security Policy"
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "B04-L103",
@@ -494,10 +551,15 @@
         "section": "## 5. Policy as code"
       },
       "text": "UI edits must compile to this canonical policy representation.",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/workspace-policy.test.cjs",
+          "kind": "test",
+          "name": "main process persists Workspace policy and applies it to Harness and Control Plane"
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "B04-L11",
@@ -506,10 +568,16 @@
         "section": "## 1. Threat model"
       },
       "text": "- a compromised provider must not automatically gain unrestricted local control.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/security-policy.cjs",
+          "kind": "code",
+          "name": "SecurityPolicy"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Policy is outside the provider, but this broad compromise scenario lacks an adversarial end-to-end test."
     },
     {
       "id": "B04-L112",
@@ -518,10 +586,15 @@
         "section": "## 6. Path safety"
       },
       "text": "5. never trust path strings supplied by a provider alone.",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/security-recovery-matrix.test.cjs",
+          "kind": "test",
+          "name": "policy rejects lexical traversal and sibling-prefix escapes"
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "B04-L129",
@@ -530,10 +603,16 @@
         "section": "## 8. Credentials"
       },
       "text": "Secrets must not appear in:",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/redaction.cjs",
+          "kind": "code",
+          "name": "redactSensitive"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Central redaction exists, but every listed persistence/clipboard surface has not been exhaustively proven secret-free."
     },
     {
       "id": "B04-L13",
@@ -542,10 +621,16 @@
         "section": "## 1. Threat model"
       },
       "text": "Therefore provider reasoning is never the security boundary. The Local Policy Engine is.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/security-policy.cjs",
+          "kind": "code",
+          "name": "SecurityPolicy"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Policy engine exists; coverage of every provider-to-tool boundary is not yet demonstrated."
     },
     {
       "id": "B04-L141",
@@ -554,10 +639,13 @@
         "section": "## 9. ChatGPT boundary"
       },
       "text": "AECP must not:",
-      "status": "GAP",
+      "status": "DELIBERATE_NON_GOAL",
       "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Non-atomic introductory/heading text was extracted as a standalone clause; its concrete child prohibitions are audited individually. No independent executable action is authorized.",
+      "decisionRef": {
+        "file": ".ai/BLUEPRINT.md",
+        "section": "## 4. 永久邊界 / Non-Goals"
+      }
     },
     {
       "id": "B04-L157",
@@ -566,10 +654,16 @@
         "section": "## 10. Updates and supply chain"
       },
       "text": "- unsigned bootstrap builds must be labeled clearly; Windows SmartScreen warnings are expected without Authenticode reputation",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/main.cjs",
+          "kind": "code",
+          "name": "createMainWindow"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Preview labeling exists in README/UI, but installed bootstrap and SmartScreen presentation lack direct acceptance evidence."
     },
     {
       "id": "B04-L179",
@@ -578,10 +672,16 @@
         "section": "## 12. Local MCP boundary"
       },
       "text": "- never log the bearer or include it in Result Capsules;",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/main.cjs",
+          "kind": "code",
+          "name": "getOrCreateLocalMcpToken"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "MCP bearer uses OS encryption, but no end-to-end negative log/Result Capsule leakage test covers every route."
     },
     {
       "id": "B04-L185",
@@ -590,10 +690,16 @@
         "section": "## 12. Local MCP boundary"
       },
       "text": "- changing Workspace must not silently expand an already-running server's scope.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/main.cjs",
+          "kind": "code",
+          "name": "startLocalMcp"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "MCP binds a Workspace at startup; active-server scope across Workspace switching lacks an integration assertion."
     },
     {
       "id": "B04-L193",
@@ -602,10 +708,13 @@
         "section": "## 13. Agent worker boundary"
       },
       "text": "AECP must:",
-      "status": "GAP",
+      "status": "DELIBERATE_NON_GOAL",
       "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Non-atomic introductory/heading text was extracted as a standalone clause; its concrete child prohibitions are audited individually. No independent executable action is authorized.",
+      "decisionRef": {
+        "file": ".ai/BLUEPRINT.md",
+        "section": "## 4. 永久邊界 / Non-Goals"
+      }
     },
     {
       "id": "B04-L196",
@@ -614,10 +723,15 @@
         "section": "## 13. Agent worker boundary"
       },
       "text": "- never accept an executable path supplied by a chat task;",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/provider-router.test.cjs",
+          "kind": "test",
+          "name": "fixed local-command provider uses only its registered executable and arguments"
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "B04-L5",
@@ -626,10 +740,13 @@
         "section": "## 1. Threat model"
       },
       "text": "AECP is powerful local software and must assume:",
-      "status": "GAP",
+      "status": "DELIBERATE_NON_GOAL",
       "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Non-atomic introductory/heading text was extracted as a standalone clause; its concrete child prohibitions are audited individually. No independent executable action is authorized.",
+      "decisionRef": {
+        "file": ".ai/BLUEPRINT.md",
+        "section": "## 4. 永久邊界 / Non-Goals"
+      }
     },
     {
       "id": "B04-RED-L65",
@@ -638,10 +755,15 @@
         "section": "## 4. Risk classes"
       },
       "text": "- delete",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/traceability-first-batch.test.cjs",
+          "kind": "test",
+          "name": "B04-RED-L65 deletion requires explicit approval"
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "B04-RED-L66",
@@ -650,10 +772,16 @@
         "section": "## 4. Risk classes"
       },
       "text": "- git push/publish/release",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/security-policy.cjs",
+          "kind": "code",
+          "name": "PUSH"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "PUSH is RED/approval-gated; publish/release controls are separate and not covered by one policy test."
     },
     {
       "id": "B04-RED-L67",
@@ -662,10 +790,15 @@
         "section": "## 4. Risk classes"
       },
       "text": "- credential use",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/traceability-first-batch.test.cjs",
+          "kind": "test",
+          "name": "B04-RED-L67 credential use requires explicit approval"
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "B04-RED-L68",
@@ -674,10 +807,15 @@
         "section": "## 4. Risk classes"
       },
       "text": "- actions outside workspace",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/traceability-first-batch.test.cjs",
+          "kind": "test",
+          "name": "B04-RED-L68 outside-workspace paths remain denied even after approval"
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "B04-RED-L69",
@@ -686,10 +824,15 @@
         "section": "## 4. Risk classes"
       },
       "text": "- system settings",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/traceability-first-batch.test.cjs",
+          "kind": "test",
+          "name": "B04-RED-L69 system actions require explicit approval"
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "B04-RED-L70",
@@ -698,10 +841,16 @@
         "section": "## 4. Risk classes"
       },
       "text": "- admin/elevation",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/security-policy.cjs",
+          "kind": "code",
+          "name": "SYSTEM"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "SYSTEM is approval-gated, but explicit admin/elevation commands are unsupported rather than separately classified."
     },
     {
       "id": "B04-RED-L71",
@@ -710,10 +859,16 @@
         "section": "## 4. Risk classes"
       },
       "text": "- payment/billing",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/security-policy.cjs",
+          "kind": "code",
+          "name": "ACTIONS"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "No billing action is exposed; a future billing adapter would need an explicit deny/approval decision."
     },
     {
       "id": "B04-RED-L72",
@@ -722,10 +877,15 @@
         "section": "## 4. Risk classes"
       },
       "text": "- security configuration",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/workspace-policy.test.cjs",
+          "kind": "test",
+          "name": "RED capability approvals cannot be removed by the policy editor model"
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "B05-L118",
@@ -835,10 +995,16 @@
         "section": "## 4. Context Capsule"
       },
       "text": "Context Capsule aecp.context/v1 schema and bounded content.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "CONFIRMED_GAP",
+      "evidence": [
+        {
+          "file": "electron/lib/context-bus.cjs",
+          "symbol": "aecp.capsule/v1",
+          "description": "ContextBus persists aecp.capsule/v1 for context instead of the specified aecp.context/v1 envelope."
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Define a versioned context adapter/migration or obtain a Blueprint equivalence decision; do not rename persisted records in place."
     },
     {
       "id": "B11-5-RESULT",
@@ -847,10 +1013,16 @@
         "section": "## 5. Result Capsule"
       },
       "text": "Result Capsule aecp.result/v1 schema, no secrets or huge raw logs.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/protocol.cjs",
+          "kind": "code",
+          "name": "makeResultCapsule"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "aecp.result/v1 and size/redaction exist, but the complete Result Capsule field contract is not checked in one behavioral test."
     },
     {
       "id": "B11-6-TRACE",
@@ -859,10 +1031,16 @@
         "section": "## 6. Execution Trace event"
       },
       "text": "Execution Trace aecp.trace/v1 event schema.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/main.cjs",
+          "kind": "code",
+          "name": "appendTrace"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "aecp.trace/v1 is written; sequence durability and full event schema across restart are not yet covered."
     },
     {
       "id": "B11-7-CLIPBOARD",
@@ -871,10 +1049,16 @@
         "section": "## 7. Clipboard framing"
       },
       "text": "Explicit clipboard framing and invalid card rejection.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/protocol.cjs",
+          "kind": "code",
+          "name": "parseCommandCard"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Framing and explicit UI gestures exist, but the clipboard ingress/egress contract is not exercised end-to-end."
     },
     {
       "id": "B11-8-L136",
@@ -883,10 +1067,15 @@
         "section": "## 8. Size limits"
       },
       "text": "- Command Card: 64 KiB maximum",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/traceability-first-batch.test.cjs",
+          "kind": "test",
+          "name": "B11-8-L136 Command Card rejects input above 64 KiB"
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "B11-8-L137",
@@ -895,10 +1084,16 @@
         "section": "## 8. Size limits"
       },
       "text": "- Result clipboard write: 128 KiB maximum",
-      "status": "GAP",
-      "evidence": [],
+      "status": "CONFIRMED_GAP",
+      "evidence": [
+        {
+          "file": "electron/main.cjs",
+          "symbol": "text.length > 128 * 1024",
+          "description": "Clipboard write limit counts UTF-16 code units, not UTF-8 bytes; CJK may exceed 128 KiB in bytes."
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Enforce Buffer.byteLength(text, utf8) <= 128 KiB at the clipboard write boundary."
     },
     {
       "id": "B11-8-L138",
@@ -907,10 +1102,15 @@
         "section": "## 8. Size limits"
       },
       "text": "- Result Capsule target: substantially below that limit",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/traceability-first-batch.test.cjs",
+          "kind": "test",
+          "name": "B11-8-L138 Result Capsule stays well below clipboard ceiling"
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "B11-L103",
@@ -919,10 +1119,16 @@
         "section": "## 5. Result Capsule"
       },
       "text": "Result Capsule must not include secrets or huge raw logs. Large artifacts are referenced locally rather than pasted into ChatGPT automatically.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/protocol.cjs",
+          "kind": "code",
+          "name": "makeResultCapsule"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Result Capsule is bounded/redacted, but all large artifact references and every output route are not proven."
     },
     {
       "id": "B11-L44",
@@ -931,10 +1137,15 @@
         "section": "## 2. Command Card — v1 preview"
       },
       "text": "- `title` and `goal` required;",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/traceability-first-batch.test.cjs",
+          "kind": "test",
+          "name": "B11-L44 Command Card requires both title and goal"
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "B11-L46",
@@ -943,10 +1154,16 @@
         "section": "## 2. Command Card — v1 preview"
       },
       "text": "- requested permissions never grant themselves;",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/main.cjs",
+          "kind": "code",
+          "name": "task:import"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Command Card requested permissions are stored but import risk remains GREEN; add a negative test proving no requested permission is ever granted."
     },
     {
       "id": "B11-L53",
@@ -955,10 +1172,15 @@
         "section": "## 3. Future capability evolution"
       },
       "text": "Do not silently reinterpret v1 cards as arbitrary commands. Mutating capabilities must be added explicitly through a backward-compatible protocol extension or a new schema version, for example structured actions such as:",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/protocol.test.cjs",
+          "kind": "test",
+          "name": "rejects unsupported action capabilities"
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "B11-L61",
@@ -967,10 +1189,16 @@
         "section": "## 3. Future capability evolution"
       },
       "text": "Each action must have an implementation-specific schema, bounded inputs, risk classification and verifier. A generic free-form shell string is not the preferred public contract.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/protocol.cjs",
+          "kind": "code",
+          "name": "ACTION_TYPES"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Preview exposes two fixed read-only actions, but per-action schema/risk/verifier metadata is not explicit in the public contract."
     },
     {
       "id": "B12-L134",
@@ -1524,7 +1752,10 @@
             "B18-13-05",
             "B18-13-06",
             "B18-13-10",
-            "B18-13-12"
+            "B18-13-12",
+            "B18-13-13",
+            "B18-13-14",
+            "R2.3"
           ]
         }
       ],
@@ -1547,7 +1778,10 @@
             "B18-13-05",
             "B18-13-06",
             "B18-13-10",
-            "B18-13-12"
+            "B18-13-12",
+            "B18-13-13",
+            "B18-13-14",
+            "R2.3"
           ]
         }
       ],
@@ -1621,7 +1855,10 @@
             "B18-13-05",
             "B18-13-06",
             "B18-13-10",
-            "B18-13-12"
+            "B18-13-12",
+            "B18-13-13",
+            "B18-13-14",
+            "R2.3"
           ]
         }
       ],
@@ -1661,7 +1898,10 @@
             "B18-13-05",
             "B18-13-06",
             "B18-13-10",
-            "B18-13-12"
+            "B18-13-12",
+            "B18-13-13",
+            "B18-13-14",
+            "R2.3"
           ]
         }
       ],
@@ -1674,10 +1914,24 @@
         "section": "## 13. Acceptance criteria"
       },
       "text": "applied changes remain uncommitted;",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/autonomy.test.cjs",
+          "kind": "test",
+          "name": "bounded runner isolates writes in worktree then applies only after explicit apply call",
+          "covers": [
+            "B18-13-05",
+            "B18-13-06",
+            "B18-13-10",
+            "B18-13-12",
+            "B18-13-13",
+            "B18-13-14",
+            "R2.3"
+          ]
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "B18-13-14",
@@ -1686,10 +1940,24 @@
         "section": "## 13. Acceptance criteria"
       },
       "text": "CI unit/integration tests prove isolation + explicit apply behavior;",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/autonomy.test.cjs",
+          "kind": "test",
+          "name": "bounded runner isolates writes in worktree then applies only after explicit apply call",
+          "covers": [
+            "B18-13-05",
+            "B18-13-06",
+            "B18-13-10",
+            "B18-13-12",
+            "B18-13-13",
+            "B18-13-14",
+            "R2.3"
+          ]
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "B18-13-15",
@@ -1698,10 +1966,16 @@
         "section": "## 13. Acceptance criteria"
       },
       "text": "x64, ARM64 and Auto-Detect installers still package successfully.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": ".github/workflows/release.yml",
+          "kind": "code",
+          "name": "build-auto"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Workflow has architecture build jobs; exact-HEAD installer packaging remains a CI result, not a local test claim."
     },
     {
       "id": "B20-14-MEMORY",
@@ -1761,10 +2035,15 @@
         "section": "## 27. Acceptance criteria"
       },
       "text": "Goal becomes durable Plan and Task graph.",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/harness-bounds.test.cjs",
+          "kind": "test",
+          "name": "Harness persists the complete Goal Loop contract and checkpoint evidence"
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "B20-27-02",
@@ -1773,10 +2052,16 @@
         "section": "## 27. Acceptance criteria"
       },
       "text": "Harness dispatches a task without manual copy/paste between Claude and Codex.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/control-plane.cjs",
+          "kind": "code",
+          "name": "executeTask"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Scheduler and Harness dispatch exist; absence of manual transfer is not directly asserted in an end-to-end UI test."
     },
     {
       "id": "B20-27-03",
@@ -1785,10 +2070,16 @@
         "section": "## 27. Acceptance criteria"
       },
       "text": "Worker executes only inside an authorized isolated worktree.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/harness.cjs",
+          "kind": "code",
+          "name": "prepareWorktree"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Worktree isolation exists; per-task authorization and all equivalent worker adapters need one integrated test."
     },
     {
       "id": "B20-27-04",
@@ -1797,10 +2088,15 @@
         "section": "## 27. Acceptance criteria"
       },
       "text": "Verifier independently decides pass/fail.",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/autonomy.test.cjs",
+          "kind": "test",
+          "name": "failed verification triggers another bounded iteration and can then pass"
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "B20-27-05",
@@ -1809,10 +2105,15 @@
         "section": "## 27. Acceptance criteria"
       },
       "text": "Failure can produce bounded rework.",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/harness-bounds.test.cjs",
+          "kind": "test",
+          "name": "Harness stops repeated no-progress attempts before infinite rework"
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "B20-27-06",
@@ -1855,10 +2156,16 @@
         "section": "## 27. Acceptance criteria"
       },
       "text": "Queue dispatches the next eligible task.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/control-plane.cjs",
+          "kind": "code",
+          "name": "schedule"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Queue selection exists; next eligible dispatch after completion lacks a direct behavioral test."
     },
     {
       "id": "B20-27-09",
@@ -1884,10 +2191,16 @@
         "section": "## 27. Acceptance criteria"
       },
       "text": "GitHub CI results return as correlated events.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/control-plane.cjs",
+          "kind": "code",
+          "name": "ci.passed"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "CI event includes run/task/SHA, but webhook/polling correlation across real GitHub runs needs direct test."
     },
     {
       "id": "B20-27-11",
@@ -1924,10 +2237,15 @@
         "section": "## 27. Acceptance criteria"
       },
       "text": "Restart recovers or safely interrupts in-flight tasks.",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/control-plane.test.cjs",
+          "kind": "test",
+          "name": "restart recovery never auto-resumes a mutating mission even when autoResume was enabled"
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "B20-27-13",
@@ -1953,10 +2271,16 @@
         "section": "## 27. Acceptance criteria"
       },
       "text": "No agent can grant itself permissions.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/security-policy.cjs",
+          "kind": "code",
+          "name": "SecurityPolicy"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Policy is outside model; every provider/role escalation path has not been adversarially proven."
     },
     {
       "id": "B20-27-15",
@@ -1965,10 +2289,16 @@
         "section": "## 27. Acceptance criteria"
       },
       "text": "Human approval protects configured high-risk operations.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/control-plane.cjs",
+          "kind": "code",
+          "name": "approveDelivery"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Merge gate exists; complete high-risk action set has no single proof."
     },
     {
       "id": "B20-27-16",
@@ -1977,10 +2307,16 @@
         "section": "## 27. Acceptance criteria"
       },
       "text": "Provider can be changed without rewriting Task state.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/provider-router.cjs",
+          "kind": "code",
+          "name": "ProviderRouter"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Provider substitution exists, but persisted Task schema invariance across all role swaps is not directly tested."
     },
     {
       "id": "B20-27-17",
@@ -1989,10 +2325,16 @@
         "section": "## 27. Acceptance criteria"
       },
       "text": "Official ChatGPT Web remains untouched.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/main.cjs",
+          "kind": "code",
+          "name": "chatgpt:open"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Official Web opens externally; non-interference across every integration path needs a manual/security review."
     },
     {
       "id": "B20-27-18",
@@ -2001,10 +2343,16 @@
         "section": "## 27. Acceptance criteria"
       },
       "text": "External/OpenAI-compatible providers can be attached through adapters without changing Task state; actual provider credentials/environment remain explicit approval/evidence requirements.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/provider-router.cjs",
+          "kind": "code",
+          "name": "ProviderRouter"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "External adapters share Task schema; real credentials and environment compatibility remain separately gated."
     },
     {
       "id": "B20-27-19",
@@ -2030,10 +2378,15 @@
         "section": "## 27. Acceptance criteria"
       },
       "text": "Every accepted task has reproducible evidence.",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/accepted-evidence.test.cjs",
+          "kind": "test",
+          "name": "accepted-task evidence contains every reproducibility field required by Blueprint 20"
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "B21-10-01",
@@ -2076,10 +2429,16 @@
         "section": "## 10. Handoff rules"
       },
       "text": "Evidence references are immutable.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "CONFIRMED_GAP",
+      "evidence": [
+        {
+          "file": "electron/lib/evidence-manager.cjs",
+          "symbol": "async write",
+          "description": "EvidenceManager.write overwrites a stable file path; an old path reference can point to different bytes."
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Use immutable content-addressed evidence paths or versioned references with SHA verification."
     },
     {
       "id": "B21-10-04",
@@ -2105,10 +2464,16 @@
         "section": "## 10. Handoff rules"
       },
       "text": "A provider cannot change another provider's permissions.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/security-policy.cjs",
+          "kind": "code",
+          "name": "SecurityPolicy"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Central policy is separate from providers, but cross-provider permission mutation has no dedicated adversarial test."
     },
     {
       "id": "B21-10-06",
@@ -2117,10 +2482,16 @@
         "section": "## 10. Handoff rules"
       },
       "text": "A review result is not an execution command.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/review-report.cjs",
+          "kind": "code",
+          "name": "validateReviewReport"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Review result is parsed into state, but a negative test should prove report text cannot trigger actions."
     },
     {
       "id": "B21-10-07",
@@ -2146,10 +2517,16 @@
         "section": "## 10. Handoff rules"
       },
       "text": "A Result Capsule never silently claims unverified success.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "CONFIRMED_GAP",
+      "evidence": [
+        {
+          "file": "electron/lib/protocol.cjs",
+          "symbol": "makeResultCapsule",
+          "description": "makeResultCapsule accepts status PASS even when verification is missing or UNKNOWN."
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Require positive deterministic verification before serializing PASS, or make an explicit unverified status."
     },
     {
       "id": "B21-6-SCHEMA",
@@ -2535,10 +2912,16 @@
         "section": "## R1 — Trust boundaries"
       },
       "text": "Official ChatGPT remains an external official surface. AECP must not scrape its DOM, copy session cookies, intercept traffic, or use undocumented private endpoints.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/main.cjs",
+          "kind": "code",
+          "name": "chatgpt:open"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Official site opens in OS browser; broad absence of DOM/session/network interference still needs manual security audit."
     },
     {
       "id": "R1.2",
@@ -2547,10 +2930,16 @@
         "section": "## R1 — Trust boundaries"
       },
       "text": "Renderer code has no direct Node.js privilege. Electron must use context isolation, renderer sandboxing, a narrow preload bridge, and navigation/window-open restrictions.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/main.cjs",
+          "kind": "code",
+          "name": "createMainWindow"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Isolation/sandbox/preload are configured, but arbitrary file: navigation and incomplete IPC argument validation remain confirmed sub-gaps."
     },
     {
       "id": "R1.3",
@@ -2576,10 +2965,16 @@
         "section": "## R1 — Trust boundaries"
       },
       "text": "Credentials are represented by opaque references and protected with OS-backed storage when persisted.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/main.cjs",
+          "kind": "code",
+          "name": "safeStorage"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "OS-backed encryption and credential refs exist, but all credential persistence routes lack a unified behavioral proof."
     },
     {
       "id": "R1.5",
@@ -2605,10 +3000,16 @@
         "section": "## R2 — Canonical engineering loop"
       },
       "text": "Engineering work follows a durable bounded state machine rather than an unbounded agent chat.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/control-plane.cjs",
+          "kind": "code",
+          "name": "ControlPlane"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Durable bounded state exists, but end-to-end transition coverage for every terminal state is incomplete."
     },
     {
       "id": "R2.2",
@@ -2617,10 +3018,15 @@
         "section": "## R2 — Canonical engineering loop"
       },
       "text": "Planner, Builder and Reviewer are roles, not vendor identities, and must resolve through the Provider Router.",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/harness.test.cjs",
+          "kind": "test",
+          "name": "Provider Router-backed Harness role selection is explicit and vendor-neutral"
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "R2.3",
@@ -2629,10 +3035,24 @@
         "section": "## R2 — Canonical engineering loop"
       },
       "text": "Builder work is isolated from the active checkout by a task worktree or equivalent governed execution boundary.",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/autonomy.test.cjs",
+          "kind": "test",
+          "name": "bounded runner isolates writes in worktree then applies only after explicit apply call",
+          "covers": [
+            "B18-13-05",
+            "B18-13-06",
+            "B18-13-10",
+            "B18-13-12",
+            "B18-13-13",
+            "B18-13-14",
+            "R2.3"
+          ]
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "R2.4",
@@ -2641,10 +3061,15 @@
         "section": "## R2 — Canonical engineering loop"
       },
       "text": "A mutating task cannot reach accepted completion without deterministic verification evidence.",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/accepted-evidence.test.cjs",
+          "kind": "test",
+          "name": "accepted-task evidence validation fails closed on missing verification review or patch hash"
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "R2.5",
@@ -2670,10 +3095,15 @@
         "section": "## R2 — Canonical engineering loop"
       },
       "text": "Crash/restart recovery restores persisted task state without silently expanding permissions.",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/control-plane.test.cjs",
+          "kind": "test",
+          "name": "restart recovery never auto-resumes a mutating mission even when autoResume was enabled"
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "R2.7",
@@ -2682,10 +3112,16 @@
         "section": "## R2 — Canonical engineering loop"
       },
       "text": "High-risk delivery remains human-gated after CI success.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/control-plane.cjs",
+          "kind": "code",
+          "name": "approveDelivery"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Merge checks CI and approval; complete high-risk delivery and publication paths need more evidence."
     },
     {
       "id": "R3.1",
@@ -2694,10 +3130,15 @@
         "section": "## R3 — Provider independence and local models"
       },
       "text": "Provider selection is explicit for Planner, Builder and Reviewer roles.",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/control-plane.test.cjs",
+          "kind": "test",
+          "name": "ControlPlane stores explicit provider roles and scopes policy to the mission workspace"
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "R3.10",
@@ -2706,10 +3147,16 @@
         "section": "## R3 — Provider independence and local models"
       },
       "text": "Worker/provider failure and task-scoped cancellation are isolated; one Worker becoming unavailable must not terminate another Worker or the Web Safe Bridge.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/worker-registry.cjs",
+          "kind": "code",
+          "name": "WorkerRegistry"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Task-scoped cancellation is tested; Safe Bridge survival under real worker failure remains an environment gate."
     },
     {
       "id": "R3.2",
@@ -2718,10 +3165,16 @@
         "section": "## R3 — Provider independence and local models"
       },
       "text": "Claude, Codex, Gemini, OpenCode, Ollama-compatible local inference and trusted fixed local-agent commands can be represented without changing task state schemas.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/provider-router.cjs",
+          "kind": "code",
+          "name": "ProviderRouter"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Built-in and fixed commands exist, but every listed provider/role substitution is not covered against unchanged state schema."
     },
     {
       "id": "R3.3",
@@ -2730,10 +3183,15 @@
         "section": "## R3 — Provider independence and local models"
       },
       "text": "A local provider executable is selected from trusted AECP/provider configuration, never from task text.",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/provider-router.test.cjs",
+          "kind": "test",
+          "name": "fixed local-command provider uses only its registered executable and arguments"
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "R3.4",
@@ -2759,10 +3217,15 @@
         "section": "## R3 — Provider independence and local models"
       },
       "text": "Changing providers must not implicitly change Workspace or security permissions.",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/execution-contract.test.cjs",
+          "kind": "test",
+          "name": "cross-mode contracts keep Workspace and policy boundaries explicit rather than changing permission by transport"
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "R3.6",
@@ -2771,10 +3234,16 @@
         "section": "## R3 — Provider independence and local models"
       },
       "text": "Optional providers failing or being unconfigured must not break Web Safe Bridge operation.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/main.cjs",
+          "kind": "code",
+          "name": "chatgpt:open"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Safe Bridge is independent in code; failure injection across all optional providers remains untested."
     },
     {
       "id": "R3.7",
@@ -2783,10 +3252,16 @@
         "section": "## R3 — Provider independence and local models"
       },
       "text": "Provider identity and Worker runtime identity are separate concepts; Mission/Task/Queue/Harness state machines must remain provider-neutral.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/worker-registry.cjs",
+          "kind": "code",
+          "name": "WorkerRegistry"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Provider and Worker identities are separate; all Mission/Task/Queue/Harness schemas need a cross-provider invariance test."
     },
     {
       "id": "R3.8",
@@ -2812,10 +3287,16 @@
         "section": "## R3 — Provider independence and local models"
       },
       "text": "PEGA is implemented through the Provider Router/Worker abstraction rather than PEGA-specific Harness branching; real endpoint/model/auth compatibility is accepted only from ENVIRONMENT evidence.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/pega-provider.cjs",
+          "kind": "code",
+          "name": "PEGA"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "PEGA adapter exists; actual endpoint/model/auth compatibility requires ENVIRONMENT evidence and cannot be closed by source tests."
     },
     {
       "id": "R4.1",
@@ -2824,10 +3305,16 @@
         "section": "## R4 — Git, GitHub and multi-repository work"
       },
       "text": "A Mission can discover and route tasks to multiple repositories inside its approved resource graph.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/resource-manager.cjs",
+          "kind": "code",
+          "name": "ResourceManager"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Repository discovery/binding exists, but one Mission routing tasks to multiple approved repositories lacks end-to-end proof."
     },
     {
       "id": "R4.2",
@@ -2853,10 +3340,16 @@
         "section": "## R4 — Git, GitHub and multi-repository work"
       },
       "text": "GitHub delivery uses governed branches/PRs and correlates CI to commit SHA.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/delivery.cjs",
+          "kind": "code",
+          "name": "DeliveryManager"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Governed PR creation and SHA CI monitor exist, but full correlation/branch lifecycle lacks one integrated test."
     },
     {
       "id": "R4.4",
@@ -2865,10 +3358,15 @@
         "section": "## R4 — Git, GitHub and multi-repository work"
       },
       "text": "GitHub webhook events are authenticated and replay/idempotency protected; polling remains a fallback.",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/control-plane-hardening.test.cjs",
+          "kind": "test",
+          "name": "GitHub webhook verifies HMAC and deduplicates delivery identity"
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "R4.5",
@@ -2877,10 +3375,16 @@
         "section": "## R4 — Git, GitHub and multi-repository work"
       },
       "text": "CI failure evidence returns only safely classified failures to bounded rework.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/failure-recovery.cjs",
+          "kind": "code",
+          "name": "recommend"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "CI failure classification exists; safe bounded rework for all failure categories lacks direct integration proof."
     },
     {
       "id": "R4.6",
@@ -2889,10 +3393,16 @@
         "section": "## R4 — Git, GitHub and multi-repository work"
       },
       "text": "A governed merge requires required CI success and explicit human approval.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/control-plane.cjs",
+          "kind": "code",
+          "name": "approveDelivery"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "CI plus human approval checks are implemented; no direct negative test covers both conditions together."
     },
     {
       "id": "R4.7",
@@ -2901,10 +3411,15 @@
         "section": "## R4 — Git, GitHub and multi-repository work"
       },
       "text": "Parallel mutating tasks in the same repository use distinct task-scoped Git worktrees and cannot concurrently own the same mutating worktree/resource.",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/control-plane.test.cjs",
+          "kind": "test",
+          "name": "same-repository parallel tasks receive distinct task-scoped worktree locks while Git admin stays serialized"
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "R5.1",
@@ -2913,10 +3428,16 @@
         "section": "## R5 — Evidence, observability and recovery"
       },
       "text": "Mission/task state, event history and evidence survive process restart.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/control-plane.cjs",
+          "kind": "code",
+          "name": "persist"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Mission/task/event persistence is tested, but all evidence survival paths after process restart are not."
     },
     {
       "id": "R5.2",
@@ -2925,10 +3446,15 @@
         "section": "## R5 — Evidence, observability and recovery"
       },
       "text": "Evidence artifacts carry hashes/manifests sufficient to reconstruct accepted work.",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/accepted-evidence.test.cjs",
+          "kind": "test",
+          "name": "Control Plane persists accepted evidence and a SHA manifest before publishing Result Capsule"
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "R5.3",
@@ -2954,10 +3480,16 @@
         "section": "## R5 — Evidence, observability and recovery"
       },
       "text": "Maintenance handles expired locks, context TTL, evidence retention and orphan worktree cleanup with bounded budgets.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/maintenance.cjs",
+          "kind": "code",
+          "name": "MaintenanceManager"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Expired lock/context cleanup exists; evidence retention and orphan worktree budget cases need specific tests."
     },
     {
       "id": "R5.5",
@@ -2966,10 +3498,15 @@
         "section": "## R5 — Evidence, observability and recovery"
       },
       "text": "Dependency/security/documentation drift is diagnostic by default and must not silently mutate dependencies or Blueprint files.",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/control-plane-hardening.test.cjs",
+          "kind": "test",
+          "name": "drift scanner detects missing authoritative files without mutating the workspace"
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "R6.1",
@@ -2978,10 +3515,15 @@
         "section": "## R6 — Local MCP and remote supervision"
       },
       "text": "Local MCP binds to loopback by default and requires authenticated access.",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/mcp-server.test.cjs",
+          "kind": "test",
+          "name": "Local MCP starts on loopback, exposes health, and rejects missing bearer auth"
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "R6.2",
@@ -2990,10 +3532,16 @@
         "section": "## R6 — Local MCP and remote supervision"
       },
       "text": "Local MCP preview tools are capability-scoped/read-only; no raw shell is exposed.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/mcp-server.mjs",
+          "kind": "code",
+          "name": "startLocalMcpServer"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Preview MCP is read-only; complete tool capability inventory and raw-shell absence need a dedicated contract test."
     },
     {
       "id": "R6.3",
@@ -3002,10 +3550,15 @@
         "section": "## R6 — Local MCP and remote supervision"
       },
       "text": "Device pairing uses short-lived one-time codes and revocable short-lived read-only credentials.",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/remote-pairing.test.cjs",
+          "kind": "test",
+          "name": "remote gateway supports one-time pairing and revocation"
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "R6.4",
@@ -3014,10 +3567,16 @@
         "section": "## R6 — Local MCP and remote supervision"
       },
       "text": "Pairing does not grant write/execute/merge/credential/system authority.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/remote-gateway.cjs",
+          "kind": "code",
+          "name": "RemoteGateway"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "READ_ONLY pairing is tested, but all privileged actions need negative tests."
     },
     {
       "id": "R6.5",
@@ -3026,10 +3585,15 @@
         "section": "## R6 — Local MCP and remote supervision"
       },
       "text": "LAN/Internet transport, if enabled in a future deployment, must use authenticated encrypted transport and inherit the same local policy. No public inbound port is enabled by default.",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/remote-pairing.test.cjs",
+          "kind": "test",
+          "name": "remote gateway refuses non-loopback exposure without explicit enablement and TLS"
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "R7.1",
@@ -3038,10 +3602,15 @@
         "section": "## R7 — Windows distribution"
       },
       "text": "CI builds x64 and ARM64 Windows installers plus the primary architecture-selecting installer.",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/release-workflow.test.cjs",
+          "kind": "test",
+          "name": "universal bootstrap embeds both architecture payloads"
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "R7.2",
@@ -3050,10 +3619,15 @@
         "section": "## R7 — Windows distribution"
       },
       "text": "x64 and ARM64 installers must pass clean hosted-Windows silent install/uninstall smoke gates before release publication.",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/release-workflow.test.cjs",
+          "kind": "test",
+          "name": "release workflow is structurally unique and gated by real smoke evidence"
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "R7.3",
@@ -3062,10 +3636,15 @@
         "section": "## R7 — Windows distribution"
       },
       "text": "Release assets include SHA-256 integrity evidence.",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/release-workflow.test.cjs",
+          "kind": "test",
+          "name": "release workflow is structurally unique and gated by real smoke evidence"
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "R7.4",
@@ -3074,10 +3653,13 @@
         "section": "## R7 — Windows distribution"
       },
       "text": "Production signing, trusted provenance, update rollback and Microsoft Store publication are not represented as complete without real owner/account/certificate evidence.",
-      "status": "GAP",
+      "status": "OWNER",
       "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Production signing, Store publication and trusted provenance require owner certificate/account evidence; repository wiring is not completion.",
+      "acceptanceRef": {
+        "file": ".ai/ACCEPTANCE.md",
+        "section": "## 5. ENVIRONMENT / OWNER 項目的驗收協定"
+      }
     },
     {
       "id": "R7.5",
@@ -3086,10 +3668,16 @@
         "section": "## R7 — Windows distribution"
       },
       "text": "The application remains usable without an OpenAI API key.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/main.cjs",
+          "kind": "code",
+          "name": "createMainWindow"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "The local UI and Safe Bridge do not request an OpenAI API key, but clean-install operation without one needs an acceptance run."
     },
     {
       "id": "R8.1",
@@ -3098,10 +3686,15 @@
         "section": "## R8 — UX and human agency"
       },
       "text": "First run requires explicit Workspace selection rather than scanning arbitrary personal folders.",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/human-controls.test.cjs",
+          "kind": "test",
+          "name": "Workspace authorization is explicit and never silently expanded by first-run logic"
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "R8.2",
@@ -3110,10 +3703,16 @@
         "section": "## R8 — UX and human agency"
       },
       "text": "Beginner and engineering views project the same underlying state.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "ui/app.js",
+          "kind": "code",
+          "name": "engineering-mode"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Both views share state, but a rendered cross-mode equality test is absent."
     },
     {
       "id": "R8.3",
@@ -3122,10 +3721,15 @@
         "section": "## R8 — UX and human agency"
       },
       "text": "Clipboard ingress/egress occurs only on explicit user action.",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/human-controls.test.cjs",
+          "kind": "test",
+          "name": "clipboard bridge remains explicit user-triggered rather than background-polled"
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "R8.4",
@@ -3134,10 +3738,16 @@
         "section": "## R8 — UX and human agency"
       },
       "text": "Goal/Definition of Done, current state, risk, evidence and required approvals are visible.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "ui/harness-console.js",
+          "kind": "code",
+          "name": "render"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Visible fields exist, but all Goal/Done/risk/evidence/approval combinations are not asserted."
     },
     {
       "id": "R8.5",
@@ -3146,10 +3756,15 @@
         "section": "## R8 — UX and human agency"
       },
       "text": "User pause/cancel/emergency-stop controls remain authoritative over autonomous execution.",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/human-controls.test.cjs",
+          "kind": "test",
+          "name": "human pause cancel and emergency stop controls remain authoritative"
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "R8.6",
