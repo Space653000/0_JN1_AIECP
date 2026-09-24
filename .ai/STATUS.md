@@ -2,7 +2,7 @@
 
 **最後盤點日期：** 2026-09-24
 **權威來源：** [`Blueprint/23_IMPLEMENTATION_STATUS.md`](../Blueprint/23_IMPLEMENTATION_STATUS.md)、[`Reports/V3_IMPLEMENTATION_PROGRESS_REPORT.md`](../Reports/V3_IMPLEMENTATION_PROGRESS_REPORT.md)
-**目前分支：** `feat/control-plane-complete-loop` ｜ **整合中的 PR：** [#7](https://github.com/Space653000/0_JN1_AIECP/pull/7)（OPEN）
+**目前分支：** `feat/control-plane-complete-loop` ｜ **PR：** [#7](https://github.com/Space653000/0_JN1_AIECP/pull/7) 已由擁有者於 2026-09-24 09:24 UTC 合併進 `main`（head `294ff93`）；後續施工的 Draft PR 為 [#8](https://github.com/Space653000/0_JN1_AIECP/pull/8)（**本 repo 的 CI 只在 PR 或 push 到 main 時執行，故分支必須保持有 open PR，否則 push 不會有 CI**）。`provider-environment.yml` 已在 `main`，可於 GitHub 派發，合併後首次派發驗證仍待擁有者執行。
 
 > 本文件只記錄「現在做到哪」。要知道「應該做成什麼樣子」看 [BLUEPRINT.md](BLUEPRINT.md)；要知道「怎樣才算做完」看 [ACCEPTANCE.md](ACCEPTANCE.md)。每次重大變更後都必須更新本文件，過期的 STATUS 比沒有 STATUS 更危險。
 
