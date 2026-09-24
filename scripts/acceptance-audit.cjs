@@ -342,7 +342,7 @@ const staticInvariants=[
  ]),
  invariant('real-provider-evidence-lane','.github/workflows/provider-environment.yml',[
   {label:'manual dispatch',re:/workflow_dispatch:/},
-  {label:'dedicated self-hosted runner',re:/runs-on:\s*\[self-hosted, Windows, aecp-provider\]/},
+  {label:'dedicated self-hosted runner with architecture labels',re:/runs-on:\s*\$\{\{ fromJSON\(inputs\.expected_arch[\s\S]*\["self-hosted","Windows","aecp-provider","ARM64"\][\s\S]*\["self-hosted","Windows","aecp-provider","X64"\][\s\S]*\["self-hosted","Windows","aecp-provider"\]/},
   {label:'exact source checkout',re:/ref:\s*\$\{\{ inputs\.source_ref \}\}/},
   {label:'provider evidence artifact',re:/provider-environment-evidence\.json/},
   {label:'expected architecture input',re:/expected_arch:/},
