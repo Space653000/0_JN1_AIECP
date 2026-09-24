@@ -1686,10 +1686,15 @@
         "section": "## 14. Harness Engineering principles"
       },
       "text": "Durable repository knowledge lives in Blueprint, AGENTS.md, docs, architecture rules, verification commands and decision records.",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "0008",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/repo-knowledge.test.cjs",
+          "kind": "test",
+          "name": "repo knowledge discovers layered AGENTS, blueprint entry, scripts and decision names"
+        }
+      ],
+      "note": "Named deterministic test exists; mapped for manual equivalence review."
     },
     {
       "id": "B20-15-AGENTS",
@@ -1698,10 +1703,15 @@
         "section": "## 15. AGENTS.md strategy"
       },
       "text": "Use layered AGENTS.md discovery rather than giant prompt injection.",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "0008",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/repo-knowledge.test.cjs",
+          "kind": "test",
+          "name": "repo knowledge discovers layered AGENTS, blueprint entry, scripts and decision names"
+        }
+      ],
+      "note": "Named deterministic test exists; mapped for manual equivalence review."
     },
     {
       "id": "B20-16-OVERVIEW",
@@ -1958,10 +1968,15 @@
         "section": "## 27. Acceptance criteria"
       },
       "text": "Repository knowledge is legible to agents.",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "0008",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/harness-bounds.test.cjs",
+          "kind": "test",
+          "name": "Harness gives user context priority, routes knowledge by provider capability and stores content-free manifest"
+        }
+      ],
+      "note": "Named deterministic test exists; mapped for manual equivalence review."
     },
     {
       "id": "B20-27-20",

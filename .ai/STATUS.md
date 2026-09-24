@@ -117,3 +117,8 @@
 
 - A/B/C 已分別提交：Reviewer 取得有界且遮罩的 Blueprint/Plan/unified diff/Verifier 證據；`aecp.review/v1` 六維度驗證器拒絕舊式或矛盾 PASS；`aecp.worker-report/v1` 的變更檔取自 Git，Worker 自述不能作驗收證明。
 - 追溯矩陣從 231 條中確認 32 IMPLEMENTED、1 PARTIAL、198 GAP；GAP 主要為未取得同條文具名測試的保守證據分類，非已證明 198 個功能缺失。0008、0009 與外部環境／擁有者閘門仍待處理。
+
+### 施工單 0008 施工進度（待 Claude Review）
+
+- A/B/C 已分別提交：repo 內分層 AGENTS/藍圖/驗證指令/ADR 發現；依 provider 能力分送有界內容或 metadata；漂移掃描只給 WARNING，不改檔。`npm test` 312/312 PASS，完整 `npm run verify` 見施工單回報。
+- TRACEABILITY 231 條中 35 IMPLEMENTED、1 PARTIAL、195 GAP（保守證據分類）。0009 Dashboard 視圖仍待施工，ENVIRONMENT／OWNER-EXTERNAL 閘門不變。
