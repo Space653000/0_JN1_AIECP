@@ -78,17 +78,27 @@ function compactVerification(value = {}) {
   };
 }
 
+// A Result Capsule may only claim success when a deterministic verification passed (Blueprint 21 section 10).
+const SUCCESS_STATUSES = new Set(['PASS', 'SUCCESS', 'SUCCEEDED', 'DONE', 'OK', 'COMPLETE', 'COMPLETED']);
+
 function makeResultCapsule({ taskId, status, summary, durationMs = 0, verification, evidenceRef, facts = [] }) {
+  const requestedStatus = compactScalar(status, 40);
+  const compactedVerification = compactVerification(verification);
+  const verified = String(compactedVerification.status).trim().toUpperCase() === 'PASS';
+  const claimsSuccess = SUCCESS_STATUSES.has(String(requestedStatus).trim().toUpperCase());
+  const downgraded = claimsSuccess && !verified;
+  const finalStatus = downgraded ? 'UNVERIFIED' : requestedStatus;
   const capsule = {
     schema: RESULT_SCHEMA,
     taskId: compactScalar(taskId, 160),
-    status: compactScalar(status, 40),
+    status: finalStatus,
     summary: compactScalar(summary, 2000),
     execution: { durationMs: Math.max(0, Math.min(24 * 60 * 60 * 1000, Number(durationMs) || 0)) },
-    verification: compactVerification(verification),
+    verification: compactedVerification,
     facts: (Array.isArray(facts) ? facts : []).slice(0, MAX_RESULT_FACTS).map(item => compactScalar(item, 500)),
     evidenceRef: compactScalar(evidenceRef, 2048),
-    nextDecision: status === 'PASS' ? null : 'Review the local evidence and decide the next step.'
+    nextDecision: finalStatus === 'PASS' ? null : 'Review the local evidence and decide the next step.',
+    ...(downgraded ? { statusNote: `Success (${requestedStatus}) was requested without a passing deterministic verification.` } : {})
   };
   const bytes = Buffer.byteLength(JSON.stringify(capsule), 'utf8');
   if (bytes > MAX_RESULT_BYTES) throw new Error(`Result Capsule exceeds the compact payload limit (${bytes} > ${MAX_RESULT_BYTES}).`);
@@ -97,6 +107,13 @@ function makeResultCapsule({ taskId, status, summary, durationMs = 0, verificati
 
 function hashJson(value) {
   return crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex');
+}
+
+// Status for the Control Plane result capsule: PASS only when the harness finished DONE and every task's verifier passed.
+function resultCapsuleStatus(result) {
+  if (!result || result.state !== 'DONE') return 'INCOMPLETE';
+  const tasks = Array.isArray(result.tasks) ? result.tasks : [];
+  return tasks.length > 0 && tasks.every((task) => task?.verification?.passed === true) ? 'PASS' : 'UNVERIFIED';
 }
 
 // The limit is measured in UTF-8 bytes, so CJK text cannot exceed it while staying under a character count.
@@ -111,6 +128,8 @@ module.exports = {
   MAX_CARD_BYTES,
   MAX_CLIPBOARD_WRITE_BYTES,
   withinClipboardWriteLimit,
+  resultCapsuleStatus,
+  SUCCESS_STATUSES,
   MAX_RESULT_BYTES,
   MAX_RESULT_FACTS,
   extractJsonPayload,

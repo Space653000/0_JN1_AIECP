@@ -10,6 +10,7 @@ const { compileWorkspacePolicy } = require('./workspace-policy.cjs');
 const { makeExecutionContract, updateExecutionContract } = require('./execution-contract.cjs');
 const { LockManager } = require('./lock-manager.cjs');
 const { EvidenceManager } = require('./evidence-manager.cjs');
+const { resultCapsuleStatus } = require('./protocol.cjs');
 const { ContextBus } = require('./context-bus.cjs');
 const { ProviderRouter } = require('./provider-router.cjs');
 const { DeliveryManager } = require('./delivery.cjs');
@@ -704,7 +705,7 @@ class ControlPlane {
         try{await fs.access(eventFile);manifestItems.push({type:'event-journal',file:eventFile});}catch{}
         task.evidenceManifest=await this.evidence.manifest(run.id,manifestItems);
       }
-      if(result.state==='DONE') { task.phase='COMPLETED'; task.resultCapsule=await this.contextBus.write('result',{runId:run.id,taskId:task.id,state:task.state,evidence:task.evidenceManifest||task.evidence||null,verification:result.tasks}); }
+      if(result.state==='DONE') { task.phase='COMPLETED'; task.resultCapsule=await this.contextBus.write('result',{runId:run.id,taskId:task.id,state:task.state,status:resultCapsuleStatus(result),evidence:task.evidenceManifest||task.evidence||null,verification:result.tasks}); }
       if(task.state==='HUMAN_REQUIRED') await this.requestApproval(run,task,'Harness requested human approval.',result.requiredAction||null);
       await this.event('task.finished',{runId:run.id,taskId:task.id,workerId:task.workerId||null,builderProvider,state:task.state});
     }catch(e){

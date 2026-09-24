@@ -3062,16 +3062,35 @@
         "section": "## 10. Handoff rules"
       },
       "text": "A Result Capsule never silently claims unverified success.",
-      "status": "CONFIRMED_GAP",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/lib/protocol.cjs",
-          "symbol": "makeResultCapsule",
-          "description": "makeResultCapsule accepts status PASS even when verification is missing or UNKNOWN."
+          "file": "tests/result-capsule-verification.test.cjs",
+          "kind": "test",
+          "name": "B21-10-08 a PASS claim without any verification is downgraded to UNVERIFIED"
+        },
+        {
+          "file": "tests/result-capsule-verification.test.cjs",
+          "kind": "test",
+          "name": "B21-10-08 a PASS claim with a failing or unknown verification is downgraded to UNVERIFIED"
+        },
+        {
+          "file": "tests/result-capsule-verification.test.cjs",
+          "kind": "test",
+          "name": "B21-10-08 every success synonym is held to the same rule"
+        },
+        {
+          "file": "tests/result-capsule-verification.test.cjs",
+          "kind": "test",
+          "name": "B21-10-08 PASS is emitted only with a passing verification and then carries no downgrade note"
+        },
+        {
+          "file": "tests/result-capsule-verification.test.cjs",
+          "kind": "test",
+          "name": "B21-10-08 the Control Plane capsule status is PASS only when the run is DONE and every task verifier passed"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Require positive deterministic verification before serializing PASS, or make an explicit unverified status."
+      "note": "Fixed by Claude Code (was CONFIRMED_GAP): makeResultCapsule downgrades any success claim (PASS, SUCCESS, DONE, OK and similar) to UNVERIFIED unless the supplied verification passed, and adds a statusNote. The Control Plane result capsule now carries resultCapsuleStatus(result), which is PASS only when the run is DONE and every task verifier passed. Sabotage-checked six ways."
     },
     {
       "id": "B21-6-SCHEMA",
