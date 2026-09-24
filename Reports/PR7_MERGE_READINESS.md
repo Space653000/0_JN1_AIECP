@@ -50,3 +50,19 @@
 - 保留 PR、CI、artifact 與人工 Review 記錄；若部署/發布另有閘門，按其獨立授權流程處理。
 
 **合併為人工閘門，由 repo 擁有者執行。Codex 不合併 PR #7。**
+
+## 合併後首次派發驗證
+
+此小節只供**擁有者完成 PR #7 人工合併後**操作；目前不派發、不合併。`.github/workflows/provider-environment.yml` 的 `workflow_dispatch` 與 `runs-on: ${{ fromJSON(...) }}` 需在進入 `main` 後由 GitHub 首次派發，才能觀察實際解析與 runner 選擇。先確認 `main` 已包含該 workflow，並記錄合併後的 exact SHA。以下 PowerShell 範例只使用 workflow 現有的 `source_ref`、`mode`、`expected_arch` inputs：
+
+```powershell
+git fetch origin
+$mainSha = (git rev-parse origin/main).Trim()
+gh workflow run provider-environment.yml --repo Space653000/0_JN1_AIECP --ref main -f "source_ref=$mainSha" -f mode=local-command -f expected_arch=x64
+gh run list --repo Space653000/0_JN1_AIECP --workflow provider-environment.yml --branch main --event workflow_dispatch --limit 10 --json databaseId,headSha,status,conclusion,url
+gh run view <run-id> --repo Space653000/0_JN1_AIECP --json jobs,status,conclusion,url
+```
+
+若擁有者已配置 ARM64 自架 runner，可另外以同一指令派發 `expected_arch=arm64`，分別核對 `X64`、`ARM64` 路由；`any` 只要求基本標籤。範例故意選 `mode=local-command` **且不填 `local_command`**：現有 `Validate local verification prerequisites` 步驟會在檢查 Node 架構後因缺少固定指令而安全失敗，`Run real provider verification` 不會執行。這是預期的**負向排程測試**，不是 provider PASS、ENVIRONMENT 證據或 CI 全綠。不要為了使它通過而填入真實憑證或工作指令。
+
+在 Actions 的該次 run/job 檢查：workflow 已受理、job 是否依預期標籤排入自架 Windows runner、實際 `node -p "process.arch"` 與 `expected_arch` 是否一致，並保留 run URL、run/job ID、狀態與錯誤訊息（遮蔽任何敏感資料）。若長時間排隊，先核對 runner 在線及 `self-hosted`、`Windows`、`aecp-provider`、`X64`／`ARM64` 標籤；若在 workflow 解析前失敗，回報 GitHub 顯示的解析錯誤與該次 `main` SHA；若到前置檢查因缺 `local_command` 失敗，則只記錄「排程/解析路徑已觀察到」，不宣稱真實 provider 驗收。任何意外進入 provider 執行、標籤錯配或架構錯配都應停止後續派發，將 exact run URL、job 狀態、預期/實際標籤與架構交回 Claude Code／擁有者決策；不得藉此放寬 runtime hard gate 或新增權限。
