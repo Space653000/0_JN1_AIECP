@@ -4,6 +4,7 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
+const yaml=require('js-yaml');
 
 const root=path.resolve(__dirname,'..');
 const read=(file)=>fs.readFileSync(path.join(root,file),'utf8');
@@ -12,10 +13,21 @@ test('real provider evidence workflow is manual and pinned to the dedicated self
   const workflow=read('.github/workflows/provider-environment.yml');
   assert.match(workflow,/workflow_dispatch:/);
   assert.doesNotMatch(workflow,/pull_request:/);
-  assert.match(workflow,/runs-on:\s*\[self-hosted, Windows, aecp-provider\]/);
+  assert.match(workflow,/runs-on:\s*\$\{\{ fromJSON\(inputs\.expected_arch/);
   assert.match(workflow,/ref:\s*\$\{\{ inputs\.source_ref \}\}/);
   assert.match(workflow,/persist-credentials:\s*false/);
   assert.match(workflow,/timeout-minutes:\s*120/);
+});
+
+test('real provider workflow YAML routes exact x64 and ARM64 labels while keeping runtime architecture gate',()=>{
+  const workflow=read('.github/workflows/provider-environment.yml');
+  const parsed=yaml.load(workflow);
+  const selector=parsed.jobs['verify-real-provider']['runs-on'];
+  assert.match(selector,/\["self-hosted","Windows","aecp-provider","X64"\]/);
+  assert.match(selector,/\["self-hosted","Windows","aecp-provider","ARM64"\]/);
+  assert.match(selector,/\["self-hosted","Windows","aecp-provider"\]/);
+  assert.match(workflow,/Runner architecture mismatch/);
+  assert.match(workflow,/Evidence runtime architecture mismatch/);
 });
 
 test('real provider workflow requires explicit model and fixed local command only when relevant',()=>{

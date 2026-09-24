@@ -7,7 +7,7 @@
 ## 共通執行與回報規則
 
 1. 擁有者在目標 Windows 機器準備與欲驗證的 `source_ref` 相同的**完整 40 碼 commit** checkout；用 `git rev-parse HEAD` 確認 SHA，`node -p "process.arch"` 確認 `x64` 或 `arm64`。操作 repo 擁有者或獲授權的 runner；模型、帳號、憑證由擁有者提供。任何憑證只透過 GitHub Actions secret、程序環境變數或 AECP 的 `credentialRef` 傳入，不寫入 Git、README、artifact 或回報。
-2. 現有 workflow 名稱是 **AECP Real Provider Evidence**，檔案為 `.github/workflows/provider-environment.yml`；它要求標籤 `[self-hosted, Windows, aecp-provider]` 的 runner。`workflow_dispatch` inputs 為 `source_ref`、`mode`、`model`、`local_command`、`local_args_json`、`official_model`、`pega_model`、`pega_wire_api`、`codex_worker_root`、`expected_arch`。其中 `mode` 可選 `ollama`、`opencode-ollama`、`canonical-local`、`local-command`、`codex-official`、`codex-pega`、`multi-codex`、`codex-fault-isolation`、`all`；`expected_arch` 可選 `any`、`x64`、`arm64`。PEGA credential 由 Actions secret `AECP_PEGA_API_KEY` 提供。
+2. 現有 workflow 名稱是 **AECP Real Provider Evidence**，檔案為 `.github/workflows/provider-environment.yml`；基本 runner 標籤為 `[self-hosted, Windows, aecp-provider]`，`expected_arch: x64` 時另要求 `X64`，`arm64` 時另要求 `ARM64`，`any` 時只用基本標籤。runner 指派使用 GitHub Actions 支援的 `runs-on`/`fromJSON` 表達式，執行期的 `process.arch` hard gate 仍保留。擁有者須實際配置相應標籤；標籤與架構不符仍會被 hard gate 拒絕。`workflow_dispatch` inputs 為 `source_ref`、`mode`、`model`、`local_command`、`local_args_json`、`official_model`、`pega_model`、`pega_wire_api`、`codex_worker_root`、`expected_arch`。其中 `mode` 可選 `ollama`、`opencode-ollama`、`canonical-local`、`local-command`、`codex-official`、`codex-pega`、`multi-codex`、`codex-fault-isolation`、`all`；`expected_arch` 可選 `any`、`x64`、`arm64`。PEGA credential 由 Actions secret `AECP_PEGA_API_KEY` 提供。
 3. **目前派發缺口：** 2026-09-24 在本 repo 查詢 `gh workflow list --all` 未列出此 workflow；`gh run list --workflow provider-environment.yml` 回 404。原因是 workflow 目前只在 PR #7 施工分支，尚未在預設 `main` 提供可派發的 workflow。不得為產證而擅自 merge PR #7。待 workflow 可派發後，擁有者在 GitHub Actions 的 **AECP Real Provider Evidence → Run workflow** 輸入上述欄位；目前可在目標機器的對應 commit checkout，以相同底層 script 手動執行。
 4. **目前的本機執行模板（PowerShell）：** 在目標 checkout 中設定下表相應的環境變數後執行 `node scripts/provider-environment-verify.cjs`。script 的模式由 `AECP_PROVIDER_VERIFY_MODE` 指定，架構由 `AECP_PROVIDER_VERIFY_EXPECTED_ARCH` 指定，輸出路徑由 `AECP_PROVIDER_EVIDENCE_PATH` 指定；未設定輸出路徑時寫入被 Git 忽略的 `artifacts/provider-environment-evidence.json`。使用者須自行以受保護的環境方式設定 `AECP_PEGA_API_KEY`，不可把值貼進命令紀錄。所有操作在授權的測試 checkout／暫存 worktree 進行。
 
@@ -48,7 +48,7 @@
 - **前置條件：** 擁有者提供相應架構的實體或受控 Windows runner、各模式真實帳號／模型。ARM64 驗收必須在 `node -p "process.arch"` 回 `arm64` 的目標上執行；一般 Windows x64 runner 的包裝 CI 不足以證明 ARM64 provider runtime。
 - **操作：** 對第 1–3 節的 `codex-official`、`codex-pega`、`multi-codex` 逐一設 `expected_arch: arm64`（x64 目標設 `x64`），`source_ref` 用同一 exact SHA。手動模式設 `AECP_PROVIDER_VERIFY_EXPECTED_ARCH=arm64`，每個 mode 各執行共通 `node` 指令；先記錄 `node -p "process.arch"`。workflow 的 prerequisite 與 artifact provenance 會拒絕架構不符。
 - **成功證據：** 每個 mode 的 JSON 均有 `platform=win32`、`arch=arm64`、`expectedArch=arm64`、相同 `sourceCommit`、`summary.failed=0` 及各自 PASS checks。回報 Claude Code 三個獨立 run/artifact 與 SHA。
-- **缺口：** 目前 runner 標籤只有 `[self-hosted, Windows, aecp-provider]`，沒有專屬 ARM64 排程標籤；`expected_arch` 能拒絕錯機器，但不能保證排到 ARM64。需擁有者提供／選定實際 ARM64 runner。
+- **缺口：** workflow 已按 `expected_arch` 路由 `X64`／`ARM64` 額外標籤，但擁有者仍須實際提供並標記目標架構 runner；本倉庫程式碼不能證明該 runner 已上線或真實 provider 已在其上執行。`expected_arch` 的執行期拒錯 gate 仍保留。
 
 ## 5. 本地 Ollama smoke 與 canonical Harness E2E
 
@@ -93,6 +93,6 @@
 
 1. `provider-environment.yml` 尚不在預設分支，GitHub 手動派發目前不可用；本機 script 可執行，但不具 workflow run/provenance artifact。
 2. 單 Worker OFFICIAL／PEGA／local-command 的獨立檔案 verifier 已施工並有確定性測試；仍須在真實目標環境取得對應 PASS artifact。
-3. ARM64 workflow 沒有專屬 runner 標籤，須由擁有者供應正確機器，架構 gate 只負責拒絕錯配。
+3. ARM64/X64 動態標籤路由已施工；擁有者仍須供應、標記並維護正確的實際 runner，架構 hard gate 負責再次拒絕錯配。
 4. 實體 ARM64 UI、人類筆電設備／verifier 安全審查、Official Full MCP 仍無完整自動證據路徑。故障隔離 mode 可產生兩階段及 recovery 證據，但 Safe Bridge 連續可用仍須實機操作者補證；真實供應商執行尚未完成。
 5. PEGA 不支援 wire API 的真實能力分類尚無獨立報告；僅能保留各次 run 的安全 error code 與 PASS/FAIL。

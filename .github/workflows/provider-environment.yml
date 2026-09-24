@@ -74,7 +74,7 @@ concurrency:
 jobs:
   verify-real-provider:
     name: Real provider evidence on self-hosted Windows
-    runs-on: [self-hosted, Windows, aecp-provider]
+    runs-on: ${{ fromJSON(inputs.expected_arch == 'arm64' && '["self-hosted","Windows","aecp-provider","ARM64"]' || inputs.expected_arch == 'x64' && '["self-hosted","Windows","aecp-provider","X64"]' || '["self-hosted","Windows","aecp-provider"]') }}
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
