@@ -1,6 +1,7 @@
 'use strict';
 
 const { spawn } = require('node:child_process');
+const {withUtf8Output}=require('./powershell-utf8.cjs');
 
 const BROWSER_PROCESSES = new Set(['chrome','msedge','firefox','brave','opera','vivaldi']);
 const MAX_OUTPUT = 1024 * 1024;
@@ -30,17 +31,18 @@ function isBrowserProcess(name) {
   return BROWSER_PROCESSES.has(String(name || '').trim().toLowerCase().replace(/\.exe$/i,''));
 }
 
-function runPowerShell(script, { timeoutMs = 15000, signal } = {}) {
+function runPowerShell(script, { timeoutMs = 15000, signal, spawnImpl=spawn } = {}) {
   if (process.platform !== 'win32') throw new Error('Windows UI adapter is available only on Windows.');
-  const encoded = encodePowerShell(script);
+  const encoded = encodePowerShell(withUtf8Output(script));
   return new Promise((resolve, reject) => {
-    const child = spawn('powershell.exe', ['-NoLogo','-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-EncodedCommand',encoded], {
+    const child = spawnImpl('powershell.exe', ['-NoLogo','-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-EncodedCommand',encoded], {
       windowsHide: true,
       shell: false,
       stdio: ['ignore','pipe','pipe']
     });
     let stdout='',stderr='',done=false,timedOut=false,aborted=false;
-    const append=(current,chunk)=>(current+chunk.toString()).slice(-MAX_OUTPUT);
+    child.stdout.setEncoding('utf8');child.stderr.setEncoding('utf8');
+    const append=(current,chunk)=>(current+chunk).slice(-MAX_OUTPUT);
     const finish=(fn,value)=>{if(done)return;done=true;clearTimeout(timer);if(signal)signal.removeEventListener('abort',abort);fn(value)};
     const timer=setTimeout(()=>{timedOut=true;try{child.kill()}catch{}},Math.max(1000,timeoutMs));
     const abort=()=>{aborted=true;try{child.kill()}catch{}};
@@ -131,4 +133,4 @@ class WindowsUiAdapter {
   }
 }
 
-module.exports={WindowsUiAdapter,BROWSER_PROCESSES,encodePowerShell,validatePid,validateBounds,isBrowserProcess,listWindowsScript,automationTreeScript,dockWindowScript,parseJsonOutput};
+module.exports={WindowsUiAdapter,BROWSER_PROCESSES,encodePowerShell,runPowerShell,validatePid,validateBounds,isBrowserProcess,listWindowsScript,automationTreeScript,dockWindowScript,parseJsonOutput};
