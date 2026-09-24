@@ -26,8 +26,8 @@
 | G6 | 所有「完整性」宣稱 | 既有 `blueprint-coverage`/`requirements-coverage`/`roadmap-gate-audit` 只驗檔案存在與字串，無「條文→測試」追溯 | **高**（讓落差長期不可見） | 0006 |
 | G7 | 22 §11 六類通知（含 CRITICAL＝政策/安全違規） | 通知規則用的事件名稱與系統實際發出的不一致：`policy.violation`／`security.*` 從未被發出（CRITICAL 永不出現）；真實 CI 失敗事件 `ci.failed_rework`／`ci.failed_max_iterations` 被歸為 INFO；測試用自訂事件名，自我印證 | 中高 | 0010 |
 | G8 | 全部規範條文的完整性 | 已完成分類（0010、0011）：231 條中 115 已實作、91 部分、5 確認缺失、9 人工、3 擁有者、8 蓄意不做，無任何未分類項；「部分」與「確認缺失」由 G9、G10 承接 | 中 | 0011 |
-| G9 | B04 Electron 基線、B11、B21 | 5 個確認缺陷中 **2 個已由 Claude 修好並驗證**（未限制導覽 `will-navigate`→`navigation-policy.cjs`；剪貼簿 128 KiB 改以 UTF-8 位元組計）。**尚餘 3 個：** 主程序並非每個 IPC 通道都有統一參數驗證（B04-ELECTRON-L33，高）；Evidence 不是不可變（B21-10-03）；Result Capsule 可能在未驗證時宣稱成功（B21-10-08） | 高 | 0012 |
-| G10 | 91 條 PARTIAL | 行為存在但缺針對該條文的測試（例如 secrets 不得出現在所列各處、Provider 換手後狀態不變、Worker 同一 worktree 衝突拒絕）；`policy.violation` 目前只涵蓋 WRITE 拒絕 | 中 | 0012, 0013 |
+| G9 | B04 Electron 基線、B11、B21 | **已全部修復（5/5）**：導覽限制、剪貼簿位元組上限、IPC 統一參數驗證、Evidence 不可變（write-once）、Result Capsule 未驗證不得宣稱成功；並額外修掉兩條路徑穿越（模型控制的任務 ID、`task:trace`／`task:evidence`）。詳見 0012 | 已解決 | 0012 |
+| G10 | 89 條 PARTIAL | 行為存在但缺針對該條文的測試；`policy.violation` 已涵蓋所有政策閘門（0012 D）。剩餘 89 條依風險分 11 批，見 `.ai/WORK_ORDERS/0013-batches.md` | 中 | 0013 |
 
 ## 決策紀錄（Claude Code，Blueprint 擁有者）
 - **D2｜Blueprint 22 §6–§9、§11 與 20 §16 為必要項。** `22 §17` 有一段「深入視覺檢視……為選用的呈現強化，非缺失的驗收需求」的收尾註記，是先前施工者為結案而加，且與同文件本文「dashboard must show…」衝突；依「Blueprint 是標準」，以本文為準，該註記視為被取代（不改動原檔，於此登記）。

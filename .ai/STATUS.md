@@ -105,7 +105,7 @@
 | OWNER-EXTERNAL gate | 4 類 | 只有 `Space653000`（repo 擁有者）本人 |
 | 刻意不做 | 6 項 | 需要新的獨立 Blueprint 決策才會開放，非「忘記做」 |
 
-**結論（2026-09-25 更新）：** 藍圖對標已完成**分類**：追溯矩陣 231 條，**0 條未分類**（117 已實作、91 部分、3 確認缺失、9 需人工驗證、3 擁有者、8 蓄意不做），且 `npm run verify` 已用 `--strict` 強制。這代表「完整性」現在是**可被機器持續驗證**的，但**不代表藍圖已完全實作**：仍有 3 個確認的真缺陷（G9：IPC 統一參數驗證、Evidence 不可變、Result Capsule 未驗證不得宣稱成功；另 2 個——Electron 導覽限制與剪貼簿位元組上限——已由 Claude 修好並驗證）、91 條缺針對性測試（G10）、9 條需人工驗收（第 6 節協定）、以及 ENVIRONMENT／OWNER-EXTERNAL 閘門。詳見 [GAP_REGISTER.md](GAP_REGISTER.md)。Codex 額度用完至 2026-09-29；期間由 Claude Code 接手。
+**結論（2026-09-25 更新）：** 藍圖對標的**分類已完成**，且 `npm run verify` 以 `--strict` 強制：追溯矩陣 231 條，0 條未分類（122 已實作、89 部分、0 確認缺失、9 需人工驗證、3 擁有者、8 蓄意不做）。**已知的 5 個真缺陷（G9）全部修復**（0012），另修掉兩條路徑穿越。**尚未完成：** 89 條「部分」需補針對性測試（0013，已分 11 批，適合便宜模型分批做，見 `0013-batches.md`）、9 條需人工驗收（`ACCEPTANCE.md` §6）、ENVIRONMENT／OWNER-EXTERNAL 閘門，以及**一次真實 Electron 冒煙檢查**（0012 的 IPC 驗證尚未在真的應用程式中點過）。藍圖 06、07、08、24 尚未納入矩陣審計。詳見 [GAP_REGISTER.md](GAP_REGISTER.md)。Codex 額度用完至 2026-09-29。
 
 ### 施工單 0006 施工進度（Claude 驗收 CLOSED）
 
@@ -138,3 +138,7 @@
 ### 施工單 0011 施工進度（Claude 接手完成並驗收 CLOSED）
 
 - 追溯矩陣 231 條無未分類項（115 已實作／91 部分／5 確認缺失／9 人工／3 擁有者／8 蓄意不做），`--strict` 已串入 `npm run verify`；人工驗收協定為 `.ai/ACCEPTANCE.md` 第 6 節。詳見 [0011](WORK_ORDERS/0011.md)。
+
+### 施工單 0012 施工進度（Claude 完成並驗收 CLOSED）
+
+- G9 五個確認缺陷全修（導覽限制、剪貼簿位元組上限、75 個 IPC 通道統一驗證、Evidence write-once、Result Capsule 未驗證不得宣稱成功），另修兩條路徑穿越；`policy.violation` 涵蓋所有政策閘門；主題邏輯抽出並有行為測試。詳見 [0012](WORK_ORDERS/0012.md)。**待你：** 合併前在真的 Electron 做一次冒煙檢查。

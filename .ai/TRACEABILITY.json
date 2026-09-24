@@ -3513,16 +3513,40 @@
         "section": "## R1 — Trust boundaries"
       },
       "text": "Renderer code has no direct Node.js privilege. Electron must use context isolation, renderer sandboxing, a narrow preload bridge, and navigation/window-open restrictions.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/main.cjs",
-          "kind": "code",
-          "name": "createMainWindow"
+          "file": "tests/traceability-first-batch.test.cjs",
+          "kind": "test",
+          "name": "B04-ELECTRON-L28 context isolation remains enabled"
+        },
+        {
+          "file": "tests/traceability-first-batch.test.cjs",
+          "kind": "test",
+          "name": "B04-ELECTRON-L29 renderer Node integration remains disabled"
+        },
+        {
+          "file": "tests/traceability-first-batch.test.cjs",
+          "kind": "test",
+          "name": "B04-ELECTRON-L30 renderer sandbox remains enabled"
+        },
+        {
+          "file": "tests/traceability-first-batch.test.cjs",
+          "kind": "test",
+          "name": "B04-ELECTRON-L32 preload exposes named IPC methods rather than generic invoke"
+        },
+        {
+          "file": "tests/navigation-clipboard-limits.test.cjs",
+          "kind": "test",
+          "name": "B04-ELECTRON-L34 navigation is limited to the packaged UI document"
+        },
+        {
+          "file": "tests/ipc-validation.test.cjs",
+          "kind": "test",
+          "name": "B04-ELECTRON-L33 every registered IPC channel declares a validation schema and none bypasses the wrapper"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Isolation/sandbox/preload are configured, but arbitrary file: navigation and incomplete IPC argument validation remain confirmed sub-gaps."
+      "note": "Upgraded by Claude Code after 0012 fixed the two sub-gaps (navigation limited to the UI document, every IPC channel validated). The Electron settings are configuration, so their tests assert the configured values; sabotage-checked by flipping contextIsolation, nodeIntegration and sandbox."
     },
     {
       "id": "R1.3",
