@@ -105,26 +105,26 @@
 | OWNER-EXTERNAL gate | 4 類 | 只有 `Space653000`（repo 擁有者）本人 |
 | 刻意不做 | 6 項 | 需要新的獨立 Blueprint 決策才會開放，非「忘記做」 |
 
-**結論（2026-09-24 更正）：** 先前寫的「剩餘不完整幾乎全是外部閘門」**不成立**。逐條對照藍圖與程式碼後發現實質落差（Reviewer 看不到實際 diff 也沒有 Blueprint/Plan、Repository knowledge 未實作、Dashboard 缺 Run timeline / Diff / Review / Notifications / 進度總覽、既有覆蓋稽核只驗檔案存在），詳見 [GAP_REGISTER.md](GAP_REGISTER.md)。對應施工單 0006–0009。在這些結案前，**不得宣稱「倉庫內施工已完成」或「對標藍圖完整」**。ENVIRONMENT / OWNER-EXTERNAL 閘門仍如上所列。
+**結論（2026-09-24 更正，Claude 於 `c98ad0f` 驗收後更新）：** 0006–0009 已解決 GAP_REGISTER 的 G1（Reviewer 看不到實際 diff）、G2、G3、G4／G5（Dashboard 視圖，已用真實 `ui/` 渲染驗證）、G6（追溯矩陣）。仍有：**G7**（通知規則與真實事件名稱不一致，CRITICAL 永不出現；0010 修）與 **G8**（追溯矩陣 178 條尚未分類的 GAP，多數應是「已實作但缺測試」，但可能藏有真缺口；0010、0011 逐條分類）。在 `--strict` 追溯稽核通過、且所有 `CONFIRMED_GAP` 都被修補或明確裁定之前，**不得宣稱「對標藍圖完整」**。ENVIRONMENT / OWNER-EXTERNAL 閘門仍如上所列。
 
-### 施工單 0006 施工進度（待 Claude Review）
+### 施工單 0006 施工進度（Claude 驗收 CLOSED）
 
 - 新增條文追溯矩陣與機械稽核，納入 `npm run verify`；原有藍圖覆蓋稽核明示僅查檔案存在。矩陣目前 231 條：24 IMPLEMENTED（有具名測試）、1 PARTIAL、206 GAP（含尚未證明的證據缺口）。此數字**不是產品完成率**，不得將證據缺口等同功能缺失或反過來當作完成。
 - 新發現 Blueprint/12 §4 `schemaVersion` 一致性疑點；未修改 Blueprint 或執行邏輯，待藍圖擁有者裁定。Blueprint/21 §10 實際 8 條，施工單誤寫 10 條。
 - 0007–0009 尚待施工；ENVIRONMENT／OWNER-EXTERNAL 閘門及 PR #7 狀態不變。
 
-### 施工單 0007 施工進度（待 Claude Review）
+### 施工單 0007 施工進度（Claude 驗收 CLOSED）
 
 - A/B/C 已分別提交：Reviewer 取得有界且遮罩的 Blueprint/Plan/unified diff/Verifier 證據；`aecp.review/v1` 六維度驗證器拒絕舊式或矛盾 PASS；`aecp.worker-report/v1` 的變更檔取自 Git，Worker 自述不能作驗收證明。
 - 追溯矩陣從 231 條中確認 32 IMPLEMENTED、1 PARTIAL、198 GAP；GAP 主要為未取得同條文具名測試的保守證據分類，非已證明 198 個功能缺失。0008、0009 與外部環境／擁有者閘門仍待處理。
 
-### 施工單 0008 施工進度（待 Claude Review）
+### 施工單 0008 施工進度（Claude 驗收 CLOSED）
 
 - A/B/C 已分別提交：repo 內分層 AGENTS/藍圖/驗證指令/ADR 發現；依 provider 能力分送有界內容或 metadata；漂移掃描只給 WARNING，不改檔。`npm test` 312/312 PASS，完整 `npm run verify` 見施工單回報。
 - TRACEABILITY 231 條中 35 IMPLEMENTED、1 PARTIAL、195 GAP（保守證據分類）。0009 Dashboard 視圖仍待施工，ENVIRONMENT／OWNER-EXTERNAL 閘門不變。
 
-### 施工單 0009 施工進度（待 Claude Review）
+### 施工單 0009 施工進度（Claude 驗收 CLOSED，附缺陷 D1 見 0010）
 
 - A–F 已各自提交；Run timeline、Diff、Review、GitHub、Notifications 與五階段進度皆由正式 task／event／delivery 狀態唯讀投影，缺資料顯示 UNKNOWN。A 另有持久化 Harness 事件日誌的獨立修正 commit；詳見 [0009 回報](WORK_ORDERS/0009.md)。
 - `npm run verify` 通過，`npm test` **326/326 PASS**。TRACEABILITY 231 條中 52 IMPLEMENTED、1 PARTIAL、178 GAP；狀態只表示具名測試證據程度，非整體完成率。尚缺 Electron 實機 UI／輔助技術驗收；本次 HEAD 的 CI 需依 exact SHA workflow 實際結果核對。
-- 0006–0009 均為 Codex 施工完成、待 Claude Review，**未宣稱整體藍圖完成**；ENVIRONMENT／OWNER-EXTERNAL 閘門仍未完成，不自行更改 PR #7 合併狀態。
+- 0006–0009 已由 Claude 驗收 CLOSED（0009 附通知映射缺陷，0010 修正）；另有 0010、0011 分類與修補中，**未宣稱整體藍圖完成**；ENVIRONMENT／OWNER-EXTERNAL 閘門仍未完成，不自行更改 PR #7 合併狀態。
