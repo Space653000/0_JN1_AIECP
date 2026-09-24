@@ -240,3 +240,8 @@ Required dashboard projection, remote read-only supervision foundation and acces
 ## Runtime closure update — 2026-09-19
 
 The current implementation also includes: signed GitHub webhook ingestion (opt-in), external-event idempotency, CI failed-log evidence, crash/restart recovery, repository-per-task routing, maintenance/worktree garbage collection, and an authenticated local read-only supervision gateway. GitHub commit-SHA polling remains the fallback when no webhook transport is configured. These capabilities are governed by the same Control Plane policy and are reflected in the Harness Command Center.
+
+
+## Blueprint owner decision D2 — 2026-09-24 (append-only)
+
+Sections 6 (Run timeline), 7 (Diff view), 8 (Review view), 9 (GitHub view) and 11 (Notifications), together with the project progress overview in `20_HARNESS_ENGINEERING_MULTI_AGENT_LOOP.md` §16, are **required** dashboard capabilities. The note in §17 describing "deeper visual artifact inspection" as an optional presentation enhancement is **superseded** for these sections. The Dashboard remains a projection of canonical Control Plane/GitHub state and shows `UNKNOWN` when a value cannot be verified. See `.ai/GAP_REGISTER.md`.

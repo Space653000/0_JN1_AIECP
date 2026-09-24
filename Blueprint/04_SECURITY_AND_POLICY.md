@@ -199,3 +199,8 @@ AECP must:
 - require verification/evidence before task completion;
 - preserve approval gates for YELLOW/RED capabilities;
 - surface provider-specific quota/authentication limits rather than implying unlimited use.
+
+
+## Blueprint owner decision D3 — 2026-09-24 (append-only)
+
+The YAML in §5 is illustrative. The normative requirement is that policy is enforced deterministically outside the model. The current JSON Workspace Policy plus `SecurityPolicy` satisfies it; a YAML policy-file loader is not required unless a later work order adds it.

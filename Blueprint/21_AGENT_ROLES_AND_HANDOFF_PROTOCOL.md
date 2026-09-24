@@ -209,3 +209,8 @@ A provider may be substituted without changing the task contract. Adapter-level 
 ## Runtime closure update — 2026-09-19
 
 The current implementation also includes: signed GitHub webhook ingestion (opt-in), external-event idempotency, CI failed-log evidence, crash/restart recovery, repository-per-task routing, maintenance/worktree garbage collection, and an authenticated local read-only supervision gateway. GitHub commit-SHA polling remains the fallback when no webhook transport is configured. These capabilities are governed by the same Control Plane policy and are reflected in the Harness Command Center.
+
+
+## Blueprint owner decision D4 — 2026-09-24 (append-only)
+
+A Review Report (`aecp.review/v1`) result of `BLOCKED` is handled as a `HUMAN_REQUIRED` gate with the reason recorded; it never advances a task automatically. A missing, malformed or schema-invalid Review Report is `HUMAN_REQUIRED`, never `PASS`. The Reviewer must receive the Blueprint reference, the full Plan, the actual bounded diff content and the verification evidence (see `20_HARNESS_ENGINEERING_MULTI_AGENT_LOOP.md` §27 item 6).
