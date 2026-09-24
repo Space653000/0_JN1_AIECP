@@ -1,0 +1,27 @@
+{
+  "schema": "aecp.owner-evidence.laptop-verifier-safety/v1",
+  "sourceCommit": "<placeholder>",
+  "date": "<placeholder>",
+  "machine": { "id": "<placeholder>", "arch": "<placeholder>" },
+  "operatorAttestation": { "name": "<placeholder>", "statement": "<placeholder>", "signedAt": "<placeholder>" },
+  "checklist": {
+    "openCodeCliInstalled": { "passed": false, "note": "<placeholder>" },
+    "codexCliInstalled": { "passed": false, "note": "<placeholder>" },
+    "oneTimeTestRepoUsed": { "passed": false, "note": "<placeholder>" },
+    "localAutonomousRan": { "passed": false, "note": "<placeholder>" },
+    "runManifestCaptured": { "passed": false, "note": "<placeholder>" },
+    "verifiedPatchCaptured": { "passed": false, "note": "<placeholder>" },
+    "verifierOutputCaptured": { "passed": false, "note": "<placeholder>" },
+    "patchOnlyInWorktree": { "passed": false, "note": "<placeholder>" },
+    "sourceUnchangedBeforeApply": { "passed": false, "note": "<placeholder>" },
+    "verifierDeterminedResult": { "passed": false, "note": "<placeholder>" },
+    "verifierNoExternalNetwork": { "passed": false, "note": "<placeholder>" },
+    "verifierNoOutsideWrites": { "passed": false, "note": "<placeholder>" },
+    "verifierNoDeletion": { "passed": false, "note": "<placeholder>" }
+  },
+  "artifacts": {
+    "runManifest": { "fileName": "<placeholder>", "sha256": "<placeholder>" },
+    "verifiedPatch": { "fileName": "<placeholder>", "sha256": "<placeholder>" },
+    "verifierOutput": { "fileName": "<placeholder>", "sha256": "<placeholder>" }
+  }
+}
