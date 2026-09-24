@@ -10,6 +10,7 @@ const { redactSensitive } = require('./redaction.cjs');
 const { makeExecutionContract, updateExecutionContract, validateExecutionContract } = require('./execution-contract.cjs');
 const {buildReviewInput}=require('./review-context.cjs');
 const {validateReviewReport,saveReviewReport}=require('./review-report.cjs');
+const {gitChangedFiles,makeWorkerReport,saveWorkerReport}=require('./worker-report.cjs');
 
 const HARNESS_SCHEMA = 'aecp.harness/v1';
 const MAX_OUTPUT = 1024 * 1024;
@@ -484,6 +485,9 @@ async function runHarness(options) {
         task.iterations = iteration; await transition('RUNNING', { taskId: task.id, iteration });
         const b = await invokeProvider({router:providerRouter,role:'builder',prompt:builderPrompt(task, goal, done, review),cwd:wt.worktree,model:roleModels.builder,providerId:roleProviders.builder,policy:options.policy,signal,timeoutMs:600000,executionApproved:Boolean(options.executionApproved),networkApproved:Boolean(options.providerNetworkApproved),credentialApproved:Boolean(options.providerCredentialApproved),onSpawn:options.onWorkerSpawn});
         task.worker = { workerId:b.workerId||null, workerName:b.workerName||null, provider:b.provider||roleProviders.builder, providerName:b.providerName||b.provider||roleProviders.builder, model:b.model||roleModels.builder||null, processId:b.processId||null, codexHome:b.codexHome||null, command:b.command||b.provider||roleProviders.builder, code:b.code, timedOut:b.timedOut, aborted:Boolean(b.aborted), outputLimitExceeded:Boolean(b.outputLimitExceeded), stdout:b.stdout.slice(-12000), stderr:b.stderr.slice(-12000) };
+        task.workerReport=makeWorkerReport({taskId:task.id,runId:record.id,worker:task.worker,stdout:b.stdout,changedFiles:await gitChangedFiles(wt.worktree),iteration,baseCommit:record.baseHead});
+        task.workerReportEvidence=await saveWorkerReport(runRoot,task.workerReport,iteration);
+        await persist();
         if (b.code !== 0 || b.timedOut) { noteFailedAttempt(); review = `Worker failed: ${(b.stderr || b.stdout).slice(-4000)}`; await transition('REWORK', { taskId: task.id, reason: 'worker-failed' }); await checkpoint(task, iteration, 'NEXT_ITERATION', review); continue; }
         await transition('VERIFYING', { taskId: task.id });
         const verifier = task.verifier === 'npm test'
