@@ -31,7 +31,7 @@ async function makeRepo(prefix){
 function fakeRouter(onBuilder){
   return {
     capabilities(){return {process:false,network:false,credential:false};},
-    async execute(role,_prompt,opts){
+    async execute(role,prompt,opts){
       if(role==='planner'){
         return {code:0,stdout:JSON.stringify({tasks:[{
           task_id:'T1',
@@ -48,7 +48,9 @@ function fakeRouter(onBuilder){
         return {code:0,stdout:'builder done',stderr:'',timedOut:false,aborted:false};
       }
       if(role==='reviewer'){
-        return {code:0,stdout:JSON.stringify({result:'PASS',findings:[],required_changes:[]}),stderr:'',timedOut:false,aborted:false};
+        const runId=prompt.match(/"run_id":"([^"]+)"/)?.[1];
+        const provider=prompt.match(/"provider":"([^"]+)"/)?.[1];
+        return {code:0,stdout:JSON.stringify({schema:'aecp.review/v1',task_id:'T1',run_id:runId,reviewer:{provider,model:'UNKNOWN'},result:'PASS',blueprint:'PASS',plan:'PASS',implementation:'PASS',tests:'PASS',security:'PASS',architecture:'PASS',findings:[],required_changes:[]}),stderr:'',timedOut:false,aborted:false};
       }
       throw new Error('unexpected role '+role);
     }
