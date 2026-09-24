@@ -15,7 +15,7 @@ const sample=()=>({schema:'aecp.provider-environment-evidence/v1',sourceCommit,m
   arch:'arm64',expectedArch:'arm64',checks:[{id:'ollama.real-smoke',status:'PASS'}],
   summary:{requested:1,passed:1,failed:0},privacy:{promptBodiesPersisted:false,responseBodiesPersisted:false,credentialsPersisted:false}});
 const workflowRun=()=>({repository:'Space653000/0_JN1_AIECP',workflow:'AECP Real Provider Evidence',
-  runId:'123456789',runAttempt:'1',sha:sourceCommit});
+  runId:'123456789',runAttempt:'1',sha:'d'.repeat(40)});
 
 test('valid provider evidence passes read-only CLI and reports local provenance',()=>{
   const root=fs.mkdtempSync(path.join(os.tmpdir(),'aecp-evidence-test-'));
@@ -41,13 +41,19 @@ test('workflow metadata is only a claimed provenance with a copyable external ch
     assert.equal(result.status,0,result.stdout+result.stderr);
     assert.match(result.stdout,/PROVENANCE: WORKFLOW_CLAIMED/);
     assert.match(result.stdout,/gh run view 123456789 --repo Space653000\/0_JN1_AIECP --json headSha,conclusion,workflowName/);
-    assert.match(result.stdout,/headSha.*sourceCommit.*conclusion.*success/);
+    assert.match(result.stdout,new RegExp('headSha 等於 '+'d'.repeat(40)));
+    assert.match(result.stdout,/非被驗證的來源/);
+    assert.notEqual(workflowRun().sha,sourceCommit,'realistic dispatch: workflow definition commit differs from the checked-out source');
   }finally{fs.rmSync(root,{recursive:true,force:true});}
 });
 
-test('workflow SHA contradiction and secret-like metadata fail without printing secrets',()=>{
-  const mismatch=sample();mismatch.workflowRun={...workflowRun(),sha:'c'.repeat(40)};
-  assert.equal(verifyEvidence(mismatch,options).passed,false);
+test('workflow identity mismatch and secret-like metadata fail without printing secrets',()=>{
+  const differentSha=sample();differentSha.workflowRun={...workflowRun(),sha:'c'.repeat(40)};
+  assert.equal(verifyEvidence(differentSha,options).passed,true,'workflow definition SHA may differ from the source commit');
+  const other=sample();other.workflowRun={...workflowRun(),workflow:'Some Other Workflow'};
+  const otherReport=verifyEvidence(other,options);
+  assert.equal(otherReport.passed,false);
+  assert.ok(otherReport.results.some(item=>item.name==='workflowRun.identity'&&item.status==='FAIL'));
   const secret=sample();secret.workflowRun={...workflowRun(),workflow:'Bearer abcdefghi123456'};
   const report=verifyEvidence(secret,options);
   assert.equal(report.passed,false);

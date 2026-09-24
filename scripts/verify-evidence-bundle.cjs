@@ -10,6 +10,7 @@ const ARCHES=new Set(['any','x64','arm64']);
 const STATUSES=new Set(['PASS','FAIL']);
 const REPOSITORY=/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 const RUN_NUMBER=/^[1-9][0-9]*$/;
+const WORKFLOW_NAME='AECP Real Provider Evidence';
 
 function secretLocations(value,at='$',found=[]){
   if(Array.isArray(value))value.forEach((item,index)=>secretLocations(item,`${at}[${index}]`,found));
@@ -51,8 +52,7 @@ function verifyEvidence(evidence,{expectSha,expectMode=null,expectArch=null}={})
     SHA.test(workflowRun.sha||'');
   if(workflowRun!==undefined){
     add('workflowRun.format',Boolean(workflowRunValid),'workflow run identifiers missing or invalid');
-    add('workflowRun.sha',!SHA.test(workflowRun?.sha||'')||workflowRun.sha.toLowerCase()===evidence?.sourceCommit?.toLowerCase(),
-      'workflow SHA contradicts source commit');
+    add('workflowRun.identity',workflowRun?.workflow===WORKFLOW_NAME,'workflow name is not the real provider evidence workflow');
   }
 
   function worker(item,label){
@@ -113,7 +113,7 @@ function verifyEvidence(evidence,{expectSha,expectMode=null,expectArch=null}={})
   }
   return {results,passed:results.every(item=>item.status==='PASS'),
     provenance:workflowRunValid?'WORKFLOW_CLAIMED':'LOCAL_SCRIPT',
-    workflowRun:workflowRunValid?{repository:workflowRun.repository,runId:workflowRun.runId}:null};
+    workflowRun:workflowRunValid?{repository:workflowRun.repository,runId:workflowRun.runId,sha:workflowRun.sha}:null};
 }
 
 function parseArgs(argv){
@@ -141,7 +141,7 @@ function main(argv){
       process.stdout.write(`FILE ${file}\nPROVENANCE: ${report.provenance}${report.provenance==='LOCAL_SCRIPT'?'（非 workflow PASS）':'（僅聲稱，非已驗證的 workflow PASS）'}\n`);
       if(report.workflowRun){
         process.stdout.write(`gh run view ${report.workflowRun.runId} --repo ${report.workflowRun.repository} --json headSha,conclusion,workflowName\n`);
-        process.stdout.write('須人工/Claude 核對輸出的 headSha 等於 evidence.sourceCommit 且 conclusion 為 success；驗證器本身不聯網。\n');
+        process.stdout.write(`須人工/Claude 核對輸出：conclusion 為 success、workflowName 為 ${WORKFLOW_NAME}、headSha 等於 ${report.workflowRun.sha}（workflow 定義所在 commit，非被驗證的來源）；驗證器本身不聯網。被驗證來源 evidence.sourceCommit 由 workflow 的檢出與 provenance 步驟綁定，不與 headSha 比較。\n`);
       }
       for(const item of report.results)process.stdout.write(`${item.status} ${item.name}: ${item.reason}\n`);
       if(!report.passed)failed=true;
