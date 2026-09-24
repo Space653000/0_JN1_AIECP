@@ -20,7 +20,7 @@
    ```
 
 5. workflow 通過時上傳 artifact `aecp-real-provider-<mode>-<github.run_id>`，其中檔案是 `artifacts/provider-environment-evidence.json`，保留 30 天。JSON 必須含 `schema: aecp.provider-environment-evidence/v1`、`sourceCommit`、`mode`、`platform`、`arch`、`expectedArch`、`checks[]`、`summary`、`privacy`；成功項目的 `status` 為 `PASS`，`summary.failed` 為 `0`。workflow 額外核對 checked-out SHA、架構及三個 privacy 布林值均為 false。手動執行須由操作者同樣核對，不得把本機 JSON 說成 GitHub workflow PASS。
-6. 回報 Claude Code 時，提供 exact-source 40 碼 SHA、執行日期、機器/架構、mode、model 名稱、workflow run URL/ID（若有）、artifact 名稱與 JSON 的 `summary`、相關 `checks[].id/status` 及下節指定的非敏感欄位。只傳雜湊、狀態與驗證結果，不傳 credential、prompt 或 response body。Claude Code 依 [ACCEPTANCE](../.ai/ACCEPTANCE.md) 第 0 節審核，並確認該證據與擬結案的項目完全對應。
+6. 回報 Claude Code 前，先在不修改證據檔的環境執行 `node scripts/verify-evidence-bundle.cjs artifacts/provider-environment-evidence.json --expect-sha <40 碼 SHA> --expect-mode <mode> --expect-arch <any|x64|arm64>`；一個命令可列多個 JSON 路徑，任一 FAIL 會 exit 1。驗證器輸出 `PROVENANCE: LOCAL_SCRIPT（非 workflow PASS）` 或 `WORKFLOW`（後者仍須外部核對 run）。提供 exact-source SHA、執行日期、機器/架構、mode、model 名稱、workflow run URL/ID（若有）、artifact 名稱、驗證器結果與 JSON 的 `summary`、相關 `checks[].id/status` 及下節指定的非敏感欄位。只傳雜湊、狀態與驗證結果，不傳 credential、prompt 或 response body。Claude Code 依 [ACCEPTANCE](../.ai/ACCEPTANCE.md) 第 0 節審核，並確認證據與擬結案項目完全對應；本機驗證器 PASS 不是 ENVIRONMENT 結案。
 
 ## 1. 真實 Codex OFFICIAL 執行
 
