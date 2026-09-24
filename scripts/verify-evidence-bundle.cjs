@@ -8,6 +8,8 @@ const SHA=/^[0-9a-f]{40}$/i;
 const HASH=/^[0-9a-f]{64}$/i;
 const ARCHES=new Set(['any','x64','arm64']);
 const STATUSES=new Set(['PASS','FAIL']);
+const REPOSITORY=/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
+const RUN_NUMBER=/^[1-9][0-9]*$/;
 
 function secretLocations(value,at='$',found=[]){
   if(Array.isArray(value))value.forEach((item,index)=>secretLocations(item,`${at}[${index}]`,found));
@@ -40,6 +42,18 @@ function verifyEvidence(evidence,{expectSha,expectMode=null,expectArch=null}={})
     privacy?.credentialsPersisted===false,'privacy flags must all be false');
   const secrets=secretLocations(evidence);
   add('secret-scan',secrets.length===0,`secret-like content at ${secrets.join(', ')}`);
+  const workflowRun=evidence?.workflowRun;
+  const workflowRunValid=workflowRun&&typeof workflowRun==='object'&&!Array.isArray(workflowRun)&&
+    REPOSITORY.test(workflowRun.repository||'')&&
+    typeof workflowRun.workflow==='string'&&workflowRun.workflow.length>0&&workflowRun.workflow.length<=128&&
+    !/[\x00-\x1f]/.test(workflowRun.workflow)&&
+    RUN_NUMBER.test(workflowRun.runId||'')&&RUN_NUMBER.test(workflowRun.runAttempt||'')&&
+    SHA.test(workflowRun.sha||'');
+  if(workflowRun!==undefined){
+    add('workflowRun.format',Boolean(workflowRunValid),'workflow run identifiers missing or invalid');
+    add('workflowRun.sha',!SHA.test(workflowRun?.sha||'')||workflowRun.sha.toLowerCase()===evidence?.sourceCommit?.toLowerCase(),
+      'workflow SHA contradicts source commit');
+  }
 
   function worker(item,label){
     add(label,typeof item?.workerId==='string'&&item.workerId.length>0&&
@@ -98,7 +112,8 @@ function verifyEvidence(evidence,{expectSha,expectMode=null,expectArch=null}={})
       recovery.pega?.health==='READY','both real workers must recover to READY');
   }
   return {results,passed:results.every(item=>item.status==='PASS'),
-    provenance:evidence?.workflowProvenance?'WORKFLOW':'LOCAL_SCRIPT'};
+    provenance:workflowRunValid?'WORKFLOW_CLAIMED':'LOCAL_SCRIPT',
+    workflowRun:workflowRunValid?{repository:workflowRun.repository,runId:workflowRun.runId}:null};
 }
 
 function parseArgs(argv){
@@ -123,7 +138,11 @@ function main(argv){
     try{
       const evidence=JSON.parse(fs.readFileSync(file,'utf8'));
       const report=verifyEvidence(evidence,input.options);
-      process.stdout.write(`FILE ${file}\nPROVENANCE: ${report.provenance}${report.provenance==='LOCAL_SCRIPT'?'（非 workflow PASS）':'（須外部核對 run）'}\n`);
+      process.stdout.write(`FILE ${file}\nPROVENANCE: ${report.provenance}${report.provenance==='LOCAL_SCRIPT'?'（非 workflow PASS）':'（僅聲稱，非已驗證的 workflow PASS）'}\n`);
+      if(report.workflowRun){
+        process.stdout.write(`gh run view ${report.workflowRun.runId} --repo ${report.workflowRun.repository} --json headSha,conclusion,workflowName\n`);
+        process.stdout.write('須人工/Claude 核對輸出的 headSha 等於 evidence.sourceCommit 且 conclusion 為 success；驗證器本身不聯網。\n');
+      }
       for(const item of report.results)process.stdout.write(`${item.status} ${item.name}: ${item.reason}\n`);
       if(!report.passed)failed=true;
     }catch(error){process.stdout.write(`FAIL ${file}: unreadable or invalid JSON (${error.code||'PARSE_ERROR'})\n`);failed=true;}

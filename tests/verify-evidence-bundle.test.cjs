@@ -14,6 +14,8 @@ const options={expectSha:sourceCommit,expectMode:'ollama',expectArch:'arm64'};
 const sample=()=>({schema:'aecp.provider-environment-evidence/v1',sourceCommit,mode:'ollama',platform:'win32',
   arch:'arm64',expectedArch:'arm64',checks:[{id:'ollama.real-smoke',status:'PASS'}],
   summary:{requested:1,passed:1,failed:0},privacy:{promptBodiesPersisted:false,responseBodiesPersisted:false,credentialsPersisted:false}});
+const workflowRun=()=>({repository:'Space653000/0_JN1_AIECP',workflow:'AECP Real Provider Evidence',
+  runId:'123456789',runAttempt:'1',sha:sourceCommit});
 
 test('valid provider evidence passes read-only CLI and reports local provenance',()=>{
   const root=fs.mkdtempSync(path.join(os.tmpdir(),'aecp-evidence-test-'));
@@ -27,6 +29,30 @@ test('valid provider evidence passes read-only CLI and reports local provenance'
     assert.match(result.stdout,/PROVENANCE: LOCAL_SCRIPT/);
     assert.equal(fs.readFileSync(file,'utf8'),original);
   }finally{fs.rmSync(root,{recursive:true,force:true});}
+});
+
+test('workflow metadata is only a claimed provenance with a copyable external check',()=>{
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'aecp-evidence-workflow-'));
+  try{
+    const file=path.join(root,'evidence.json');
+    fs.writeFileSync(file,JSON.stringify({...sample(),workflowRun:workflowRun()}));
+    const result=spawnSync(process.execPath,[path.join(__dirname,'..','scripts','verify-evidence-bundle.cjs'),file,
+      '--expect-sha',sourceCommit],{encoding:'utf8'});
+    assert.equal(result.status,0,result.stdout+result.stderr);
+    assert.match(result.stdout,/PROVENANCE: WORKFLOW_CLAIMED/);
+    assert.match(result.stdout,/gh run view 123456789 --repo Space653000\/0_JN1_AIECP --json headSha,conclusion,workflowName/);
+    assert.match(result.stdout,/headSha.*sourceCommit.*conclusion.*success/);
+  }finally{fs.rmSync(root,{recursive:true,force:true});}
+});
+
+test('workflow SHA contradiction and secret-like metadata fail without printing secrets',()=>{
+  const mismatch=sample();mismatch.workflowRun={...workflowRun(),sha:'c'.repeat(40)};
+  assert.equal(verifyEvidence(mismatch,options).passed,false);
+  const secret=sample();secret.workflowRun={...workflowRun(),workflow:'Bearer abcdefghi123456'};
+  const report=verifyEvidence(secret,options);
+  assert.equal(report.passed,false);
+  assert.ok(report.results.some(item=>item.name==='secret-scan'&&item.status==='FAIL'));
+  assert.doesNotMatch(JSON.stringify(report),/Bearer abcdefghi123456/);
 });
 
 for(const [name,mutate] of [

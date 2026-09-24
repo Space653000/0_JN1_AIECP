@@ -69,6 +69,13 @@ const evidence={
   summary:{requested:0,passed:0,failed:0},
   privacy:{promptBodiesPersisted:false,responseBodiesPersisted:false,credentialsPersisted:false}
 };
+if(process.env.GITHUB_ACTIONS==='true')evidence.workflowRun={
+  repository:process.env.GITHUB_REPOSITORY||'',
+  workflow:process.env.GITHUB_WORKFLOW||'',
+  runId:process.env.GITHUB_RUN_ID||'',
+  runAttempt:process.env.GITHUB_RUN_ATTEMPT||'',
+  sha:process.env.GITHUB_SHA||''
+};
 
 async function check(id,fn){
   const started=Date.now();

@@ -3,11 +3,35 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
+const os=require('node:os');
 const path=require('node:path');
+const {spawnSync}=require('node:child_process');
 const yaml=require('js-yaml');
 
 const root=path.resolve(__dirname,'..');
 const read=(file)=>fs.readFileSync(path.join(root,file),'utf8');
+
+test('provider evidence writes only selected workflow metadata inside GitHub Actions',()=>{
+  const temporary=fs.mkdtempSync(path.join(os.tmpdir(),'aecp-provider-provenance-'));
+  try{
+    for(const githubActions of ['true','false']){
+      const file=path.join(temporary,`${githubActions}.json`);
+      const env={...process.env,GITHUB_WORKSPACE:root,AECP_PROVIDER_VERIFY_MODE:'invalid',
+        AECP_PROVIDER_EVIDENCE_PATH:file,GITHUB_ACTIONS:githubActions,
+        GITHUB_REPOSITORY:'Space653000/0_JN1_AIECP',GITHUB_WORKFLOW:'AECP Real Provider Evidence',
+        GITHUB_RUN_ID:'123456789',GITHUB_RUN_ATTEMPT:'2',GITHUB_SHA:'a'.repeat(40),
+        GITHUB_TOKEN:'not-for-evidence'};
+      const result=spawnSync(process.execPath,[path.join(root,'scripts','provider-environment-verify.cjs')],
+        {env,encoding:'utf8'});
+      assert.equal(result.status,1);
+      const evidence=JSON.parse(fs.readFileSync(file,'utf8'));
+      if(githubActions==='true')assert.deepEqual(evidence.workflowRun,{repository:env.GITHUB_REPOSITORY,
+        workflow:env.GITHUB_WORKFLOW,runId:env.GITHUB_RUN_ID,runAttempt:env.GITHUB_RUN_ATTEMPT,sha:env.GITHUB_SHA});
+      else assert.equal(Object.hasOwn(evidence,'workflowRun'),false);
+      assert.doesNotMatch(JSON.stringify(evidence),/not-for-evidence/);
+    }
+  }finally{fs.rmSync(temporary,{recursive:true,force:true});}
+});
 
 test('real provider evidence workflow is manual and pinned to the dedicated self-hosted runner label',()=>{
   const workflow=read('.github/workflows/provider-environment.yml');
