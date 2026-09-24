@@ -405,3 +405,14 @@ The maintenance loop now includes a bounded, non-mutating Blueprint/documentatio
 - Acceptance Audit fails if the exact-head checkout contract is removed.
 - Workflow artifacts/evidence are tied to the exact PR HEAD where applicable.
 - Documentation never records a static PASS as a substitute for the live GitHub Actions result.
+
+## 2026-09-24 施工單 0001–0004 更新
+
+本節為既有實作快照的 append-only 補記；即時、整併狀態以 [`.ai/STATUS.md`](../.ai/STATUS.md) 為準。以下是倉庫內施工與測試能力，不等同外部實機驗收或正式發行。
+
+- **0001：** 補上 `run()` 的 timeout、abort、輸出上限、exit 寬限資料及 late close 收斂測試；將 README 舊狀態封存到 `Reports/README_STATUS_HISTORY.md`，保留單一 Current status；新增 `Reports/ENVIRONMENT_EVIDENCE_RUNBOOK.md`，逐項列明環境證據、操作與缺口。0001 已由 Claude Code 驗收 CLOSED。
+- **0002：** 擴充真實供應商證據協定：OFFICIAL、PEGA、固定 local-command 透過暫存 Git worktree 做獨立檔案 verifier；新增 `codex-fault-isolation` 階段、暫存 WorkerRegistry 觀察、健康方不代跑、auth/config 保護斷言與 recovery health；同步更新環境 runbook。Safe Bridge 純 Node 唯讀路徑未能在無 Electron 下驗證，保留缺口。
+- **0003：** 新增唯讀 JSON 證據驗證器與機密掃描；供應商 workflow 依 `X64`／`ARM64` 標籤選擇 self-hosted runner，並保留 runtime architecture hard gate；新增 `Reports/PR7_MERGE_READINESS.md` 作為 PR #7 的時間點快照與人工合併清單，未合併 PR。
+- **0004：** 新增 ARM64 UI、使用者筆電 verifier 安全、Official Full MCP 三種 owner JSON 範本及姊妹驗證器；新增 `Reports/OWNER_GATES_RUNBOOK.md`，列出 Authenticode、Partner Center、選用遠端閘道與正式生產供應商宣稱的 owner 操作和缺口。
+
+所有 **ENVIRONMENT** 與 **OWNER-EXTERNAL** 閘門仍未完成；真實機器、帳號、憑證、供應商、Store 和受支援 ChatGPT workspace 證據必須另行取得並依 [`.ai/ACCEPTANCE.md`](../.ai/ACCEPTANCE.md) 驗收。倉庫測試、範本或 CI PASS 不可代替這些證據，亦不可據此宣稱 Official Full MCP Ready、Store 認證或正式生產供應商就緒。
