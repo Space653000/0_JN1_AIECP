@@ -9,6 +9,7 @@ const {ProviderRouter,PROVIDERS}=require('../electron/lib/provider-router.cjs');
 const {runHarness}=require('../electron/lib/harness.cjs');
 const {CodexWorkerRuntime,WORKER_IDS}=require('../electron/lib/codex-worker-runtime.cjs');
 const {PEGA_PROVIDER_ID,PEGA_WORKER_ID,PEGA_BASE_URL,PEGA_ENV_KEY,makePegaProvider}=require('../electron/lib/pega-provider.cjs');
+const {WorkerRegistry}=require('../electron/lib/worker-registry.cjs');
 
 const mode=String(process.env.AECP_PROVIDER_VERIFY_MODE||'').trim();
 const sourceRoot=path.resolve(process.env.GITHUB_WORKSPACE||process.cwd());
@@ -25,7 +26,7 @@ const pegaWireApi=String(process.env.AECP_PROVIDER_VERIFY_PEGA_WIRE_API||'respon
 const pegaApiKey=String(process.env[PEGA_ENV_KEY]||'');
 const codexWorkerRoot=path.resolve(process.env.AECP_PROVIDER_VERIFY_CODEX_ROOT||path.join(os.homedir(),'.aecp-provider-evidence-workers'));
 const expectedArch=String(process.env.AECP_PROVIDER_VERIFY_EXPECTED_ARCH||'any').trim().toLowerCase();
-const VALID_MODES=new Set(['ollama','opencode-ollama','canonical-local','local-command','codex-official','codex-pega','multi-codex','all']);
+const VALID_MODES=new Set(['ollama','opencode-ollama','canonical-local','local-command','codex-official','codex-pega','multi-codex','codex-fault-isolation','all']);
 const VALID_ARCHES=new Set(['any','x64','arm64']);
 
 function sha(value){return crypto.createHash('sha256').update(String(value||'')).digest('hex');}
@@ -77,7 +78,7 @@ async function check(id,fn){
     evidence.checks.push({id,status:'PASS',durationMs:Date.now()-started,...data});
     evidence.summary.passed++;
   }catch(error){
-    evidence.checks.push({id,status:'FAIL',durationMs:Date.now()-started,error:safeError(error)});
+    evidence.checks.push({id,status:'FAIL',durationMs:Date.now()-started,error:safeError(error),...(error.safeEvidence?{details:error.safeEvidence}:{})});
     evidence.summary.failed++;
   }
 }
@@ -94,18 +95,18 @@ function localArgs(){
 }
 
 
-async function buildRealCodexRouter({official=false,pega=false}={}){
-  const runtime=new CodexWorkerRuntime(codexWorkerRoot);
+async function buildRealCodexRouter({official=false,pega=false,root=codexWorkerRoot,allowUnauthenticatedOfficial=false}={}){
+  const runtime=new CodexWorkerRuntime(root);
   const registry={};
   const profiles={};
   if(official){
     const profile=await runtime.prepareOfficial({model:officialModel||null});
     const inspection=await runtime.inspect(WORKER_IDS.OFFICIAL);
-    if(!inspection.authPresent)throw Object.assign(new Error('Codex OFFICIAL isolated CODEX_HOME is not authenticated.'),{code:'OFFICIAL_AUTH_REQUIRED'});
+    if(!inspection.authPresent&&!allowUnauthenticatedOfficial)throw Object.assign(new Error('Codex OFFICIAL isolated CODEX_HOME is not authenticated.'),{code:'OFFICIAL_AUTH_REQUIRED'});
     profiles.official=profile;
     registry['openai-official']={
       id:'openai-official',command:'codex',roles:['builder'],mode:'codex-cli',
-      network:true,credential:false,requiresCredential:false,requiresAuthFiles:true,authPresent:true,
+      network:true,credential:false,requiresCredential:false,requiresAuthFiles:true,authPresent:inspection.authPresent,
       workerId:WORKER_IDS.OFFICIAL,workerName:'Codex OFFICIAL',providerName:'OpenAI Official',
       defaultModel:officialModel||null,codexHome:profile.codexHome,runtimeEnv:{...profile.env},kind:'codex-worker'
     };
@@ -132,6 +133,7 @@ async function codexSmoke(router,{provider,model,workerId,cwd,token,credentialAp
   const result=await router.execute('builder','Reply with exactly this token and nothing else: '+token,{
     provider,model:model||null,cwd,timeoutMs,networkApproved:true,credentialApproved,onSpawn
   });
+  if(result.workerId!==workerId)throw Object.assign(new Error('Provider silently selected another Worker.'),{code:'WORKER_FALLBACK_DETECTED'});
   if(result.code!==0||!String(result.stdout).includes(token)){
     throw Object.assign(new Error('Codex worker real smoke token missing'),{code:'CODEX_'+workerId+'_SMOKE_FAILED'});
   }
@@ -150,6 +152,7 @@ async function codexEditSmoke(router,{provider,model,workerId,cwd,token,credenti
   const result=await router.execute('builder','Create a file named worker_result.txt in the current directory containing exactly '+token+'. Do not modify any other file.',{
     provider,model:model||null,cwd,timeoutMs,networkApproved:true,credentialApproved,onSpawn
   });
+  if(result.workerId!==workerId)throw Object.assign(new Error('Provider silently selected another Worker.'),{code:'WORKER_FALLBACK_DETECTED'});
   if(result.code!==0)throw Object.assign(new Error('Codex worker real edit failed'),{code:'CODEX_'+workerId+'_EDIT_FAILED'});
   const fileVerifier=await verifyExpectedFile(cwd,'worker_result.txt',token);
   return {
@@ -230,6 +233,76 @@ async function makeHarnessFixture(){
   await git(repo,['add','.']);
   await git(repo,['commit','-m','baseline']);
   return {root,repo,runRoot,token};
+}
+
+async function authDigests(home){
+  const found=[];
+  for(const name of ['auth.json','credentials.json']){
+    const file=path.join(home,name);
+    try{
+      const content=await fs.readFile(file);
+      found.push({name,size:content.length,sha256:crypto.createHash('sha256').update(content).digest('hex')});
+    }catch(error){if(error.code!=='ENOENT')throw error;}
+  }
+  return found;
+}
+
+async function configDigest(home){
+  return crypto.createHash('sha256').update(await fs.readFile(path.join(home,'config.toml'))).digest('hex');
+}
+
+async function observeFaultWorker(router,{provider,workerId,model,cwd,token,credentialApproved=false,env={}}){
+  const health=await router.health(provider,{model:model||null,networkApproved:true,credentialApproved,timeoutMs:30000});
+  const observation={workerId,health:health.status,status:'FAIL',noFallback:true,code:null,codexHomeSha256:sha(health.codexHome||'')};
+  if(health.status!=='READY'){
+    observation.code='HEALTH_'+health.status;
+    return observation;
+  }
+  try{
+    const result=await router.execute('builder','Reply with exactly this token and nothing else: '+token,{
+      provider,model:model||null,cwd,timeoutMs,networkApproved:true,credentialApproved,env
+    });
+    observation.noFallback=result.workerId===workerId;
+    observation.codexHomeSha256=sha(result.codexHome||health.codexHome||'');
+    if(!observation.noFallback){observation.code='WORKER_FALLBACK_DETECTED';return observation;}
+    if(result.code===0&&String(result.stdout).includes(token)){
+      observation.status='PASS';
+      observation.code='OK';
+    }else observation.code='WORKER_RUN_FAILED';
+  }catch(error){observation.code=safeError(error).code;}
+  return observation;
+}
+
+async function runFaultStage({name,router,registryRoot,officialHome,pegaHome,failWorker,pegaEnv={}}){
+  const registry=new WorkerRegistry(registryRoot);
+  await registry.init();
+  for(const [id,providerId,home] of [
+    [WORKER_IDS.OFFICIAL,'openai-official',officialHome],
+    [PEGA_WORKER_ID,PEGA_PROVIDER_ID,pegaHome]
+  ]){
+    await registry.register({id,name:id,providerId,runtime:'codex-cli',codexHome:home});
+    await registry.acquire(id,{runId:name,taskId:name});
+  }
+  const cwd=await fs.mkdtemp(path.join(os.tmpdir(),'aecp-fault-stage-'));
+  try{
+    const [official,pega]=await Promise.all([
+      observeFaultWorker(router,{provider:'openai-official',workerId:WORKER_IDS.OFFICIAL,model:officialModel||null,cwd,
+        token:'AECP_FAULT_OFFICIAL_OK'}),
+      observeFaultWorker(router,{provider:PEGA_PROVIDER_ID,workerId:PEGA_WORKER_ID,model:pegaModel,cwd,
+        token:'AECP_FAULT_PEGA_OK',credentialApproved:true,env:pegaEnv})
+    ]);
+    for(const item of [official,pega]){
+      if(item.status==='PASS')await registry.release(item.workerId,{resultState:'PASS'});
+      else await registry.fail(item.workerId,item.code||'FAILED');
+      item.registryState=registry.get(item.workerId).runtimeState;
+    }
+    const failed=failWorker===WORKER_IDS.OFFICIAL?official:pega;
+    const healthy=failWorker===WORKER_IDS.OFFICIAL?pega:official;
+    const pass=failed.status==='FAIL'&&failed.workerId===failWorker&&failed.noFallback&&
+      ['FAILED','UNKNOWN'].includes(failed.registryState)&&healthy.status==='PASS'&&healthy.health==='READY'&&
+      healthy.registryState==='IDLE'&&healthy.noFallback&&officialHome!==pegaHome;
+    return {stage:name,expectedFailure:failWorker,official,pega,distinctHomes:officialHome!==pegaHome,pass};
+  }finally{await fs.rm(cwd,{recursive:true,force:true});}
 }
 
 async function main(){
@@ -382,6 +455,58 @@ async function main(){
     });
   }
 
+  if(mode==='codex-fault-isolation'){
+    const scratch=await fs.mkdtemp(path.join(os.tmpdir(),'aecp-codex-fault-isolation-'));
+    try{
+      const real=await buildRealCodexRouter({official:true,pega:true});
+      const officialHome=real.profiles.official.codexHome;
+      const pegaHome=real.profiles.pega.codexHome;
+      const expectedPegaConfig=await configDigest(pegaHome);
+      const pegaAuthBefore=await authDigests(pegaHome);
+      let stageA,stageB,authBeforeB,authAfterB,pegaAuthAfterA,pegaAuthAfterB,pegaConfigAfterA,pegaConfigAfterB;
+      await check('codex.fault-isolation',async()=>{
+        stageA=await runFaultStage({name:'pega-failure',router:real.router,registryRoot:path.join(scratch,'registry-a'),
+          officialHome,pegaHome,failWorker:PEGA_WORKER_ID,pegaEnv:{[PEGA_ENV_KEY]:'AECP_INVALID_ISOLATION_KEY'}});
+        pegaAuthAfterA=await authDigests(pegaHome);
+        pegaConfigAfterA=await configDigest(pegaHome);
+        authBeforeB=await authDigests(officialHome);
+        const faultRoot=path.join(scratch,'empty-official');
+        const faulty=await buildRealCodexRouter({official:true,root:faultRoot,allowUnauthenticatedOfficial:true});
+        const stageBRouter=new ProviderRouter({...faulty.router.registry,...real.router.registry,
+          'openai-official':faulty.router.registry['openai-official']});
+        stageB=await runFaultStage({name:'official-failure',router:stageBRouter,registryRoot:path.join(scratch,'registry-b'),
+          officialHome:faulty.profiles.official.codexHome,pegaHome,failWorker:WORKER_IDS.OFFICIAL});
+        authAfterB=await authDigests(officialHome);
+        pegaAuthAfterB=await authDigests(pegaHome);
+        pegaConfigAfterB=await configDigest(pegaHome);
+        const protection={
+          realOfficialAuthUnchangedInStageB:JSON.stringify(authBeforeB)===JSON.stringify(authAfterB),
+          pegaAuthAbsentThroughout:[pegaAuthBefore,pegaAuthAfterA,pegaAuthAfterB].every(items=>items.length===0),
+          pegaConfigMatchesPrepared:[pegaConfigAfterA,pegaConfigAfterB].every(digest=>digest===expectedPegaConfig),
+          distinctRealHomes:officialHome!==pegaHome,
+          scratchOfficialHomeDistinct:faulty.profiles.official.codexHome!==officialHome,
+          noFallback:stageA.official.noFallback&&stageA.pega.noFallback&&stageB.official.noFallback&&stageB.pega.noFallback
+        };
+        const data={stages:[stageA,stageB],protection,
+          realOfficialHomeSha256:sha(officialHome),realPegaHomeSha256:sha(pegaHome),
+          authBeforeStageB:authBeforeB,authAfterStageB:authAfterB,
+          pegaConfigSha256:expectedPegaConfig,safeBridge:{status:'OPERATOR_REQUIRED'}};
+        if(!stageA.pass||!stageB.pass||Object.values(protection).some(value=>value!==true)){
+          throw Object.assign(new Error('Fault isolation or home protection failed.'),{code:'FAULT_ISOLATION_FAILED',safeEvidence:data});
+        }
+        return data;
+      });
+      await check('recovery',async()=>{
+        const [official,pega]=await Promise.all([
+          real.router.health('openai-official',{model:officialModel||null,networkApproved:true,timeoutMs:30000}),
+          real.router.health(PEGA_PROVIDER_ID,{model:pegaModel,networkApproved:true,credentialApproved:true,timeoutMs:30000})
+        ]);
+        if(official.status!=='READY'||pega.status!=='READY')throw Object.assign(new Error('Workers did not recover to READY.'),{code:'RECOVERY_NOT_READY'});
+        return {official:{workerId:WORKER_IDS.OFFICIAL,health:official.status},pega:{workerId:PEGA_WORKER_ID,health:pega.status}};
+      });
+    }finally{await fs.rm(scratch,{recursive:true,force:true});}
+  }
+
   if(mode==='canonical-local'||mode==='all'){
     requireModel();
     await check('canonical-harness.ollama-opencode',async()=>{
@@ -447,4 +572,4 @@ if(require.main===module)main().catch(async error=>{
   process.exitCode=1;
 });
 
-module.exports={codexEditSmoke,verifyExpectedFile};
+module.exports={codexEditSmoke,verifyExpectedFile,runFaultStage};

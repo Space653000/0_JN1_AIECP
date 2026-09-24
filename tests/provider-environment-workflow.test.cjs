@@ -103,8 +103,8 @@ test('real PEGA evidence is executed through the governed Codex worker adapter a
 test('all mode includes Codex prerequisites and real multi-Codex evidence uses isolated Git worktrees',()=>{
   const workflow=read('.github/workflows/provider-environment.yml');
   const script=read('scripts/provider-environment-verify.cjs');
-  assert.match(workflow,/@\('codex-official','codex-pega','multi-codex','all'\)/);
-  assert.match(workflow,/@\('codex-pega','multi-codex','all'\)/);
+  assert.match(workflow,/@\('codex-official','codex-pega','multi-codex','codex-fault-isolation','all'\)/);
+  assert.match(workflow,/@\('codex-pega','multi-codex','codex-fault-isolation','all'\)/);
   assert.match(script,/mode==='codex-official'\|\|mode==='all'/);
   assert.match(script,/mode==='codex-pega'\|\|mode==='all'/);
   assert.match(script,/mode==='multi-codex'\|\|mode==='all'/);
@@ -116,6 +116,17 @@ test('all mode includes Codex prerequisites and real multi-Codex evidence uses i
   assert.match(script,/worktreeSha256/);
   assert.match(script,/fileSha256/);
   assert.match(script,/distinctWorktrees/);
+});
+
+test('fault-isolation mode is exposed in workflow and records scratch registry and recovery',()=>{
+  const workflow=read('.github/workflows/provider-environment.yml');
+  const script=read('scripts/provider-environment-verify.cjs');
+  assert.match(workflow,/\s+- codex-fault-isolation/);
+  assert.match(script,/mode==='codex-fault-isolation'/);
+  assert.match(script,/new WorkerRegistry\(registryRoot\)/);
+  assert.match(script,/check\('recovery'/);
+  assert.match(script,/realOfficialAuthUnchangedInStageB/);
+  assert.match(script,/pegaAuthAbsentThroughout/);
 });
 
 
