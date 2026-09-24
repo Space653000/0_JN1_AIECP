@@ -250,16 +250,17 @@
         "section": "## 6. Workspace locks and concurrency"
       },
       "text": "A stale write lock never disappears silently; recovery records why it was released.",
-      "status": "PARTIAL",
+      "status": "CONFIRMED_GAP",
       "evidence": [
         {
           "file": "electron/lib/lock-manager.cjs",
           "kind": "code",
-          "name": "recover"
+          "symbol": "_recoverUnlocked",
+          "description": "Expired locks are deleted from state.locks and only their keys are returned; no reason, previous owner or expiry is persisted or emitted, and callers (maintenance.cjs run, control-plane.cjs schedulerTick/gc) discard the returned list or keep only a count."
         }
       ],
       "workOrder": "UNASSIGNED",
-      "note": "Expired locks are recovered and persisted, but the persisted record does not retain the reason for release."
+      "note": "Missing: recovery of a stale write lock must record why it was released (reason, owner, expiresAt) in durable state or the event ledger. Currently the lock silently disappears. Not fixed here (feature code change is out of scope for work order 0013)."
     },
     {
       "id": "B02-L156",
@@ -318,16 +319,30 @@
         "section": "## 5. Capability execution rules"
       },
       "text": "Raw AI text must never grant its own permission.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/lib/security-policy.cjs",
-          "kind": "code",
-          "name": "SecurityPolicy"
+          "file": "tests/raw-ai-text-authority.test.cjs",
+          "kind": "test",
+          "name": "B02-L95 planner text cannot smuggle approvals, permissions or state into a task"
+        },
+        {
+          "file": "tests/raw-ai-text-authority.test.cjs",
+          "kind": "test",
+          "name": "B02-L95 a Command Card cannot grant itself permissions or approvals"
+        },
+        {
+          "file": "tests/raw-ai-text-authority.test.cjs",
+          "kind": "test",
+          "name": "B02-L95 the policy verdict is decided only by action, path and the human approval flag, never by model text"
+        },
+        {
+          "file": "tests/raw-ai-text-authority.test.cjs",
+          "kind": "test",
+          "name": "B02-L95 failure text that asks for more permissions is classified as HUMAN_REQUIRED with no new authority"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Policy decisions are external to model text; end-to-end malicious-model permission-escalation injection is not proven."
+      "note": "Hostile planner JSON, Command Card and failure text cannot inject approvals/permissions: normalizePlan and parseCommandCard drop them, SecurityPolicy verdicts ignore model-supplied fields, and recovery authority stays NO_NEW_PERMISSIONS."
     },
     {
       "id": "B03-L113",
@@ -755,16 +770,35 @@
         "section": "## 1. Threat model"
       },
       "text": "- a compromised provider must not automatically gain unrestricted local control.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/lib/security-policy.cjs",
-          "kind": "code",
-          "name": "SecurityPolicy"
+          "file": "tests/policy-adversarial.test.cjs",
+          "kind": "test",
+          "name": "B04-L11 a compromised provider declaring network or credential capability is stopped by policy before it runs"
+        },
+        {
+          "file": "tests/policy-adversarial.test.cjs",
+          "kind": "test",
+          "name": "B04-L11 a provider cannot grant itself approval or raise the risk ceiling through its own output"
+        },
+        {
+          "file": "tests/policy-adversarial.test.cjs",
+          "kind": "test",
+          "name": "B04-L11 a compromised provider cannot run outside the authorized root even when execution is approved"
+        },
+        {
+          "file": "tests/policy-adversarial.test.cjs",
+          "kind": "test",
+          "name": "B04-L11 the gate is not vacuous: an explicitly approved in-root action does execute"
+        },
+        {
+          "file": "tests/policy-adversarial.test.cjs",
+          "kind": "test",
+          "name": "B04-L11 every privileged or unknown action a provider might request is refused without explicit approval"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Claude review of 0013 batch 1: a single SYSTEM-action denial does not prove the broad compromised-provider scenario; an adversarial end-to-end test is still missing. Original gap: Policy is outside the provider, but this broad compromise scenario lacks an adversarial end-to-end test."
+      "note": "Adversarial tests drive real invokeRole + SecurityPolicy: a provider declaring network/credential capability, self-granting approval, running outside the root, or requesting unknown/privileged actions is always stopped before execution."
     },
     {
       "id": "B04-L112",
@@ -892,16 +926,20 @@
         "section": "## 12. Local MCP boundary"
       },
       "text": "- changing Workspace must not silently expand an already-running server's scope.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/main.cjs",
-          "kind": "code",
-          "name": "startLocalMcp"
+          "file": "tests/mcp-workspace-scope.test.cjs",
+          "kind": "test",
+          "name": "B04-L185 a running Local MCP server stays bound to its Workspace and cannot reach another Workspace"
+        },
+        {
+          "file": "tests/mcp-workspace-scope.test.cjs",
+          "kind": "test",
+          "name": "B04-L185 the running server runtime exposes no way to change its Workspace scope"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Claude review of 0013 batch 1: the submitted test only mutated local variables and never called MCP code (it still passed with the behavior broken), so it was removed. Needs a real test of the MCP runtime Workspace binding across a Workspace switch. Original gap: MCP binds a Workspace at startup; active-server scope across Workspace switching lacks an integration assertion."
+      "note": "Real Local MCP server over JSON-RPC: a running server stays bound to its Workspace (traversal, sibling-prefix and absolute-path reads refused, listing is its root only) and a second Workspace server never widens it. main.cjs rebinding on switch is not exercised here."
     },
     {
       "id": "B04-L193",
@@ -1047,16 +1085,15 @@
         "section": "## 4. Risk classes"
       },
       "text": "- admin/elevation",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/lib/security-policy.cjs",
-          "kind": "code",
-          "name": "SYSTEM"
+          "file": "tests/policy-adversarial.test.cjs",
+          "kind": "test",
+          "name": "B04-RED-L70 admin/elevation is not an exposed action and is classified RED and refused even if approved"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "SYSTEM is approval-gated, but explicit admin/elevation commands are unsupported rather than separately classified."
+      "note": "Admin/elevation actions are absent from ACTIONS and Command Card action types, classify RED and are refused by SecurityPolicy even with approval."
     },
     {
       "id": "B04-RED-L71",
@@ -1065,16 +1102,15 @@
         "section": "## 4. Risk classes"
       },
       "text": "- payment/billing",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/lib/security-policy.cjs",
-          "kind": "code",
-          "name": "ACTIONS"
+          "file": "tests/policy-adversarial.test.cjs",
+          "kind": "test",
+          "name": "B04-RED-L71 payment/billing is not an exposed action and is classified RED and refused even if approved"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "No billing action is exposed; a future billing adapter would need an explicit deny/approval decision."
+      "note": "Payment/billing actions are absent from ACTIONS and Command Card action types, classify RED and are refused by SecurityPolicy even with approval."
     },
     {
       "id": "B04-RED-L72",
@@ -3514,16 +3550,35 @@
         "section": "## R1 — Trust boundaries"
       },
       "text": "Official ChatGPT remains an external official surface. AECP must not scrape its DOM, copy session cookies, intercept traffic, or use undocumented private endpoints.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/main.cjs",
-          "kind": "code",
-          "name": "chatgpt:open"
+          "file": "tests/chatgpt-surface-boundary.test.cjs",
+          "kind": "test",
+          "name": "R1.1 the app window can never be navigated to ChatGPT or any page other than the packaged UI"
+        },
+        {
+          "file": "tests/chatgpt-surface-boundary.test.cjs",
+          "kind": "test",
+          "name": "R1.1 UI Automation refuses to inspect browser windows (ChatGPT DOM) by default"
+        },
+        {
+          "file": "tests/chatgpt-surface-boundary.test.cjs",
+          "kind": "test",
+          "name": "R1.1 chatgpt:open takes no renderer payload, so the renderer cannot choose or script what is opened"
+        },
+        {
+          "file": "tests/chatgpt-surface-boundary.test.cjs",
+          "kind": "test",
+          "name": "R1.1 the renderer bridge exposes only fixed IPC functions and no raw Electron, DOM or session access"
+        },
+        {
+          "file": "tests/chatgpt-surface-boundary.test.cjs",
+          "kind": "test",
+          "name": "R1.1 no AECP code scrapes, scripts or intercepts a browser session, and ChatGPT is only opened externally"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Official site opens in OS browser; broad absence of DOM/session/network interference still needs manual security audit."
+      "note": "Navigation policy refuses ChatGPT URLs, UI Automation refuses browser windows, chatgpt:open takes no payload, preload exposes only fixed IPC functions, and no code path scripts/scrapes a browser session (plus a source scan that chatgpt.com is only opened via shell.openExternal)."
     },
     {
       "id": "R1.2",
@@ -3591,16 +3646,30 @@
         "section": "## R1 — Trust boundaries"
       },
       "text": "Credentials are represented by opaque references and protected with OS-backed storage when persisted.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/main.cjs",
-          "kind": "code",
-          "name": "safeStorage"
+          "file": "tests/credential-storage.test.cjs",
+          "kind": "test",
+          "name": "R1.4 a provider API key is stored only as OS-encrypted ciphertext behind an opaque credential reference"
+        },
+        {
+          "file": "tests/credential-storage.test.cjs",
+          "kind": "test",
+          "name": "R1.4 every read route returns only a credential flag or reference, never the key"
+        },
+        {
+          "file": "tests/credential-storage.test.cjs",
+          "kind": "test",
+          "name": "R1.4 when OS encryption is unavailable the key is refused and never falls back to plaintext storage"
+        },
+        {
+          "file": "tests/credential-storage.test.cjs",
+          "kind": "test",
+          "name": "R1.4 clearing stored credentials removes the encrypted values and keeps the provider registration without a key"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "OS-backed encryption and credential refs exist, but all credential persistence routes lack a unified behavioral proof."
+      "note": "Real main.cjs IPC handlers under a fake Electron: provider API keys are stored only as safeStorage ciphertext behind a cred: reference, never echoed by any read route, refused (no plaintext fallback) when OS encryption is unavailable (provider key and Local MCP token), and removed by clear-credentials."
     },
     {
       "id": "R1.5",
@@ -4158,16 +4227,15 @@
         "section": "## R6 — Local MCP and remote supervision"
       },
       "text": "Local MCP preview tools are capability-scoped/read-only; no raw shell is exposed.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/mcp-server.mjs",
-          "kind": "code",
-          "name": "startLocalMcpServer"
+          "file": "tests/mcp-workspace-scope.test.cjs",
+          "kind": "test",
+          "name": "R6.2 Local MCP tools are the four read-only semantic tools and no raw shell is exposed"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Preview MCP is read-only; complete tool capability inventory and raw-shell absence need a dedicated contract test."
+      "note": "tools/list over the real MCP server returns exactly four read-only semantic tools with no shell-like tool or input, capabilities match, and shell/write/push tool calls are refused."
     },
     {
       "id": "R6.3",
@@ -4193,16 +4261,30 @@
         "section": "## R6 — Local MCP and remote supervision"
       },
       "text": "Pairing does not grant write/execute/merge/credential/system authority.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/lib/remote-gateway.cjs",
-          "kind": "code",
-          "name": "RemoteGateway"
+          "file": "tests/remote-pairing-authority.test.cjs",
+          "kind": "test",
+          "name": "R6.4 a READ_ONLY paired device can read but cannot approve, reject, or perform any other action"
+        },
+        {
+          "file": "tests/remote-pairing-authority.test.cjs",
+          "kind": "test",
+          "name": "R6.4 an APPROVAL_ONLY device can only approve or reject and gains no write, execute, merge, credential or system endpoint"
+        },
+        {
+          "file": "tests/remote-pairing-authority.test.cjs",
+          "kind": "test",
+          "name": "R6.4 pairing can only ever create the two non-privileged scopes"
+        },
+        {
+          "file": "tests/remote-pairing-authority.test.cjs",
+          "kind": "test",
+          "name": "R6.4 a revoked device loses all access immediately"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "READ_ONLY pairing is tested, but all privileged actions need negative tests."
+      "note": "Real RemoteGateway over HTTP: READ_ONLY and APPROVAL_ONLY paired devices cannot reach write/execute/merge/credential/system endpoints, cannot list devices or mint pairings, only the two safe scopes can be created, and revoked devices lose access."
     },
     {
       "id": "R6.5",
