@@ -48,7 +48,7 @@ test('Windows runner can execute the read-only top-level window enumeration', {s
   }
 });
 
-test('PowerShell JSON retains CJK and emoji across split UTF-8 chunks',async()=>{
+test('PowerShell JSON retains CJK and emoji across split UTF-8 chunks',{skip:process.platform!=='win32'},async()=>{
   let invoked='';
   const fakeSpawn=(_executable,args)=>{
     invoked=Buffer.from(args.at(-1),'base64').toString('utf16le');
