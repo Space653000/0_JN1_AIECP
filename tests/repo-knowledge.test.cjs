@@ -4,7 +4,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs/promises');
 const os=require('node:os');
 const path=require('node:path');
-const {discoverRepoKnowledge,knowledgeManifest,FILE_LIMIT,TOTAL_LIMIT}=require('../electron/lib/repo-knowledge.cjs');
+const {discoverRepoKnowledge,knowledgeManifest,formatKnowledge,FILE_LIMIT,TOTAL_LIMIT}=require('../electron/lib/repo-knowledge.cjs');
 
 test('repo knowledge discovers layered AGENTS, blueprint entry, scripts and decision names',async t=>{
   const root=await fs.mkdtemp(path.join(os.tmpdir(),'aecp-repo-knowledge-'));t.after(()=>fs.rm(root,{recursive:true,force:true}));
@@ -26,6 +26,9 @@ test('repo knowledge discovers layered AGENTS, blueprint entry, scripts and deci
   assert.ok(k.files.reduce((a,x)=>a+Buffer.byteLength(x.included),0)<=TOTAL_LIMIT);
   assert.doesNotMatch(JSON.stringify(k),/abcdef123456|private decision body/);
   assert.doesNotMatch(JSON.stringify(knowledgeManifest(k)),/root instructions/);
+  assert.match(formatKnowledge(k,{discoversAgentsMd:false}),/root instructions/);
+  assert.doesNotMatch(formatKnowledge(k,{discoversAgentsMd:true}),/root instructions|service instructions/);
+  assert.match(formatKnowledge(k,{discoversAgentsMd:true}),/sha256/);
 });
 
 test('repo knowledge rejects traversal and symlink escape without reading outside',async t=>{

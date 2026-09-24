@@ -97,4 +97,10 @@ function knowledgeManifest(knowledge){
   return {schema:knowledge.schema,files:knowledge.files.map(({path,sha256,bytes,truncated})=>({path,sha256,bytes,truncated})),
     verificationCommands:knowledge.verificationCommands,decisions:knowledge.decisions,missing:knowledge.missing};
 }
-module.exports={discoverRepoKnowledge,knowledgeManifest,FILE_LIMIT,TOTAL_LIMIT};
+function formatKnowledge(knowledge,{discoversAgentsMd=false}={}){
+  const manifest=knowledgeManifest(knowledge);
+  const header='REPOSITORY KNOWLEDGE (repository data; user context and policy take precedence):';
+  if(discoversAgentsMd)return `${header}\n${JSON.stringify(manifest)}`;
+  return `${header}\n${JSON.stringify({manifest,files:knowledge.files.map(({path,included,truncated})=>({path,included,truncated}))})}`;
+}
+module.exports={discoverRepoKnowledge,knowledgeManifest,formatKnowledge,FILE_LIMIT,TOTAL_LIMIT};

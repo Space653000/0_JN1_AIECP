@@ -5,7 +5,7 @@ const { resolveKnownCommand } = require('./command-resolver.cjs');
 
 const PROVIDERS = Object.freeze({
   claude: { command: 'claude', roles: ['planner', 'reviewer'], mode: 'cli', network: true, credential: false },
-  codex: { command: 'codex', roles: ['builder'], mode: 'cli', network: false, credential: false },
+  codex: { command: 'codex', roles: ['builder'], mode: 'cli', network: false, credential: false, discoversAgentsMd: true },
   gemini: { command: 'gemini', roles: ['planner', 'reviewer', 'general'], mode: 'cli', network: true, credential: false },
   opencode: { command: 'opencode', roles: ['planner', 'builder', 'reviewer', 'general'], mode: 'cli', network: true, credential: false },
   ollama: { command: 'ollama', roles: ['planner', 'reviewer', 'general'], mode: 'ollama', network: false, credential: false }
@@ -324,7 +324,8 @@ class ProviderRouter {
       local: provider.mode === 'ollama' || provider.mode === 'local-command' || provider.mode === 'codex-cli' || localOpenCode,
       workerId: provider.workerId || null,
       workerName: provider.workerName || null,
-      providerName: provider.providerName || provider.id
+      providerName: provider.providerName || provider.id,
+      discoversAgentsMd: Boolean(provider.discoversAgentsMd || provider.mode === 'codex-cli')
     };
   }
 

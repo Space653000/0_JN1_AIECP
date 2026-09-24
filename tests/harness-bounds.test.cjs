@@ -28,10 +28,11 @@ async function makeRepo(prefix){
   return {root,repo,runRoot};
 }
 
-function fakeRouter(onBuilder){
+function fakeRouter(onBuilder,onRole){
   return {
-    capabilities(){return {process:false,network:false,credential:false};},
+    capabilities(role){return {process:false,network:false,credential:false,discoversAgentsMd:role==='builder'};},
     async execute(role,prompt,opts){
+      if(onRole)onRole(role,prompt);
       if(role==='planner'){
         return {code:0,stdout:JSON.stringify({tasks:[{
           task_id:'T1',
@@ -394,4 +395,27 @@ test('Harness enforces local-compute budget using measured local provider time',
   assert.equal(run.providerCalls,1);
   assert.ok(run.localComputeMs>=1000);
   assert.match(run.error,/Local compute budget exhausted/);
+});
+
+test('Harness gives user context priority, routes knowledge by provider capability and stores content-free manifest',async t=>{
+  const fixture=await makeRepo('aecp-harness-knowledge-');
+  t.after(()=>fs.rm(fixture.root,{recursive:true,force:true}));
+  await fs.writeFile(path.join(fixture.repo,'AGENTS.md'),'Use project verification.\n');
+  await exec('git',['add','AGENTS.md'],{cwd:fixture.repo});
+  await exec('git',['commit','-m','agents'],{cwd:fixture.repo});
+  const calls=[];
+  const router=fakeRouter(async worktree=>fs.writeFile(path.join(worktree,'README.md'),'changed\n'),(role,prompt)=>calls.push({role,prompt}));
+  const run=await runHarness({goal:'Verify knowledge routing.',done:'One verified change.',context:'Human instruction comes first.',
+    sourceRoot:fixture.repo,runRoot:fixture.runRoot,maxTasks:1,maxIterations:1,maxTurns:3,providerRouter:router,
+    plannerProvider:'planner',builderProvider:'builder',reviewerProvider:'reviewer'});
+  assert.equal(run.state,'DONE',run.error||JSON.stringify(run,null,2));
+  const planner=calls.find(x=>x.role==='planner').prompt;
+  assert.ok(planner.indexOf('Human instruction comes first.')<planner.indexOf('REPOSITORY KNOWLEDGE'));
+  assert.match(planner,/Use project verification/);
+  const builder=calls.find(x=>x.role==='builder').prompt;
+  assert.match(builder,/AGENTS.md/);assert.match(builder,/sha256/);
+  assert.doesNotMatch(builder,/Use project verification/);
+  assert.match(calls.find(x=>x.role==='reviewer').prompt,/Use project verification/);
+  assert.equal(run.repoKnowledge.manifest.files[0].path,'AGENTS.md');
+  assert.doesNotMatch(await fs.readFile(run.repoKnowledge.file,'utf8'),/Use project verification/);
 });

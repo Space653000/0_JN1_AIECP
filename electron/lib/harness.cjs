@@ -11,6 +11,7 @@ const { makeExecutionContract, updateExecutionContract, validateExecutionContrac
 const {buildReviewInput}=require('./review-context.cjs');
 const {validateReviewReport,saveReviewReport}=require('./review-report.cjs');
 const {gitChangedFiles,makeWorkerReport,saveWorkerReport}=require('./worker-report.cjs');
+const {discoverRepoKnowledge,knowledgeManifest,formatKnowledge}=require('./repo-knowledge.cjs');
 
 const HARNESS_SCHEMA = 'aecp.harness/v1';
 const MAX_OUTPUT = 1024 * 1024;
@@ -193,35 +194,38 @@ function normalizePlan(plan, goal, done, maxTasks) {
     dependencies: Array.isArray(t.dependencies) ? t.dependencies.map(x => text(x, 100)).filter(Boolean) : [],
     verifier: t.verifier || null,
     risk: ['GREEN', 'YELLOW', 'RED'].includes(t.risk) ? t.risk : 'YELLOW',
-    blueprint_refs:Array.isArray(t.blueprint_refs)?t.blueprint_refs.slice(0,16).filter(x=>typeof x==='string'&&x.length<300):[]
+    blueprint_refs:Array.isArray(t.blueprint_refs)?t.blueprint_refs.slice(0,16).filter(x=>typeof x==='string'&&x.length<300):[],
+    target_paths:Array.isArray(t.target_paths)?t.target_paths.slice(0,100).filter(x=>typeof x==='string'&&x.length<300):[]
   })).filter(t => t.objective);
   if (!tasks.length) throw new Error('Planner returned no executable tasks.');
   return { schema: 'aecp.plan/v1', plan_id: id('plan'), goal, definition_of_done: done, tasks };
 }
 
-function plannerPrompt(goal, done, context) {
+function plannerPrompt(goal, done, context,knowledgeBlock='') {
   return [
     'You are the AECP Planner. Produce a small executable software-engineering plan.',
-    'Return ONLY JSON matching: {"tasks":[{"task_id":"T1","title":"...","objective":"...","acceptance":"...","dependencies":[],"risk":"GREEN|YELLOW|RED","verifier":"npm run verify","blueprint_refs":["Blueprint/INDEX.md"]}]}',
+    'Return ONLY JSON matching: {"tasks":[{"task_id":"T1","title":"...","objective":"...","acceptance":"...","dependencies":[],"risk":"GREEN|YELLOW|RED","verifier":"npm run verify","blueprint_refs":["Blueprint/INDEX.md"],"target_paths":["src/example.js"]}]}',
     'Do not invent credentials, remote access, or permissions. Do not write code.',
     `GOAL:\n${goal}`,
     `DEFINITION OF DONE:\n${done}`,
-    `CONTEXT:\n${context}`,
+    `USER CONTEXT (priority over repository knowledge):\n${context}`,
+    knowledgeBlock,
     'Prefer 1-8 coherent tasks, each small enough for one isolated worker run.'
   ].join('\n\n');
 }
 
-function builderPrompt(task, goal, done, review) {
+function builderPrompt(task, goal, done, review,knowledgeBlock='') {
   return [
     'You are the AECP Builder. Work ONLY inside this isolated worktree.',
     'Do not commit, push, publish, alter credentials, install system software, or access files outside the worktree.',
     'Implement the smallest change that satisfies the task. Do not claim verification; AECP runs it.',
     `GOAL:\n${goal}`, `TASK:\n${JSON.stringify(task, null, 2)}`,
-    review ? `PREVIOUS REVIEW / REQUIRED REWORK:\n${review}` : 'This is the first implementation attempt.'
+    review ? `PREVIOUS REVIEW / REQUIRED REWORK:\n${review}` : 'This is the first implementation attempt.',
+    knowledgeBlock
   ].join('\n\n');
 }
 
-function reviewerPrompt(task, goal, done, reviewInput, manifestSha256,reviewer) {
+function reviewerPrompt(task, goal, done, reviewInput, manifestSha256,reviewer,knowledgeBlock='') {
   return [
     'You are the AECP Reviewer. Review evidence, not model confidence.',
     `Return ONLY JSON matching aecp.review/v1: {"schema":"aecp.review/v1","task_id":"${task.id}","run_id":"${reviewInput.runId}","reviewer":{"provider":"${reviewer.provider}","model":"${reviewer.model}"},"result":"PASS|REWORK|BLOCKED|HUMAN_REQUIRED","blueprint":"PASS|WARN|FAIL","plan":"PASS|WARN|FAIL","implementation":"PASS|WARN|FAIL","tests":"PASS|WARN|FAIL","security":"PASS|WARN|FAIL","architecture":"PASS|WARN|FAIL","findings":[],"required_changes":[]}`,
@@ -229,6 +233,7 @@ function reviewerPrompt(task, goal, done, reviewInput, manifestSha256,reviewer) 
     `TASK:\n${JSON.stringify(task, null, 2)}`,
     `REVIEW INPUT (Blueprint + complete Plan + actual unified Diff + deterministic Evidence):\n${JSON.stringify(reviewInput, null, 2)}`,
     `REVIEW INPUT SHA256:\n${manifestSha256}`,
+    knowledgeBlock,
     'PASS only when acceptance and evidence are sufficient. HUMAN_REQUIRED for permissions, credentials, destructive actions, or unresolved ambiguity.'
   ].join('\n\n');
 }
@@ -444,9 +449,20 @@ async function runHarness(options) {
     return result;
   };
   try {
+    const roleKnowledge=(role,providerId,knowledge)=>formatKnowledge(knowledge,{discoversAgentsMd:Boolean(providerRouter.capabilities(role,providerId,{model:roleModels[role]})?.discoversAgentsMd)});
+    let repoKnowledge=await discoverRepoKnowledge(root);
+    const saveKnowledge=async (knowledge,label)=>{
+      const manifest=knowledgeManifest(knowledge);
+      const file=path.join(runRoot,`repo-knowledge-${label}.json`);
+      const data=JSON.stringify(manifest,null,2)+'\n';
+      await fs.mkdir(runRoot,{recursive:true});await fs.writeFile(file,data,'utf8');
+      return {manifest,file,sha256:crypto.createHash('sha256').update(data).digest('hex')};
+    };
+    record.repoKnowledge=await saveKnowledge(repoKnowledge,'run');
+    await persist();
     if (!resumed) {
       await transition('PLANNING');
-      const p = await invokeProvider({router:providerRouter,role:'planner',prompt:plannerPrompt(goal, done, text(options.context, 8000)),cwd:root,model:roleModels.planner,providerId:roleProviders.planner,policy:options.policy,signal,timeoutMs:180000,executionApproved:Boolean(options.executionApproved),networkApproved:Boolean(options.providerNetworkApproved),credentialApproved:Boolean(options.providerCredentialApproved)});
+      const p = await invokeProvider({router:providerRouter,role:'planner',prompt:plannerPrompt(goal, done, text(options.context, 8000),roleKnowledge('planner',roleProviders.planner,repoKnowledge)),cwd:root,model:roleModels.planner,providerId:roleProviders.planner,policy:options.policy,signal,timeoutMs:180000,executionApproved:Boolean(options.executionApproved),networkApproved:Boolean(options.providerNetworkApproved),credentialApproved:Boolean(options.providerCredentialApproved)});
       if (p.code !== 0) throw new Error(`Planner failed: ${(p.stderr || p.stdout).slice(-2000)}`);
       const plan = normalizePlan(safeJson(p.stdout), goal, done, maxTasks);
       record.plan = plan; record.tasks = plan.tasks.map(t => ({ ...t, state: 'READY', iterations: 0 }));
@@ -478,15 +494,19 @@ async function runHarness(options) {
       if (task.dependencies.some(d => !record.tasks.find(x => x.id === d && x.state === 'DONE'))) {
         task.state = 'BLOCKED'; continue;
       }
+      repoKnowledge=await discoverRepoKnowledge(root,{targetPaths:task.target_paths||[]});
+      task.repoKnowledge=await saveKnowledge(repoKnowledge,String(task.id).replace(/[^a-zA-Z0-9_-]/g,'_'));
       let review = '';
       let accepted = false;
       const resumeIteration = Math.max(1, Math.min(maxIterations, Number(task.iterations) || 1));
       for (let iteration = resumeIteration; iteration <= maxIterations; iteration++) {
         task.iterations = iteration; await transition('RUNNING', { taskId: task.id, iteration });
-        const b = await invokeProvider({router:providerRouter,role:'builder',prompt:builderPrompt(task, goal, done, review),cwd:wt.worktree,model:roleModels.builder,providerId:roleProviders.builder,policy:options.policy,signal,timeoutMs:600000,executionApproved:Boolean(options.executionApproved),networkApproved:Boolean(options.providerNetworkApproved),credentialApproved:Boolean(options.providerCredentialApproved),onSpawn:options.onWorkerSpawn});
+        const b = await invokeProvider({router:providerRouter,role:'builder',prompt:builderPrompt(task, goal, done, review,roleKnowledge('builder',roleProviders.builder,repoKnowledge)),cwd:wt.worktree,model:roleModels.builder,providerId:roleProviders.builder,policy:options.policy,signal,timeoutMs:600000,executionApproved:Boolean(options.executionApproved),networkApproved:Boolean(options.providerNetworkApproved),credentialApproved:Boolean(options.providerCredentialApproved),onSpawn:options.onWorkerSpawn});
         task.worker = { workerId:b.workerId||null, workerName:b.workerName||null, provider:b.provider||roleProviders.builder, providerName:b.providerName||b.provider||roleProviders.builder, model:b.model||roleModels.builder||null, processId:b.processId||null, codexHome:b.codexHome||null, command:b.command||b.provider||roleProviders.builder, code:b.code, timedOut:b.timedOut, aborted:Boolean(b.aborted), outputLimitExceeded:Boolean(b.outputLimitExceeded), stdout:b.stdout.slice(-12000), stderr:b.stderr.slice(-12000) };
         task.workerReport=makeWorkerReport({taskId:task.id,runId:record.id,worker:task.worker,stdout:b.stdout,changedFiles:await gitChangedFiles(wt.worktree),iteration,baseCommit:record.baseHead});
         task.workerReportEvidence=await saveWorkerReport(runRoot,task.workerReport,iteration);
+        repoKnowledge=await discoverRepoKnowledge(root,{targetPaths:task.workerReport.changed_files});
+        task.repoKnowledge=await saveKnowledge(repoKnowledge,String(task.id).replace(/[^a-zA-Z0-9_-]/g,'_'));
         await persist();
         if (b.code !== 0 || b.timedOut) { noteFailedAttempt(); review = `Worker failed: ${(b.stderr || b.stdout).slice(-4000)}`; await transition('REWORK', { taskId: task.id, reason: 'worker-failed' }); await checkpoint(task, iteration, 'NEXT_ITERATION', review); continue; }
         await transition('VERIFYING', { taskId: task.id });
@@ -504,7 +524,7 @@ async function runHarness(options) {
         task.reviewInput={file:reviewInput.file,sha256:reviewInput.sha256,changedFiles:reviewInput.input.diff.changedFiles};
         await persist();
         const reviewerIdentity={provider:roleProviders.reviewer,model:roleModels.reviewer||'UNKNOWN'};
-        const rr = await invokeProvider({router:providerRouter,role:'reviewer',prompt:reviewerPrompt(task, goal, done, reviewInput.input, reviewInput.sha256,reviewerIdentity),cwd:root,model:roleModels.reviewer,providerId:roleProviders.reviewer,policy:options.policy,signal,timeoutMs:180000,executionApproved:Boolean(options.executionApproved),networkApproved:Boolean(options.providerNetworkApproved)});
+        const rr = await invokeProvider({router:providerRouter,role:'reviewer',prompt:reviewerPrompt(task, goal, done, reviewInput.input, reviewInput.sha256,reviewerIdentity,roleKnowledge('reviewer',roleProviders.reviewer,repoKnowledge)),cwd:root,model:roleModels.reviewer,providerId:roleProviders.reviewer,policy:options.policy,signal,timeoutMs:180000,executionApproved:Boolean(options.executionApproved),networkApproved:Boolean(options.providerNetworkApproved)});
         const validated=validateReviewReport(rr.code===0?rr.stdout:null,{taskId:task.id,runId:record.id,reviewer:reviewerIdentity,verifierPassed:v.passed});
         task.review=validated.report;
         task.reviewEvidence=await saveReviewReport(runRoot,task.review,iteration);
