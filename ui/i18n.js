@@ -61,7 +61,16 @@ const DICTIONARIES=Object.freeze({
     'dashboard.patchBytes':'Patch bytes',
     'dashboard.baseCommit':'Base commit',
     'dashboard.currentCommit':'Current commit',
-    'dashboard.verifier':'Verifier'
+    'dashboard.verifier':'Verifier',
+    'dashboard.review':'Review view',
+    'dashboard.review.blueprint':'Blueprint',
+    'dashboard.review.plan':'Plan',
+    'dashboard.review.implementation':'Implementation',
+    'dashboard.review.tests':'Tests',
+    'dashboard.review.security':'Security',
+    'dashboard.review.architecture':'Architecture',
+    'dashboard.findings':'Findings',
+    'dashboard.requiredChanges':'Required changes'
   }),
   'zh-TW':Object.freeze({
     'workspace.choose':'選擇工作區',
@@ -123,7 +132,16 @@ const DICTIONARIES=Object.freeze({
     'dashboard.patchBytes':'補丁位元組',
     'dashboard.baseCommit':'基底提交',
     'dashboard.currentCommit':'目前提交',
-    'dashboard.verifier':'驗證器'
+    'dashboard.verifier':'驗證器',
+    'dashboard.review':'審查檢視',
+    'dashboard.review.blueprint':'藍圖',
+    'dashboard.review.plan':'計畫',
+    'dashboard.review.implementation':'實作',
+    'dashboard.review.tests':'測試',
+    'dashboard.review.security':'安全',
+    'dashboard.review.architecture':'架構',
+    'dashboard.findings':'發現',
+    'dashboard.requiredChanges':'必要修正'
   })
 });
 

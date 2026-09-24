@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { projectEvents } = require('../electron/lib/event-projection.cjs');
-const {timeline,diffView}=require('../ui/dashboard-projection.js');
+const {timeline,diffView,reviewView,REVIEW_DIMENSIONS}=require('../ui/dashboard-projection.js');
 
 test('event projection materializes run task approval and type counters deterministically', () => {
   const projection = projectEvents([
@@ -44,4 +44,15 @@ test('Diff projection shows canonical stats or UNKNOWN without changing task sta
   assert.equal(JSON.stringify(task),before);
   assert.equal(diffView(null).state,'UNKNOWN');
   assert.equal(diffView({state:'QUEUED'}).patchBytes,'UNKNOWN');
+});
+test('Review projection shows six canonical dimensions, human gate and UNKNOWN',()=>{
+  const report={schema:'aecp.review/v1',result:'HUMAN_REQUIRED',originalResult:'BLOCKED',
+    ...Object.fromEntries(REVIEW_DIMENSIONS.map(d=>[d,'WARN'])),findings:['Decision needed'],required_changes:['Ask owner']};
+  const task={result:{tasks:[{review:report}]}};
+  const before=JSON.stringify(task),view=reviewView(task);
+  assert.equal(view.result,'HUMAN_REQUIRED');assert.equal(view.originalResult,'BLOCKED');
+  assert.equal(Object.keys(view.dimensions).length,6);
+  assert.deepEqual(view.findings,['Decision needed']);assert.equal(JSON.stringify(task),before);
+  assert.equal(reviewView({}).result,'UNKNOWN');
+  assert.ok(Object.values(reviewView({}).dimensions).every(v=>v==='UNKNOWN'));
 });

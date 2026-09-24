@@ -49,6 +49,13 @@ test('Diff view renders canonical changed-file and verifier fields with UNKNOWN 
   for(const field of ['diffView.changedFiles','diffView.additions','diffView.deletions','diffView.untrackedFiles','diffView.patchBytes','diffView.baseCommit','diffView.currentCommit','diffView.verifierStatus'])assert.ok(ui.includes(field));
   assert.match(read('ui/dashboard-projection.js'),/UNKNOWN/);
 });
+test('Review view renders six dimensions and textual human-required warning',()=>{
+  const ui=read('ui/harness-console.js');
+  assert.match(ui,/AECPDashboard\.reviewView\(focusTask\)/);
+  assert.match(ui,/REVIEW_DIMENSIONS/);
+  assert.match(ui,/⚠ /);
+  assert.match(ui,/HUMAN_REQUIRED/);
+});
 
 test('Dashboard and shell accessibility provide keyboard focus text status and reduced motion',()=>{
   const html=read('ui/index.html');

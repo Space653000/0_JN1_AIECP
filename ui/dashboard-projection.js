@@ -25,5 +25,15 @@
       patchBytes:task?.result?.patch?.bytes??stats.patchBytes??UNKNOWN,baseCommit:stats.baseCommit||UNKNOWN,
       currentCommit:stats.currentCommit||UNKNOWN,verifierStatus:stats.verifierStatus||UNKNOWN};
   }
-  return Object.freeze({UNKNOWN,timeline,diffView});
+  const REVIEW_DIMENSIONS=Object.freeze(['blueprint','plan','implementation','tests','security','architecture']);
+  function reviewView(task){
+    const inner=task?.result?.tasks?.at?.(-1)||task?.result?.tasks?.[task?.result?.tasks?.length-1];
+    const report=inner?.review||task?.review;
+    if(report?.schema!=='aecp.review/v1')return {state:UNKNOWN,result:UNKNOWN,dimensions:Object.fromEntries(REVIEW_DIMENSIONS.map(d=>[d,UNKNOWN])),findings:[],requiredChanges:[]};
+    return {state:'AVAILABLE',result:report.result||UNKNOWN,originalResult:report.originalResult||null,
+      dimensions:Object.fromEntries(REVIEW_DIMENSIONS.map(d=>[d,report[d]||UNKNOWN])),
+      findings:Array.isArray(report.findings)?report.findings.slice(0,20):[],
+      requiredChanges:Array.isArray(report.required_changes)?report.required_changes.slice(0,20):[]};
+  }
+  return Object.freeze({UNKNOWN,timeline,diffView,reviewView,REVIEW_DIMENSIONS});
 });
