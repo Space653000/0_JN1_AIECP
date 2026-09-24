@@ -1,0 +1,2909 @@
+{
+  "schema": "aecp.traceability/v1",
+  "generatedFrom": "Blueprint normative text; manually reviewed evidence statuses",
+  "items": [
+    {
+      "id": "B01-A11Y-L172",
+      "source": {
+        "file": "Blueprint/01_UX_UI_SPEC.md",
+        "section": "## 10. Accessibility and quality"
+      },
+      "text": "- 4.5:1 text contrast target",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B01-A11Y-L173",
+      "source": {
+        "file": "Blueprint/01_UX_UI_SPEC.md",
+        "section": "## 10. Accessibility and quality"
+      },
+      "text": "- visible keyboard focus",
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/i18n-accessibility.test.cjs",
+          "kind": "test",
+          "name": "styles provide visible focus and reduced-motion support"
+        }
+      ],
+      "note": "Named deterministic test exists; mapped for manual equivalence review."
+    },
+    {
+      "id": "B01-A11Y-L174",
+      "source": {
+        "file": "Blueprint/01_UX_UI_SPEC.md",
+        "section": "## 10. Accessibility and quality"
+      },
+      "text": "- semantic buttons/labels",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B01-A11Y-L175",
+      "source": {
+        "file": "Blueprint/01_UX_UI_SPEC.md",
+        "section": "## 10. Accessibility and quality"
+      },
+      "text": "- no color-only status",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B01-A11Y-L176",
+      "source": {
+        "file": "Blueprint/01_UX_UI_SPEC.md",
+        "section": "## 10. Accessibility and quality"
+      },
+      "text": "- reduced-motion friendly",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B01-A11Y-L177",
+      "source": {
+        "file": "Blueprint/01_UX_UI_SPEC.md",
+        "section": "## 10. Accessibility and quality"
+      },
+      "text": "- 125–200% Windows scaling support",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B01-A11Y-L178",
+      "source": {
+        "file": "Blueprint/01_UX_UI_SPEC.md",
+        "section": "## 10. Accessibility and quality"
+      },
+      "text": "- useful at 1366×768 and optimized for 1920×1080+",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B01-A11Y-L179",
+      "source": {
+        "file": "Blueprint/01_UX_UI_SPEC.md",
+        "section": "## 10. Accessibility and quality"
+      },
+      "text": "- dark/light/system theme",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B01-A11Y-L180",
+      "source": {
+        "file": "Blueprint/01_UX_UI_SPEC.md",
+        "section": "## 10. Accessibility and quality"
+      },
+      "text": "- Traditional Chinese and English architecture-ready; bootstrap UI begins bilingual-friendly with plain English labels and concise helper text.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B01-L148",
+      "source": {
+        "file": "Blueprint/01_UX_UI_SPEC.md",
+        "section": "## 7. Official ChatGPT pane"
+      },
+      "text": "- Embedded surface may only be explored if it remains an unmodified official origin with no privileged preload, interception, scraping or unsupported authentication behavior. It is never the sole supported path.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B01-L160",
+      "source": {
+        "file": "Blueprint/01_UX_UI_SPEC.md",
+        "section": "## 8. ChatGPT-like visual language without impersonation"
+      },
+      "text": "AECP's own logo/name must remain more prominent than provider branding.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B01-L27",
+      "source": {
+        "file": "Blueprint/01_UX_UI_SPEC.md",
+        "section": "## 2. Default shell"
+      },
+      "text": "The right pane can become a compact status/launcher when ChatGPT is open in an external browser. AECP must remain fully usable in that state.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B01-L6",
+      "source": {
+        "file": "Blueprint/01_UX_UI_SPEC.md",
+        "section": "## 1. UX principles"
+      },
+      "text": "- AECP has its own name/icon. OpenAI/ChatGPT branding is used only to identify the official external provider surface and must follow current brand rules.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B01-L67",
+      "source": {
+        "file": "Blueprint/01_UX_UI_SPEC.md",
+        "section": "## 4. Beginner vs Engineering mode"
+      },
+      "text": "Changing mode never changes permissions by itself.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B02-L109",
+      "source": {
+        "file": "Blueprint/02_LOCAL_AGENT_HARNESS.md",
+        "section": "## 6. Workspace locks and concurrency"
+      },
+      "text": "A stale write lock never disappears silently; recovery records why it was released.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B02-L156",
+      "source": {
+        "file": "Blueprint/02_LOCAL_AGENT_HARNESS.md",
+        "section": "## 10. Crash/restart behavior"
+      },
+      "text": "On startup, the mutating runtime must:",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B02-L161",
+      "source": {
+        "file": "Blueprint/02_LOCAL_AGENT_HARNESS.md",
+        "section": "## 10. Crash/restart behavior"
+      },
+      "text": "5. never blindly replay a mutating operation.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B02-L207",
+      "source": {
+        "file": "Blueprint/02_LOCAL_AGENT_HARNESS.md",
+        "section": "## 12. Harness Engineering expansion"
+      },
+      "text": "Tasks are durable objects with dependencies, priority, role, Workspace/repository bindings, limits, verifier profile and risk policy. Scheduler decisions must remain explainable after restart.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B02-L95",
+      "source": {
+        "file": "Blueprint/02_LOCAL_AGENT_HARNESS.md",
+        "section": "## 5. Capability execution rules"
+      },
+      "text": "Raw AI text must never grant its own permission.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B03-L113",
+      "source": {
+        "file": "Blueprint/03_PROVIDER_ROUTER.md",
+        "section": "## 5. Credential handling"
+      },
+      "text": "- API keys never live in repository YAML/JSON.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B03-L116",
+      "source": {
+        "file": "Blueprint/03_PROVIDER_ROUTER.md",
+        "section": "## 5. Credential handling"
+      },
+      "text": "- UI only returns masked key metadata, never plaintext after save.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B03-L129",
+      "source": {
+        "file": "Blueprint/03_PROVIDER_ROUTER.md",
+        "section": "## 6. Provider health"
+      },
+      "text": "Failure of an optional provider must not prevent Safe Bridge use. The current router exposes these five states through bounded health checks: fixed CLI/local-command checks never execute task text; API/Remote MCP live probes require explicit NETWORK approval, and stored credentials require explicit CREDENTIAL approval. An unapproved live probe reports `DEGRADED` rather than silently using network/credentials.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B03-L143",
+      "source": {
+        "file": "Blueprint/03_PROVIDER_ROUTER.md",
+        "section": "## 8. Failover"
+      },
+      "text": "Failover never silently moves private local context to a cloud provider. Any provider change that changes the data boundary requires explicit user approval or a predeclared policy.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B03-L168",
+      "source": {
+        "file": "Blueprint/03_PROVIDER_ROUTER.md",
+        "section": "## 10. Inter-agent handoff"
+      },
+      "text": "Agents never exchange hidden vendor sessions. They exchange Goal/Plan/Task/Context/Worker-Report/Review/Result artifacts with schema versions and correlation IDs.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B03-L172",
+      "source": {
+        "file": "Blueprint/03_PROVIDER_ROUTER.md",
+        "section": "## 11. Cost/attention control"
+      },
+      "text": "The Harness optimizes verified engineering progress per unit of human attention. It must not create extra model calls merely to keep agents busy.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B03-L5",
+      "source": {
+        "file": "Blueprint/03_PROVIDER_ROUTER.md",
+        "section": "## 1. Goal"
+      },
+      "text": "The Local Agent Harness must not care which intelligence provider produced a task. Providers are adapters around a common capability contract.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B03-L56",
+      "source": {
+        "file": "Blueprint/03_PROVIDER_ROUTER.md",
+        "section": "## 2A. Provider versus Worker"
+      },
+      "text": "The two workers must never share `CODEX_HOME`, auth, session or runtime state.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B03-L68",
+      "source": {
+        "file": "Blueprint/03_PROVIDER_ROUTER.md",
+        "section": "## 2A. Provider versus Worker"
+      },
+      "text": "The adapter must negotiate and verify the API family actually available in the environment, including Chat Completions-compatible and Responses-compatible behavior where supported. Unsupported capability combinations fail closed.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B03-L70",
+      "source": {
+        "file": "Blueprint/03_PROVIDER_ROUTER.md",
+        "section": "## 2A. Provider versus Worker"
+      },
+      "text": "No PEGA-specific branch is permitted in Task/Mission/Queue/Harness state-machine logic. Future company/OpenAI/Gemini/Qwen/local providers must remain swappable through the same abstraction.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B04-ELECTRON-L28",
+      "source": {
+        "file": "Blueprint/04_SECURITY_AND_POLICY.md",
+        "section": "## 3. Electron baseline"
+      },
+      "text": "- `contextIsolation: true`",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B04-ELECTRON-L29",
+      "source": {
+        "file": "Blueprint/04_SECURITY_AND_POLICY.md",
+        "section": "## 3. Electron baseline"
+      },
+      "text": "- `nodeIntegration: false`",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B04-ELECTRON-L30",
+      "source": {
+        "file": "Blueprint/04_SECURITY_AND_POLICY.md",
+        "section": "## 3. Electron baseline"
+      },
+      "text": "- renderer sandbox enabled",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B04-ELECTRON-L31",
+      "source": {
+        "file": "Blueprint/04_SECURITY_AND_POLICY.md",
+        "section": "## 3. Electron baseline"
+      },
+      "text": "- no `remote` module",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B04-ELECTRON-L32",
+      "source": {
+        "file": "Blueprint/04_SECURITY_AND_POLICY.md",
+        "section": "## 3. Electron baseline"
+      },
+      "text": "- strict IPC allowlist",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B04-ELECTRON-L33",
+      "source": {
+        "file": "Blueprint/04_SECURITY_AND_POLICY.md",
+        "section": "## 3. Electron baseline"
+      },
+      "text": "- validate every IPC argument in main process",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B04-ELECTRON-L34",
+      "source": {
+        "file": "Blueprint/04_SECURITY_AND_POLICY.md",
+        "section": "## 3. Electron baseline"
+      },
+      "text": "- deny arbitrary navigation",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B04-ELECTRON-L35",
+      "source": {
+        "file": "Blueprint/04_SECURITY_AND_POLICY.md",
+        "section": "## 3. Electron baseline"
+      },
+      "text": "- deny unsolicited window creation",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B04-ELECTRON-L36",
+      "source": {
+        "file": "Blueprint/04_SECURITY_AND_POLICY.md",
+        "section": "## 3. Electron baseline"
+      },
+      "text": "- external URLs opened through OS browser only after scheme validation",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B04-ELECTRON-L37",
+      "source": {
+        "file": "Blueprint/04_SECURITY_AND_POLICY.md",
+        "section": "## 3. Electron baseline"
+      },
+      "text": "- no privileged preload attached to remote ChatGPT origin",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B04-ELECTRON-L38",
+      "source": {
+        "file": "Blueprint/04_SECURITY_AND_POLICY.md",
+        "section": "## 3. Electron baseline"
+      },
+      "text": "- Content Security Policy on local UI",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B04-L103",
+      "source": {
+        "file": "Blueprint/04_SECURITY_AND_POLICY.md",
+        "section": "## 5. Policy as code"
+      },
+      "text": "UI edits must compile to this canonical policy representation.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B04-L11",
+      "source": {
+        "file": "Blueprint/04_SECURITY_AND_POLICY.md",
+        "section": "## 1. Threat model"
+      },
+      "text": "- a compromised provider must not automatically gain unrestricted local control.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B04-L112",
+      "source": {
+        "file": "Blueprint/04_SECURITY_AND_POLICY.md",
+        "section": "## 6. Path safety"
+      },
+      "text": "5. never trust path strings supplied by a provider alone.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B04-L129",
+      "source": {
+        "file": "Blueprint/04_SECURITY_AND_POLICY.md",
+        "section": "## 8. Credentials"
+      },
+      "text": "Secrets must not appear in:",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B04-L13",
+      "source": {
+        "file": "Blueprint/04_SECURITY_AND_POLICY.md",
+        "section": "## 1. Threat model"
+      },
+      "text": "Therefore provider reasoning is never the security boundary. The Local Policy Engine is.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B04-L141",
+      "source": {
+        "file": "Blueprint/04_SECURITY_AND_POLICY.md",
+        "section": "## 9. ChatGPT boundary"
+      },
+      "text": "AECP must not:",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B04-L157",
+      "source": {
+        "file": "Blueprint/04_SECURITY_AND_POLICY.md",
+        "section": "## 10. Updates and supply chain"
+      },
+      "text": "- unsigned bootstrap builds must be labeled clearly; Windows SmartScreen warnings are expected without Authenticode reputation",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B04-L179",
+      "source": {
+        "file": "Blueprint/04_SECURITY_AND_POLICY.md",
+        "section": "## 12. Local MCP boundary"
+      },
+      "text": "- never log the bearer or include it in Result Capsules;",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B04-L185",
+      "source": {
+        "file": "Blueprint/04_SECURITY_AND_POLICY.md",
+        "section": "## 12. Local MCP boundary"
+      },
+      "text": "- changing Workspace must not silently expand an already-running server's scope.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B04-L193",
+      "source": {
+        "file": "Blueprint/04_SECURITY_AND_POLICY.md",
+        "section": "## 13. Agent worker boundary"
+      },
+      "text": "AECP must:",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B04-L196",
+      "source": {
+        "file": "Blueprint/04_SECURITY_AND_POLICY.md",
+        "section": "## 13. Agent worker boundary"
+      },
+      "text": "- never accept an executable path supplied by a chat task;",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B04-L5",
+      "source": {
+        "file": "Blueprint/04_SECURITY_AND_POLICY.md",
+        "section": "## 1. Threat model"
+      },
+      "text": "AECP is powerful local software and must assume:",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B04-RED-L65",
+      "source": {
+        "file": "Blueprint/04_SECURITY_AND_POLICY.md",
+        "section": "## 4. Risk classes"
+      },
+      "text": "- delete",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B04-RED-L66",
+      "source": {
+        "file": "Blueprint/04_SECURITY_AND_POLICY.md",
+        "section": "## 4. Risk classes"
+      },
+      "text": "- git push/publish/release",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B04-RED-L67",
+      "source": {
+        "file": "Blueprint/04_SECURITY_AND_POLICY.md",
+        "section": "## 4. Risk classes"
+      },
+      "text": "- credential use",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B04-RED-L68",
+      "source": {
+        "file": "Blueprint/04_SECURITY_AND_POLICY.md",
+        "section": "## 4. Risk classes"
+      },
+      "text": "- actions outside workspace",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B04-RED-L69",
+      "source": {
+        "file": "Blueprint/04_SECURITY_AND_POLICY.md",
+        "section": "## 4. Risk classes"
+      },
+      "text": "- system settings",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B04-RED-L70",
+      "source": {
+        "file": "Blueprint/04_SECURITY_AND_POLICY.md",
+        "section": "## 4. Risk classes"
+      },
+      "text": "- admin/elevation",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B04-RED-L71",
+      "source": {
+        "file": "Blueprint/04_SECURITY_AND_POLICY.md",
+        "section": "## 4. Risk classes"
+      },
+      "text": "- payment/billing",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B04-RED-L72",
+      "source": {
+        "file": "Blueprint/04_SECURITY_AND_POLICY.md",
+        "section": "## 4. Risk classes"
+      },
+      "text": "- security configuration",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B05-L118",
+      "source": {
+        "file": "Blueprint/05_GITHUB_MULTI_REPO.md",
+        "section": "## 10. GitHub as event backbone"
+      },
+      "text": "`repository_dispatch` may carry a versioned AECP event and correlation IDs; `workflow_dispatch` may provide controlled manual runs. The Harness remains the runtime source for queue/locks/heartbeats and must correlate external events before changing task state.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B05-L132",
+      "source": {
+        "file": "Blueprint/05_GITHUB_MULTI_REPO.md",
+        "section": "## 12. Multi-agent scheduling"
+      },
+      "text": "Parallel work is allowed only after dependency/resource analysis. Repository write conflicts must be blocked by Harness locks before a Worker starts.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B05-L20",
+      "source": {
+        "file": "Blueprint/05_GITHUB_MULTI_REPO.md",
+        "section": "## 2. Resource model"
+      },
+      "text": "AECP detects local repositories first. Remote identity is derived from `git remote -v` and normalized for display; credentials are never parsed from URLs into logs.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B05-L34",
+      "source": {
+        "file": "Blueprint/05_GITHUB_MULTI_REPO.md",
+        "section": "## 3. GitHub account integration levels"
+      },
+      "text": "The canonical governed delivery path currently uses authenticated Git/`gh` primitives plus signed webhook/CI correlation. A future direct OAuth/GitHub App adapter is optional rather than required; if added, credentials must remain securely stored and every action capability-limited.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B05-L5",
+      "source": {
+        "file": "Blueprint/05_GITHUB_MULTI_REPO.md",
+        "section": "## 1. Principles"
+      },
+      "text": "GitHub is a first-class resource provider, but local Git operation must continue to work without GitHub authentication. A Workspace may bind zero, one, or many repositories/remotes/accounts.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B05-L88",
+      "source": {
+        "file": "Blueprint/05_GITHUB_MULTI_REPO.md",
+        "section": "## 7. Concurrency"
+      },
+      "text": "Write lock/resource ownership is enforced by Harness/Resource Manager/Lock Manager. Read tasks may share. Cross-repo tasks acquire required write locks in deterministic order or fail fast with `BLOCKED`.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B05-L93",
+      "source": {
+        "file": "Blueprint/05_GITHUB_MULTI_REPO.md",
+        "section": "## 7. Concurrency"
+      },
+      "text": "- `codex-official` and `codex-pega` must never be assigned the same mutating worktree concurrently;",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B11-2-CARD",
+      "source": {
+        "file": "Blueprint/11_TASK_PROTOCOL.md",
+        "section": "## 2. Command Card — v1 preview"
+      },
+      "text": "Command Card aecp.task/v1 schema, read-only capabilities, validation rules and permissions.",
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/protocol.test.cjs",
+          "kind": "test",
+          "name": "rejects unsupported schema"
+        }
+      ],
+      "note": "Named deterministic test exists; mapped for manual equivalence review."
+    },
+    {
+      "id": "B11-4-CONTEXT",
+      "source": {
+        "file": "Blueprint/11_TASK_PROTOCOL.md",
+        "section": "## 4. Context Capsule"
+      },
+      "text": "Context Capsule aecp.context/v1 schema and bounded content.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B11-5-RESULT",
+      "source": {
+        "file": "Blueprint/11_TASK_PROTOCOL.md",
+        "section": "## 5. Result Capsule"
+      },
+      "text": "Result Capsule aecp.result/v1 schema, no secrets or huge raw logs.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B11-6-TRACE",
+      "source": {
+        "file": "Blueprint/11_TASK_PROTOCOL.md",
+        "section": "## 6. Execution Trace event"
+      },
+      "text": "Execution Trace aecp.trace/v1 event schema.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B11-7-CLIPBOARD",
+      "source": {
+        "file": "Blueprint/11_TASK_PROTOCOL.md",
+        "section": "## 7. Clipboard framing"
+      },
+      "text": "Explicit clipboard framing and invalid card rejection.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B11-8-L136",
+      "source": {
+        "file": "Blueprint/11_TASK_PROTOCOL.md",
+        "section": "## 8. Size limits"
+      },
+      "text": "- Command Card: 64 KiB maximum",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B11-8-L137",
+      "source": {
+        "file": "Blueprint/11_TASK_PROTOCOL.md",
+        "section": "## 8. Size limits"
+      },
+      "text": "- Result clipboard write: 128 KiB maximum",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B11-8-L138",
+      "source": {
+        "file": "Blueprint/11_TASK_PROTOCOL.md",
+        "section": "## 8. Size limits"
+      },
+      "text": "- Result Capsule target: substantially below that limit",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B11-L103",
+      "source": {
+        "file": "Blueprint/11_TASK_PROTOCOL.md",
+        "section": "## 5. Result Capsule"
+      },
+      "text": "Result Capsule must not include secrets or huge raw logs. Large artifacts are referenced locally rather than pasted into ChatGPT automatically.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B11-L44",
+      "source": {
+        "file": "Blueprint/11_TASK_PROTOCOL.md",
+        "section": "## 2. Command Card — v1 preview"
+      },
+      "text": "- `title` and `goal` required;",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B11-L46",
+      "source": {
+        "file": "Blueprint/11_TASK_PROTOCOL.md",
+        "section": "## 2. Command Card — v1 preview"
+      },
+      "text": "- requested permissions never grant themselves;",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B11-L53",
+      "source": {
+        "file": "Blueprint/11_TASK_PROTOCOL.md",
+        "section": "## 3. Future capability evolution"
+      },
+      "text": "Do not silently reinterpret v1 cards as arbitrary commands. Mutating capabilities must be added explicitly through a backward-compatible protocol extension or a new schema version, for example structured actions such as:",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B11-L61",
+      "source": {
+        "file": "Blueprint/11_TASK_PROTOCOL.md",
+        "section": "## 3. Future capability evolution"
+      },
+      "text": "Each action must have an implementation-specific schema, bounded inputs, risk classification and verifier. A generic free-form shell string is not the preferred public contract.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B12-L134",
+      "source": {
+        "file": "Blueprint/12_DATA_MODEL.md",
+        "section": "## 4. Migration"
+      },
+      "text": "Every persisted document includes `schemaVersion`. Future releases apply explicit migrations; unknown newer versions cause read-only recovery mode rather than destructive downgrade.",
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/state-migration.cjs",
+          "kind": "code",
+          "name": "schemaVersion"
+        },
+        {
+          "file": "electron/lib/event-ledger.cjs",
+          "kind": "code",
+          "name": "schema"
+        }
+      ],
+      "workOrder": "UNASSIGNED",
+      "note": "New gap beyond GAP_REGISTER: state migration uses schemaVersion, but persisted event ledger records use schema without schemaVersion. Equivalence and migration coverage need owner decision; no change in this work order."
+    },
+    {
+      "id": "B14-L15",
+      "source": {
+        "file": "Blueprint/14_GUIDED_UX_AND_GOAL_LOOP.md",
+        "section": "## 1. Product principle"
+      },
+      "text": "Everything that can be safely detected should be detected automatically. Everything that changes data access, permissions, or blast radius must remain explicit.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B14-L165",
+      "source": {
+        "file": "Blueprint/14_GUIDED_UX_AND_GOAL_LOOP.md",
+        "section": "## 5. Goal Loop"
+      },
+      "text": "Every Goal Loop must have:",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B14-L193",
+      "source": {
+        "file": "Blueprint/14_GUIDED_UX_AND_GOAL_LOOP.md",
+        "section": "## 5. Goal Loop"
+      },
+      "text": "A loop must be bounded.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B14-L263",
+      "source": {
+        "file": "Blueprint/14_GUIDED_UX_AND_GOAL_LOOP.md",
+        "section": "## 7. Provider-neutral execution"
+      },
+      "text": "The Goal Loop never hard-codes a model vendor.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B14-L292",
+      "source": {
+        "file": "Blueprint/14_GUIDED_UX_AND_GOAL_LOOP.md",
+        "section": "## 7. Provider-neutral execution"
+      },
+      "text": "Provider failure must not corrupt Workspace state. The Harness owns task state, evidence and recovery.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B14-L298",
+      "source": {
+        "file": "Blueprint/14_GUIDED_UX_AND_GOAL_LOOP.md",
+        "section": "## 8. Loop presets"
+      },
+      "text": "The Goal Loop UI provides task-shaped presets so users do not have to design loops manually. Presets populate editable Goal/Done/budget defaults; they never bypass policy or approval:",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B14-L349",
+      "source": {
+        "file": "Blueprint/14_GUIDED_UX_AND_GOAL_LOOP.md",
+        "section": "## 9. Approval model"
+      },
+      "text": "Goal Loop must integrate with the existing risk policy.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B14-L419",
+      "source": {
+        "file": "Blueprint/14_GUIDED_UX_AND_GOAL_LOOP.md",
+        "section": "## 11. Recovery and trust UX"
+      },
+      "text": "If AECP crashes, loop/task state must be recoverable from local state and evidence rather than inferred from chat history.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B14-L438",
+      "source": {
+        "file": "Blueprint/14_GUIDED_UX_AND_GOAL_LOOP.md",
+        "section": "## 12. Acceptance criteria"
+      },
+      "text": "Goal Loop becomes fully autonomous only when the selected provider + adapter + policy combination can execute every required step with deterministic verification and bounded permissions.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B14-L5",
+      "source": {
+        "file": "Blueprint/14_GUIDED_UX_AND_GOAL_LOOP.md",
+        "section": "## 1. Product principle"
+      },
+      "text": "AECP must feel like a product, not a collection of engineering subsystems.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B14-L88",
+      "source": {
+        "file": "Blueprint/14_GUIDED_UX_AND_GOAL_LOOP.md",
+        "section": "## 3. First-run UX"
+      },
+      "text": "This remains explicit by design. AECP must not scan the entire disk to guess which personal folders, repositories, or documents are intended for AI access.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B14-REQUIRED-L167",
+      "source": {
+        "file": "Blueprint/14_GUIDED_UX_AND_GOAL_LOOP.md",
+        "section": "## 5. Goal Loop"
+      },
+      "text": "- `goal`",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B14-REQUIRED-L168",
+      "source": {
+        "file": "Blueprint/14_GUIDED_UX_AND_GOAL_LOOP.md",
+        "section": "## 5. Goal Loop"
+      },
+      "text": "- `definitionOfDone`",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B14-REQUIRED-L169",
+      "source": {
+        "file": "Blueprint/14_GUIDED_UX_AND_GOAL_LOOP.md",
+        "section": "## 5. Goal Loop"
+      },
+      "text": "- `maxIterations`",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B14-REQUIRED-L170",
+      "source": {
+        "file": "Blueprint/14_GUIDED_UX_AND_GOAL_LOOP.md",
+        "section": "## 5. Goal Loop"
+      },
+      "text": "- `checkpointEvery`",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B14-REQUIRED-L171",
+      "source": {
+        "file": "Blueprint/14_GUIDED_UX_AND_GOAL_LOOP.md",
+        "section": "## 5. Goal Loop"
+      },
+      "text": "- `workspaceId`",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B14-REQUIRED-L172",
+      "source": {
+        "file": "Blueprint/14_GUIDED_UX_AND_GOAL_LOOP.md",
+        "section": "## 5. Goal Loop"
+      },
+      "text": "- `providerPolicy`",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B14-REQUIRED-L173",
+      "source": {
+        "file": "Blueprint/14_GUIDED_UX_AND_GOAL_LOOP.md",
+        "section": "## 5. Goal Loop"
+      },
+      "text": "- `permissionPolicy`",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B14-REQUIRED-L174",
+      "source": {
+        "file": "Blueprint/14_GUIDED_UX_AND_GOAL_LOOP.md",
+        "section": "## 5. Goal Loop"
+      },
+      "text": "- `verificationPolicy`",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B14-REQUIRED-L175",
+      "source": {
+        "file": "Blueprint/14_GUIDED_UX_AND_GOAL_LOOP.md",
+        "section": "## 5. Goal Loop"
+      },
+      "text": "- `stopConditions`",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B15-L117",
+      "source": {
+        "file": "Blueprint/15_SELF_EVOLUTION_PRIVATE_UPDATE_AGENT_INTEROP.md",
+        "section": "## 4. Agent Adapter model"
+      },
+      "text": "Detection and launch are fixed-capability operations. The UI may show an unavailable adapter, but must not fabricate availability.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B15-L12",
+      "source": {
+        "file": "Blueprint/15_SELF_EVOLUTION_PRIVATE_UPDATE_AGENT_INTEROP.md",
+        "section": "## 1. Purpose"
+      },
+      "text": "These chains must remain separate. ChatGPT Web credentials are never reused as GitHub credentials, and AECP never scrapes ChatGPT to discover code changes.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B15-L291",
+      "source": {
+        "file": "Blueprint/15_SELF_EVOLUTION_PRIVATE_UPDATE_AGENT_INTEROP.md",
+        "section": "## 9. Update UX"
+      },
+      "text": "The user should never need to identify CPU architecture for an ordinary update.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B15-L324",
+      "source": {
+        "file": "Blueprint/15_SELF_EVOLUTION_PRIVATE_UPDATE_AGENT_INTEROP.md",
+        "section": "## 11. Non-goals"
+      },
+      "text": "AECP must not:",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B15-L40",
+      "source": {
+        "file": "Blueprint/15_SELF_EVOLUTION_PRIVATE_UPDATE_AGENT_INTEROP.md",
+        "section": "## 2. Conversation → GitHub → Release → AECP"
+      },
+      "text": "The installed app never pulls arbitrary branches and never installs an artifact directly from a chat message.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B15-L61",
+      "source": {
+        "file": "Blueprint/15_SELF_EVOLUTION_PRIVATE_UPDATE_AGENT_INTEROP.md",
+        "section": "## 3. Private GitHub update channel"
+      },
+      "text": "- Future versions may add a first-party GitHub OAuth/device-flow adapter, but the secret boundary must remain equivalent.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B15-L84",
+      "source": {
+        "file": "Blueprint/15_SELF_EVOLUTION_PRIVATE_UPDATE_AGENT_INTEROP.md",
+        "section": "## 3. Private GitHub update channel"
+      },
+      "text": "Stable/signed builds now support Authenticode verification in addition to the SHA-256 manifest. A build can embed a required signer thumbprint; if present, downloaded target and rollback installers are rejected unless Windows reports a valid Authenticode signature from that exact signer. Preview builds may leave the signer pin empty and remain checksum-only.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B15-L90",
+      "source": {
+        "file": "Blueprint/15_SELF_EVOLUTION_PRIVATE_UPDATE_AGENT_INTEROP.md",
+        "section": "## 3. Private GitHub update channel"
+      },
+      "text": "Required stable rollback states:",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B16-L171",
+      "source": {
+        "file": "Blueprint/16_CONSTRAINT_RESOLUTION_DISTRIBUTION_EXECUTION_MODES.md",
+        "section": "## E2 — Local Autonomous Loop"
+      },
+      "text": "Each adapter has its own authentication/quota rules. AECP must not imply that a provider is unlimited.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B16-L190",
+      "source": {
+        "file": "Blueprint/16_CONSTRAINT_RESOLUTION_DISTRIBUTION_EXECUTION_MODES.md",
+        "section": "## E2 — Local Autonomous Loop"
+      },
+      "text": "Claude Code, Gemini CLI, Codex CLI and OpenCode are represented through governed role/capability adapters. Codex execution may have multiple isolated Worker identities; switching Provider by mutating a shared `CODEX_HOME` is not considered isolation. Provider automation may have its own subscription/credit/quota semantics and must be surfaced in capability/status rather than treated as unlimited.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B16-L229",
+      "source": {
+        "file": "Blueprint/16_CONSTRAINT_RESOLUTION_DISTRIBUTION_EXECUTION_MODES.md",
+        "section": "## E3 — Official Full MCP"
+      },
+      "text": "This tunnel credential is not the same as model-token API billing, but it is still an OpenAI platform credential and must be treated as a secret.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B16-L233",
+      "source": {
+        "file": "Blueprint/16_CONSTRAINT_RESOLUTION_DISTRIBUTION_EXECUTION_MODES.md",
+        "section": "## E3 — Official Full MCP"
+      },
+      "text": "The MCP surface must expose semantic tools, not an unrestricted shell.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B16-L286",
+      "source": {
+        "file": "Blueprint/16_CONSTRAINT_RESOLUTION_DISTRIBUTION_EXECUTION_MODES.md",
+        "section": "# 4. Automatic mode selection"
+      },
+      "text": "Never label E3 as available merely because a local MCP server exists **or because a generic Remote MCP endpoint responds successfully**. Endpoint reachability is only one diagnostic. E3 becomes Ready only after the complete Official Full MCP acceptance gate passes against a supported ChatGPT workspace: connector/tunnel health, read tool, policy-gated write tool, same-task result return, disconnected AECP fallback, and no ChatGPT DOM automation. Until that external/product evidence exists, the current UI keeps E3 Not ready and does not auto-recommend it.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B16-L292",
+      "source": {
+        "file": "Blueprint/16_CONSTRAINT_RESOLUTION_DISTRIBUTION_EXECUTION_MODES.md",
+        "section": "# 5. Same Goal, different transport"
+      },
+      "text": "The canonical task model must remain identical across all modes:",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B16-L335",
+      "source": {
+        "file": "Blueprint/16_CONSTRAINT_RESOLUTION_DISTRIBUTION_EXECUTION_MODES.md",
+        "section": "# 6. Mobile/remote supervision"
+      },
+      "text": "3. Never implement remote supervision by scraping a ChatGPT session.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B16-L85",
+      "source": {
+        "file": "Blueprint/16_CONSTRAINT_RESOLUTION_DISTRIBUTION_EXECUTION_MODES.md",
+        "section": "## D2 — Microsoft Store Private Audience"
+      },
+      "text": "The owner must provide Partner Center values:",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B16-L91",
+      "source": {
+        "file": "Blueprint/16_CONSTRAINT_RESOLUTION_DISTRIBUTION_EXECUTION_MODES.md",
+        "section": "## D2 — Microsoft Store Private Audience"
+      },
+      "text": "These are not secrets in the same sense as an API key, but must match Partner Center exactly.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B18-13-01",
+      "source": {
+        "file": "Blueprint/18_BOUNDED_AUTONOMOUS_EXECUTION.md",
+        "section": "## 13. Acceptance criteria"
+      },
+      "text": "spec validation rejects unsupported Worker/Verifier;",
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/autonomy.test.cjs",
+          "kind": "test",
+          "name": "validates bounded autonomy spec"
+        }
+      ],
+      "note": "Named deterministic test exists; mapped for manual equivalence review."
+    },
+    {
+      "id": "B18-13-02",
+      "source": {
+        "file": "Blueprint/18_BOUNDED_AUTONOMOUS_EXECUTION.md",
+        "section": "## 13. Acceptance criteria"
+      },
+      "text": "OpenCode invocation includes deny-first external-directory and shell policy;",
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/autonomy.test.cjs",
+          "kind": "test",
+          "name": "OpenCode v1 invocation carries deny-first inline policy"
+        }
+      ],
+      "note": "Named deterministic test exists; mapped for manual equivalence review."
+    },
+    {
+      "id": "B18-13-03",
+      "source": {
+        "file": "Blueprint/18_BOUNDED_AUTONOMOUS_EXECUTION.md",
+        "section": "## 13. Acceptance criteria"
+      },
+      "text": "Codex invocation uses `workspace-write` sandbox and network-disabled config;",
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/autonomy.test.cjs",
+          "kind": "test",
+          "name": "Codex invocation uses workspace-write sandbox and disables network"
+        }
+      ],
+      "note": "Named deterministic test exists; mapped for manual equivalence review."
+    },
+    {
+      "id": "B18-13-04",
+      "source": {
+        "file": "Blueprint/18_BOUNDED_AUTONOMOUS_EXECUTION.md",
+        "section": "## 13. Acceptance criteria"
+      },
+      "text": "dirty source repository blocks Start;",
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/autonomy.test.cjs",
+          "kind": "test",
+          "name": "dirty source repository blocks bounded autonomy before Worker execution"
+        }
+      ],
+      "note": "Named deterministic test exists; mapped for manual equivalence review."
+    },
+    {
+      "id": "B18-13-05",
+      "source": {
+        "file": "Blueprint/18_BOUNDED_AUTONOMOUS_EXECUTION.md",
+        "section": "## 13. Acceptance criteria"
+      },
+      "text": "worktree is isolated from source;",
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/autonomy.test.cjs",
+          "kind": "test",
+          "name": "bounded runner isolates writes in worktree then applies only after explicit apply call"
+        }
+      ],
+      "note": "Named deterministic test exists; mapped for manual equivalence review."
+    },
+    {
+      "id": "B18-13-06",
+      "source": {
+        "file": "Blueprint/18_BOUNDED_AUTONOMOUS_EXECUTION.md",
+        "section": "## 13. Acceptance criteria"
+      },
+      "text": "Worker changes appear only in worktree during the run;",
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/autonomy.test.cjs",
+          "kind": "test",
+          "name": "bounded runner isolates writes in worktree then applies only after explicit apply call"
+        }
+      ],
+      "note": "Named deterministic test exists; mapped for manual equivalence review."
+    },
+    {
+      "id": "B18-13-07",
+      "source": {
+        "file": "Blueprint/18_BOUNDED_AUTONOMOUS_EXECUTION.md",
+        "section": "## 13. Acceptance criteria"
+      },
+      "text": "failed verification can trigger another bounded iteration;",
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/autonomy.test.cjs",
+          "kind": "test",
+          "name": "failed verification triggers another bounded iteration and can then pass"
+        }
+      ],
+      "note": "Named deterministic test exists; mapped for manual equivalence review."
+    },
+    {
+      "id": "B18-13-08",
+      "source": {
+        "file": "Blueprint/18_BOUNDED_AUTONOMOUS_EXECUTION.md",
+        "section": "## 13. Acceptance criteria"
+      },
+      "text": "max iteration stops the loop;",
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/autonomy.test.cjs",
+          "kind": "test",
+          "name": "max iteration limit terminates repeated verification failure as BUDGET_EXHAUSTED"
+        }
+      ],
+      "note": "Named deterministic test exists; mapped for manual equivalence review."
+    },
+    {
+      "id": "B18-13-09",
+      "source": {
+        "file": "Blueprint/18_BOUNDED_AUTONOMOUS_EXECUTION.md",
+        "section": "## 13. Acceptance criteria"
+      },
+      "text": "cancellation stops the active process;",
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/autonomy.test.cjs",
+          "kind": "test",
+          "name": "cancellation aborts bounded autonomy instead of continuing another iteration"
+        }
+      ],
+      "note": "Named deterministic test exists; mapped for manual equivalence review."
+    },
+    {
+      "id": "B18-13-10",
+      "source": {
+        "file": "Blueprint/18_BOUNDED_AUTONOMOUS_EXECUTION.md",
+        "section": "## 13. Acceptance criteria"
+      },
+      "text": "PASS generates a bounded binary patch;",
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/autonomy.test.cjs",
+          "kind": "test",
+          "name": "bounded runner isolates writes in worktree then applies only after explicit apply call"
+        }
+      ],
+      "note": "Named deterministic test exists; mapped for manual equivalence review."
+    },
+    {
+      "id": "B18-13-11",
+      "source": {
+        "file": "Blueprint/18_BOUNDED_AUTONOMOUS_EXECUTION.md",
+        "section": "## 13. Acceptance criteria"
+      },
+      "text": "source HEAD/status are revalidated before Apply;",
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/autonomy.test.cjs",
+          "kind": "test",
+          "name": "Apply refuses a verified patch after source HEAD changes"
+        }
+      ],
+      "note": "Named deterministic test exists; mapped for manual equivalence review."
+    },
+    {
+      "id": "B18-13-12",
+      "source": {
+        "file": "Blueprint/18_BOUNDED_AUTONOMOUS_EXECUTION.md",
+        "section": "## 13. Acceptance criteria"
+      },
+      "text": "Apply is explicit;",
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/autonomy.test.cjs",
+          "kind": "test",
+          "name": "bounded runner isolates writes in worktree then applies only after explicit apply call"
+        }
+      ],
+      "note": "Named deterministic test exists; mapped for manual equivalence review."
+    },
+    {
+      "id": "B18-13-13",
+      "source": {
+        "file": "Blueprint/18_BOUNDED_AUTONOMOUS_EXECUTION.md",
+        "section": "## 13. Acceptance criteria"
+      },
+      "text": "applied changes remain uncommitted;",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B18-13-14",
+      "source": {
+        "file": "Blueprint/18_BOUNDED_AUTONOMOUS_EXECUTION.md",
+        "section": "## 13. Acceptance criteria"
+      },
+      "text": "CI unit/integration tests prove isolation + explicit apply behavior;",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B18-13-15",
+      "source": {
+        "file": "Blueprint/18_BOUNDED_AUTONOMOUS_EXECUTION.md",
+        "section": "## 13. Acceptance criteria"
+      },
+      "text": "x64, ARM64 and Auto-Detect installers still package successfully.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B20-14-MEMORY",
+      "source": {
+        "file": "Blueprint/20_HARNESS_ENGINEERING_MULTI_AGENT_LOOP.md",
+        "section": "## 14. Harness Engineering principles"
+      },
+      "text": "Durable repository knowledge lives in Blueprint, AGENTS.md, docs, architecture rules, verification commands and decision records.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "0008",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B20-15-AGENTS",
+      "source": {
+        "file": "Blueprint/20_HARNESS_ENGINEERING_MULTI_AGENT_LOOP.md",
+        "section": "## 15. AGENTS.md strategy"
+      },
+      "text": "Use layered AGENTS.md discovery rather than giant prompt injection.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "0008",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B20-16-OVERVIEW",
+      "source": {
+        "file": "Blueprint/20_HARNESS_ENGINEERING_MULTI_AGENT_LOOP.md",
+        "section": "## 16. Dashboard as engineering cockpit"
+      },
+      "text": "Live project progress shows Planning, Implementation, Testing, Review and Acceptance percentages from canonical state.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "0009",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B20-27-01",
+      "source": {
+        "file": "Blueprint/20_HARNESS_ENGINEERING_MULTI_AGENT_LOOP.md",
+        "section": "## 27. Acceptance criteria"
+      },
+      "text": "Goal becomes durable Plan and Task graph.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B20-27-02",
+      "source": {
+        "file": "Blueprint/20_HARNESS_ENGINEERING_MULTI_AGENT_LOOP.md",
+        "section": "## 27. Acceptance criteria"
+      },
+      "text": "Harness dispatches a task without manual copy/paste between Claude and Codex.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B20-27-03",
+      "source": {
+        "file": "Blueprint/20_HARNESS_ENGINEERING_MULTI_AGENT_LOOP.md",
+        "section": "## 27. Acceptance criteria"
+      },
+      "text": "Worker executes only inside an authorized isolated worktree.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B20-27-04",
+      "source": {
+        "file": "Blueprint/20_HARNESS_ENGINEERING_MULTI_AGENT_LOOP.md",
+        "section": "## 27. Acceptance criteria"
+      },
+      "text": "Verifier independently decides pass/fail.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B20-27-05",
+      "source": {
+        "file": "Blueprint/20_HARNESS_ENGINEERING_MULTI_AGENT_LOOP.md",
+        "section": "## 27. Acceptance criteria"
+      },
+      "text": "Failure can produce bounded rework.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B20-27-06",
+      "source": {
+        "file": "Blueprint/20_HARNESS_ENGINEERING_MULTI_AGENT_LOOP.md",
+        "section": "## 27. Acceptance criteria"
+      },
+      "text": "Reviewer sees Blueprint + Plan + Diff + Evidence.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "0007",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B20-27-07",
+      "source": {
+        "file": "Blueprint/20_HARNESS_ENGINEERING_MULTI_AGENT_LOOP.md",
+        "section": "## 27. Acceptance criteria"
+      },
+      "text": "Reviewer returns PASS/REWORK/HUMAN_REQUIRED.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "0007",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B20-27-08",
+      "source": {
+        "file": "Blueprint/20_HARNESS_ENGINEERING_MULTI_AGENT_LOOP.md",
+        "section": "## 27. Acceptance criteria"
+      },
+      "text": "Queue dispatches the next eligible task.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B20-27-09",
+      "source": {
+        "file": "Blueprint/20_HARNESS_ENGINEERING_MULTI_AGENT_LOOP.md",
+        "section": "## 27. Acceptance criteria"
+      },
+      "text": "Conflicting write tasks are blocked by locks.",
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/lock-manager.test.cjs",
+          "kind": "test",
+          "name": "concurrent acquisition of one key has exactly one task owner"
+        }
+      ],
+      "note": "Named deterministic test exists; mapped for manual equivalence review."
+    },
+    {
+      "id": "B20-27-10",
+      "source": {
+        "file": "Blueprint/20_HARNESS_ENGINEERING_MULTI_AGENT_LOOP.md",
+        "section": "## 27. Acceptance criteria"
+      },
+      "text": "GitHub CI results return as correlated events.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B20-27-11",
+      "source": {
+        "file": "Blueprint/20_HARNESS_ENGINEERING_MULTI_AGENT_LOOP.md",
+        "section": "## 27. Acceptance criteria"
+      },
+      "text": "Dashboard shows canonical Harness state.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B20-27-12",
+      "source": {
+        "file": "Blueprint/20_HARNESS_ENGINEERING_MULTI_AGENT_LOOP.md",
+        "section": "## 27. Acceptance criteria"
+      },
+      "text": "Restart recovers or safely interrupts in-flight tasks.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B20-27-13",
+      "source": {
+        "file": "Blueprint/20_HARNESS_ENGINEERING_MULTI_AGENT_LOOP.md",
+        "section": "## 27. Acceptance criteria"
+      },
+      "text": "No loop runs without finite iteration/provider-call/output/patch/file-count budgets and process timeouts.",
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/harness-bounds.test.cjs",
+          "kind": "test",
+          "name": "Harness enforces failed-attempt budget outside the model"
+        }
+      ],
+      "note": "Named deterministic test exists; mapped for manual equivalence review."
+    },
+    {
+      "id": "B20-27-14",
+      "source": {
+        "file": "Blueprint/20_HARNESS_ENGINEERING_MULTI_AGENT_LOOP.md",
+        "section": "## 27. Acceptance criteria"
+      },
+      "text": "No agent can grant itself permissions.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B20-27-15",
+      "source": {
+        "file": "Blueprint/20_HARNESS_ENGINEERING_MULTI_AGENT_LOOP.md",
+        "section": "## 27. Acceptance criteria"
+      },
+      "text": "Human approval protects configured high-risk operations.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B20-27-16",
+      "source": {
+        "file": "Blueprint/20_HARNESS_ENGINEERING_MULTI_AGENT_LOOP.md",
+        "section": "## 27. Acceptance criteria"
+      },
+      "text": "Provider can be changed without rewriting Task state.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B20-27-17",
+      "source": {
+        "file": "Blueprint/20_HARNESS_ENGINEERING_MULTI_AGENT_LOOP.md",
+        "section": "## 27. Acceptance criteria"
+      },
+      "text": "Official ChatGPT Web remains untouched.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B20-27-18",
+      "source": {
+        "file": "Blueprint/20_HARNESS_ENGINEERING_MULTI_AGENT_LOOP.md",
+        "section": "## 27. Acceptance criteria"
+      },
+      "text": "External/OpenAI-compatible providers can be attached through adapters without changing Task state; actual provider credentials/environment remain explicit approval/evidence requirements.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B20-27-19",
+      "source": {
+        "file": "Blueprint/20_HARNESS_ENGINEERING_MULTI_AGENT_LOOP.md",
+        "section": "## 27. Acceptance criteria"
+      },
+      "text": "Repository knowledge is legible to agents.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "0008",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B20-27-20",
+      "source": {
+        "file": "Blueprint/20_HARNESS_ENGINEERING_MULTI_AGENT_LOOP.md",
+        "section": "## 27. Acceptance criteria"
+      },
+      "text": "Every accepted task has reproducible evidence.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B21-10-01",
+      "source": {
+        "file": "Blueprint/21_AGENT_ROLES_AND_HANDOFF_PROTOCOL.md",
+        "section": "## 10. Handoff rules"
+      },
+      "text": "Every handoff includes schema version.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "0007",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B21-10-02",
+      "source": {
+        "file": "Blueprint/21_AGENT_ROLES_AND_HANDOFF_PROTOCOL.md",
+        "section": "## 10. Handoff rules"
+      },
+      "text": "Every handoff includes Task/Run correlation IDs.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "0007",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B21-10-03",
+      "source": {
+        "file": "Blueprint/21_AGENT_ROLES_AND_HANDOFF_PROTOCOL.md",
+        "section": "## 10. Handoff rules"
+      },
+      "text": "Evidence references are immutable.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B21-10-04",
+      "source": {
+        "file": "Blueprint/21_AGENT_ROLES_AND_HANDOFF_PROTOCOL.md",
+        "section": "## 10. Handoff rules"
+      },
+      "text": "Sensitive values are redacted.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B21-10-05",
+      "source": {
+        "file": "Blueprint/21_AGENT_ROLES_AND_HANDOFF_PROTOCOL.md",
+        "section": "## 10. Handoff rules"
+      },
+      "text": "A provider cannot change another provider's permissions.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B21-10-06",
+      "source": {
+        "file": "Blueprint/21_AGENT_ROLES_AND_HANDOFF_PROTOCOL.md",
+        "section": "## 10. Handoff rules"
+      },
+      "text": "A review result is not an execution command.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B21-10-07",
+      "source": {
+        "file": "Blueprint/21_AGENT_ROLES_AND_HANDOFF_PROTOCOL.md",
+        "section": "## 10. Handoff rules"
+      },
+      "text": "A worker report is not proof of completion until verifier evidence exists.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "0007",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B21-10-08",
+      "source": {
+        "file": "Blueprint/21_AGENT_ROLES_AND_HANDOFF_PROTOCOL.md",
+        "section": "## 10. Handoff rules"
+      },
+      "text": "A Result Capsule never silently claims unverified success.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B21-6-SCHEMA",
+      "source": {
+        "file": "Blueprint/21_AGENT_ROLES_AND_HANDOFF_PROTOCOL.md",
+        "section": "## 6. Worker Report"
+      },
+      "text": "schema: aecp.worker-report/v1 task_id: run_id: agent: iteration: base_commit: changed_files: commands: tests: result: unresolved: evidence_refs:",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "0007",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B21-7-SCHEMA",
+      "source": {
+        "file": "Blueprint/21_AGENT_ROLES_AND_HANDOFF_PROTOCOL.md",
+        "section": "## 7. Review Report"
+      },
+      "text": "schema: aecp.review/v1 task_id: reviewer: result: PASS | REWORK | BLOCKED | HUMAN_REQUIRED blueprint: plan: implementation: tests: security: architecture: findings: required_changes:",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "0007",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B22-10-EVENT",
+      "source": {
+        "file": "Blueprint/22_DASHBOARD_QUEUE_AND_EVENT_ARCHITECTURE.md",
+        "section": "## 10. Event stream"
+      },
+      "text": "Every UI event maps to an immutable Harness event.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "0009",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B22-11-NOTIFY",
+      "source": {
+        "file": "Blueprint/22_DASHBOARD_QUEUE_AND_EVENT_ARCHITECTURE.md",
+        "section": "## 11. Notifications"
+      },
+      "text": "- INFO — task progress - SUCCESS — task accepted - WARNING — provider degraded / retry - ACTION REQUIRED — approval - ERROR — task failed - CRITICAL — policy/security violation Do not notify on every model token.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "0009",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B22-16-01",
+      "source": {
+        "file": "Blueprint/22_DASHBOARD_QUEUE_AND_EVENT_ARCHITECTURE.md",
+        "section": "## 16. Acceptance"
+      },
+      "text": "What project am I controlling?",
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/dashboard-acceptance.test.cjs",
+          "kind": "test",
+          "name": "Command Center answers the eight Blueprint 22 novice questions from canonical state"
+        }
+      ],
+      "note": "Named deterministic test exists; mapped for manual equivalence review."
+    },
+    {
+      "id": "B22-16-02",
+      "source": {
+        "file": "Blueprint/22_DASHBOARD_QUEUE_AND_EVENT_ARCHITECTURE.md",
+        "section": "## 16. Acceptance"
+      },
+      "text": "What is being worked on?",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B22-16-03",
+      "source": {
+        "file": "Blueprint/22_DASHBOARD_QUEUE_AND_EVENT_ARCHITECTURE.md",
+        "section": "## 16. Acceptance"
+      },
+      "text": "Which agent is doing it?",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B22-16-04",
+      "source": {
+        "file": "Blueprint/22_DASHBOARD_QUEUE_AND_EVENT_ARCHITECTURE.md",
+        "section": "## 16. Acceptance"
+      },
+      "text": "Is it running, waiting or failed?",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B22-16-05",
+      "source": {
+        "file": "Blueprint/22_DASHBOARD_QUEUE_AND_EVENT_ARCHITECTURE.md",
+        "section": "## 16. Acceptance"
+      },
+      "text": "What is the current test result?",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "0009",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B22-16-06",
+      "source": {
+        "file": "Blueprint/22_DASHBOARD_QUEUE_AND_EVENT_ARCHITECTURE.md",
+        "section": "## 16. Acceptance"
+      },
+      "text": "What changed?",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "0009",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B22-16-07",
+      "source": {
+        "file": "Blueprint/22_DASHBOARD_QUEUE_AND_EVENT_ARCHITECTURE.md",
+        "section": "## 16. Acceptance"
+      },
+      "text": "Does it need me?",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B22-16-08",
+      "source": {
+        "file": "Blueprint/22_DASHBOARD_QUEUE_AND_EVENT_ARCHITECTURE.md",
+        "section": "## 16. Acceptance"
+      },
+      "text": "What happens next?",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "0009",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B22-5-FIELDS",
+      "source": {
+        "file": "Blueprint/22_DASHBOARD_QUEUE_AND_EVENT_ARCHITECTURE.md",
+        "section": "## 5. Agent view"
+      },
+      "text": "Worker name, Provider, Model, Role, Task, State, Runtime, Repository, Worktree, Verify, Health and heartbeat/cancel state; unverifiable status is UNKNOWN.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "0009",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B22-6-TIMELINE",
+      "source": {
+        "file": "Blueprint/22_DASHBOARD_QUEUE_AND_EVENT_ARCHITECTURE.md",
+        "section": "## 6. Run timeline"
+      },
+      "text": "Run timeline events are chronological; clicking an event opens its evidence.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "0009",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B22-7-DIFF",
+      "source": {
+        "file": "Blueprint/22_DASHBOARD_QUEUE_AND_EVENT_ARCHITECTURE.md",
+        "section": "## 7. Diff view"
+      },
+      "text": "Display changed files, additions/deletions, untracked files, patch size, base commit, current commit and verifier status.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "0009",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B22-8-REVIEW",
+      "source": {
+        "file": "Blueprint/22_DASHBOARD_QUEUE_AND_EVENT_ARCHITECTURE.md",
+        "section": "## 8. Review view"
+      },
+      "text": "Review view shows six structured dimensions and result.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "0009",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "B22-9-GITHUB",
+      "source": {
+        "file": "Blueprint/22_DASHBOARD_QUEUE_AND_EVENT_ARCHITECTURE.md",
+        "section": "## 9. GitHub view"
+      },
+      "text": "Display: - branch; - base; - commit; - PR; - CI status; - workflow; - artifacts; - release; - last event.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "0009",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "R1.1",
+      "source": {
+        "file": "Blueprint/REQUIREMENTS.md",
+        "section": "## R1 — Trust boundaries"
+      },
+      "text": "Official ChatGPT remains an external official surface. AECP must not scrape its DOM, copy session cookies, intercept traffic, or use undocumented private endpoints.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "R1.2",
+      "source": {
+        "file": "Blueprint/REQUIREMENTS.md",
+        "section": "## R1 — Trust boundaries"
+      },
+      "text": "Renderer code has no direct Node.js privilege. Electron must use context isolation, renderer sandboxing, a narrow preload bridge, and navigation/window-open restrictions.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "R1.3",
+      "source": {
+        "file": "Blueprint/REQUIREMENTS.md",
+        "section": "## R1 — Trust boundaries"
+      },
+      "text": "Filesystem and process operations are limited to explicitly authorized Workspace/runtime roots.",
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/security-recovery-matrix.test.cjs",
+          "kind": "test",
+          "name": "policy rejects lexical traversal and sibling-prefix escapes"
+        }
+      ],
+      "note": "Named deterministic test exists; mapped for manual equivalence review."
+    },
+    {
+      "id": "R1.4",
+      "source": {
+        "file": "Blueprint/REQUIREMENTS.md",
+        "section": "## R1 — Trust boundaries"
+      },
+      "text": "Credentials are represented by opaque references and protected with OS-backed storage when persisted.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "R1.5",
+      "source": {
+        "file": "Blueprint/REQUIREMENTS.md",
+        "section": "## R1 — Trust boundaries"
+      },
+      "text": "RED operations such as publish/merge/delete/credential/system changes require an explicit human authorization gate.",
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/security-recovery-matrix.test.cjs",
+          "kind": "test",
+          "name": "adapter security matrix has an explicit decision for every capability"
+        }
+      ],
+      "note": "Named deterministic test exists; mapped for manual equivalence review."
+    },
+    {
+      "id": "R2.1",
+      "source": {
+        "file": "Blueprint/REQUIREMENTS.md",
+        "section": "## R2 — Canonical engineering loop"
+      },
+      "text": "Engineering work follows a durable bounded state machine rather than an unbounded agent chat.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "R2.2",
+      "source": {
+        "file": "Blueprint/REQUIREMENTS.md",
+        "section": "## R2 — Canonical engineering loop"
+      },
+      "text": "Planner, Builder and Reviewer are roles, not vendor identities, and must resolve through the Provider Router.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "R2.3",
+      "source": {
+        "file": "Blueprint/REQUIREMENTS.md",
+        "section": "## R2 — Canonical engineering loop"
+      },
+      "text": "Builder work is isolated from the active checkout by a task worktree or equivalent governed execution boundary.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "R2.4",
+      "source": {
+        "file": "Blueprint/REQUIREMENTS.md",
+        "section": "## R2 — Canonical engineering loop"
+      },
+      "text": "A mutating task cannot reach accepted completion without deterministic verification evidence.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "R2.5",
+      "source": {
+        "file": "Blueprint/REQUIREMENTS.md",
+        "section": "## R2 — Canonical engineering loop"
+      },
+      "text": "Retry/rework has a bounded iteration budget and preserves task identity/evidence.",
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/harness-bounds.test.cjs",
+          "kind": "test",
+          "name": "Harness enforces failed-attempt budget outside the model"
+        }
+      ],
+      "note": "Named deterministic test exists; mapped for manual equivalence review."
+    },
+    {
+      "id": "R2.6",
+      "source": {
+        "file": "Blueprint/REQUIREMENTS.md",
+        "section": "## R2 — Canonical engineering loop"
+      },
+      "text": "Crash/restart recovery restores persisted task state without silently expanding permissions.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "R2.7",
+      "source": {
+        "file": "Blueprint/REQUIREMENTS.md",
+        "section": "## R2 — Canonical engineering loop"
+      },
+      "text": "High-risk delivery remains human-gated after CI success.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "R3.1",
+      "source": {
+        "file": "Blueprint/REQUIREMENTS.md",
+        "section": "## R3 — Provider independence and local models"
+      },
+      "text": "Provider selection is explicit for Planner, Builder and Reviewer roles.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "R3.10",
+      "source": {
+        "file": "Blueprint/REQUIREMENTS.md",
+        "section": "## R3 — Provider independence and local models"
+      },
+      "text": "Worker/provider failure and task-scoped cancellation are isolated; one Worker becoming unavailable must not terminate another Worker or the Web Safe Bridge.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "R3.2",
+      "source": {
+        "file": "Blueprint/REQUIREMENTS.md",
+        "section": "## R3 — Provider independence and local models"
+      },
+      "text": "Claude, Codex, Gemini, OpenCode, Ollama-compatible local inference and trusted fixed local-agent commands can be represented without changing task state schemas.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "R3.3",
+      "source": {
+        "file": "Blueprint/REQUIREMENTS.md",
+        "section": "## R3 — Provider independence and local models"
+      },
+      "text": "A local provider executable is selected from trusted AECP/provider configuration, never from task text.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "R3.4",
+      "source": {
+        "file": "Blueprint/REQUIREMENTS.md",
+        "section": "## R3 — Provider independence and local models"
+      },
+      "text": "Ollama model selection is explicit; AECP must not silently choose a model.",
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/provider-router.test.cjs",
+          "kind": "test",
+          "name": "Ollama without a model is rejected instead of silently selecting one"
+        }
+      ],
+      "note": "Named deterministic test exists; mapped for manual equivalence review."
+    },
+    {
+      "id": "R3.5",
+      "source": {
+        "file": "Blueprint/REQUIREMENTS.md",
+        "section": "## R3 — Provider independence and local models"
+      },
+      "text": "Changing providers must not implicitly change Workspace or security permissions.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "R3.6",
+      "source": {
+        "file": "Blueprint/REQUIREMENTS.md",
+        "section": "## R3 — Provider independence and local models"
+      },
+      "text": "Optional providers failing or being unconfigured must not break Web Safe Bridge operation.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "R3.7",
+      "source": {
+        "file": "Blueprint/REQUIREMENTS.md",
+        "section": "## R3 — Provider independence and local models"
+      },
+      "text": "Provider identity and Worker runtime identity are separate concepts; Mission/Task/Queue/Harness state machines must remain provider-neutral.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "R3.8",
+      "source": {
+        "file": "Blueprint/REQUIREMENTS.md",
+        "section": "## R3 — Provider independence and local models"
+      },
+      "text": "Codex OFFICIAL and Codex PEGA Workers use different `CODEX_HOME`, auth/session/runtime state and process environments; credentials must not cross Worker boundaries.",
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/provider-router.test.cjs",
+          "kind": "test",
+          "name": "isolated Codex worker command uses its dedicated CODEX_HOME environment"
+        }
+      ],
+      "note": "Named deterministic test exists; mapped for manual equivalence review."
+    },
+    {
+      "id": "R3.9",
+      "source": {
+        "file": "Blueprint/REQUIREMENTS.md",
+        "section": "## R3 — Provider independence and local models"
+      },
+      "text": "PEGA is implemented through the Provider Router/Worker abstraction rather than PEGA-specific Harness branching; real endpoint/model/auth compatibility is accepted only from ENVIRONMENT evidence.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "R4.1",
+      "source": {
+        "file": "Blueprint/REQUIREMENTS.md",
+        "section": "## R4 — Git, GitHub and multi-repository work"
+      },
+      "text": "A Mission can discover and route tasks to multiple repositories inside its approved resource graph.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "R4.2",
+      "source": {
+        "file": "Blueprint/REQUIREMENTS.md",
+        "section": "## R4 — Git, GitHub and multi-repository work"
+      },
+      "text": "Conflicting repository/worktree writes are protected by durable locks/leases.",
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/lock-manager.test.cjs",
+          "kind": "test",
+          "name": "concurrent acquisition of one key has exactly one task owner"
+        }
+      ],
+      "note": "Named deterministic test exists; mapped for manual equivalence review."
+    },
+    {
+      "id": "R4.3",
+      "source": {
+        "file": "Blueprint/REQUIREMENTS.md",
+        "section": "## R4 — Git, GitHub and multi-repository work"
+      },
+      "text": "GitHub delivery uses governed branches/PRs and correlates CI to commit SHA.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "R4.4",
+      "source": {
+        "file": "Blueprint/REQUIREMENTS.md",
+        "section": "## R4 — Git, GitHub and multi-repository work"
+      },
+      "text": "GitHub webhook events are authenticated and replay/idempotency protected; polling remains a fallback.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "R4.5",
+      "source": {
+        "file": "Blueprint/REQUIREMENTS.md",
+        "section": "## R4 — Git, GitHub and multi-repository work"
+      },
+      "text": "CI failure evidence returns only safely classified failures to bounded rework.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "R4.6",
+      "source": {
+        "file": "Blueprint/REQUIREMENTS.md",
+        "section": "## R4 — Git, GitHub and multi-repository work"
+      },
+      "text": "A governed merge requires required CI success and explicit human approval.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "R4.7",
+      "source": {
+        "file": "Blueprint/REQUIREMENTS.md",
+        "section": "## R4 — Git, GitHub and multi-repository work"
+      },
+      "text": "Parallel mutating tasks in the same repository use distinct task-scoped Git worktrees and cannot concurrently own the same mutating worktree/resource.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "R5.1",
+      "source": {
+        "file": "Blueprint/REQUIREMENTS.md",
+        "section": "## R5 — Evidence, observability and recovery"
+      },
+      "text": "Mission/task state, event history and evidence survive process restart.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "R5.2",
+      "source": {
+        "file": "Blueprint/REQUIREMENTS.md",
+        "section": "## R5 — Evidence, observability and recovery"
+      },
+      "text": "Evidence artifacts carry hashes/manifests sufficient to reconstruct accepted work.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "R5.3",
+      "source": {
+        "file": "Blueprint/REQUIREMENTS.md",
+        "section": "## R5 — Evidence, observability and recovery"
+      },
+      "text": "Dashboard/remote views are projections of canonical state, never a second source of truth.",
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/event-projection.test.cjs",
+          "kind": "test",
+          "name": "event projection materializes run task approval and type counters deterministically"
+        }
+      ],
+      "note": "Named deterministic test exists; mapped for manual equivalence review."
+    },
+    {
+      "id": "R5.4",
+      "source": {
+        "file": "Blueprint/REQUIREMENTS.md",
+        "section": "## R5 — Evidence, observability and recovery"
+      },
+      "text": "Maintenance handles expired locks, context TTL, evidence retention and orphan worktree cleanup with bounded budgets.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "R5.5",
+      "source": {
+        "file": "Blueprint/REQUIREMENTS.md",
+        "section": "## R5 — Evidence, observability and recovery"
+      },
+      "text": "Dependency/security/documentation drift is diagnostic by default and must not silently mutate dependencies or Blueprint files.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "R6.1",
+      "source": {
+        "file": "Blueprint/REQUIREMENTS.md",
+        "section": "## R6 — Local MCP and remote supervision"
+      },
+      "text": "Local MCP binds to loopback by default and requires authenticated access.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "R6.2",
+      "source": {
+        "file": "Blueprint/REQUIREMENTS.md",
+        "section": "## R6 — Local MCP and remote supervision"
+      },
+      "text": "Local MCP preview tools are capability-scoped/read-only; no raw shell is exposed.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "R6.3",
+      "source": {
+        "file": "Blueprint/REQUIREMENTS.md",
+        "section": "## R6 — Local MCP and remote supervision"
+      },
+      "text": "Device pairing uses short-lived one-time codes and revocable short-lived read-only credentials.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "R6.4",
+      "source": {
+        "file": "Blueprint/REQUIREMENTS.md",
+        "section": "## R6 — Local MCP and remote supervision"
+      },
+      "text": "Pairing does not grant write/execute/merge/credential/system authority.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "R6.5",
+      "source": {
+        "file": "Blueprint/REQUIREMENTS.md",
+        "section": "## R6 — Local MCP and remote supervision"
+      },
+      "text": "LAN/Internet transport, if enabled in a future deployment, must use authenticated encrypted transport and inherit the same local policy. No public inbound port is enabled by default.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "R7.1",
+      "source": {
+        "file": "Blueprint/REQUIREMENTS.md",
+        "section": "## R7 — Windows distribution"
+      },
+      "text": "CI builds x64 and ARM64 Windows installers plus the primary architecture-selecting installer.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "R7.2",
+      "source": {
+        "file": "Blueprint/REQUIREMENTS.md",
+        "section": "## R7 — Windows distribution"
+      },
+      "text": "x64 and ARM64 installers must pass clean hosted-Windows silent install/uninstall smoke gates before release publication.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "R7.3",
+      "source": {
+        "file": "Blueprint/REQUIREMENTS.md",
+        "section": "## R7 — Windows distribution"
+      },
+      "text": "Release assets include SHA-256 integrity evidence.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "R7.4",
+      "source": {
+        "file": "Blueprint/REQUIREMENTS.md",
+        "section": "## R7 — Windows distribution"
+      },
+      "text": "Production signing, trusted provenance, update rollback and Microsoft Store publication are not represented as complete without real owner/account/certificate evidence.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "R7.5",
+      "source": {
+        "file": "Blueprint/REQUIREMENTS.md",
+        "section": "## R7 — Windows distribution"
+      },
+      "text": "The application remains usable without an OpenAI API key.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "R8.1",
+      "source": {
+        "file": "Blueprint/REQUIREMENTS.md",
+        "section": "## R8 — UX and human agency"
+      },
+      "text": "First run requires explicit Workspace selection rather than scanning arbitrary personal folders.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "R8.2",
+      "source": {
+        "file": "Blueprint/REQUIREMENTS.md",
+        "section": "## R8 — UX and human agency"
+      },
+      "text": "Beginner and engineering views project the same underlying state.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "R8.3",
+      "source": {
+        "file": "Blueprint/REQUIREMENTS.md",
+        "section": "## R8 — UX and human agency"
+      },
+      "text": "Clipboard ingress/egress occurs only on explicit user action.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "R8.4",
+      "source": {
+        "file": "Blueprint/REQUIREMENTS.md",
+        "section": "## R8 — UX and human agency"
+      },
+      "text": "Goal/Definition of Done, current state, risk, evidence and required approvals are visible.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "R8.5",
+      "source": {
+        "file": "Blueprint/REQUIREMENTS.md",
+        "section": "## R8 — UX and human agency"
+      },
+      "text": "User pause/cancel/emergency-stop controls remain authoritative over autonomous execution.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "UNASSIGNED",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    },
+    {
+      "id": "R8.6",
+      "source": {
+        "file": "Blueprint/REQUIREMENTS.md",
+        "section": "## R8 — UX and human agency"
+      },
+      "text": "The Dashboard projects canonical Worker, Provider, Model, Role, Task, State, Runtime, Worktree, Verify and Health fields and shows UNKNOWN instead of inventing unverifiable status.",
+      "status": "GAP",
+      "evidence": [],
+      "workOrder": "0009",
+      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+    }
+  ]
+}

@@ -59,6 +59,7 @@ for(const [name,item] of Object.entries(matrix)){
 
 const report={
   schema:'aecp.blueprint-coverage/v1',
+  limitation:'This audit checks evidence-file existence only, not clause implementation. Clause-level traceability is audited by scripts/traceability-audit.cjs.',
   generatedAt:new Date().toISOString(),
   expectedBlueprints:expected.length,
   discoveredBlueprints:actual.length,
@@ -79,6 +80,7 @@ process.stdout.write(JSON.stringify({
   untracked:report.untracked.length,
   missingBlueprints:report.missingBlueprints.length,
   missingEvidence:report.missingEvidence.length,
+  limitation:report.limitation,
   output:'artifacts/blueprint-coverage.json'
 },null,2)+'\n');
 

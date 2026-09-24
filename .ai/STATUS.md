@@ -106,3 +106,9 @@
 | 刻意不做 | 6 項 | 需要新的獨立 Blueprint 決策才會開放，非「忘記做」 |
 
 **結論（2026-09-24 更正）：** 先前寫的「剩餘不完整幾乎全是外部閘門」**不成立**。逐條對照藍圖與程式碼後發現實質落差（Reviewer 看不到實際 diff 也沒有 Blueprint/Plan、Repository knowledge 未實作、Dashboard 缺 Run timeline / Diff / Review / Notifications / 進度總覽、既有覆蓋稽核只驗檔案存在），詳見 [GAP_REGISTER.md](GAP_REGISTER.md)。對應施工單 0006–0009。在這些結案前，**不得宣稱「倉庫內施工已完成」或「對標藍圖完整」**。ENVIRONMENT / OWNER-EXTERNAL 閘門仍如上所列。
+
+### 施工單 0006 施工進度（待 Claude Review）
+
+- 新增條文追溯矩陣與機械稽核，納入 `npm run verify`；原有藍圖覆蓋稽核明示僅查檔案存在。矩陣目前 231 條：24 IMPLEMENTED（有具名測試）、1 PARTIAL、206 GAP（含尚未證明的證據缺口）。此數字**不是產品完成率**，不得將證據缺口等同功能缺失或反過來當作完成。
+- 新發現 Blueprint/12 §4 `schemaVersion` 一致性疑點；未修改 Blueprint 或執行邏輯，待藍圖擁有者裁定。Blueprint/21 §10 實際 8 條，施工單誤寫 10 條。
+- 0007–0009 尚待施工；ENVIRONMENT／OWNER-EXTERNAL 閘門及 PR #7 狀態不變。
