@@ -8,6 +8,7 @@ const { ProviderRouter } = require('./provider-router.cjs');
 const { resolveKnownCommand } = require('./command-resolver.cjs');
 const { redactSensitive } = require('./redaction.cjs');
 const { makeExecutionContract, updateExecutionContract, validateExecutionContract } = require('./execution-contract.cjs');
+const {buildReviewInput}=require('./review-context.cjs');
 
 const HARNESS_SCHEMA = 'aecp.harness/v1';
 const MAX_OUTPUT = 1024 * 1024;
@@ -189,7 +190,8 @@ function normalizePlan(plan, goal, done, maxTasks) {
     acceptance: text(t.acceptance || done, 3000),
     dependencies: Array.isArray(t.dependencies) ? t.dependencies.map(x => text(x, 100)).filter(Boolean) : [],
     verifier: t.verifier || null,
-    risk: ['GREEN', 'YELLOW', 'RED'].includes(t.risk) ? t.risk : 'YELLOW'
+    risk: ['GREEN', 'YELLOW', 'RED'].includes(t.risk) ? t.risk : 'YELLOW',
+    blueprint_refs:Array.isArray(t.blueprint_refs)?t.blueprint_refs.slice(0,16).filter(x=>typeof x==='string'&&x.length<300):[]
   })).filter(t => t.objective);
   if (!tasks.length) throw new Error('Planner returned no executable tasks.');
   return { schema: 'aecp.plan/v1', plan_id: id('plan'), goal, definition_of_done: done, tasks };
@@ -198,7 +200,7 @@ function normalizePlan(plan, goal, done, maxTasks) {
 function plannerPrompt(goal, done, context) {
   return [
     'You are the AECP Planner. Produce a small executable software-engineering plan.',
-    'Return ONLY JSON matching: {"tasks":[{"task_id":"T1","title":"...","objective":"...","acceptance":"...","dependencies":[],"risk":"GREEN|YELLOW|RED","verifier":"npm run verify"}]}',
+    'Return ONLY JSON matching: {"tasks":[{"task_id":"T1","title":"...","objective":"...","acceptance":"...","dependencies":[],"risk":"GREEN|YELLOW|RED","verifier":"npm run verify","blueprint_refs":["Blueprint/INDEX.md"]}]}',
     'Do not invent credentials, remote access, or permissions. Do not write code.',
     `GOAL:\n${goal}`,
     `DEFINITION OF DONE:\n${done}`,
@@ -217,13 +219,14 @@ function builderPrompt(task, goal, done, review) {
   ].join('\n\n');
 }
 
-function reviewerPrompt(task, goal, done, diff, verification) {
+function reviewerPrompt(task, goal, done, reviewInput, manifestSha256) {
   return [
     'You are the AECP Reviewer. Review evidence, not model confidence.',
     'Return ONLY JSON: {"result":"PASS|REWORK|HUMAN_REQUIRED","findings":[],"required_changes":[]}',
     `GOAL:\n${goal}`, `DEFINITION OF DONE:\n${done}`,
     `TASK:\n${JSON.stringify(task, null, 2)}`,
-    `DIFF:\n${diff}`, `VERIFICATION:\n${JSON.stringify(verification, null, 2)}`,
+    `REVIEW INPUT (Blueprint + complete Plan + actual unified Diff + deterministic Evidence):\n${JSON.stringify(reviewInput, null, 2)}`,
+    `REVIEW INPUT SHA256:\n${manifestSha256}`,
     'PASS only when acceptance and evidence are sufficient. HUMAN_REQUIRED for permissions, credentials, destructive actions, or unresolved ambiguity.'
   ].join('\n\n');
 }
@@ -492,7 +495,10 @@ async function runHarness(options) {
         if (!v.passed) { noteFailedAttempt(); observeProgress(await diffSummary(wt.worktree, signal)); review = `Deterministic verification failed.\n${v.stderr.slice(-5000)}`; await transition('REWORK', { taskId: task.id, reason: 'verification-failed' }); await checkpoint(task, iteration, iteration===maxIterations?'STOP':'NEXT_ITERATION', review); continue; }
         await transition('REVIEWING', { taskId: task.id });
         const diff = await diffSummary(wt.worktree, signal);
-        const rr = await invokeProvider({router:providerRouter,role:'reviewer',prompt:reviewerPrompt(task, goal, done, diff, v),cwd:root,model:roleModels.reviewer,providerId:roleProviders.reviewer,policy:options.policy,signal,timeoutMs:180000,executionApproved:Boolean(options.executionApproved),networkApproved:Boolean(options.providerNetworkApproved),credentialApproved:Boolean(options.providerCredentialApproved)});
+        const reviewInput=await buildReviewInput({sourceRoot:root,worktree:wt.worktree,runRoot,runId:record.id,task,plan:record.plan,verification:v,iteration});
+        task.reviewInput={file:reviewInput.file,sha256:reviewInput.sha256,changedFiles:reviewInput.input.diff.changedFiles};
+        await persist();
+        const rr = await invokeProvider({router:providerRouter,role:'reviewer',prompt:reviewerPrompt(task, goal, done, reviewInput.input, reviewInput.sha256),cwd:root,model:roleModels.reviewer,providerId:roleProviders.reviewer,policy:options.policy,signal,timeoutMs:180000,executionApproved:Boolean(options.executionApproved),networkApproved:Boolean(options.providerNetworkApproved)});
         if (rr.code !== 0) { noteFailedAttempt(); review = `Reviewer failed: ${(rr.stderr || rr.stdout).slice(-3000)}`; continue; }
         const report = safeJson(rr.stdout);
         task.review = report || { result: 'HUMAN_REQUIRED', findings: ['Reviewer did not return valid JSON.'], required_changes: [] };
