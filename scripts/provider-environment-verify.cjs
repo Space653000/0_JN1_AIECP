@@ -151,16 +151,41 @@ async function codexEditSmoke(router,{provider,model,workerId,cwd,token,credenti
     provider,model:model||null,cwd,timeoutMs,networkApproved:true,credentialApproved,onSpawn
   });
   if(result.code!==0)throw Object.assign(new Error('Codex worker real edit failed'),{code:'CODEX_'+workerId+'_EDIT_FAILED'});
-  const actual=(await fs.readFile(path.join(cwd,'worker_result.txt'),'utf8')).trim();
-  if(actual!==token)throw Object.assign(new Error('Codex worker deterministic file token mismatch'),{code:'CODEX_'+workerId+'_FILE_VERIFY_FAILED'});
+  const fileVerifier=await verifyExpectedFile(cwd,'worker_result.txt',token);
   return {
     workerId,provider,providerName:result.providerName||health.providerName||provider,
     model:result.model||model||null,health:health.status,
     codexHomeSha256:sha(result.codexHome||health.codexHome||''),
     worktreeSha256:sha(path.resolve(cwd)),
-    fileSha256:sha(actual),
+    fileSha256:fileVerifier.sha256,fileVerifier,
     timedOut:Boolean(result.timedOut),aborted:Boolean(result.aborted)
   };
+}
+
+async function verifyExpectedFile(cwd,fileName,expected){
+  const file=path.join(cwd,fileName);
+  const stat=await fs.lstat(file);
+  if(!stat.isFile())throw Object.assign(new Error('Expected worker output is not a regular file.'),{code:'FILE_VERIFY_NOT_REGULAR'});
+  const actual=(await fs.readFile(file,'utf8')).trim();
+  if(actual!==expected)throw Object.assign(new Error('Worker output failed independent file verification.'),{code:'FILE_VERIFY_MISMATCH'});
+  return {path:fileName,sha256:sha(actual),expectedSha256Match:true};
+}
+
+async function makeSingleWorktree(){
+  const root=await fs.mkdtemp(path.join(os.tmpdir(),'aecp-provider-single-worktree-'));
+  const repo=path.join(root,'repo');
+  const worktree=path.join(root,'worker-worktree');
+  try{
+    await fs.mkdir(repo,{recursive:true});
+    await fs.writeFile(path.join(repo,'README.md'),'# AECP provider file verification fixture\n','utf8');
+    await git(repo,['init']);
+    await git(repo,['config','user.name','AECP Provider Evidence']);
+    await git(repo,['config','user.email','aecp-provider-evidence@example.invalid']);
+    await git(repo,['add','.']);
+    await git(repo,['commit','-m','baseline']);
+    await git(repo,['worktree','add','-b','evidence-worker',worktree,'HEAD']);
+    return {root,worktree};
+  }catch(error){await fs.rm(root,{recursive:true,force:true});throw error;}
 }
 
 async function makeCodexParallelWorktrees(){
@@ -276,11 +301,15 @@ async function main(){
     });
     await check('local-command.real-smoke',async()=>{
       const token='AECP_LOCAL_COMMAND_REAL_SMOKE_OK';
-      const result=await router.execute('builder',`Return this exact token: ${token}`,{
-        provider:'real-local-command',cwd:sourceRoot,timeoutMs
-      });
-      if(result.code!==0||!String(result.stdout).includes(token))throw Object.assign(new Error('Local command smoke token missing'),{code:'LOCAL_COMMAND_SMOKE_FAILED'});
-      return {provider:'real-local-command',outputSha256:sha(result.stdout)};
+      const fixture=await makeSingleWorktree();
+      try{
+        const result=await router.execute('builder',`Create worker_result.txt in the current directory containing exactly ${token}. Do not change any other file.`,{
+          provider:'real-local-command',cwd:fixture.worktree,timeoutMs
+        });
+        if(result.code!==0)throw Object.assign(new Error('Local command invocation failed'),{code:'LOCAL_COMMAND_SMOKE_FAILED'});
+        const fileVerifier=await verifyExpectedFile(fixture.worktree,'worker_result.txt',token);
+        return {provider:'real-local-command',outputSha256:sha(result.stdout),fileVerifier};
+      }finally{await fs.rm(fixture.root,{recursive:true,force:true});}
     });
   }
 
@@ -288,27 +317,27 @@ async function main(){
   if(mode==='codex-official'||mode==='all'){
     await check('codex-official.real-smoke',async()=>{
       const built=await buildRealCodexRouter({official:true});
-      const temp=await fs.mkdtemp(path.join(os.tmpdir(),'aecp-codex-official-real-'));
+      const fixture=await makeSingleWorktree();
       try{
-        return await codexSmoke(built.router,{
-          provider:'openai-official',model:officialModel||null,workerId:WORKER_IDS.OFFICIAL,cwd:temp,
+        return await codexEditSmoke(built.router,{
+          provider:'openai-official',model:officialModel||null,workerId:WORKER_IDS.OFFICIAL,cwd:fixture.worktree,
           token:'AECP_CODEX_OFFICIAL_REAL_OK',credentialApproved:false
         });
-      }finally{await fs.rm(temp,{recursive:true,force:true});}
+      }finally{await fs.rm(fixture.root,{recursive:true,force:true});}
     });
   }
 
   if(mode==='codex-pega'||mode==='all'){
     await check('codex-pega.real-smoke',async()=>{
       const built=await buildRealCodexRouter({pega:true});
-      const temp=await fs.mkdtemp(path.join(os.tmpdir(),'aecp-codex-pega-real-'));
+      const fixture=await makeSingleWorktree();
       try{
-        const result=await codexSmoke(built.router,{
-          provider:PEGA_PROVIDER_ID,model:pegaModel,workerId:PEGA_WORKER_ID,cwd:temp,
+        const result=await codexEditSmoke(built.router,{
+          provider:PEGA_PROVIDER_ID,model:pegaModel,workerId:PEGA_WORKER_ID,cwd:fixture.worktree,
           token:'AECP_CODEX_PEGA_REAL_OK',credentialApproved:true
         });
         return {...result,baseUrlSha256:sha(PEGA_BASE_URL),wireApi:pegaWireApi};
-      }finally{await fs.rm(temp,{recursive:true,force:true});}
+      }finally{await fs.rm(fixture.root,{recursive:true,force:true});}
     });
   }
 
@@ -410,10 +439,12 @@ async function main(){
   if(evidence.summary.failed)process.exitCode=1;
 }
 
-main().catch(async error=>{
+if(require.main===module)main().catch(async error=>{
   evidence.summary.failed++;
   evidence.fatal=safeError(error);
   try{await fs.mkdir(path.dirname(outputPath),{recursive:true});await fs.writeFile(outputPath,JSON.stringify(evidence,null,2)+'\n','utf8');}catch{}
   process.stderr.write(JSON.stringify({fatal:evidence.fatal,output:outputPath},null,2)+'\n');
   process.exitCode=1;
 });
+
+module.exports={codexEditSmoke,verifyExpectedFile};
