@@ -9,6 +9,14 @@ const { EventEmitter } = require('node:events');
 const { PassThrough } = require('node:stream');
 const { ProviderRouter, run } = require('../electron/lib/provider-router.cjs');
 
+function fakeChild() {
+  const child = new EventEmitter();
+  child.pid = 0;
+  child.stdout = new PassThrough();
+  child.stderr = new PassThrough();
+  return child;
+}
+
 test('provider process settles after exit even when stdout has no close event', async () => {
   const child = new EventEmitter();
   child.pid = 1234;
@@ -28,6 +36,69 @@ test('provider process settles after exit even when stdout has no close event', 
   assert.ok(Date.now() - started < 2000, 'result should not wait for a missing close event');
   assert.equal(child.stdout.destroyed, true);
   assert.equal(child.stderr.destroyed, true);
+});
+
+test('provider timeout force-settles a child that never exits or closes', async () => {
+  const child = fakeChild();
+  const started = Date.now();
+  const result = await run(process.execPath, [], { timeoutMs: 1, spawnImpl: () => child });
+  assert.equal(result.timedOut, true);
+  assert.equal(result.aborted, false);
+  assert.equal(result.code, -1);
+  assert.ok(Date.now() - started < 4500, 'timeout and force-settle must remain bounded');
+  assert.equal(child.stdout.destroyed, true);
+  assert.equal(child.stderr.destroyed, true);
+});
+
+test('provider abort force-settles a child that never exits or closes', async () => {
+  const child = fakeChild();
+  const controller = new AbortController();
+  const started = Date.now();
+  const resultPromise = run(process.execPath, [], { signal: controller.signal, spawnImpl: () => child });
+  controller.abort();
+  const result = await resultPromise;
+  assert.equal(result.aborted, true);
+  assert.equal(result.timedOut, false);
+  assert.ok(Date.now() - started < 3500, 'abort force-settle must remain bounded');
+  assert.equal(child.stdout.destroyed, true);
+  assert.equal(child.stderr.destroyed, true);
+});
+
+test('provider output limit force-settles without accumulating excess output', async () => {
+  const child = fakeChild();
+  const resultPromise = run(process.execPath, [], { maxOutputBytes: 3, spawnImpl: () => child });
+  child.stdout.write('safe');
+  child.stdout.write('ignored');
+  const result = await resultPromise;
+  assert.equal(result.outputLimitExceeded, true);
+  assert.equal(result.stdout, '');
+  assert.equal(result.code, -1);
+  assert.equal(child.stdout.destroyed, true);
+  assert.equal(child.stderr.destroyed, true);
+});
+
+test('provider preserves output received during the exit close grace period', async () => {
+  const child = fakeChild();
+  const resultPromise = run(process.execPath, [], { spawnImpl: () => child });
+  child.stdout.write('before ');
+  child.emit('exit', 0);
+  setTimeout(() => child.stdout.write('after'), 50);
+  const result = await resultPromise;
+  assert.equal(result.code, 0);
+  assert.equal(result.stdout, 'before after');
+  assert.equal(child.stdout.destroyed, true);
+});
+
+test('late close after force-settle cannot change the settled result', async () => {
+  const child = fakeChild();
+  const controller = new AbortController();
+  const resultPromise = run(process.execPath, [], { signal: controller.signal, spawnImpl: () => child });
+  controller.abort();
+  const result = await resultPromise;
+  assert.doesNotThrow(() => child.emit('close', 0));
+  assert.equal(result.code, -1);
+  assert.equal(result.aborted, true);
+  assert.equal(child.stdout.destroyed, true);
 });
 
 test('Provider Router executes a deterministic fixed local worker without external model credentials', async () => {
