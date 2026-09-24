@@ -1782,10 +1782,15 @@
         "section": "## 27. Acceptance criteria"
       },
       "text": "Reviewer sees Blueprint + Plan + Diff + Evidence.",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "0007",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/review-context.test.cjs",
+          "kind": "test",
+          "name": "Reviewer input includes bounded redacted Blueprint full Plan actual diff and verification evidence"
+        }
+      ],
+      "note": "Named deterministic test exists; mapped for manual equivalence review."
     },
     {
       "id": "B20-27-07",
@@ -1794,10 +1799,15 @@
         "section": "## 27. Acceptance criteria"
       },
       "text": "Reviewer returns PASS/REWORK/HUMAN_REQUIRED.",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "0007",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/review-report.test.cjs",
+          "kind": "test",
+          "name": "FAIL dimension contradicting PASS becomes REWORK"
+        }
+      ],
+      "note": "Named deterministic test exists; mapped for manual equivalence review."
     },
     {
       "id": "B20-27-08",
@@ -1972,10 +1982,15 @@
         "section": "## 10. Handoff rules"
       },
       "text": "Every handoff includes schema version.",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "0007",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/review-report.test.cjs",
+          "kind": "test",
+          "name": "Review Report accepts a complete correlated six-dimension PASS only with verifier PASS"
+        }
+      ],
+      "note": "Named deterministic test exists; mapped for manual equivalence review."
     },
     {
       "id": "B21-10-02",
@@ -1984,10 +1999,15 @@
         "section": "## 10. Handoff rules"
       },
       "text": "Every handoff includes Task/Run correlation IDs.",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "0007",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/review-report.test.cjs",
+          "kind": "test",
+          "name": "Review Report accepts a complete correlated six-dimension PASS only with verifier PASS"
+        }
+      ],
+      "note": "Named deterministic test exists; mapped for manual equivalence review."
     },
     {
       "id": "B21-10-03",
@@ -2008,10 +2028,15 @@
         "section": "## 10. Handoff rules"
       },
       "text": "Sensitive values are redacted.",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/review-context.test.cjs",
+          "kind": "test",
+          "name": "Reviewer input includes bounded redacted Blueprint full Plan actual diff and verification evidence"
+        }
+      ],
+      "note": "Named deterministic test exists; mapped for manual equivalence review."
     },
     {
       "id": "B21-10-05",
@@ -2044,10 +2069,15 @@
         "section": "## 10. Handoff rules"
       },
       "text": "A worker report is not proof of completion until verifier evidence exists.",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "0007",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/worker-report.test.cjs",
+          "kind": "test",
+          "name": "Worker Report changed files come from Git, never Builder claims"
+        }
+      ],
+      "note": "Named deterministic test exists; mapped for manual equivalence review."
     },
     {
       "id": "B21-10-08",
@@ -2068,10 +2098,15 @@
         "section": "## 6. Worker Report"
       },
       "text": "schema: aecp.worker-report/v1 task_id: run_id: agent: iteration: base_commit: changed_files: commands: tests: result: unresolved: evidence_refs:",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "0007",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/worker-report.test.cjs",
+          "kind": "test",
+          "name": "Worker Report changed files come from Git, never Builder claims"
+        }
+      ],
+      "note": "Named deterministic test exists; mapped for manual equivalence review."
     },
     {
       "id": "B21-7-SCHEMA",
@@ -2080,10 +2115,15 @@
         "section": "## 7. Review Report"
       },
       "text": "schema: aecp.review/v1 task_id: reviewer: result: PASS | REWORK | BLOCKED | HUMAN_REQUIRED blueprint: plan: implementation: tests: security: architecture: findings: required_changes:",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "0007",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/review-report.test.cjs",
+          "kind": "test",
+          "name": "Review Report accepts a complete correlated six-dimension PASS only with verifier PASS"
+        }
+      ],
+      "note": "Named deterministic test exists; mapped for manual equivalence review."
     },
     {
       "id": "B22-10-EVENT",

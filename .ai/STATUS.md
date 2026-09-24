@@ -112,3 +112,8 @@
 - 新增條文追溯矩陣與機械稽核，納入 `npm run verify`；原有藍圖覆蓋稽核明示僅查檔案存在。矩陣目前 231 條：24 IMPLEMENTED（有具名測試）、1 PARTIAL、206 GAP（含尚未證明的證據缺口）。此數字**不是產品完成率**，不得將證據缺口等同功能缺失或反過來當作完成。
 - 新發現 Blueprint/12 §4 `schemaVersion` 一致性疑點；未修改 Blueprint 或執行邏輯，待藍圖擁有者裁定。Blueprint/21 §10 實際 8 條，施工單誤寫 10 條。
 - 0007–0009 尚待施工；ENVIRONMENT／OWNER-EXTERNAL 閘門及 PR #7 狀態不變。
+
+### 施工單 0007 施工進度（待 Claude Review）
+
+- A/B/C 已分別提交：Reviewer 取得有界且遮罩的 Blueprint/Plan/unified diff/Verifier 證據；`aecp.review/v1` 六維度驗證器拒絕舊式或矛盾 PASS；`aecp.worker-report/v1` 的變更檔取自 Git，Worker 自述不能作驗收證明。
+- 追溯矩陣從 231 條中確認 32 IMPLEMENTED、1 PARTIAL、198 GAP；GAP 主要為未取得同條文具名測試的保守證據分類，非已證明 198 個功能缺失。0008、0009 與外部環境／擁有者閘門仍待處理。
