@@ -118,16 +118,35 @@
         "section": "## 10. Accessibility and quality"
       },
       "text": "- dark/light/system theme",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "ui/app.js",
-          "kind": "code",
-          "name": "cycleTheme"
+          "file": "tests/theme-behavior.test.cjs",
+          "kind": "test",
+          "name": "B01-A11Y-L179 system mode resolves to the OS preference and explicit choices ignore it"
+        },
+        {
+          "file": "tests/theme-behavior.test.cjs",
+          "kind": "test",
+          "name": "B01-A11Y-L179 system mode follows a live OS colour-scheme change"
+        },
+        {
+          "file": "tests/theme-behavior.test.cjs",
+          "kind": "test",
+          "name": "B01-A11Y-L179 cycling goes system, dark, light and back, and persists every step"
+        },
+        {
+          "file": "tests/theme-behavior.test.cjs",
+          "kind": "test",
+          "name": "B01-A11Y-L179 an OS change only triggers a re-render while following the system"
+        },
+        {
+          "file": "tests/theme-behavior.test.cjs",
+          "kind": "test",
+          "name": "B01-A11Y-L179 blocked or throwing storage never breaks theme switching"
         }
       ],
-      "note": "The existing test asserts the presence of source text in ui/app.js, not the behavior. A DOM-level test of system, dark and light theme resolution and OS change events is still needed.",
-      "workOrder": "UNASSIGNED"
+      "note": "Upgraded by Claude Code (was PARTIAL): the theme logic moved to ui/theme.js and is asserted by behavior tests instead of source text. Sabotage-checked seven ways, and verified in a real browser: the button cycles system/dark/light with persistence, and in system mode a colour-scheme change event flips data-theme while an explicit choice is not overridden. Limitation: the pane used for the browser check emulates the OS scheme without dispatching the change event, so the event was dispatched by hand; real OS delivery of that event is browser behavior."
     },
     {
       "id": "B01-A11Y-L180",

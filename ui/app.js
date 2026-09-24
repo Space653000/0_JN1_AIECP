@@ -1,6 +1,7 @@
 'use strict';
 
 const systemThemeMedia = window.matchMedia?.('(prefers-color-scheme: light)');
+const themeController = window.AECPTheme.createThemeController({ storage: window.localStorage, media: systemThemeMedia });
 
 const state = {
   app: null,
@@ -23,7 +24,7 @@ const state = {
   selectedTaskId: null,
   view: 'start',
   engineering: false,
-  theme: ['system', 'dark', 'light'].includes(localStorage.getItem('aecp-theme')) ? localStorage.getItem('aecp-theme') : 'system',
+  theme: themeController.theme,
   motion: ['system', 'reduced'].includes(localStorage.getItem('aecp-motion')) ? localStorage.getItem('aecp-motion') : 'system',
   chatgptOpened: localStorage.getItem('aecp-chatgpt-opened') === '1'
 };
@@ -86,14 +87,11 @@ function formatProviderUsage(summary, managedExternally = false) {
 }
 
 function resolvedTheme() {
-  if (state.theme !== 'system') return state.theme;
-  return systemThemeMedia?.matches ? 'light' : 'dark';
+  return themeController.resolved();
 }
 
 function cycleTheme() {
-  const order = ['system', 'dark', 'light'];
-  state.theme = order[(order.indexOf(state.theme) + 1) % order.length];
-  localStorage.setItem('aecp-theme', state.theme);
+  state.theme = themeController.cycle();
   render();
 }
 
@@ -1364,7 +1362,7 @@ function bindEvents() {
 async function boot() {
   bindEvents();
   systemThemeMedia?.addEventListener?.('change', () => {
-    if (state.theme === 'system') render();
+    if (themeController.followsSystem()) render();
   });
   await loadAll();
 }

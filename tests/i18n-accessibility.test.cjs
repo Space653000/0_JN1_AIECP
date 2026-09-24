@@ -49,17 +49,9 @@ test('styles provide visible focus and reduced-motion support',()=>{
 });
 
 
-test('theme control supports system dark and light modes and follows OS changes in system mode',()=>{
-  const app=read('ui/app.js');
-  assert.match(app,/\['system', 'dark', 'light'\]/);
-  assert.match(app,/function resolvedTheme\(\)/);
-  assert.match(app,/state\.theme !== 'system'/);
-  assert.match(app,/systemThemeMedia\?\.matches/);
-  assert.match(app,/function cycleTheme\(\)/);
-  assert.match(app,/localStorage\.setItem\('aecp-theme', state\.theme\)/);
-  assert.match(app,/systemThemeMedia\?\.addEventListener\?\.\('change'/);
-  assert.match(app,/document\.documentElement\.dataset\.theme = resolvedTheme\(\)/);
-});
+// The theme logic moved to ui/theme.js; its behavior (system/dark/light resolution, OS change following, persistence)
+// is asserted in tests/theme-behavior.test.cjs instead of by matching source text.
+
 
 
 test('Settings exposes an explicit reduced-motion preference in addition to system media support',()=>{
