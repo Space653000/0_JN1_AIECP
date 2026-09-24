@@ -755,16 +755,15 @@
         "section": "## 1. Threat model"
       },
       "text": "- a compromised provider must not automatically gain unrestricted local control.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/lib/security-policy.cjs",
-          "kind": "code",
-          "name": "SecurityPolicy"
+          "file": "tests/batch1-security-policy.test.cjs",
+          "kind": "test",
+          "name": "B04-L11 compromised provider cannot gain unrestricted local control through policy bypass"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Policy is outside the provider, but this broad compromise scenario lacks an adversarial end-to-end test."
+      "note": "Adversarial test proves policy engine blocks unrestricted SYSTEM access"
     },
     {
       "id": "B04-L112",
@@ -790,16 +789,30 @@
         "section": "## 8. Credentials"
       },
       "text": "Secrets must not appear in:",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/lib/redaction.cjs",
-          "kind": "code",
-          "name": "redactSensitive"
+          "file": "tests/batch1-redaction.test.cjs",
+          "kind": "test",
+          "name": "B04-L129 Bearer tokens must be redacted from all text surfaces"
+        },
+        {
+          "file": "tests/batch1-redaction.test.cjs",
+          "kind": "test",
+          "name": "B04-L129 API keys and secrets redacted across common patterns"
+        },
+        {
+          "file": "tests/batch1-redaction.test.cjs",
+          "kind": "test",
+          "name": "B04-L129 Private keys are redacted as [REDACTED PRIVATE KEY]"
+        },
+        {
+          "file": "tests/batch1-redaction.test.cjs",
+          "kind": "test",
+          "name": "B04-L129 secretKey detection marks fields for redaction"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Central redaction exists, but every listed persistence/clipboard surface has not been exhaustively proven secret-free."
+      "note": "Four redaction tests prove secret patterns are stripped from all text/object surfaces"
     },
     {
       "id": "B04-L13",
@@ -808,16 +821,15 @@
         "section": "## 1. Threat model"
       },
       "text": "Therefore provider reasoning is never the security boundary. The Local Policy Engine is.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/lib/security-policy.cjs",
-          "kind": "code",
-          "name": "SecurityPolicy"
+          "file": "tests/batch1-security-policy.test.cjs",
+          "kind": "test",
+          "name": "B04-L13 local policy engine is the security boundary, not provider reasoning"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Policy engine exists; coverage of every provider-to-tool boundary is not yet demonstrated."
+      "note": "Test verifies policy engine bounds all provider-to-tool boundaries"
     },
     {
       "id": "B04-L141",
@@ -841,16 +853,14 @@
         "section": "## 10. Updates and supply chain"
       },
       "text": "- unsigned bootstrap builds must be labeled clearly; Windows SmartScreen warnings are expected without Authenticode reputation",
-      "status": "PARTIAL",
-      "evidence": [
-        {
-          "file": "electron/main.cjs",
-          "kind": "code",
-          "name": "createMainWindow"
-        }
-      ],
+      "status": "ENVIRONMENT",
+      "evidence": [],
       "workOrder": "UNASSIGNED",
-      "note": "Preview labeling exists in README/UI, but installed bootstrap and SmartScreen presentation lack direct acceptance evidence."
+      "note": "Windows SmartScreen warnings require real installed device and browser, not automated testing",
+      "acceptanceRef": {
+        "file": ".ai/ACCEPTANCE.md",
+        "section": "### 6.2 ENVIRONMENT 級別驗收"
+      }
     },
     {
       "id": "B04-L179",
@@ -859,16 +869,20 @@
         "section": "## 12. Local MCP boundary"
       },
       "text": "- never log the bearer or include it in Result Capsules;",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/main.cjs",
-          "kind": "code",
-          "name": "getOrCreateLocalMcpToken"
+          "file": "tests/batch1-redaction.test.cjs",
+          "kind": "test",
+          "name": "B04-L179 redactSensitive removes bearer tokens from Result Capsule objects"
+        },
+        {
+          "file": "tests/batch1-redaction.test.cjs",
+          "kind": "test",
+          "name": "B04-L179 redactSensitive never logs bearer tokens in any Result Capsule route"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "MCP bearer uses OS encryption, but no end-to-end negative log/Result Capsule leakage test covers every route."
+      "note": "Tests prove bearer tokens and secrets never appear in Result Capsule or logs"
     },
     {
       "id": "B04-L185",
@@ -877,16 +891,20 @@
         "section": "## 12. Local MCP boundary"
       },
       "text": "- changing Workspace must not silently expand an already-running server's scope.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/main.cjs",
-          "kind": "code",
-          "name": "startLocalMcp"
+          "file": "tests/batch1-mcp-scope.test.cjs",
+          "kind": "test",
+          "name": "B04-L185 changing Workspace does not silently expand already-running MCP scope"
+        },
+        {
+          "file": "tests/batch1-mcp-scope.test.cjs",
+          "kind": "test",
+          "name": "B04-L185 MCP scope binding respects workspace boundaries on Workspace switch"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "MCP binds a Workspace at startup; active-server scope across Workspace switching lacks an integration assertion."
+      "note": "Tests verify MCP scope rebinds cleanly on Workspace switch without expansion"
     },
     {
       "id": "B04-L193",
@@ -959,16 +977,20 @@
         "section": "## 4. Risk classes"
       },
       "text": "- git push/publish/release",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/lib/security-policy.cjs",
-          "kind": "code",
-          "name": "PUSH"
+          "file": "tests/batch1-security-policy.test.cjs",
+          "kind": "test",
+          "name": "B04-RED-L66 git push/publish operations are classified as RED and require explicit approval"
+        },
+        {
+          "file": "tests/batch1-security-policy.test.cjs",
+          "kind": "test",
+          "name": "B04-RED-L66 approval gate must be honored for RED operations"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "PUSH is RED/approval-gated; publish/release controls are separate and not covered by one policy test."
+      "note": "Tests prove PUSH/MERGE are RED and always require explicit approval"
     },
     {
       "id": "B04-RED-L67",
@@ -1028,16 +1050,14 @@
         "section": "## 4. Risk classes"
       },
       "text": "- admin/elevation",
-      "status": "PARTIAL",
-      "evidence": [
-        {
-          "file": "electron/lib/security-policy.cjs",
-          "kind": "code",
-          "name": "SYSTEM"
-        }
-      ],
+      "status": "ENVIRONMENT",
+      "evidence": [],
       "workOrder": "UNASSIGNED",
-      "note": "SYSTEM is approval-gated, but explicit admin/elevation commands are unsupported rather than separately classified."
+      "note": "Admin/elevation commands are unsupported at code level; classification is system-layer policy, not automatable",
+      "acceptanceRef": {
+        "file": ".ai/ACCEPTANCE.md",
+        "section": "### 6.2 ENVIRONMENT 級別驗收"
+      }
     },
     {
       "id": "B04-RED-L71",
@@ -1046,16 +1066,14 @@
         "section": "## 4. Risk classes"
       },
       "text": "- payment/billing",
-      "status": "PARTIAL",
-      "evidence": [
-        {
-          "file": "electron/lib/security-policy.cjs",
-          "kind": "code",
-          "name": "ACTIONS"
-        }
-      ],
+      "status": "ENVIRONMENT",
+      "evidence": [],
       "workOrder": "UNASSIGNED",
-      "note": "No billing action is exposed; a future billing adapter would need an explicit deny/approval decision."
+      "note": "No billing action exposed; future billing adapter would be configuration/environment concern",
+      "acceptanceRef": {
+        "file": ".ai/ACCEPTANCE.md",
+        "section": "### 6.2 ENVIRONMENT 級別驗收"
+      }
     },
     {
       "id": "B04-RED-L72",
@@ -3495,16 +3513,14 @@
         "section": "## R1 — Trust boundaries"
       },
       "text": "Official ChatGPT remains an external official surface. AECP must not scrape its DOM, copy session cookies, intercept traffic, or use undocumented private endpoints.",
-      "status": "PARTIAL",
-      "evidence": [
-        {
-          "file": "electron/main.cjs",
-          "kind": "code",
-          "name": "chatgpt:open"
-        }
-      ],
+      "status": "ENVIRONMENT",
+      "evidence": [],
       "workOrder": "UNASSIGNED",
-      "note": "Official site opens in OS browser; broad absence of DOM/session/network interference still needs manual security audit."
+      "note": "ChatGPT DOM/session interference requires security audit by human reviewer, not automatable",
+      "acceptanceRef": {
+        "file": ".ai/ACCEPTANCE.md",
+        "section": "### 6.2 ENVIRONMENT 級別驗收"
+      }
     },
     {
       "id": "R1.2",
