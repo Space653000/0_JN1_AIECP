@@ -10,7 +10,7 @@ const { redactSensitive } = require('./redaction.cjs');
 const { makeExecutionContract, updateExecutionContract, validateExecutionContract } = require('./execution-contract.cjs');
 const {buildReviewInput}=require('./review-context.cjs');
 const {validateReviewReport,saveReviewReport}=require('./review-report.cjs');
-const {gitChangedFiles,gitUntrackedFiles,makeWorkerReport,saveWorkerReport}=require('./worker-report.cjs');
+const {gitChangedFiles,gitUntrackedFiles,makeWorkerReport,saveWorkerReport,saveVerificationEvidence,completeWorkerReport}=require('./worker-report.cjs');
 const {discoverRepoKnowledge,knowledgeManifest,formatKnowledge}=require('./repo-knowledge.cjs');
 
 const HARNESS_SCHEMA = 'aecp.harness/v1';
@@ -518,6 +518,10 @@ async function runHarness(options) {
         record.localComputeMs += Number(v.durationMs || 0);
         assertRuntimeBudget();
         task.verification = v;
+        const verifierEvidence=await saveVerificationEvidence(runRoot,{taskId:task.id,runId:record.id,iteration,verification:v});
+        task.workerReport=completeWorkerReport(task.workerReport,v,verifierEvidence);
+        task.workerReportEvidence=await saveWorkerReport(runRoot,task.workerReport,iteration);
+        await persist();
         if (!v.passed) { noteFailedAttempt(); observeProgress(await diffSummary(wt.worktree, signal)); review = `Deterministic verification failed.\n${v.stderr.slice(-5000)}`; await transition('REWORK', { taskId: task.id, reason: 'verification-failed' }); await checkpoint(task, iteration, iteration===maxIterations?'STOP':'NEXT_ITERATION', review); continue; }
         await transition('REVIEWING', { taskId: task.id });
         const diff = await diffSummary(wt.worktree, signal);

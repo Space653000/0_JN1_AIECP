@@ -5,7 +5,7 @@ const fs=require('node:fs/promises');
 const os=require('node:os');
 const path=require('node:path');
 const {execFileSync}=require('node:child_process');
-const {gitChangedFiles,gitUntrackedFiles,makeWorkerReport,saveWorkerReport}=require('../electron/lib/worker-report.cjs');
+const {gitChangedFiles,gitUntrackedFiles,makeWorkerReport,saveWorkerReport,completeWorkerReport,saveVerificationEvidence}=require('../electron/lib/worker-report.cjs');
 
 test('Worker Report changed files come from Git, never Builder claims',async t=>{
   const root=await fs.mkdtemp(path.join(os.tmpdir(),'aecp-worker-report-'));
@@ -29,4 +29,23 @@ test('Worker Report changed files come from Git, never Builder claims',async t=>
   const saved=await saveWorkerReport(root,report,1);
   assert.equal(saved.sha256.length,64);
   assert.equal(JSON.parse(await fs.readFile(saved.file)).run_id,'RUN1');
+});
+
+test('Worker Report is resaved with verifier-owned test result and evidence reference',async t=>{
+  const root=await fs.mkdtemp(path.join(os.tmpdir(),'aecp-worker-verifier-'));
+  t.after(()=>fs.rm(root,{recursive:true,force:true}));
+  const report=makeWorkerReport({taskId:'T1',runId:'R1',worker:{workerId:'W1',provider:'codex',code:0},
+    stdout:JSON.stringify({status:'DONE',tests:['fake PASS']}),iteration:1});
+  const original=await saveWorkerReport(root,report,1);
+  const verified={command:'npm run verify',passed:false,code:2,timedOut:false,aborted:false,outputLimitExceeded:false,durationMs:42};
+  const evidence=await saveVerificationEvidence(root,{taskId:'T1',runId:'R1',iteration:1,verification:verified});
+  const updated=completeWorkerReport(report,verified,evidence);
+  const saved=await saveWorkerReport(root,updated,1);
+  assert.equal(saved.file,original.file);
+  assert.notEqual(saved.sha256,original.sha256);
+  assert.deepEqual(updated.tests,[{command:'npm run verify',passed:false,exit_code:2}]);
+  assert.deepEqual(updated.evidence_refs,[evidence]);
+  assert.equal(updated.result,'VERIFIER_FAIL');assert.equal(updated.completionProof,false);
+  assert.deepEqual(JSON.parse(await fs.readFile(saved.file,'utf8')).tests,updated.tests);
+  assert.doesNotMatch(JSON.stringify(updated),/fake PASS/);
 });

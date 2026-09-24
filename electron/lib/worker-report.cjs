@@ -33,4 +33,21 @@ async function saveWorkerReport(runRoot,report,iteration){
   await fs.mkdir(runRoot,{recursive:true});await fs.writeFile(file,body,'utf8');
   return {file,sha256:crypto.createHash('sha256').update(body).digest('hex')};
 }
-module.exports={gitChangedFiles,gitUntrackedFiles,makeWorkerReport,saveWorkerReport};
+async function saveVerificationEvidence(runRoot,{taskId,runId,iteration,verification}){
+  const file=path.join(runRoot,`verifier-${String(taskId).replace(/[^a-zA-Z0-9_-]/g,'_')}-${iteration}.json`);
+  const body=JSON.stringify(redactSensitive({schema:'aecp.verifier-evidence/v1',task_id:taskId,run_id:runId,
+    iteration,command:verification.command,passed:verification.passed===true,exit_code:verification.code,
+    timedOut:Boolean(verification.timedOut),aborted:Boolean(verification.aborted),
+    outputLimitExceeded:Boolean(verification.outputLimitExceeded),durationMs:verification.durationMs}),null,2)+'\n';
+  await fs.mkdir(runRoot,{recursive:true});await fs.writeFile(file,body,'utf8');
+  return {file,sha256:crypto.createHash('sha256').update(body).digest('hex')};
+}
+function completeWorkerReport(report,verification,evidence){
+  return redactSensitive({...report,
+    tests:[{command:String(verification.command||'UNKNOWN').slice(0,200),passed:verification.passed===true,
+      exit_code:Number.isInteger(verification.code)?verification.code:null}],
+    result:verification.passed===true?'VERIFIER_PASS':'VERIFIER_FAIL',
+    unresolved:verification.passed===true?[]:['Deterministic verification failed'],
+    evidence_refs:[evidence],completionProof:false});
+}
+module.exports={gitChangedFiles,gitUntrackedFiles,makeWorkerReport,saveWorkerReport,saveVerificationEvidence,completeWorkerReport};

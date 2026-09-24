@@ -58,6 +58,28 @@ function fakeRouter(onBuilder,onRole){
   };
 }
 
+test('Reviewer process failure escalates to HUMAN_REQUIRED without retrying',async t=>{
+  for(const failure of [{code:9,timedOut:false},{code:1,timedOut:true}]){
+    const fixture=await makeRepo('aecp-reviewer-failure-');
+    t.after(()=>fs.rm(fixture.root,{recursive:true,force:true}));
+    const base=fakeRouter(async cwd=>fs.writeFile(path.join(cwd,'change.txt'),'verified change\n'));
+    let reviewerCalls=0;
+    const router={...base,execute:async(role,prompt,opts)=>{
+      if(role==='reviewer'){
+        reviewerCalls++;
+        return {...failure,stdout:'',stderr:'reviewer unavailable',aborted:false};
+      }
+      return base.execute(role,prompt,opts);
+    }};
+    const result=await runHarness({goal:'Make one verified change.',done:'Verification succeeds.',
+      sourceRoot:fixture.repo,runRoot:fixture.runRoot,maxTasks:1,maxIterations:3,maxTurns:8,
+      providerRouter:router,plannerProvider:'planner',builderProvider:'builder',reviewerProvider:'reviewer'});
+    assert.equal(result.state,'HUMAN_REQUIRED');
+    assert.equal(result.tasks[0].review.result,'HUMAN_REQUIRED');
+    assert.equal(reviewerCalls,1);
+  }
+});
+
 test('Harness stops before another provider call when maxTurns is exhausted',async(t)=>{
   const fixture=await makeRepo('aecp-harness-turn-budget-');
   t.after(async()=>fs.rm(fixture.root,{recursive:true,force:true}));

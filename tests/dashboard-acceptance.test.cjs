@@ -88,6 +88,16 @@ test('new Dashboard labels exist in both English and Traditional Chinese',()=>{
   }
 });
 
+test('six Dashboard notification categories are localized in both supported languages',()=>{
+  const {DICTIONARIES}=require('../ui/i18n.js');
+  for(const category of ['INFO','SUCCESS','WARNING','ACTION REQUIRED','ERROR','CRITICAL']){
+    const key='dashboard.notification.'+category;
+    assert.ok(DICTIONARIES.en[key],key+' missing en');
+    assert.ok(DICTIONARIES['zh-TW'][key],key+' missing zh-TW');
+  }
+  assert.match(read('ui/harness-console.js'),/tr\('dashboard\.notification\.'\+n\.category/);
+});
+
 test('Dashboard and shell accessibility provide keyboard focus text status and reduced motion',()=>{
   const html=read('ui/index.html');
   const css=read('ui/styles.css');

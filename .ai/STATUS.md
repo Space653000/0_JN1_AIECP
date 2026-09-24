@@ -128,3 +128,8 @@
 - A–F 已各自提交；Run timeline、Diff、Review、GitHub、Notifications 與五階段進度皆由正式 task／event／delivery 狀態唯讀投影，缺資料顯示 UNKNOWN。A 另有持久化 Harness 事件日誌的獨立修正 commit；詳見 [0009 回報](WORK_ORDERS/0009.md)。
 - `npm run verify` 通過，`npm test` **326/326 PASS**。TRACEABILITY 231 條中 52 IMPLEMENTED、1 PARTIAL、178 GAP；狀態只表示具名測試證據程度，非整體完成率。尚缺 Electron 實機 UI／輔助技術驗收；本次 HEAD 的 CI 需依 exact SHA workflow 實際結果核對。
 - 0006–0009 已由 Claude 驗收 CLOSED（0009 附通知映射缺陷，0010 修正）；另有 0010、0011 分類與修補中，**未宣稱整體藍圖完成**；ENVIRONMENT／OWNER-EXTERNAL 閘門仍未完成，不自行更改 PR #7 合併狀態。
+
+### 施工單 0010 施工進度（進行中）
+
+- 繁中 Windows PowerShell 輸出改以 UTF-8 傳送與解碼，避免碼頁 950 的 CJK 視窗名稱破壞 JSON。通知事件目錄改對照實際 Control Plane／Harness 事件；WRITE 政策拒絕另記 `policy.violation`，不更改原有決定。
+- Reviewer 程序非零退出或逾時的既有設計維持 **不重試、直接 HUMAN_REQUIRED 交由人處理**；Worker Report 在 Verifier 完成後回填其真實結果並重存證據。舊版 Command Center 其他非新增六視圖區塊仍有硬編碼英文，列為既知在地化限制，未擴大本施工單範圍。
