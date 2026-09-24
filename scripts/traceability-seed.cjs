@@ -159,7 +159,7 @@ const proven={
   'B22-8-REVIEW':['tests/event-projection.test.cjs','Review projection shows six canonical dimensions, human gate and UNKNOWN'],
   'B22-9-GITHUB':['tests/event-projection.test.cjs','GitHub projection shows existing delivery/CI data and UNKNOWN for missing fields'],
   'B22-10-EVENT':['tests/event-projection.test.cjs','timeline maps immutable event IDs to bounded evidence and remains read-only'],
-  'B22-11-NOTIFY':['tests/event-projection.test.cjs','notifications map six event categories, dedupe, cap, and never emit token notices'],
+  'B22-11-NOTIFY':['tests/notification-catalog.test.cjs','real CI, task, approval and policy event names project to their required categories'],
   'R8.6':['tests/dashboard-acceptance.test.cjs','Command Center projects canonical Multi-Worker identity, health and isolated cancellation controls'],
   'B22-16-01':['tests/dashboard-acceptance.test.cjs','Command Center answers the eight Blueprint 22 novice questions from canonical state'],
   'B01-A11Y-L173':['tests/i18n-accessibility.test.cjs','styles provide visible focus and reduced-motion support'],

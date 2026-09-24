@@ -7,6 +7,26 @@ const os = require('node:os');
 const path = require('node:path');
 const { ControlPlane, STATES, TERMINAL } = require('../electron/lib/control-plane.cjs');
 const { WorkerRegistry } = require('../electron/lib/worker-registry.cjs');
+const {SecurityPolicy}=require('../electron/lib/security-policy.cjs');
+
+test('denied task WRITE records policy.violation without changing the policy decision',async()=>{
+  const root=await fs.mkdtemp(path.join(os.tmpdir(),'aecp-policy-event-'));
+  const cp=new ControlPlane({rootDir:root});
+  await cp.init();
+  try{
+    const policy=new SecurityPolicy({allowRoots:[root],requireApprovalFor:['WRITE']});
+    const input={action:'WRITE',path:root,approved:false};
+    const before=policy.check(input);
+    await assert.rejects(()=>cp.assertTaskWritePolicy(policy,{runId:'R1',taskId:'T1',path:root,approved:false}),e=>
+      e.code==='APPROVAL_REQUIRED'&&e.message===before.reason&&e.policy.allowed===before.allowed);
+    assert.deepEqual(policy.check(input),before);
+    const events=await cp.listEvents();
+    const violation=events.find(e=>e.type==='policy.violation');
+    assert.equal(violation.runId,'R1');assert.equal(violation.taskId,'T1');
+    assert.equal(violation.action,'WRITE');assert.equal(violation.reasonCode,'HUMAN_APPROVAL_REQUIRED');
+    assert.equal(Object.hasOwn(violation,'path'),false);
+  }finally{await cp.shutdown();await fs.rm(root,{recursive:true,force:true});}
+});
 
 test('ControlPlane persists state and event journal', async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'aecp-control-'));

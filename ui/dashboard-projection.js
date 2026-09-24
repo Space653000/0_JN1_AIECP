@@ -45,14 +45,29 @@
       artifacts:ci.artifacts||UNKNOWN,release:delivery.release||UNKNOWN,
       lastEvent:recent?`${recent.type||UNKNOWN} · ${recent.id||UNKNOWN}`:UNKNOWN};
   }
-  const NOTIFICATION_RULES=Object.freeze([
-    Object.freeze({test:/^(?:security\.|policy\.violation)/,category:'CRITICAL'}),
-    Object.freeze({test:/^approval\.requested$/,category:'ACTION REQUIRED'}),
-    Object.freeze({test:/^(?:task\.failed|mission\.failed|ci\.failed|delivery\.blocked|state\.failed|approval\.rejected)$/,category:'ERROR'}),
-    Object.freeze({test:/^(?:task\.accepted|mission\.finished|ci\.passed|approval\.approved)$/,category:'SUCCESS'}),
-    Object.freeze({test:/^(?:provider\.degraded|task\.rework|state\.rework|task\.waiting_for_lock)$/,category:'WARNING'}),
-    Object.freeze({test:/^(?:task\.|mission\.|provider\.|ci\.|delivery\.|state\.)/,category:'INFO'})
-  ]);
+  // Exact event catalog. A null category is an explicit decision not to notify.
+  // CI polling and routine provider/maintenance events stay quiet; retries and
+  // lock waits warn, while terminal failures and policy refusal stand out.
+  const NOTIFICATION_RULES=Object.freeze(Object.entries({
+    'approval.approved':'SUCCESS','approval.rejected':'ERROR','approval.requested':'ACTION REQUIRED',
+    'ci.failed_max_iterations':'ERROR','ci.failed_rework':'ERROR','ci.passed':'SUCCESS','ci.waiting':'INFO',
+    'delivery.blocked':'ERROR','delivery.ci_monitor_error':'ERROR','delivery.merged':'SUCCESS','delivery.pr_created':'INFO',
+    'external.correlated':null,'external.received':null,
+    'loop.checkpoint':null,'maintenance.completed':null,'maintenance.failed':'WARNING','maintenance.gc':null,
+    'mission.cancelled':'ERROR','mission.created':'INFO','mission.finished':'INFO','mission.paused':'WARNING',
+    'mission.planned':'INFO','mission.started':'INFO','policy.violation':'CRITICAL',
+    'provider.budget':'WARNING','provider.call':null,'run.final_verification':'INFO','run.resumed':'INFO',
+    'scheduler.selected':null,
+    'state.blocked':'ERROR','state.budget_exhausted':'ERROR','state.cancelled':'WARNING',
+    'state.done':'SUCCESS','state.failed':'ERROR','state.human_required':'WARNING',
+    'state.planning':null,'state.ready':null,'state.reviewing':null,'state.rework':'WARNING',
+    'state.running':null,'state.verifying':null,
+    'task.accepted':'SUCCESS','task.cancel_requested':'WARNING','task.cancelled':'WARNING',
+    'task.claimed':'INFO','task.event':null,'task.failed':'ERROR','task.finished':'SUCCESS',
+    'task.lock_lost':'ERROR','task.paused':'WARNING','task.queued':'INFO',
+    'task.recovery_rework':'WARNING','task.review_passed':'SUCCESS',
+    'task.waiting_for_lock':'WARNING','task.waiting_for_worker':'WARNING'
+  }).map(([type,category])=>Object.freeze({type,category})));
   function notifications(events,{readIds=[]}={}){
     const read=new Set(readIds),seen=new Set(),out=[];
     for(const event of (Array.isArray(events)?events:[]).slice().sort((a,b)=>String(b?.at||'').localeCompare(String(a?.at||'')))){
@@ -60,7 +75,7 @@
       seen.add(event.id);
       const type=String(event.data?.type||event.type||'');
       if(/(?:^|\.)token(?:\.|$)/i.test(type))continue;
-      const category=NOTIFICATION_RULES.find(rule=>rule.test.test(type))?.category;
+      const category=NOTIFICATION_RULES.find(rule=>rule.type===type)?.category;
       if(!category)continue;
       out.push({id:event.id,category,type,at:event.at||UNKNOWN,taskId:event.taskId||UNKNOWN,
         read:read.has(event.id),approvalTarget:category==='ACTION REQUIRED'?'#hcApprovals':null});

@@ -130,6 +130,20 @@ class ControlPlane {
     return new SecurityPolicy({allowRoots:[...new Set(roots)],...this.policyConfig});
   }
 
+  async assertTaskWritePolicy(policy,{runId,taskId,path:targetPath,approved=false}){
+    const check=policy.check({action:'WRITE',path:targetPath,approved});
+    if(check.allowed)return check;
+    const reasonCode={
+      'Unknown action.':'UNKNOWN_ACTION',
+      'Risk exceeds policy ceiling.':'RISK_CEILING',
+      'Human approval required by policy.':'HUMAN_APPROVAL_REQUIRED',
+      'UNC/network paths are disabled by policy.':'NETWORK_PATH_DENIED',
+      'Path is outside the configured allowlist.':'OUTSIDE_ALLOWLIST'
+    }[check.reason]||'POLICY_DENIED';
+    await this.event('policy.violation',{runId,taskId,action:'WRITE',reasonCode}).catch(()=>{});
+    throw Object.assign(new Error(check.reason),{code:check.requiresApproval?'APPROVAL_REQUIRED':'POLICY_DENIED',policy:check});
+  }
+
   setPolicyConfig(config={}){
     this.policyConfig=compileWorkspacePolicy(config);
     this.policy=new SecurityPolicy({allowRoots:[this.rootDir],...this.policyConfig});
@@ -620,8 +634,7 @@ class ControlPlane {
     const roleConfig=this.normalizeRoleConfig(run.providers,run.models);
     run.providers=roleConfig.providers; run.models=roleConfig.models;
     try{
-      const policyCheck=runPolicy.check({action:'WRITE',path:subRoot,approved:Boolean(task.approvedActions?.includes('WRITE'))});
-      if(!policyCheck.allowed) throw Object.assign(new Error(policyCheck.reason),{code:policyCheck.requiresApproval?'APPROVAL_REQUIRED':'POLICY_DENIED',policy:policyCheck});
+      await this.assertTaskWritePolicy(runPolicy,{runId:run.id,taskId:task.id,path:subRoot,approved:Boolean(task.approvedActions?.includes('WRITE'))});
       if(!this.adapterSecurity.ok) throw new Error('Adapter security audit failed; autonomous execution is blocked.');
       task.phase='EXECUTING'; await this.persist();
       let baseRef=null;

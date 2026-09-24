@@ -2177,9 +2177,9 @@
       "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "tests/event-projection.test.cjs",
+          "file": "tests/notification-catalog.test.cjs",
           "kind": "test",
-          "name": "notifications map six event categories, dedupe, cap, and never emit token notices"
+          "name": "real CI, task, approval and policy event names project to their required categories"
         }
       ],
       "note": "Named deterministic test exists; mapped for manual equivalence review."

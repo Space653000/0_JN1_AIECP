@@ -68,7 +68,7 @@ test('GitHub projection shows existing delivery/CI data and UNKNOWN for missing 
   assert.ok(Object.values(githubView(null,[])).every(v=>v==='UNKNOWN'));
 });
 test('notifications map six event categories, dedupe, cap, and never emit token notices',()=>{
-  const types=['task.queued','task.accepted','provider.degraded','approval.requested','task.failed','policy.violation'];
+  const types=['task.queued','task.accepted','task.recovery_rework','approval.requested','task.failed','policy.violation'];
   const input=types.map((type,i)=>({id:'e'+i,type,at:`2026-09-24T00:00:0${i}Z`,taskId:'T1'}));
   input.push({...input[0]}, {id:'token',type:'model.token',at:'2026-09-24T00:01:00Z'});
   const before=JSON.stringify(input),view=notifications(input,{readIds:['e0']});
@@ -76,7 +76,7 @@ test('notifications map six event categories, dedupe, cap, and never emit token 
   assert.equal(view.length,6);assert.equal(view.find(x=>x.id==='e0').read,true);
   assert.equal(view.find(x=>x.category==='ACTION REQUIRED').approvalTarget,'#hcApprovals');
   assert.equal(JSON.stringify(input),before);
-  assert.equal(new Set(NOTIFICATION_RULES.map(x=>x.category)).size,6);
+  assert.equal(new Set(NOTIFICATION_RULES.map(x=>x.category).filter(Boolean)).size,6);
   const many=Array.from({length:140},(_,i)=>({id:'id'+i,type:'task.queued',at:String(i).padStart(3,'0')}));
   assert.equal(notifications(many).length,100);
 });
