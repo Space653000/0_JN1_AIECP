@@ -7,7 +7,7 @@
 ## 共通執行與回報規則
 
 1. 擁有者在目標 Windows 機器準備與欲驗證的 `source_ref` 相同的**完整 40 碼 commit** checkout；用 `git rev-parse HEAD` 確認 SHA，`node -p "process.arch"` 確認 `x64` 或 `arm64`。操作 repo 擁有者或獲授權的 runner；模型、帳號、憑證由擁有者提供。任何憑證只透過 GitHub Actions secret、程序環境變數或 AECP 的 `credentialRef` 傳入，不寫入 Git、README、artifact 或回報。
-2. 現有 workflow 名稱是 **AECP Real Provider Evidence**，檔案為 `.github/workflows/provider-environment.yml`；它要求標籤 `[self-hosted, Windows, aecp-provider]` 的 runner。`workflow_dispatch` inputs 為 `source_ref`、`mode`、`model`、`local_command`、`local_args_json`、`official_model`、`pega_model`、`pega_wire_api`、`codex_worker_root`、`expected_arch`。其中 `mode` 可選 `ollama`、`opencode-ollama`、`canonical-local`、`local-command`、`codex-official`、`codex-pega`、`multi-codex`、`all`；`expected_arch` 可選 `any`、`x64`、`arm64`。PEGA credential 由 Actions secret `AECP_PEGA_API_KEY` 提供。
+2. 現有 workflow 名稱是 **AECP Real Provider Evidence**，檔案為 `.github/workflows/provider-environment.yml`；它要求標籤 `[self-hosted, Windows, aecp-provider]` 的 runner。`workflow_dispatch` inputs 為 `source_ref`、`mode`、`model`、`local_command`、`local_args_json`、`official_model`、`pega_model`、`pega_wire_api`、`codex_worker_root`、`expected_arch`。其中 `mode` 可選 `ollama`、`opencode-ollama`、`canonical-local`、`local-command`、`codex-official`、`codex-pega`、`multi-codex`、`codex-fault-isolation`、`all`；`expected_arch` 可選 `any`、`x64`、`arm64`。PEGA credential 由 Actions secret `AECP_PEGA_API_KEY` 提供。
 3. **目前派發缺口：** 2026-09-24 在本 repo 查詢 `gh workflow list --all` 未列出此 workflow；`gh run list --workflow provider-environment.yml` 回 404。原因是 workflow 目前只在 PR #7 施工分支，尚未在預設 `main` 提供可派發的 workflow。不得為產證而擅自 merge PR #7。待 workflow 可派發後，擁有者在 GitHub Actions 的 **AECP Real Provider Evidence → Run workflow** 輸入上述欄位；目前可在目標機器的對應 commit checkout，以相同底層 script 手動執行。
 4. **目前的本機執行模板（PowerShell）：** 在目標 checkout 中設定下表相應的環境變數後執行 `node scripts/provider-environment-verify.cjs`。script 的模式由 `AECP_PROVIDER_VERIFY_MODE` 指定，架構由 `AECP_PROVIDER_VERIFY_EXPECTED_ARCH` 指定，輸出路徑由 `AECP_PROVIDER_EVIDENCE_PATH` 指定；未設定輸出路徑時寫入被 Git 忽略的 `artifacts/provider-environment-evidence.json`。使用者須自行以受保護的環境方式設定 `AECP_PEGA_API_KEY`，不可把值貼進命令紀錄。所有操作在授權的測試 checkout／暫存 worktree 進行。
 
@@ -26,15 +26,15 @@
 
 - **前置條件：** 擁有者提供真實可用的 Codex OFFICIAL 帳號、Windows `aecp-provider` runner／目標機器及 Codex CLI。`codex_worker_root`（本機對應 `AECP_PROVIDER_VERIFY_CODEX_ROOT`）須是持久、受保護的目錄；`codex-official/codex-home` 必須已有隔離登入的 `auth.json` 或 `credentials.json`。AECP 的 `loginOfficialCodexWorker()` 實際以該 `CODEX_HOME` 執行 `codex login`；操作者可使用該顯式登入入口，或在受信任互動終端先設定 `$env:CODEX_HOME = Join-Path $env:AECP_PROVIDER_VERIFY_CODEX_ROOT 'codex-official\codex-home'`，再執行 `codex login`。帳號檔不得複製到 PEGA home。
 - **操作：** workflow 設 `mode: codex-official`、`source_ref: <40 碼 SHA>`、`expected_arch: x64` 或 `arm64`、必要時 `official_model` 與 `codex_worker_root`。手動模式設 `AECP_PROVIDER_VERIFY_MODE=codex-official`、`AECP_PROVIDER_VERIFY_EXPECTED_ARCH`、`AECP_PROVIDER_VERIFY_CODEX_ROOT`，選用 `AECP_PROVIDER_VERIFY_OFFICIAL_MODEL`，再執行共通模板的 `node` 指令。script 會先 `prepareOfficial()` 與 `inspect()`，再呼叫真實 CLI。
-- **成功證據：** `codex-official.real-smoke: PASS`；該 check 含 `workerId=codex-official`、`provider`、`model`、`health=READY`、`codexHomeSha256`、`outputSha256`、`timedOut=false`、`aborted=false`；全域 `arch`/`sourceCommit` 相符。此 smoke 驗證輸出 token，**沒有獨立檔案 verifier 欄位**；如要證明真實修改，再用第 3 節並行模式的檔案驗證。
-- **回報：** 共通欄位加上該 check 的 worker 身分、model、health、home hash、output hash、超時／取消旗標。**缺口：** 單 Worker smoke 不提供獨立編輯 verifier 結果。
+- **成功證據：** `codex-official.real-smoke: PASS`；該 check 含 `workerId=codex-official`、`provider`、`model`、`health=READY`、`codexHomeSha256`、`fileVerifier: {path,sha256,expectedSha256Match:true}`、`timedOut=false`、`aborted=false`；全域 `arch`/`sourceCommit` 相符。Worker 在隔離暫存 Git worktree 寫入 `worker_result.txt`，script 獨立讀檔比對，JSON 不含檔案內容。
+- **回報：** 共通欄位加上該 check 的 worker 身分、model、health、home hash、`fileVerifier`、超時／取消旗標。檔案 verifier 的倉庫施工已補；真實供應商執行仍待 ENVIRONMENT 證據。
 
 ## 2. 真實 Codex PEGA 執行
 
 - **前置條件：** 擁有者提供 `https://aiapi.t-cyber.com/v1` 的真實帳號、模型名稱與 `AECP_PEGA_API_KEY`（Actions secret 或受保護的程序環境），以及 Codex CLI/Windows 目標機器。PEGA 的 `CODEX_HOME` 由 `codex_worker_root/codex-pega/codex-home` 建立；`prepareCustom()` 只把 `env_key` 名稱寫入 config，秘密值只進程序環境。
 - **操作：** workflow 設 `mode: codex-pega`、`source_ref`、`pega_model`、`pega_wire_api: responses` **或** `chat`、`codex_worker_root`、`expected_arch`，並在 repository/environment secret 設 `AECP_PEGA_API_KEY`。手動模式設 `AECP_PROVIDER_VERIFY_MODE=codex-pega`、`AECP_PROVIDER_VERIFY_PEGA_MODEL`、`AECP_PROVIDER_VERIFY_PEGA_WIRE_API`、`AECP_PROVIDER_VERIFY_CODEX_ROOT`、`AECP_PROVIDER_VERIFY_EXPECTED_ARCH`，由受保護環境注入 `AECP_PEGA_API_KEY` 後執行共通 `node` 指令。若兩種 wire API 都聲稱支援，分別執行並保存兩份 run；不支援者保留 FAIL／能力不足結果。
-- **成功證據：** `codex-pega.real-smoke: PASS`；含 `workerId=codex-pega`、實際 `model`、`health=READY`、`codexHomeSha256`、`baseUrlSha256`、`wireApi`、`outputSha256`、`timedOut=false`、`aborted=false`，另核對 `sourceCommit`、`arch`、`privacy`。目前 adapter 固定 PEGA URL 並明確選擇 `responses`/`chat`。
-- **回報：** 共通欄位加上 PEGA worker/model/wire API、health、home/base URL hash 及 smoke 結果。**缺口：** 單 Worker smoke 不提供獨立檔案 verifier；對不支援 wire API 的細分錯誤僅記錄安全的 error code，沒有完整 capability negotiation 報告。
+- **成功證據：** `codex-pega.real-smoke: PASS`；含 `workerId=codex-pega`、實際 `model`、`health=READY`、`codexHomeSha256`、`baseUrlSha256`、`wireApi`、`fileVerifier: {path,sha256,expectedSha256Match:true}`、`timedOut=false`、`aborted=false`，另核對 `sourceCommit`、`arch`、`privacy`。Worker 在隔離暫存 Git worktree 寫檔，由 script 獨立讀回驗證。
+- **回報：** 共通欄位加上 PEGA worker/model/wire API、health、home/base URL hash、`fileVerifier`。**缺口：** 對不支援 wire API 的細分錯誤僅記錄安全的 error code，沒有完整 capability negotiation 報告。
 
 ## 3. 真實 OFFICIAL + PEGA 並行執行
 
@@ -61,8 +61,8 @@
 
 - **前置條件：** OpenCode、Ollama 與本地模型在目標機器可用；若測 local/company Worker，擁有者須先確認固定、受信任的可執行檔路徑與其參數。`local_command` 由操作者提供，不從任務文字選取。
 - **操作：** workflow 分別以 `mode: opencode-ollama`、`model: <已安裝模型>` 及 `mode: local-command`、`local_command: <固定路徑>`、`local_args_json: <字串 JSON 陣列，預設 []>`，皆帶 `source_ref`、`expected_arch`。手動分別設 `AECP_PROVIDER_VERIFY_MODE=opencode-ollama`、`AECP_PROVIDER_VERIFY_MODEL`；或 `AECP_PROVIDER_VERIFY_MODE=local-command`、`AECP_PROVIDER_VERIFY_LOCAL_COMMAND`、`AECP_PROVIDER_VERIFY_LOCAL_ARGS_JSON`，再執行共通 `node` 指令。這兩類可在不同機器／run 驗證，無需用 `all` 強迫全部前置條件同時成立。
-- **成功證據：** OpenCode 的 `opencode.health`、`opencode.ollama-real-edit` PASS，後者含 `fileSha256`（script 讀回 `provider_verify.txt` 比對 token）；local command 的 `local-command.health`、`local-command.real-smoke` PASS，含 `resolvedCommandSha256`、`outputSha256`。全域 source/arch/privacy 相符。
-- **回報：** 各 mode 的獨立 run 與 JSON、模型／固定命令的非敏感身分、health、file/output hash。**缺口：** `local-command` 只驗證回傳 token，沒有通用檔案修改 verifier；實際 company Worker 能力需另外定義驗收。
+- **成功證據：** OpenCode 的 `opencode.health`、`opencode.ollama-real-edit` PASS，後者含 `fileSha256`（script 讀回 `provider_verify.txt` 比對 token）；local command 的 `local-command.health`、`local-command.real-smoke` PASS，含 `resolvedCommandSha256`、`fileVerifier: {path,sha256,expectedSha256Match:true}`。local Worker 在隔離暫存 Git worktree 寫入 `worker_result.txt`，script 獨立讀回驗證。全域 source/arch/privacy 相符。
+- **回報：** 各 mode 的獨立 run 與 JSON、模型／固定命令的非敏感身分、health、file hash。**缺口：** 固定 local/company Worker 必須能依任務提示寫檔；只會回傳文字的命令不再能通過此 mode，其其他能力仍需另行定義驗收。
 
 ## 7. 實體 Windows-on-ARM64 啟動／UI smoke
 
@@ -85,13 +85,14 @@
 ## 10. PEGA／OFFICIAL 真實故障隔離
 
 - **前置條件：** 第 1–3 節先於真實兩供應商環境通過，擁有者可安全地讓其中一方暫時不可用並恢復；測試不能危及正式帳號或工作資料。
-- **操作：** 現有 `multi-codex` mode 驗證兩者同時成功，但沒有「讓 PEGA 失敗時 OFFICIAL + Web Safe Bridge 繼續可用」及反向故障注入的 mode。`tests/worker-registry.test.cjs` 等確定性測試只能提供 TESTED 等級；操作者不得把成功並行 run 當成故障隔離證據。
-- **證據與回報：** **缺口**。需 Claude Code 決定失效注入、持續健康／任務結果、Safe Bridge 操作及復原紀錄的驗收協定；在真實斷線情境完成前保持未完成。
+- **操作：** 在真實隔離的目標機器以 workflow `mode: codex-fault-isolation`、`source_ref: <40 碼 SHA>`、`pega_model`、`pega_wire_api`、`codex_worker_root`、`expected_arch` 執行；尚不能派發 workflow 時，設定對應的 `AECP_PROVIDER_VERIFY_MODE=codex-fault-isolation`、`AECP_PROVIDER_VERIFY_PEGA_MODEL`、`AECP_PROVIDER_VERIFY_PEGA_WIRE_API`、`AECP_PROVIDER_VERIFY_CODEX_ROOT`、`AECP_PROVIDER_VERIFY_EXPECTED_ARCH` 與受保護的 `AECP_PEGA_API_KEY`，在目標 checkout 執行共通 `node` 指令。mode 先以子程序環境中的無效 PEGA key 使 PEGA 失敗、OFFICIAL 成功，再用 scratch 全新空 OFFICIAL home 使 OFFICIAL 失敗、真實 PEGA 成功；最後對兩個真實 home 做 `recovery` health 檢查。真實 auth 檔不刪改複製；既有 AECP 管理 `config.toml` 可按 D1 冪等準備。
+- **成功證據：** `codex.fault-isolation: PASS` 的 `stages[]` 各含失敗／健康方的 `workerId`、`status`、`health`、`registryState`（暫存 WorkerRegistry，失敗方 FAILED/UNKNOWN、健康方 IDLE）、`noFallback`、安全錯誤代碼；`protection` 的真實 OFFICIAL auth 摘要不變、PEGA 無 auth 且 config digest 穩定、不同 home/no fallback 等布林值全為 true；`recovery: PASS` 兩側 `health=READY`。`codexHomeSha256` 是**路徑雜湊**，不可當檔案內容保護證據。JSON 只含 auth 檔名、大小與內容 SHA-256 摘要，不含內容。
+- **回報與缺口：** 提供兩階段及 recovery check、`protection`、exact-source SHA、機器架構與操作者聲明。現有 `inspect-workspace` 唯讀執行路徑在 Electron main process，無無 Electron 的純 Node 呼叫入口；本 mode 記錄 `safeBridge.status=OPERATOR_REQUIRED`，**不能**以其 PASS 取代 Safe Bridge 證據。操作者須在實機 UI 於兩階段各執行一次唯讀 Command Card，並按 [ACCEPTANCE 第 5 節](../.ai/ACCEPTANCE.md) 附證。真實 provider 跑過並經 Claude 驗收前仍是 ENVIRONMENT 未完成。
 
 ## 目前缺口清單（供 Claude Code 決策）
 
 1. `provider-environment.yml` 尚不在預設分支，GitHub 手動派發目前不可用；本機 script 可執行，但不具 workflow run/provenance artifact。
-2. 單 Worker OFFICIAL／PEGA smoke 與 local-command smoke 無獨立檔案 verifier；並行 Codex／OpenCode/canonical 模式有確定性檔案驗證。
+2. 單 Worker OFFICIAL／PEGA／local-command 的獨立檔案 verifier 已施工並有確定性測試；仍須在真實目標環境取得對應 PASS artifact。
 3. ARM64 workflow 沒有專屬 runner 標籤，須由擁有者供應正確機器，架構 gate 只負責拒絕錯配。
-4. 實體 ARM64 UI、人類筆電設備／verifier 安全審查、Official Full MCP、真實 PEGA/OFFICIAL 故障隔離，都沒有現成的完整證據產生路徑。
+4. 實體 ARM64 UI、人類筆電設備／verifier 安全審查、Official Full MCP 仍無完整自動證據路徑。故障隔離 mode 可產生兩階段及 recovery 證據，但 Safe Bridge 連續可用仍須實機操作者補證；真實供應商執行尚未完成。
 5. PEGA 不支援 wire API 的真實能力分類尚無獨立報告；僅能保留各次 run 的安全 error code 與 PASS/FAIL。
