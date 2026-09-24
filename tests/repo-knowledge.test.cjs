@@ -5,6 +5,7 @@ const fs=require('node:fs/promises');
 const os=require('node:os');
 const path=require('node:path');
 const {discoverRepoKnowledge,knowledgeManifest,formatKnowledge,FILE_LIMIT,TOTAL_LIMIT}=require('../electron/lib/repo-knowledge.cjs');
+const {scan}=require('../electron/lib/drift-scanner.cjs');
 
 test('repo knowledge discovers layered AGENTS, blueprint entry, scripts and decision names',async t=>{
   const root=await fs.mkdtemp(path.join(os.tmpdir(),'aecp-repo-knowledge-'));t.after(()=>fs.rm(root,{recursive:true,force:true}));
@@ -40,4 +41,26 @@ test('repo knowledge rejects traversal and symlink escape without reading outsid
   const k=await discoverRepoKnowledge(root,{targetPaths:['../escape.js','linked/task.js']});
   assert.ok(k.missing.some(x=>x.startsWith('REJECTED_PATH:')));
   assert.doesNotMatch(JSON.stringify(k),/outside secret/);
+});
+
+test('drift scan warns on missing agent memory and verifier without writing target repo',async t=>{
+  const root=await fs.mkdtemp(path.join(os.tmpdir(),'aecp-drift-knowledge-'));t.after(()=>fs.rm(root,{recursive:true,force:true}));
+  await fs.writeFile(path.join(root,'README.md'),'# Test');
+  const before=await fs.readdir(root);
+  const result=await scan(root,{requiredFiles:['README.md']});
+  assert.ok(result.findings.some(x=>x.type==='AGENTS_MD_MISSING'&&x.severity==='WARNING'));
+  assert.ok(result.findings.some(x=>x.type==='VERIFICATION_COMMAND_MISSING'&&x.severity==='WARNING'));
+  assert.deepEqual(await fs.readdir(root),before);
+});
+
+test('drift scan reports significant STATUS versus Blueprint/23 mtime without editing either',async t=>{
+  const root=await fs.mkdtemp(path.join(os.tmpdir(),'aecp-status-drift-'));t.after(()=>fs.rm(root,{recursive:true,force:true}));
+  await fs.mkdir(path.join(root,'.ai'));await fs.mkdir(path.join(root,'Blueprint'));
+  const ai=path.join(root,'.ai','STATUS.md'),blueprint=path.join(root,'Blueprint','23_IMPLEMENTATION_STATUS.md');
+  await fs.writeFile(ai,'status');await fs.writeFile(blueprint,'blueprint');
+  const old=new Date(Date.now()-45*24*60*60*1000);await fs.utimes(blueprint,old,old);
+  const before=await Promise.all([fs.readFile(ai,'utf8'),fs.readFile(blueprint,'utf8')]);
+  const result=await scan(root,{requiredFiles:[]});
+  assert.ok(result.findings.some(x=>x.type==='STATUS_BLUEPRINT_MTIME_DRIFT'&&x.severity==='WARNING'));
+  assert.deepEqual(await Promise.all([fs.readFile(ai,'utf8'),fs.readFile(blueprint,'utf8')]),before);
 });
