@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { projectEvents } = require('../electron/lib/event-projection.cjs');
-const {timeline,diffView,reviewView,githubView,notifications,NOTIFICATION_RULES,REVIEW_DIMENSIONS}=require('../ui/dashboard-projection.js');
+const {timeline,diffView,reviewView,githubView,notifications,progressView,NOTIFICATION_RULES,REVIEW_DIMENSIONS}=require('../ui/dashboard-projection.js');
 
 test('event projection materializes run task approval and type counters deterministically', () => {
   const projection = projectEvents([
@@ -79,4 +79,16 @@ test('notifications map six event categories, dedupe, cap, and never emit token 
   assert.equal(new Set(NOTIFICATION_RULES.map(x=>x.category)).size,6);
   const many=Array.from({length:140},(_,i)=>({id:'id'+i,type:'task.queued',at:String(i).padStart(3,'0')}));
   assert.equal(notifications(many).length,100);
+});
+test('five-phase progress has deterministic empty, complete, partial-failure and no-mission boundaries',()=>{
+  assert.equal(progressView([],[]).overall,'UNKNOWN');
+  const run={id:'R1',createdAt:'2026-09-24T00:00:00Z',plan:{schema:'aecp.plan/v1'}};
+  assert.equal(progressView([run],[]).overall,0);
+  const complete={runId:'R1',state:'DONE',result:{patch:{sha256:'a'.repeat(64)},tasks:[{verification:{passed:true},review:{schema:'aecp.review/v1',result:'PASS'}}]},evidenceManifest:{sha256:'b'.repeat(64)}};
+  const all=progressView([run],[complete]);
+  assert.equal(all.overall,100);assert.ok(Object.values(all.phases).every(v=>v===100));
+  const failed={runId:'R1',state:'FAILED',result:{tasks:[{verification:{passed:false}}]}};
+  const tasks=[complete,failed],before=JSON.stringify(tasks),partial=progressView([run],tasks);
+  assert.deepEqual(partial.phases,{planning:100,implementation:50,testing:50,review:50,acceptance:50});
+  assert.equal(partial.overall,60);assert.equal(JSON.stringify(tasks),before);
 });

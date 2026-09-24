@@ -49,7 +49,7 @@ function taskNext(task){
 async function refresh(){try{[snapshot,events,remoteDevices]=await Promise.all([window.aecp.getControlPlaneStatus(),window.aecp.getControlPlaneEvents(300),window.aecp.listRemoteDevices()]);if(document.body.dataset.aecpCommand==='1')render();}catch{}}
 function render(){
  const host=document.querySelector('#controlContent');if(!host||document.body.dataset.aecpCommand!=='1')return;
- const runs=snapshot.runs||[],tasks=snapshot.tasks||[],workers=snapshot.workers||[],apps=snapshot.approvals||[],running=runs.filter(x=>x.state==='RUNNING').length,queued=tasks.filter(x=>x.state==='QUEUED').length,waiting=apps.filter(x=>x.state==='WAITING').length,done=tasks.filter(x=>x.state==='DONE').length,total=tasks.length,pct=total?Math.round(done*100/total):0;
+ const runs=snapshot.runs||[],tasks=snapshot.tasks||[],workers=snapshot.workers||[],apps=snapshot.approvals||[],running=runs.filter(x=>x.state==='RUNNING').length,queued=tasks.filter(x=>x.state==='QUEUED').length,waiting=apps.filter(x=>x.state==='WAITING').length,done=tasks.filter(x=>x.state==='DONE').length,total=tasks.length,pct=runs.length&&total?Math.round(done*100/total):'UNKNOWN';
  let h='';
  h+='<div class="hc-shell"><div class="hc-toolbar"><div><span class="eyebrow">HARNESS COMMAND CENTER</span><h1>AI Engineering Team Control Plane</h1><p>Durable queue · scheduler · leases · recovery · approvals · event journal · multi-worker execution</p></div><div class="hc-toolbar-actions"><button class="secondary-button" id="hcRefresh">Refresh</button><button class="primary-button" id="hcEmergency">STOP ALL</button></div></div>';
  const cpSignal=sig(snapshot.schema==='aecp.control-plane/v1'?'READY':'UNKNOWN',['READY']);
@@ -97,19 +97,20 @@ function render(){
    +'<div><b>REAL PROVIDER EVIDENCE</b><span class="status warn">ENVIRONMENT GATE</span><small>Requires exact-source self-hosted Windows evidence; never inferred from source tests or health alone.</small></div>'
    +'</div><div class="hc-pending"><strong>V3.0 rule:</strong> repository implementation and CI can prove architecture/runtime invariants, but real OFFICIAL/PEGA model execution remains an ENVIRONMENT gate until the dedicated evidence workflow produces a matching artifact.</div></section>';
  const projected=snapshot.eventProjection?.total||events.length;
- h+='<div class="hc-metrics"><div><strong>'+running+'</strong><span>RUNNING</span></div><div><strong>'+queued+'</strong><span>QUEUED</span></div><div><strong>'+waiting+'</strong><span>APPROVAL</span></div><div><strong>'+done+'/'+total+'</strong><span>TASKS DONE</span></div><div><strong>'+pct+'%</strong><span>PROGRESS</span></div><div><strong>'+projected+'</strong><span>JOURNALED EVENTS</span></div></div>';
+ h+='<div class="hc-metrics"><div><strong>'+running+'</strong><span>RUNNING</span></div><div><strong>'+queued+'</strong><span>QUEUED</span></div><div><strong>'+waiting+'</strong><span>APPROVAL</span></div><div><strong>'+done+'/'+total+'</strong><span>TASKS DONE</span></div><div><strong>'+(typeof pct==='number'?pct+'%':'UNKNOWN')+'</strong><span>PROGRESS</span></div><div><strong>'+projected+'</strong><span>JOURNALED EVENTS</span></div></div>';
  h+='<section class="hc-card"><div class="section-title"><h2>Worker Runtime</h2><span class="count-badge">'+workers.length+'</span></div><div class="hc-task-grid">'
    +(workers.map(w=>{const health=w.health||'UNKNOWN',healthClass=health==='READY'?'ready':['DEGRADED','AUTH_REQUIRED'].includes(health)?'warn':health==='UNKNOWN'?'neutral':'bad';return '<article class="hc-task hc-worker"><div class="hc-task-head"><strong>'+esc(w.name||w.id)+'</strong><span class="status '+cls(w.runtimeState)+'">'+esc(w.runtimeState||'UNKNOWN')+'</span></div>'
     +'<small>Worker: '+esc(w.id||'UNKNOWN')+'</small>'
     +'<small>Provider: '+esc(w.providerName||w.providerId||'UNKNOWN')+'</small>'
     +'<small>Model: '+esc(w.model||'UNKNOWN')+'</small>'
     +'<small>Role: '+esc(w.role||'UNKNOWN')+'</small>'
-    +'<small>Task: '+esc(w.taskId||'—')+'</small>'
-    +'<small>Runtime: '+esc(elapsed(w.startedAt))+'</small>'
-    +'<small>Worktree: '+esc(w.worktree||'—')+'</small>'
+    +'<small>Task: '+esc(w.taskId||'UNKNOWN')+'</small>'
+    +'<small>Runtime: '+esc(w.startedAt?elapsed(w.startedAt):'UNKNOWN')+'</small>'
+    +'<small>Repository: '+esc(w.repository||'UNKNOWN')+'</small>'
+    +'<small>Worktree: '+esc(w.worktree||'UNKNOWN')+'</small>'
     +'<small>Verify: '+esc(w.verificationState||'UNKNOWN')+'</small>'
-    +'<small>Heartbeat: '+esc(fmt(w.heartbeatAt))+'</small>'
-    +'<small>Cancel: '+esc(w.cancelState||'—')+'</small>'
+    +'<small>Heartbeat: '+esc(w.heartbeatAt?fmt(w.heartbeatAt):'UNKNOWN')+'</small>'
+    +'<small>Cancel: '+esc(w.cancelState||'UNKNOWN')+'</small>'
     +'<span class="status '+healthClass+'">Health '+esc(health)+'</span>'
     +(w.healthDetail?'<small>'+esc(w.healthDetail)+'</small>':'')+'</article>';}).join('')||'<div class="empty-list">No registered workers.</div>')
    +'</div></section>';
@@ -156,6 +157,9 @@ function render(){
  const notifications=window.AECPDashboard.notifications(events,{readIds:[...readNotificationIds]});
  h+='<section class="hc-card" id="hcNotifications"><div class="section-title"><h2>'+esc(tr('dashboard.notifications','Notifications'))+'</h2><span class="count-badge">'+notifications.length+'</span></div><div class="hc-events">'
    +(notifications.map(n=>'<div class="hc-event hc-notification" aria-label="'+esc(n.category)+' '+esc(n.type)+'"><time>'+esc(fmt(n.at))+'</time><b>'+(n.category==='CRITICAL'||n.category==='ACTION REQUIRED'?'⚠ ':'')+esc(n.category)+'</b><span>'+esc(n.type)+' · '+esc(n.taskId)+'</span><span>'+(n.approvalTarget?'<a href="#hcApprovals">'+esc(tr('dashboard.openApprovals','Open approvals'))+'</a> ':'')+'<button type="button" class="secondary-button" data-read-notification="'+esc(n.id)+'" aria-pressed="'+String(n.read)+'">'+esc(n.read?tr('dashboard.read','Read'):tr('dashboard.markRead','Mark read'))+'</button></span></div>').join('')||'<div class="empty-list">UNKNOWN · '+esc(tr('dashboard.noNotifications','No verified notifications'))+'</div>')+'</div></section>';
+ const progress=window.AECPDashboard.progressView(runs,tasks,focusTask?.runId);
+ h+='<section class="hc-card" id="hcProgress"><div class="section-title"><h2>'+esc(tr('dashboard.progress','Mission progress'))+'</h2><span class="status neutral">'+esc(progress.overall)+(typeof progress.overall==='number'?'%':'')+'</span></div><small>'+esc(tr('dashboard.progressFormula','Each phase is verified task count / mission task count; overall is the rounded mean of five phases. No mission is UNKNOWN.'))+'</small><div class="hc-detail-grid">'
+   +window.AECPDashboard.PROGRESS_PHASES.map(p=>'<div>'+esc(tr('dashboard.progress.'+p,p))+': <strong>'+esc(progress.phases[p])+(typeof progress.phases[p]==='number'?'%':'')+'</strong>'+(typeof progress.phases[p]==='number'?'<progress value="'+progress.phases[p]+'" max="100" aria-label="'+esc(tr('dashboard.progress.'+p,p))+'"></progress>':'')+'</div>').join('')+'</div></section>';
  host.innerHTML=h;
  document.querySelectorAll('[data-select-task]').forEach(b=>b.onclick=()=>{selectedTaskId=b.dataset.selectTask;selectedEventId=null;render();});
  document.querySelectorAll('[data-event-id]').forEach(b=>b.onclick=()=>{selectedEventId=b.dataset.eventId;render();});

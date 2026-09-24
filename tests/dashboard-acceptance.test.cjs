@@ -69,6 +69,21 @@ test('Notification view uses event projection and presentation-only read state',
   assert.match(ui,/href=\\?"#hcApprovals/);
   assert.match(ui,/⚠ /);
 });
+test('Progress overview renders five named phases and UNKNOWN instead of fake mission progress',()=>{
+  const ui=read('ui/harness-console.js');
+  assert.match(ui,/AECPDashboard\.progressView\(runs,tasks/);
+  assert.match(ui,/PROGRESS_PHASES/);
+  assert.match(ui,/No mission is UNKNOWN/);
+  assert.match(ui,/<progress value=/);
+  assert.match(ui,/typeof pct==='number'\?pct\+'%':'UNKNOWN'/);
+});
+test('new Dashboard labels exist in both English and Traditional Chinese',()=>{
+  const {DICTIONARIES}=require('../ui/i18n.js');
+  for(const key of ['dashboard.timeline','dashboard.diff','dashboard.review','dashboard.github','dashboard.notifications','dashboard.progress',
+    'dashboard.progress.planning','dashboard.progress.implementation','dashboard.progress.testing','dashboard.progress.review','dashboard.progress.acceptance']){
+    assert.ok(DICTIONARIES.en[key],key+' missing en');assert.ok(DICTIONARIES['zh-TW'][key],key+' missing zh-TW');
+  }
+});
 
 test('Dashboard and shell accessibility provide keyboard focus text status and reduced motion',()=>{
   const html=read('ui/index.html');
@@ -87,7 +102,7 @@ test('Dashboard and shell accessibility provide keyboard focus text status and r
 
 test('Command Center projects canonical Multi-Worker identity, health and isolated cancellation controls', async () => {
   const dashboard=read('ui/harness-console.js');
-  for(const term of ['Worker Runtime','Provider: ','Model: ','Role: ','Task: ','Runtime: ','Worktree: ','Verify: ','Heartbeat: ','Cancel: ','Health ']){
+  for(const term of ['Worker Runtime','Provider: ','Model: ','Role: ','Task: ','Runtime: ','Repository: ','Worktree: ','Verify: ','Heartbeat: ','Cancel: ','Health ']){
     assert.ok(dashboard.includes(term), 'missing dashboard worker field: '+term);
   }
   assert.ok(dashboard.includes('snapshot.workers'));

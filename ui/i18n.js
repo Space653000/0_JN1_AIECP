@@ -85,7 +85,14 @@ const DICTIONARIES=Object.freeze({
     'dashboard.openApprovals':'Open approvals',
     'dashboard.read':'Read',
     'dashboard.markRead':'Mark read',
-    'dashboard.noNotifications':'No verified notifications'
+    'dashboard.noNotifications':'No verified notifications',
+    'dashboard.progress':'Mission progress',
+    'dashboard.progressFormula':'Each phase is verified task count / mission task count; overall is the rounded mean of five phases. No mission is UNKNOWN.',
+    'dashboard.progress.planning':'Planning',
+    'dashboard.progress.implementation':'Implementation',
+    'dashboard.progress.testing':'Testing',
+    'dashboard.progress.review':'Review',
+    'dashboard.progress.acceptance':'Acceptance'
   }),
   'zh-TW':Object.freeze({
     'workspace.choose':'選擇工作區',
@@ -171,7 +178,14 @@ const DICTIONARIES=Object.freeze({
     'dashboard.openApprovals':'開啟核准佇列',
     'dashboard.read':'已讀',
     'dashboard.markRead':'標為已讀',
-    'dashboard.noNotifications':'尚無可驗證通知'
+    'dashboard.noNotifications':'尚無可驗證通知',
+    'dashboard.progress':'任務進度',
+    'dashboard.progressFormula':'各階段為具證據任務數除以本 Mission 任務數；總進度為五階段平均後四捨五入。無 Mission 顯示 UNKNOWN。',
+    'dashboard.progress.planning':'規劃',
+    'dashboard.progress.implementation':'實作',
+    'dashboard.progress.testing':'測試',
+    'dashboard.progress.review':'審查',
+    'dashboard.progress.acceptance':'驗收'
   })
 });
 

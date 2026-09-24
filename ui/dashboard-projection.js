@@ -68,5 +68,27 @@
     }
     return out;
   }
-  return Object.freeze({UNKNOWN,timeline,diffView,reviewView,githubView,notifications,NOTIFICATION_RULES,REVIEW_DIMENSIONS});
+  const PROGRESS_PHASES=Object.freeze(['planning','implementation','testing','review','acceptance']);
+  // For N mission tasks: Planning=100 only with durable Plan and N>0;
+  // Implementation=verified patches/N; Testing=deterministic PASS/N;
+  // Review=valid review PASS/N; Acceptance=DONE plus hashed evidence/N.
+  // Each ratio is rounded to integer percent; overall is the rounded mean.
+  // A mission with zero tasks is 0%; no mission is UNKNOWN, never a fake 0%.
+  function progressView(runs,tasks,runId){
+    const missions=Array.isArray(runs)?runs:[];
+    const run=missions.find(r=>r.id===runId)||missions.slice().sort((a,b)=>String(b?.createdAt||'').localeCompare(String(a?.createdAt||'')))[0];
+    if(!run)return {state:UNKNOWN,runId:UNKNOWN,overall:UNKNOWN,phases:Object.fromEntries(PROGRESS_PHASES.map(p=>[p,UNKNOWN]))};
+    const members=(Array.isArray(tasks)?tasks:[]).filter(t=>t?.runId===run.id);
+    const n=members.length,percent=count=>n?Math.round(100*count/n):0;
+    const inner=t=>t?.result?.tasks?.at?.(-1)||t?.result?.tasks?.[t?.result?.tasks?.length-1];
+    const phases={
+      planning:n&&run.plan?100:0,
+      implementation:percent(members.filter(t=>Boolean(t?.result?.patch)).length),
+      testing:percent(members.filter(t=>inner(t)?.verification?.passed===true).length),
+      review:percent(members.filter(t=>inner(t)?.review?.schema==='aecp.review/v1'&&inner(t).review.result==='PASS').length),
+      acceptance:percent(members.filter(t=>t.state==='DONE'&&Boolean(t.evidenceManifest?.sha256)).length)
+    };
+    return {state:'AVAILABLE',runId:run.id,overall:Math.round(PROGRESS_PHASES.reduce((sum,p)=>sum+phases[p],0)/5),phases};
+  }
+  return Object.freeze({UNKNOWN,timeline,diffView,reviewView,githubView,notifications,progressView,PROGRESS_PHASES,NOTIFICATION_RULES,REVIEW_DIMENSIONS});
 });
