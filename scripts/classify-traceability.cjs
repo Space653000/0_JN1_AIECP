@@ -19,7 +19,7 @@ function set(id,status,fields){
   if(!['GAP','PARTIAL','CONFIRMED_GAP'].includes(status))delete item.workOrder;
   changed.push(id);
 }
-const I=(id,file,name)=>set(id,'IMPLEMENTED',{evidence:[{file,kind:'test',name}],note:'Clause-specific named test observes the cited behavior.'});
+const I=(id,file,name,covers)=>set(id,'IMPLEMENTED',{evidence:[{file,kind:'test',name,...(covers?{covers}:{})}],note:'Clause-specific named test observes the cited behavior.'});
 const P=(id,file,name,note)=>set(id,'PARTIAL',{evidence:[{file,kind:'code',name}],workOrder:'UNASSIGNED',note});
 const C=(id,file,symbol,description,note)=>set(id,'CONFIRMED_GAP',{evidence:[{file,symbol,description}],workOrder:'UNASSIGNED',note});
 const M=(id,section,note)=>set(id,'MANUAL',{evidence:[],protocol:{file:'.ai/ACCEPTANCE.md',section},note});
@@ -163,7 +163,87 @@ if(batch==='0010'){
 }
 
 if(batch==='0011'){
-  throw Error('0011 classification table is not yet populated.');
+  // Visual/installed-product claims cannot be promoted by source inspection.
+  M('B01-A11Y-L172','### 6.1 視覺、對比與縮放','Measure text contrast at 4.5:1 in both themes on installed UI.');
+  I('B01-A11Y-L174','tests/i18n-accessibility.test.cjs','HTML exposes keyboard and screen-reader landmarks');
+  M('B01-A11Y-L175','### 6.1 視覺、對比與縮放','Inspect every status with color removed and screen reader output.');
+  I('B01-A11Y-L176','tests/i18n-accessibility.test.cjs','styles provide visible focus and reduced-motion support');
+  M('B01-A11Y-L177','### 6.1 視覺、對比與縮放','Windows 125, 150 and 200 percent scaling needs an installed-app layout check.');
+  M('B01-A11Y-L178','### 6.1 視覺、對比與縮放','1366x768 and 1920x1080 layouts need visual acceptance.');
+  I('B01-A11Y-L179','tests/i18n-accessibility.test.cjs','theme control supports system dark and light modes and follows OS changes in system mode');
+  I('B01-A11Y-L180','tests/i18n-accessibility.test.cjs','localization framework supports English and Traditional Chinese with persisted locale');
+  D('B01-L148','Embedded ChatGPT is explicitly optional and is not implemented; the supported official path is an external browser without privileged preload.');
+  M('B01-L160','### 6.1 視覺、對比與縮放','Relative brand prominence needs human inspection of the installed interface.');
+  M('B01-L27','### 6.3 Electron 實機流程','Official browser externalized while the AECP right pane stays usable needs installed-app observation.');
+  M('B01-L6','### 6.1 視覺、對比與縮放','Branding and current trademark presentation need owner review.');
+  P('B01-L67','ui/app.js','engineering-mode','Mode only changes renderer projection; a cross-mode policy-decision equivalence test is missing.');
+
+  P('B02-L109','electron/lib/lock-manager.cjs','recover','Expired locks are recovered and persisted, but the persisted record does not retain the reason for release.');
+  D('B02-L156','Introductory line to the five startup requirements; inspect the numbered child clauses rather than treating this colon as an independent executable behavior.');
+  I('B02-L161','tests/control-plane.test.cjs','restart recovery never auto-resumes a mutating mission even when autoResume was enabled');
+  P('B02-L207','electron/lib/control-plane.cjs','createMission','Durable tasks and bounded scheduler exist, but dependency and decision-explanation persistence across restart lacks a combined proof.');
+  P('B02-L95','electron/lib/security-policy.cjs','SecurityPolicy','Policy decisions are external to model text; end-to-end malicious-model permission-escalation injection is not proven.');
+
+  P('B03-L113','electron/main.cjs','saveProvider','Encrypted credential store exists, but an exhaustive tracked-YAML/JSON and all-provider negative leakage test is absent.');
+  P('B03-L116','electron/main.cjs','saveProvider','Provider UI uses stored-credential boolean; every read response needs a plaintext-absence test.');
+  P('B03-L129','electron/lib/provider-router.cjs','health','Bounded health checks have tests, but Safe Bridge survival during a real optional-provider outage remains an environment/manual gate.');
+  P('B03-L143','electron/lib/provider-router.cjs','ProviderRouter','Explicit role selection exists; private-context-to-cloud failover needs a negative integration test.');
+  P('B03-L168','electron/lib/execution-contract.cjs','contextCapsuleRef','Versioned artifact handoff exists, but the full seven-artifact correlation chain is not asserted.');
+  P('B03-L172','electron/lib/harness.cjs','maxTurns','Hard budgets exist; attention-optimization is a product metric without a deterministic no-idle-call test.');
+  P('B03-L5','electron/lib/provider-router.cjs','ProviderRouter','Common adapter interface exists; substitution across all supported provider kinds lacks a state-invariance test.');
+  P('B03-L56','electron/lib/codex-worker-runtime.cjs','codexHome','Distinct CODEX_HOME directories are tested; exhaustive session/runtime-state non-sharing needs a negative integration test.');
+  P('B03-L68','electron/lib/codex-worker-runtime.cjs','normalizeWireApi','Wire API normalization exists; real endpoint Chat Completions/Responses compatibility is environment-dependent.');
+  P('B03-L70','electron/lib/control-plane.cjs','builderWorkers','Worker selection is identity-based; all Mission/Queue/Harness branches need an explicit provider-neutral invariant test.');
+
+  P('B05-L118','electron/lib/github-webhook.cjs','GitHubWebhookReceiver','Signed webhook correlation exists; repository_dispatch/workflow_dispatch versioning and task-state non-mutation need end-to-end evidence.');
+  P('B05-L132','electron/lib/control-plane.cjs','schedulerDecision','Task worktree locks exist; dependency analysis before parallel launch needs dedicated proof.');
+  P('B05-L20','electron/lib/resource-manager.cjs','ResourceManager','Local discovery and remote normalization exist; embedded URL credential redaction across every log needs a negative test.');
+  P('B05-L34','electron/lib/github-gateway.cjs','GitHubGateway','Git/gh and signed webhook paths exist; full capability limitation of every delivery action needs an integration test. Direct OAuth is optional.');
+  P('B05-L5','electron/lib/resource-manager.cjs','ResourceManager','Local Git works without GitHub login; multiple remotes/accounts bound to one Workspace lacks an end-to-end test.');
+  P('B05-L88','electron/lib/lock-manager.cjs','LockManager','Task-scoped write locks exist, but deterministic cross-repository acquisition ordering or BLOCKED fallback lacks a test.');
+  P('B05-L93','electron/lib/control-plane.cjs','builderWorkers','Worker pool uses task worktrees; a direct OFFICIAL/PEGA same-worktree collision rejection test is absent.');
+
+  M('B14-L5','### 6.3 Electron 實機流程','Product cohesion is subjective and needs installed-app operator assessment.');
+  P('B14-L15','electron/lib/guidance.cjs','recommendNextAction','Guidance detects safe next steps, but every data-access/blast-radius change needs explicit boundary coverage.');
+  D('B14-L165','Introductory colon to Goal Loop required-field list; the nine concrete field entries are assessed separately.');
+  I('B14-L193','tests/human-controls.test.cjs','Goal Loop is visibly bounded and exposes deterministic terminal states');
+  P('B14-L263','electron/lib/provider-router.cjs','ProviderRouter','Harness uses provider roles, but full vendor-substitution invariance is not yet established.');
+  P('B14-L292','electron/lib/harness.cjs','runHarness','Evidence/checkpoints are owned by Harness; provider-failure workspace-integrity injection needs end-to-end proof.');
+  I('B14-L298','tests/human-controls.test.cjs','Goal Loop provides bounded task-shaped presets without bypassing approval policy');
+  P('B14-L349','electron/lib/security-policy.cjs','SecurityPolicy','Risk policy gates actions; all Goal Loop UI choices and policy outcomes need a cross-view equivalence test.');
+  P('B14-L419','electron/lib/control-plane.cjs','recover','Restart recovery exists; complete loop/task/evidence reconstruction needs a full-process crash test.');
+  P('B14-L438','electron/lib/harness.cjs','runHarness','Autonomy is conditional on capabilities; no proof that every listed provider/adapter/policy combination supports all required steps.');
+  P('B14-L88','electron/main.cjs','workspace:select','Workspace selection is explicit; negative whole-disk scan audit should include future onboarding paths.');
+  for(const [id,field] of Object.entries({
+    'B14-REQUIRED-L167':'goal','B14-REQUIRED-L168':'definitionOfDone',
+    'B14-REQUIRED-L169':'maxIterations','B14-REQUIRED-L170':'checkpointEvery',
+    'B14-REQUIRED-L171':'workspaceId','B14-REQUIRED-L172':'providerPolicy',
+    'B14-REQUIRED-L173':'permissionPolicy','B14-REQUIRED-L174':'verificationPolicy',
+    'B14-REQUIRED-L175':'stopConditions'
+  }))P(id,'ui/app.js',field,`Web Goal Loop prompt contains ${field}; persisted local Harness contract uses a different representation, so cross-mode field equivalence is not established.`);
+
+  P('B15-L117','electron/lib/windows-desktop-adapter.cjs','listBrowserWindows','Adapters are fixed-capability and deny by default; no test asserts the UI never reports an adapter as available when detection fails.');
+  P('B15-L12','electron/main.cjs','chatgpt:open','Official browser and GitHub credentials are separate in code; a credential-cross-contamination regression test is absent.');
+  P('B15-L291','electron/lib/update-state.cjs','targetVersion','Universal bootstrap is wired, but ordinary installed upgrade architecture choice requires device evidence.');
+  D('B15-L324','Introductory non-goal heading; individual prohibitions must be assessed separately rather than calling the colon a runtime capability.');
+  P('B15-L40','electron/lib/update-state.cjs','createUpdateTransaction','Verified release transaction exists; an installed-app test should prove chat-supplied or arbitrary-branch artifacts are never installed.');
+  D('B15-L61','Future first-party OAuth/device-flow adapter is expressly optional; existing Git/gh route is assessed separately.');
+  P('B15-L84','electron/lib/authenticode.cjs','normalizeThumbprint','Signer pin and rollback verification have automated tests; actual signed stable installer needs owner certificate and device evidence.');
+  P('B15-L90','electron/lib/update-state.cjs','ROLLBACK_REQUIRED','Rollback state machine is tested, but stable installer rollback on real installed machines remains an environment gate.');
+
+  P('B16-L171','electron/lib/provider-usage.cjs','ProviderUsageStore','Usage/status surface exists; every adapter quota representation and no-unlimited implication needs a UI audit.');
+  P('B16-L190','electron/lib/provider-router.cjs','ProviderRouter','Governed CLI roles and isolated Codex workers exist; quota/capability behavior for all four CLIs is not environment-proven.');
+  P('B16-L229','electron/main.cjs','getOrCreateLocalMcpToken','Local MCP bearer uses safeStorage; official tunnel credentials require product/environment verification.');
+  P('B16-L233','electron/mcp-server.mjs','startLocalMcpServer','MCP tools are semantic in preview; a complete negative unrestricted-shell contract test is pending.');
+  I('B16-L286','tests/human-controls.test.cjs','Execution Mode recommendation is factual and never promotes generic MCP endpoint health to Official Full MCP');
+  P('B16-L292','electron/lib/execution-contract.cjs','makeExecutionContract','Canonical task contract exists; all execution modes need the same-field round-trip test.');
+  P('B16-L335','electron/main.cjs','chatgpt:open','Official browser opens externally; a full remote-supervision no-DOM-scraping audit is missing.');
+  O('B16-L85','Partner Center identity, publisher and certification values must be supplied by owner; repository wiring does not close the gate.');
+  O('B16-L91','Partner Center values must match the owner account exactly; no source-only evidence can prove this.');
+
+  P('B12-L134','electron/lib/state-migration.cjs','schemaVersion','Blueprint owner decision D7 accepts the persisted aecp.<name>/vN schema identifier as equivalent to schemaVersion, so no rename is needed. Remaining gap: a test proving every persisted store carries a versioned schema identifier.');
+  const missing=initialGapIds.filter(id=>!changed.includes(id));
+  if(missing.length)throw Error(`0011 batch incomplete: ${missing.join(', ')}`);
 }
 if(batch==='sync-shared')items.get('R8.2').evidence[0].name='engineering-mode';
 if(batch==='sync-shared')items.get('B18-13-14').evidence=[{file:'tests/autonomy.test.cjs',kind:'test',name:'bounded runner isolates writes in worktree then applies only after explicit apply call'}];

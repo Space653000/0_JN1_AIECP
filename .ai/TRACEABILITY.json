@@ -9,10 +9,13 @@
         "section": "## 10. Accessibility and quality"
       },
       "text": "- 4.5:1 text contrast target",
-      "status": "GAP",
+      "status": "MANUAL",
       "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Measure text contrast at 4.5:1 in both themes on installed UI.",
+      "protocol": {
+        "file": ".ai/ACCEPTANCE.md",
+        "section": "### 6.1 視覺、對比與縮放"
+      }
     },
     {
       "id": "B01-A11Y-L173",
@@ -38,10 +41,15 @@
         "section": "## 10. Accessibility and quality"
       },
       "text": "- semantic buttons/labels",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/i18n-accessibility.test.cjs",
+          "kind": "test",
+          "name": "HTML exposes keyboard and screen-reader landmarks"
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "B01-A11Y-L175",
@@ -50,10 +58,13 @@
         "section": "## 10. Accessibility and quality"
       },
       "text": "- no color-only status",
-      "status": "GAP",
+      "status": "MANUAL",
       "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Inspect every status with color removed and screen reader output.",
+      "protocol": {
+        "file": ".ai/ACCEPTANCE.md",
+        "section": "### 6.1 視覺、對比與縮放"
+      }
     },
     {
       "id": "B01-A11Y-L176",
@@ -62,10 +73,13 @@
         "section": "## 10. Accessibility and quality"
       },
       "text": "- reduced-motion friendly",
-      "status": "GAP",
+      "status": "MANUAL",
       "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Claude Code sabotage check: the cited test only greps ui/styles.css for the text \":focus-visible\", so it still passes if the outline is removed. Visible keyboard focus needs the human keyboard and screen reader traversal in the protocol.",
+      "protocol": {
+        "file": ".ai/ACCEPTANCE.md",
+        "section": "### 6.2 輔助技術"
+      }
     },
     {
       "id": "B01-A11Y-L177",
@@ -74,10 +88,13 @@
         "section": "## 10. Accessibility and quality"
       },
       "text": "- 125–200% Windows scaling support",
-      "status": "GAP",
+      "status": "MANUAL",
       "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Windows 125, 150 and 200 percent scaling needs an installed-app layout check.",
+      "protocol": {
+        "file": ".ai/ACCEPTANCE.md",
+        "section": "### 6.1 視覺、對比與縮放"
+      }
     },
     {
       "id": "B01-A11Y-L178",
@@ -86,10 +103,13 @@
         "section": "## 10. Accessibility and quality"
       },
       "text": "- useful at 1366×768 and optimized for 1920×1080+",
-      "status": "GAP",
+      "status": "MANUAL",
       "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "1366x768 and 1920x1080 layouts need visual acceptance.",
+      "protocol": {
+        "file": ".ai/ACCEPTANCE.md",
+        "section": "### 6.1 視覺、對比與縮放"
+      }
     },
     {
       "id": "B01-A11Y-L179",
@@ -98,10 +118,16 @@
         "section": "## 10. Accessibility and quality"
       },
       "text": "- dark/light/system theme",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "ui/app.js",
+          "kind": "code",
+          "name": "cycleTheme"
+        }
+      ],
+      "note": "The existing test asserts the presence of source text in ui/app.js, not the behavior. A DOM-level test of system, dark and light theme resolution and OS change events is still needed.",
+      "workOrder": "UNASSIGNED"
     },
     {
       "id": "B01-A11Y-L180",
@@ -110,10 +136,15 @@
         "section": "## 10. Accessibility and quality"
       },
       "text": "- Traditional Chinese and English architecture-ready; bootstrap UI begins bilingual-friendly with plain English labels and concise helper text.",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/i18n-accessibility.test.cjs",
+          "kind": "test",
+          "name": "localization framework supports English and Traditional Chinese with persisted locale"
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "B01-L148",
@@ -122,10 +153,13 @@
         "section": "## 7. Official ChatGPT pane"
       },
       "text": "- Embedded surface may only be explored if it remains an unmodified official origin with no privileged preload, interception, scraping or unsupported authentication behavior. It is never the sole supported path.",
-      "status": "GAP",
+      "status": "DELIBERATE_NON_GOAL",
       "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Embedded ChatGPT is explicitly optional and is not implemented; the supported official path is an external browser without privileged preload.",
+      "decisionRef": {
+        "file": ".ai/BLUEPRINT.md",
+        "section": "## 4. 永久邊界 / Non-Goals"
+      }
     },
     {
       "id": "B01-L160",
@@ -134,10 +168,13 @@
         "section": "## 8. ChatGPT-like visual language without impersonation"
       },
       "text": "AECP's own logo/name must remain more prominent than provider branding.",
-      "status": "GAP",
+      "status": "MANUAL",
       "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Relative brand prominence needs human inspection of the installed interface.",
+      "protocol": {
+        "file": ".ai/ACCEPTANCE.md",
+        "section": "### 6.1 視覺、對比與縮放"
+      }
     },
     {
       "id": "B01-L27",
@@ -146,10 +183,13 @@
         "section": "## 2. Default shell"
       },
       "text": "The right pane can become a compact status/launcher when ChatGPT is open in an external browser. AECP must remain fully usable in that state.",
-      "status": "GAP",
+      "status": "MANUAL",
       "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Official browser externalized while the AECP right pane stays usable needs installed-app observation.",
+      "protocol": {
+        "file": ".ai/ACCEPTANCE.md",
+        "section": "### 6.3 Electron 實機流程"
+      }
     },
     {
       "id": "B01-L6",
@@ -158,10 +198,13 @@
         "section": "## 1. UX principles"
       },
       "text": "- AECP has its own name/icon. OpenAI/ChatGPT branding is used only to identify the official external provider surface and must follow current brand rules.",
-      "status": "GAP",
+      "status": "MANUAL",
       "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Branding and current trademark presentation need owner review.",
+      "protocol": {
+        "file": ".ai/ACCEPTANCE.md",
+        "section": "### 6.1 視覺、對比與縮放"
+      }
     },
     {
       "id": "B01-L67",
@@ -170,10 +213,16 @@
         "section": "## 4. Beginner vs Engineering mode"
       },
       "text": "Changing mode never changes permissions by itself.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "ui/app.js",
+          "kind": "code",
+          "name": "engineering-mode"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Mode only changes renderer projection; a cross-mode policy-decision equivalence test is missing."
     },
     {
       "id": "B02-L109",
@@ -182,10 +231,16 @@
         "section": "## 6. Workspace locks and concurrency"
       },
       "text": "A stale write lock never disappears silently; recovery records why it was released.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/lock-manager.cjs",
+          "kind": "code",
+          "name": "recover"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Expired locks are recovered and persisted, but the persisted record does not retain the reason for release."
     },
     {
       "id": "B02-L156",
@@ -194,10 +249,13 @@
         "section": "## 10. Crash/restart behavior"
       },
       "text": "On startup, the mutating runtime must:",
-      "status": "GAP",
+      "status": "DELIBERATE_NON_GOAL",
       "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Introductory line to the five startup requirements; inspect the numbered child clauses rather than treating this colon as an independent executable behavior.",
+      "decisionRef": {
+        "file": ".ai/BLUEPRINT.md",
+        "section": "## 4. 永久邊界 / Non-Goals"
+      }
     },
     {
       "id": "B02-L161",
@@ -206,10 +264,15 @@
         "section": "## 10. Crash/restart behavior"
       },
       "text": "5. never blindly replay a mutating operation.",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/control-plane.test.cjs",
+          "kind": "test",
+          "name": "restart recovery never auto-resumes a mutating mission even when autoResume was enabled"
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "B02-L207",
@@ -218,10 +281,16 @@
         "section": "## 12. Harness Engineering expansion"
       },
       "text": "Tasks are durable objects with dependencies, priority, role, Workspace/repository bindings, limits, verifier profile and risk policy. Scheduler decisions must remain explainable after restart.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/control-plane.cjs",
+          "kind": "code",
+          "name": "createMission"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Durable tasks and bounded scheduler exist, but dependency and decision-explanation persistence across restart lacks a combined proof."
     },
     {
       "id": "B02-L95",
@@ -230,10 +299,16 @@
         "section": "## 5. Capability execution rules"
       },
       "text": "Raw AI text must never grant its own permission.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/security-policy.cjs",
+          "kind": "code",
+          "name": "SecurityPolicy"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Policy decisions are external to model text; end-to-end malicious-model permission-escalation injection is not proven."
     },
     {
       "id": "B03-L113",
@@ -242,10 +317,16 @@
         "section": "## 5. Credential handling"
       },
       "text": "- API keys never live in repository YAML/JSON.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/main.cjs",
+          "kind": "code",
+          "name": "saveProvider"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Encrypted credential store exists, but an exhaustive tracked-YAML/JSON and all-provider negative leakage test is absent."
     },
     {
       "id": "B03-L116",
@@ -254,10 +335,16 @@
         "section": "## 5. Credential handling"
       },
       "text": "- UI only returns masked key metadata, never plaintext after save.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/main.cjs",
+          "kind": "code",
+          "name": "saveProvider"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Provider UI uses stored-credential boolean; every read response needs a plaintext-absence test."
     },
     {
       "id": "B03-L129",
@@ -266,10 +353,16 @@
         "section": "## 6. Provider health"
       },
       "text": "Failure of an optional provider must not prevent Safe Bridge use. The current router exposes these five states through bounded health checks: fixed CLI/local-command checks never execute task text; API/Remote MCP live probes require explicit NETWORK approval, and stored credentials require explicit CREDENTIAL approval. An unapproved live probe reports `DEGRADED` rather than silently using network/credentials.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/provider-router.cjs",
+          "kind": "code",
+          "name": "health"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Bounded health checks have tests, but Safe Bridge survival during a real optional-provider outage remains an environment/manual gate."
     },
     {
       "id": "B03-L143",
@@ -278,10 +371,16 @@
         "section": "## 8. Failover"
       },
       "text": "Failover never silently moves private local context to a cloud provider. Any provider change that changes the data boundary requires explicit user approval or a predeclared policy.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/provider-router.cjs",
+          "kind": "code",
+          "name": "ProviderRouter"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Explicit role selection exists; private-context-to-cloud failover needs a negative integration test."
     },
     {
       "id": "B03-L168",
@@ -290,10 +389,16 @@
         "section": "## 10. Inter-agent handoff"
       },
       "text": "Agents never exchange hidden vendor sessions. They exchange Goal/Plan/Task/Context/Worker-Report/Review/Result artifacts with schema versions and correlation IDs.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/execution-contract.cjs",
+          "kind": "code",
+          "name": "contextCapsuleRef"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Versioned artifact handoff exists, but the full seven-artifact correlation chain is not asserted."
     },
     {
       "id": "B03-L172",
@@ -302,10 +407,16 @@
         "section": "## 11. Cost/attention control"
       },
       "text": "The Harness optimizes verified engineering progress per unit of human attention. It must not create extra model calls merely to keep agents busy.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/harness.cjs",
+          "kind": "code",
+          "name": "maxTurns"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Hard budgets exist; attention-optimization is a product metric without a deterministic no-idle-call test."
     },
     {
       "id": "B03-L5",
@@ -314,10 +425,16 @@
         "section": "## 1. Goal"
       },
       "text": "The Local Agent Harness must not care which intelligence provider produced a task. Providers are adapters around a common capability contract.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/provider-router.cjs",
+          "kind": "code",
+          "name": "ProviderRouter"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Common adapter interface exists; substitution across all supported provider kinds lacks a state-invariance test."
     },
     {
       "id": "B03-L56",
@@ -326,10 +443,16 @@
         "section": "## 2A. Provider versus Worker"
       },
       "text": "The two workers must never share `CODEX_HOME`, auth, session or runtime state.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/codex-worker-runtime.cjs",
+          "kind": "code",
+          "name": "codexHome"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Distinct CODEX_HOME directories are tested; exhaustive session/runtime-state non-sharing needs a negative integration test."
     },
     {
       "id": "B03-L68",
@@ -338,10 +461,16 @@
         "section": "## 2A. Provider versus Worker"
       },
       "text": "The adapter must negotiate and verify the API family actually available in the environment, including Chat Completions-compatible and Responses-compatible behavior where supported. Unsupported capability combinations fail closed.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/codex-worker-runtime.cjs",
+          "kind": "code",
+          "name": "normalizeWireApi"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Wire API normalization exists; real endpoint Chat Completions/Responses compatibility is environment-dependent."
     },
     {
       "id": "B03-L70",
@@ -350,10 +479,16 @@
         "section": "## 2A. Provider versus Worker"
       },
       "text": "No PEGA-specific branch is permitted in Task/Mission/Queue/Harness state-machine logic. Future company/OpenAI/Gemini/Qwen/local providers must remain swappable through the same abstraction.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/control-plane.cjs",
+          "kind": "code",
+          "name": "builderWorkers"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Worker selection is identity-based; all Mission/Queue/Harness branches need an explicit provider-neutral invariant test."
     },
     {
       "id": "B04-ELECTRON-L28",
@@ -894,10 +1029,16 @@
         "section": "## 10. GitHub as event backbone"
       },
       "text": "`repository_dispatch` may carry a versioned AECP event and correlation IDs; `workflow_dispatch` may provide controlled manual runs. The Harness remains the runtime source for queue/locks/heartbeats and must correlate external events before changing task state.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/github-webhook.cjs",
+          "kind": "code",
+          "name": "GitHubWebhookReceiver"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Signed webhook correlation exists; repository_dispatch/workflow_dispatch versioning and task-state non-mutation need end-to-end evidence."
     },
     {
       "id": "B05-L132",
@@ -906,10 +1047,16 @@
         "section": "## 12. Multi-agent scheduling"
       },
       "text": "Parallel work is allowed only after dependency/resource analysis. Repository write conflicts must be blocked by Harness locks before a Worker starts.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/control-plane.cjs",
+          "kind": "code",
+          "name": "schedulerDecision"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Task worktree locks exist; dependency analysis before parallel launch needs dedicated proof."
     },
     {
       "id": "B05-L20",
@@ -918,10 +1065,16 @@
         "section": "## 2. Resource model"
       },
       "text": "AECP detects local repositories first. Remote identity is derived from `git remote -v` and normalized for display; credentials are never parsed from URLs into logs.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/resource-manager.cjs",
+          "kind": "code",
+          "name": "ResourceManager"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Local discovery and remote normalization exist; embedded URL credential redaction across every log needs a negative test."
     },
     {
       "id": "B05-L34",
@@ -930,10 +1083,16 @@
         "section": "## 3. GitHub account integration levels"
       },
       "text": "The canonical governed delivery path currently uses authenticated Git/`gh` primitives plus signed webhook/CI correlation. A future direct OAuth/GitHub App adapter is optional rather than required; if added, credentials must remain securely stored and every action capability-limited.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/github-gateway.cjs",
+          "kind": "code",
+          "name": "GitHubGateway"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Git/gh and signed webhook paths exist; full capability limitation of every delivery action needs an integration test. Direct OAuth is optional."
     },
     {
       "id": "B05-L5",
@@ -942,10 +1101,16 @@
         "section": "## 1. Principles"
       },
       "text": "GitHub is a first-class resource provider, but local Git operation must continue to work without GitHub authentication. A Workspace may bind zero, one, or many repositories/remotes/accounts.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/resource-manager.cjs",
+          "kind": "code",
+          "name": "ResourceManager"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Local Git works without GitHub login; multiple remotes/accounts bound to one Workspace lacks an end-to-end test."
     },
     {
       "id": "B05-L88",
@@ -954,10 +1119,16 @@
         "section": "## 7. Concurrency"
       },
       "text": "Write lock/resource ownership is enforced by Harness/Resource Manager/Lock Manager. Read tasks may share. Cross-repo tasks acquire required write locks in deterministic order or fail fast with `BLOCKED`.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/lock-manager.cjs",
+          "kind": "code",
+          "name": "LockManager"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Task-scoped write locks exist, but deterministic cross-repository acquisition ordering or BLOCKED fallback lacks a test."
     },
     {
       "id": "B05-L93",
@@ -966,10 +1137,16 @@
         "section": "## 7. Concurrency"
       },
       "text": "- `codex-official` and `codex-pega` must never be assigned the same mutating worktree concurrently;",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/control-plane.cjs",
+          "kind": "code",
+          "name": "builderWorkers"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Worker pool uses task worktrees; a direct OFFICIAL/PEGA same-worktree collision rejection test is absent."
     },
     {
       "id": "B11-2-CARD",
@@ -995,16 +1172,16 @@
         "section": "## 4. Context Capsule"
       },
       "text": "Context Capsule aecp.context/v1 schema and bounded content.",
-      "status": "CONFIRMED_GAP",
+      "status": "PARTIAL",
       "evidence": [
         {
           "file": "electron/lib/context-bus.cjs",
-          "symbol": "aecp.capsule/v1",
-          "description": "ContextBus persists aecp.capsule/v1 for context instead of the specified aecp.context/v1 envelope."
+          "kind": "code",
+          "name": "ContextBus"
         }
       ],
       "workOrder": "UNASSIGNED",
-      "note": "Define a versioned context adapter/migration or obtain a Blueprint equivalence decision; do not rename persisted records in place."
+      "note": "Blueprint owner decision D8 accepts aecp.capsule/v1 as the implementation name for the context capsule, so this is no longer a naming gap. Remaining: a test asserting the capsule bounded content and size."
     },
     {
       "id": "B11-5-RESULT",
@@ -1213,15 +1390,10 @@
           "file": "electron/lib/state-migration.cjs",
           "kind": "code",
           "name": "schemaVersion"
-        },
-        {
-          "file": "electron/lib/event-ledger.cjs",
-          "kind": "code",
-          "name": "schema"
         }
       ],
       "workOrder": "UNASSIGNED",
-      "note": "New gap beyond GAP_REGISTER: state migration uses schemaVersion, but persisted event ledger records use schema without schemaVersion. Equivalence and migration coverage need owner decision; no change in this work order."
+      "note": "Blueprint owner decision D7 accepts the persisted aecp.<name>/vN schema identifier as equivalent to schemaVersion, so no rename is needed. Remaining gap: a test proving every persisted store carries a versioned schema identifier."
     },
     {
       "id": "B14-L15",
@@ -1230,10 +1402,16 @@
         "section": "## 1. Product principle"
       },
       "text": "Everything that can be safely detected should be detected automatically. Everything that changes data access, permissions, or blast radius must remain explicit.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/guidance.cjs",
+          "kind": "code",
+          "name": "recommendNextAction"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Guidance detects safe next steps, but every data-access/blast-radius change needs explicit boundary coverage."
     },
     {
       "id": "B14-L165",
@@ -1242,10 +1420,13 @@
         "section": "## 5. Goal Loop"
       },
       "text": "Every Goal Loop must have:",
-      "status": "GAP",
+      "status": "DELIBERATE_NON_GOAL",
       "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Introductory colon to Goal Loop required-field list; the nine concrete field entries are assessed separately.",
+      "decisionRef": {
+        "file": ".ai/BLUEPRINT.md",
+        "section": "## 4. 永久邊界 / Non-Goals"
+      }
     },
     {
       "id": "B14-L193",
@@ -1254,10 +1435,15 @@
         "section": "## 5. Goal Loop"
       },
       "text": "A loop must be bounded.",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/human-controls.test.cjs",
+          "kind": "test",
+          "name": "Goal Loop is visibly bounded and exposes deterministic terminal states"
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "B14-L263",
@@ -1266,10 +1452,16 @@
         "section": "## 7. Provider-neutral execution"
       },
       "text": "The Goal Loop never hard-codes a model vendor.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/provider-router.cjs",
+          "kind": "code",
+          "name": "ProviderRouter"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Harness uses provider roles, but full vendor-substitution invariance is not yet established."
     },
     {
       "id": "B14-L292",
@@ -1278,10 +1470,16 @@
         "section": "## 7. Provider-neutral execution"
       },
       "text": "Provider failure must not corrupt Workspace state. The Harness owns task state, evidence and recovery.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/harness.cjs",
+          "kind": "code",
+          "name": "runHarness"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Evidence/checkpoints are owned by Harness; provider-failure workspace-integrity injection needs end-to-end proof."
     },
     {
       "id": "B14-L298",
@@ -1290,10 +1488,15 @@
         "section": "## 8. Loop presets"
       },
       "text": "The Goal Loop UI provides task-shaped presets so users do not have to design loops manually. Presets populate editable Goal/Done/budget defaults; they never bypass policy or approval:",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/human-controls.test.cjs",
+          "kind": "test",
+          "name": "Goal Loop provides bounded task-shaped presets without bypassing approval policy"
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "B14-L349",
@@ -1302,10 +1505,16 @@
         "section": "## 9. Approval model"
       },
       "text": "Goal Loop must integrate with the existing risk policy.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/security-policy.cjs",
+          "kind": "code",
+          "name": "SecurityPolicy"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Risk policy gates actions; all Goal Loop UI choices and policy outcomes need a cross-view equivalence test."
     },
     {
       "id": "B14-L419",
@@ -1314,10 +1523,16 @@
         "section": "## 11. Recovery and trust UX"
       },
       "text": "If AECP crashes, loop/task state must be recoverable from local state and evidence rather than inferred from chat history.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/control-plane.cjs",
+          "kind": "code",
+          "name": "recover"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Restart recovery exists; complete loop/task/evidence reconstruction needs a full-process crash test."
     },
     {
       "id": "B14-L438",
@@ -1326,10 +1541,16 @@
         "section": "## 12. Acceptance criteria"
       },
       "text": "Goal Loop becomes fully autonomous only when the selected provider + adapter + policy combination can execute every required step with deterministic verification and bounded permissions.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/harness.cjs",
+          "kind": "code",
+          "name": "runHarness"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Autonomy is conditional on capabilities; no proof that every listed provider/adapter/policy combination supports all required steps."
     },
     {
       "id": "B14-L5",
@@ -1338,10 +1559,13 @@
         "section": "## 1. Product principle"
       },
       "text": "AECP must feel like a product, not a collection of engineering subsystems.",
-      "status": "GAP",
+      "status": "MANUAL",
       "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Product cohesion is subjective and needs installed-app operator assessment.",
+      "protocol": {
+        "file": ".ai/ACCEPTANCE.md",
+        "section": "### 6.3 Electron 實機流程"
+      }
     },
     {
       "id": "B14-L88",
@@ -1350,10 +1574,16 @@
         "section": "## 3. First-run UX"
       },
       "text": "This remains explicit by design. AECP must not scan the entire disk to guess which personal folders, repositories, or documents are intended for AI access.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/main.cjs",
+          "kind": "code",
+          "name": "workspace:select"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Workspace selection is explicit; negative whole-disk scan audit should include future onboarding paths."
     },
     {
       "id": "B14-REQUIRED-L167",
@@ -1362,10 +1592,27 @@
         "section": "## 5. Goal Loop"
       },
       "text": "- `goal`",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/harness-bounds.test.cjs",
+          "kind": "test",
+          "name": "Harness persists the complete Goal Loop contract and checkpoint evidence",
+          "covers": [
+            "B14-REQUIRED-L167",
+            "B14-REQUIRED-L168",
+            "B14-REQUIRED-L169",
+            "B14-REQUIRED-L170",
+            "B14-REQUIRED-L171",
+            "B14-REQUIRED-L172",
+            "B14-REQUIRED-L173",
+            "B14-REQUIRED-L174",
+            "B14-REQUIRED-L175",
+            "B20-27-01"
+          ]
+        }
+      ],
+      "note": "The persisted local Harness Goal Loop contract carries this field and the named test asserts all nine required fields. The web copy/paste loop prompt uses a different representation and is not the persisted contract."
     },
     {
       "id": "B14-REQUIRED-L168",
@@ -1374,10 +1621,27 @@
         "section": "## 5. Goal Loop"
       },
       "text": "- `definitionOfDone`",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/harness-bounds.test.cjs",
+          "kind": "test",
+          "name": "Harness persists the complete Goal Loop contract and checkpoint evidence",
+          "covers": [
+            "B14-REQUIRED-L167",
+            "B14-REQUIRED-L168",
+            "B14-REQUIRED-L169",
+            "B14-REQUIRED-L170",
+            "B14-REQUIRED-L171",
+            "B14-REQUIRED-L172",
+            "B14-REQUIRED-L173",
+            "B14-REQUIRED-L174",
+            "B14-REQUIRED-L175",
+            "B20-27-01"
+          ]
+        }
+      ],
+      "note": "The persisted local Harness Goal Loop contract carries this field and the named test asserts all nine required fields. The web copy/paste loop prompt uses a different representation and is not the persisted contract."
     },
     {
       "id": "B14-REQUIRED-L169",
@@ -1386,10 +1650,27 @@
         "section": "## 5. Goal Loop"
       },
       "text": "- `maxIterations`",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/harness-bounds.test.cjs",
+          "kind": "test",
+          "name": "Harness persists the complete Goal Loop contract and checkpoint evidence",
+          "covers": [
+            "B14-REQUIRED-L167",
+            "B14-REQUIRED-L168",
+            "B14-REQUIRED-L169",
+            "B14-REQUIRED-L170",
+            "B14-REQUIRED-L171",
+            "B14-REQUIRED-L172",
+            "B14-REQUIRED-L173",
+            "B14-REQUIRED-L174",
+            "B14-REQUIRED-L175",
+            "B20-27-01"
+          ]
+        }
+      ],
+      "note": "The persisted local Harness Goal Loop contract carries this field and the named test asserts all nine required fields. The web copy/paste loop prompt uses a different representation and is not the persisted contract."
     },
     {
       "id": "B14-REQUIRED-L170",
@@ -1398,10 +1679,27 @@
         "section": "## 5. Goal Loop"
       },
       "text": "- `checkpointEvery`",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/harness-bounds.test.cjs",
+          "kind": "test",
+          "name": "Harness persists the complete Goal Loop contract and checkpoint evidence",
+          "covers": [
+            "B14-REQUIRED-L167",
+            "B14-REQUIRED-L168",
+            "B14-REQUIRED-L169",
+            "B14-REQUIRED-L170",
+            "B14-REQUIRED-L171",
+            "B14-REQUIRED-L172",
+            "B14-REQUIRED-L173",
+            "B14-REQUIRED-L174",
+            "B14-REQUIRED-L175",
+            "B20-27-01"
+          ]
+        }
+      ],
+      "note": "The persisted local Harness Goal Loop contract carries this field and the named test asserts all nine required fields. The web copy/paste loop prompt uses a different representation and is not the persisted contract."
     },
     {
       "id": "B14-REQUIRED-L171",
@@ -1410,10 +1708,27 @@
         "section": "## 5. Goal Loop"
       },
       "text": "- `workspaceId`",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/harness-bounds.test.cjs",
+          "kind": "test",
+          "name": "Harness persists the complete Goal Loop contract and checkpoint evidence",
+          "covers": [
+            "B14-REQUIRED-L167",
+            "B14-REQUIRED-L168",
+            "B14-REQUIRED-L169",
+            "B14-REQUIRED-L170",
+            "B14-REQUIRED-L171",
+            "B14-REQUIRED-L172",
+            "B14-REQUIRED-L173",
+            "B14-REQUIRED-L174",
+            "B14-REQUIRED-L175",
+            "B20-27-01"
+          ]
+        }
+      ],
+      "note": "The persisted local Harness Goal Loop contract carries this field and the named test asserts all nine required fields. The web copy/paste loop prompt uses a different representation and is not the persisted contract."
     },
     {
       "id": "B14-REQUIRED-L172",
@@ -1422,10 +1737,27 @@
         "section": "## 5. Goal Loop"
       },
       "text": "- `providerPolicy`",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/harness-bounds.test.cjs",
+          "kind": "test",
+          "name": "Harness persists the complete Goal Loop contract and checkpoint evidence",
+          "covers": [
+            "B14-REQUIRED-L167",
+            "B14-REQUIRED-L168",
+            "B14-REQUIRED-L169",
+            "B14-REQUIRED-L170",
+            "B14-REQUIRED-L171",
+            "B14-REQUIRED-L172",
+            "B14-REQUIRED-L173",
+            "B14-REQUIRED-L174",
+            "B14-REQUIRED-L175",
+            "B20-27-01"
+          ]
+        }
+      ],
+      "note": "The persisted local Harness Goal Loop contract carries this field and the named test asserts all nine required fields. The web copy/paste loop prompt uses a different representation and is not the persisted contract."
     },
     {
       "id": "B14-REQUIRED-L173",
@@ -1434,10 +1766,27 @@
         "section": "## 5. Goal Loop"
       },
       "text": "- `permissionPolicy`",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/harness-bounds.test.cjs",
+          "kind": "test",
+          "name": "Harness persists the complete Goal Loop contract and checkpoint evidence",
+          "covers": [
+            "B14-REQUIRED-L167",
+            "B14-REQUIRED-L168",
+            "B14-REQUIRED-L169",
+            "B14-REQUIRED-L170",
+            "B14-REQUIRED-L171",
+            "B14-REQUIRED-L172",
+            "B14-REQUIRED-L173",
+            "B14-REQUIRED-L174",
+            "B14-REQUIRED-L175",
+            "B20-27-01"
+          ]
+        }
+      ],
+      "note": "The persisted local Harness Goal Loop contract carries this field and the named test asserts all nine required fields. The web copy/paste loop prompt uses a different representation and is not the persisted contract."
     },
     {
       "id": "B14-REQUIRED-L174",
@@ -1446,10 +1795,27 @@
         "section": "## 5. Goal Loop"
       },
       "text": "- `verificationPolicy`",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/harness-bounds.test.cjs",
+          "kind": "test",
+          "name": "Harness persists the complete Goal Loop contract and checkpoint evidence",
+          "covers": [
+            "B14-REQUIRED-L167",
+            "B14-REQUIRED-L168",
+            "B14-REQUIRED-L169",
+            "B14-REQUIRED-L170",
+            "B14-REQUIRED-L171",
+            "B14-REQUIRED-L172",
+            "B14-REQUIRED-L173",
+            "B14-REQUIRED-L174",
+            "B14-REQUIRED-L175",
+            "B20-27-01"
+          ]
+        }
+      ],
+      "note": "The persisted local Harness Goal Loop contract carries this field and the named test asserts all nine required fields. The web copy/paste loop prompt uses a different representation and is not the persisted contract."
     },
     {
       "id": "B14-REQUIRED-L175",
@@ -1458,10 +1824,27 @@
         "section": "## 5. Goal Loop"
       },
       "text": "- `stopConditions`",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/harness-bounds.test.cjs",
+          "kind": "test",
+          "name": "Harness persists the complete Goal Loop contract and checkpoint evidence",
+          "covers": [
+            "B14-REQUIRED-L167",
+            "B14-REQUIRED-L168",
+            "B14-REQUIRED-L169",
+            "B14-REQUIRED-L170",
+            "B14-REQUIRED-L171",
+            "B14-REQUIRED-L172",
+            "B14-REQUIRED-L173",
+            "B14-REQUIRED-L174",
+            "B14-REQUIRED-L175",
+            "B20-27-01"
+          ]
+        }
+      ],
+      "note": "The persisted local Harness Goal Loop contract carries this field and the named test asserts all nine required fields. The web copy/paste loop prompt uses a different representation and is not the persisted contract."
     },
     {
       "id": "B15-L117",
@@ -1470,10 +1853,16 @@
         "section": "## 4. Agent Adapter model"
       },
       "text": "Detection and launch are fixed-capability operations. The UI may show an unavailable adapter, but must not fabricate availability.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/windows-desktop-adapter.cjs",
+          "kind": "code",
+          "name": "listBrowserWindows"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Adapters are fixed-capability and deny by default; no test asserts the UI never reports an adapter as available when detection fails."
     },
     {
       "id": "B15-L12",
@@ -1482,10 +1871,16 @@
         "section": "## 1. Purpose"
       },
       "text": "These chains must remain separate. ChatGPT Web credentials are never reused as GitHub credentials, and AECP never scrapes ChatGPT to discover code changes.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/main.cjs",
+          "kind": "code",
+          "name": "chatgpt:open"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Official browser and GitHub credentials are separate in code; a credential-cross-contamination regression test is absent."
     },
     {
       "id": "B15-L291",
@@ -1494,10 +1889,16 @@
         "section": "## 9. Update UX"
       },
       "text": "The user should never need to identify CPU architecture for an ordinary update.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/update-state.cjs",
+          "kind": "code",
+          "name": "targetVersion"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Universal bootstrap is wired, but ordinary installed upgrade architecture choice requires device evidence."
     },
     {
       "id": "B15-L324",
@@ -1506,10 +1907,13 @@
         "section": "## 11. Non-goals"
       },
       "text": "AECP must not:",
-      "status": "GAP",
+      "status": "DELIBERATE_NON_GOAL",
       "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Introductory non-goal heading; individual prohibitions must be assessed separately rather than calling the colon a runtime capability.",
+      "decisionRef": {
+        "file": ".ai/BLUEPRINT.md",
+        "section": "## 4. 永久邊界 / Non-Goals"
+      }
     },
     {
       "id": "B15-L40",
@@ -1518,10 +1922,16 @@
         "section": "## 2. Conversation → GitHub → Release → AECP"
       },
       "text": "The installed app never pulls arbitrary branches and never installs an artifact directly from a chat message.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/update-state.cjs",
+          "kind": "code",
+          "name": "createUpdateTransaction"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Verified release transaction exists; an installed-app test should prove chat-supplied or arbitrary-branch artifacts are never installed."
     },
     {
       "id": "B15-L61",
@@ -1530,10 +1940,13 @@
         "section": "## 3. Private GitHub update channel"
       },
       "text": "- Future versions may add a first-party GitHub OAuth/device-flow adapter, but the secret boundary must remain equivalent.",
-      "status": "GAP",
+      "status": "DELIBERATE_NON_GOAL",
       "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Future first-party OAuth/device-flow adapter is expressly optional; existing Git/gh route is assessed separately.",
+      "decisionRef": {
+        "file": ".ai/BLUEPRINT.md",
+        "section": "## 4. 永久邊界 / Non-Goals"
+      }
     },
     {
       "id": "B15-L84",
@@ -1542,10 +1955,16 @@
         "section": "## 3. Private GitHub update channel"
       },
       "text": "Stable/signed builds now support Authenticode verification in addition to the SHA-256 manifest. A build can embed a required signer thumbprint; if present, downloaded target and rollback installers are rejected unless Windows reports a valid Authenticode signature from that exact signer. Preview builds may leave the signer pin empty and remain checksum-only.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/authenticode.cjs",
+          "kind": "code",
+          "name": "normalizeThumbprint"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Signer pin and rollback verification have automated tests; actual signed stable installer needs owner certificate and device evidence."
     },
     {
       "id": "B15-L90",
@@ -1554,10 +1973,16 @@
         "section": "## 3. Private GitHub update channel"
       },
       "text": "Required stable rollback states:",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/update-state.cjs",
+          "kind": "code",
+          "name": "ROLLBACK_REQUIRED"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Rollback state machine is tested, but stable installer rollback on real installed machines remains an environment gate."
     },
     {
       "id": "B16-L171",
@@ -1566,10 +1991,16 @@
         "section": "## E2 — Local Autonomous Loop"
       },
       "text": "Each adapter has its own authentication/quota rules. AECP must not imply that a provider is unlimited.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/provider-usage.cjs",
+          "kind": "code",
+          "name": "ProviderUsageStore"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Usage/status surface exists; every adapter quota representation and no-unlimited implication needs a UI audit."
     },
     {
       "id": "B16-L190",
@@ -1578,10 +2009,16 @@
         "section": "## E2 — Local Autonomous Loop"
       },
       "text": "Claude Code, Gemini CLI, Codex CLI and OpenCode are represented through governed role/capability adapters. Codex execution may have multiple isolated Worker identities; switching Provider by mutating a shared `CODEX_HOME` is not considered isolation. Provider automation may have its own subscription/credit/quota semantics and must be surfaced in capability/status rather than treated as unlimited.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/provider-router.cjs",
+          "kind": "code",
+          "name": "ProviderRouter"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Governed CLI roles and isolated Codex workers exist; quota/capability behavior for all four CLIs is not environment-proven."
     },
     {
       "id": "B16-L229",
@@ -1590,10 +2027,16 @@
         "section": "## E3 — Official Full MCP"
       },
       "text": "This tunnel credential is not the same as model-token API billing, but it is still an OpenAI platform credential and must be treated as a secret.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/main.cjs",
+          "kind": "code",
+          "name": "getOrCreateLocalMcpToken"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Local MCP bearer uses safeStorage; official tunnel credentials require product/environment verification."
     },
     {
       "id": "B16-L233",
@@ -1602,10 +2045,16 @@
         "section": "## E3 — Official Full MCP"
       },
       "text": "The MCP surface must expose semantic tools, not an unrestricted shell.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/mcp-server.mjs",
+          "kind": "code",
+          "name": "startLocalMcpServer"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "MCP tools are semantic in preview; a complete negative unrestricted-shell contract test is pending."
     },
     {
       "id": "B16-L286",
@@ -1614,10 +2063,15 @@
         "section": "# 4. Automatic mode selection"
       },
       "text": "Never label E3 as available merely because a local MCP server exists **or because a generic Remote MCP endpoint responds successfully**. Endpoint reachability is only one diagnostic. E3 becomes Ready only after the complete Official Full MCP acceptance gate passes against a supported ChatGPT workspace: connector/tunnel health, read tool, policy-gated write tool, same-task result return, disconnected AECP fallback, and no ChatGPT DOM automation. Until that external/product evidence exists, the current UI keeps E3 Not ready and does not auto-recommend it.",
-      "status": "GAP",
-      "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/human-controls.test.cjs",
+          "kind": "test",
+          "name": "Execution Mode recommendation is factual and never promotes generic MCP endpoint health to Official Full MCP"
+        }
+      ],
+      "note": "Clause-specific named test observes the cited behavior."
     },
     {
       "id": "B16-L292",
@@ -1626,10 +2080,16 @@
         "section": "# 5. Same Goal, different transport"
       },
       "text": "The canonical task model must remain identical across all modes:",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/execution-contract.cjs",
+          "kind": "code",
+          "name": "makeExecutionContract"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Canonical task contract exists; all execution modes need the same-field round-trip test."
     },
     {
       "id": "B16-L335",
@@ -1638,10 +2098,16 @@
         "section": "# 6. Mobile/remote supervision"
       },
       "text": "3. Never implement remote supervision by scraping a ChatGPT session.",
-      "status": "GAP",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/main.cjs",
+          "kind": "code",
+          "name": "chatgpt:open"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Official browser opens externally; a full remote-supervision no-DOM-scraping audit is missing."
     },
     {
       "id": "B16-L85",
@@ -1650,10 +2116,13 @@
         "section": "## D2 — Microsoft Store Private Audience"
       },
       "text": "The owner must provide Partner Center values:",
-      "status": "GAP",
+      "status": "OWNER",
       "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Partner Center identity, publisher and certification values must be supplied by owner; repository wiring does not close the gate.",
+      "acceptanceRef": {
+        "file": ".ai/ACCEPTANCE.md",
+        "section": "## 5. ENVIRONMENT / OWNER 項目的驗收協定"
+      }
     },
     {
       "id": "B16-L91",
@@ -1662,10 +2131,13 @@
         "section": "## D2 — Microsoft Store Private Audience"
       },
       "text": "These are not secrets in the same sense as an API key, but must match Partner Center exactly.",
-      "status": "GAP",
+      "status": "OWNER",
       "evidence": [],
-      "workOrder": "UNASSIGNED",
-      "note": "Normative clause extracted from Blueprint; implementation/test equivalence not yet proven."
+      "note": "Partner Center values must match the owner account exactly; no source-only evidence can prove this.",
+      "acceptanceRef": {
+        "file": ".ai/ACCEPTANCE.md",
+        "section": "## 5. ENVIRONMENT / OWNER 項目的驗收協定"
+      }
     },
     {
       "id": "B18-13-01",
@@ -2040,7 +2512,19 @@
         {
           "file": "tests/harness-bounds.test.cjs",
           "kind": "test",
-          "name": "Harness persists the complete Goal Loop contract and checkpoint evidence"
+          "name": "Harness persists the complete Goal Loop contract and checkpoint evidence",
+          "covers": [
+            "B14-REQUIRED-L167",
+            "B14-REQUIRED-L168",
+            "B14-REQUIRED-L169",
+            "B14-REQUIRED-L170",
+            "B14-REQUIRED-L171",
+            "B14-REQUIRED-L172",
+            "B14-REQUIRED-L173",
+            "B14-REQUIRED-L174",
+            "B14-REQUIRED-L175",
+            "B20-27-01"
+          ]
         }
       ],
       "note": "Clause-specific named test observes the cited behavior."

@@ -138,3 +138,8 @@ Bootstrap defaults:
 - Result Capsule target: substantially below that limit
 
 Large local evidence stays local unless the user explicitly chooses to share it.
+
+
+## Blueprint owner decision D8 — 2026-09-25 (append-only)
+
+The implemented Context Capsule document type is `aecp.capsule/v1`. It is accepted as the implementation name for the `aecp.context/v1` capsule described in this document, so persisted records are not renamed. If a future work order lets external agents exchange context cards, it must accept both identifiers. What remains open is a test that asserts the capsule's bounded content and size. See `.ai/GAP_REGISTER.md`.

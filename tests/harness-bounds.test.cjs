@@ -212,6 +212,8 @@ test('Harness persists the complete Goal Loop contract and checkpoint evidence',
   assert.equal(run.executionContract.transport,'full-harness');
   assert.deepEqual(run.executionContract.taskIds,run.tasks.map(task=>task.id));
   assert.match(run.executionContract.evidenceRef,/verified\.patch$/);
+  assert.equal(run.loopContract.goal,'Create a small verified file.');
+  assert.equal(run.loopContract.maxIterations,2);
   assert.equal(run.loopContract.workspaceId,'ws-test');
   assert.equal(run.loopContract.definitionOfDone,'Verification passes.');
   assert.equal(run.loopContract.checkpointEvery,1);

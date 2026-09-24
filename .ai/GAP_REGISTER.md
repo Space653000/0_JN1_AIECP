@@ -25,7 +25,9 @@
 | G5 | 22 §9 GitHub view 欄位（branch、base、commit、PR、CI、workflow、artifacts、release、last event） | 僅部分欄位存在（PR/CI），完整度未驗證 | 中 | 0009（順帶補齊，缺者顯示 UNKNOWN） |
 | G6 | 所有「完整性」宣稱 | 既有 `blueprint-coverage`/`requirements-coverage`/`roadmap-gate-audit` 只驗檔案存在與字串，無「條文→測試」追溯 | **高**（讓落差長期不可見） | 0006 |
 | G7 | 22 §11 六類通知（含 CRITICAL＝政策/安全違規） | 通知規則用的事件名稱與系統實際發出的不一致：`policy.violation`／`security.*` 從未被發出（CRITICAL 永不出現）；真實 CI 失敗事件 `ci.failed_rework`／`ci.failed_max_iterations` 被歸為 INFO；測試用自訂事件名，自我印證 | 中高 | 0010 |
-| G8 | 全部規範條文的完整性 | 追溯矩陣中 178 條為「尚未分類」的 GAP（R1–R8、Blueprint 04/11/14/15/16/18/20/21/22 等）：多數應是「已實作但缺對應測試」，但也可能藏有真缺口；需逐條分類為已實作／確認缺失／需人工驗證／環境／擁有者 | 高 | 0010, 0011 |
+| G8 | 全部規範條文的完整性 | 已完成分類（0010、0011）：231 條中 115 已實作、91 部分、5 確認缺失、9 人工、3 擁有者、8 蓄意不做，無任何未分類項；「部分」與「確認缺失」由 G9、G10 承接 | 中 | 0011 |
+| G9 | B04 Electron 基線、B11、B21 | 確認的真實缺陷：①`will-navigate` 允許任意 `file:` 目的地（B04-ELECTRON-L34）；②主程序並非每個 IPC 通道都有統一參數驗證（B04-ELECTRON-L33）；③剪貼簿 128 KiB 上限以字元數而非 UTF-8 位元組數計（B11-8-L137，CJK 會超量）；④Evidence 不是不可變（B21-10-03）；⑤Result Capsule 可能在未驗證時宣稱成功（B21-10-08） | 高 | 0012 |
+| G10 | 91 條 PARTIAL | 行為存在但缺針對該條文的測試（例如 secrets 不得出現在所列各處、Provider 換手後狀態不變、Worker 同一 worktree 衝突拒絕）；`policy.violation` 目前只涵蓋 WRITE 拒絕 | 中 | 0012, 0013 |
 
 ## 決策紀錄（Claude Code，Blueprint 擁有者）
 - **D2｜Blueprint 22 §6–§9、§11 與 20 §16 為必要項。** `22 §17` 有一段「深入視覺檢視……為選用的呈現強化，非缺失的驗收需求」的收尾註記，是先前施工者為結案而加，且與同文件本文「dashboard must show…」衝突；依「Blueprint 是標準」，以本文為準，該註記視為被取代（不改動原檔，於此登記）。

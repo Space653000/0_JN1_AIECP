@@ -105,7 +105,7 @@
 | OWNER-EXTERNAL gate | 4 類 | 只有 `Space653000`（repo 擁有者）本人 |
 | 刻意不做 | 6 項 | 需要新的獨立 Blueprint 決策才會開放，非「忘記做」 |
 
-**結論（2026-09-24 更正，Claude 於 `c98ad0f` 驗收後更新）：** 0006–0009 已解決 GAP_REGISTER 的 G1（Reviewer 看不到實際 diff）、G2、G3、G4／G5（Dashboard 視圖，已用真實 `ui/` 渲染驗證）、G6（追溯矩陣）。仍有：**G7**（通知規則與真實事件名稱不一致，CRITICAL 永不出現；0010 修）與 **G8**（追溯矩陣 178 條尚未分類的 GAP，多數應是「已實作但缺測試」，但可能藏有真缺口；0010、0011 逐條分類）。在 `--strict` 追溯稽核通過、且所有 `CONFIRMED_GAP` 都被修補或明確裁定之前，**不得宣稱「對標藍圖完整」**。ENVIRONMENT / OWNER-EXTERNAL 閘門仍如上所列。
+**結論（2026-09-25 更新）：** 藍圖對標已完成**分類**：追溯矩陣 231 條，**0 條未分類**（115 已實作、91 部分、5 確認缺失、9 需人工驗證、3 擁有者、8 蓄意不做），且 `npm run verify` 已用 `--strict` 強制。這代表「完整性」現在是**可被機器持續驗證**的，但**不代表藍圖已完全實作**：仍有 5 個確認的真缺陷（G9，含 Electron 導覽與 IPC 驗證等安全項）、91 條缺針對性測試（G10）、9 條需人工驗收（第 6 節協定）、以及 ENVIRONMENT／OWNER-EXTERNAL 閘門。詳見 [GAP_REGISTER.md](GAP_REGISTER.md)。Codex 額度用完至 2026-09-29；期間由 Claude Code 接手。
 
 ### 施工單 0006 施工進度（Claude 驗收 CLOSED）
 
@@ -129,8 +129,12 @@
 - `npm run verify` 通過，`npm test` **326/326 PASS**。TRACEABILITY 231 條中 52 IMPLEMENTED、1 PARTIAL、178 GAP；狀態只表示具名測試證據程度，非整體完成率。尚缺 Electron 實機 UI／輔助技術驗收；本次 HEAD 的 CI 需依 exact SHA workflow 實際結果核對。
 - 0006–0009 已由 Claude 驗收 CLOSED（0009 附通知映射缺陷，0010 修正）；另有 0010、0011 分類與修補中，**未宣稱整體藍圖完成**；ENVIRONMENT／OWNER-EXTERNAL 閘門仍未完成，不自行更改 PR #7 合併狀態。
 
-### 施工單 0010 施工進度（待 Claude Review）
+### 施工單 0010 施工進度（Claude 驗收 CLOSED）
 
 - 繁中 Windows PowerShell 輸出改以 UTF-8 傳送與解碼，避免碼頁 950 的 CJK 視窗名稱破壞 JSON。通知事件目錄改對照實際 Control Plane／Harness 事件；WRITE 政策拒絕另記 `policy.violation`，不更改原有決定。
 - Reviewer 程序非零退出或逾時的既有設計維持 **不重試、直接 HUMAN_REQUIRED 交由人處理**；Worker Report 在 Verifier 完成後回填其真實結果並重存證據。舊版 Command Center 其他非新增六視圖區塊仍有硬編碼英文，列為既知在地化限制，未擴大本施工單範圍。
 - 106 條高優先條文逐條分類後，矩陣為 100 IMPLEMENTED、49 PARTIAL、72 待 0011 的 GAP、6 CONFIRMED_GAP、0 MANUAL、0 ENVIRONMENT、1 OWNER、3 DELIBERATE_NON_GOAL；[分類詳表](../Reports/TRACEABILITY_0010_CLASSIFICATION.md) 列出每條未解缺口及定位。0010 的 10 條隨機破壞檢查均令具名測試失敗、已還原。本輪未修補新確認缺口，也未把 owner gate 標完成。
+
+### 施工單 0011 施工進度（Claude 接手完成並驗收 CLOSED）
+
+- 追溯矩陣 231 條無未分類項（115 已實作／91 部分／5 確認缺失／9 人工／3 擁有者／8 蓄意不做），`--strict` 已串入 `npm run verify`；人工驗收協定為 `.ai/ACCEPTANCE.md` 第 6 節。詳見 [0011](WORK_ORDERS/0011.md)。
