@@ -11,6 +11,7 @@ const { makeExecutionContract, updateExecutionContract } = require('./execution-
 const { LockManager } = require('./lock-manager.cjs');
 const { EvidenceManager } = require('./evidence-manager.cjs');
 const { resultCapsuleStatus } = require('./protocol.cjs');
+const { policyReasonCode, policyViolationOf } = require('./security-policy.cjs');
 const { ContextBus } = require('./context-bus.cjs');
 const { ProviderRouter } = require('./provider-router.cjs');
 const { DeliveryManager } = require('./delivery.cjs');
@@ -134,15 +135,23 @@ class ControlPlane {
   async assertTaskWritePolicy(policy,{runId,taskId,path:targetPath,approved=false}){
     const check=policy.check({action:'WRITE',path:targetPath,approved});
     if(check.allowed)return check;
-    const reasonCode={
-      'Unknown action.':'UNKNOWN_ACTION',
-      'Risk exceeds policy ceiling.':'RISK_CEILING',
-      'Human approval required by policy.':'HUMAN_APPROVAL_REQUIRED',
-      'UNC/network paths are disabled by policy.':'NETWORK_PATH_DENIED',
-      'Path is outside the configured allowlist.':'OUTSIDE_ALLOWLIST'
-    }[check.reason]||'POLICY_DENIED';
-    await this.event('policy.violation',{runId,taskId,action:'WRITE',reasonCode}).catch(()=>{});
+    await this.recordPolicyViolation({runId,taskId,action:'WRITE',reasonCode:policyReasonCode(check.reason,check.requiresApproval)});
     throw Object.assign(new Error(check.reason),{code:check.requiresApproval?'APPROVAL_REQUIRED':'POLICY_DENIED',policy:check});
+  }
+
+  // Records that a policy gate stopped an action. Only the action class and a stable reason code are stored.
+  async recordPolicyViolation({runId=null,taskId=null,action,reasonCode}={}){
+    await this.event('policy.violation',{runId,taskId,action:String(action||'UNKNOWN').slice(0,32),reasonCode:String(reasonCode||'POLICY_DENIED').slice(0,48)}).catch(()=>{});
+  }
+
+  // Same decision as policy.assert; a stopped action is recorded before the original error is re-thrown.
+  async assertPolicyRecorded(policy,input,{runId,taskId}={}){
+    try{return policy.assert(input);}
+    catch(error){
+      const violation=policyViolationOf(error);
+      if(violation)await this.recordPolicyViolation({runId,taskId,...violation});
+      throw error;
+    }
   }
 
   setPolicyConfig(config={}){
@@ -669,6 +678,7 @@ class ControlPlane {
         worker:task.workerId||builderProvider
       });
       const result=await runHarness({goal:run.goal+'\nTask: '+task.title,done:task.acceptance||run.done,context:run.context+'\nOBJECTIVE: '+task.objective,sourceRoot:taskRoot,runRoot:subRoot,baseRef,preparedWorktree,preparedBaseHead,maxTasks:1,maxIterations:run.maxIterations,maxTurns:run.maxTurns,maxFailedAttempts:run.maxFailedAttempts,maxNoProgressAttempts:run.maxNoProgressAttempts,maxWallClockMs:run.maxWallClockMs,maxProviderReportedCost:run.maxProviderReportedCost,maxLocalComputeMs:run.maxLocalComputeMs,maxPatchBytes:run.maxPatchBytes,maxChangedFiles:run.maxChangedFiles,checkpointEvery:run.checkpointEvery,workspaceId:run.workspaceId||null,executionContract:task.executionContract,signal:controller.signal,policy:runPolicy,providerRouter:this.providers,plannerProvider:run.providers.planner,builderProvider,reviewerProvider:run.providers.reviewer,plannerModel:run.models.planner,builderModel,reviewerModel:run.models.reviewer,executionApproved:Boolean(task.approvedActions?.includes('EXECUTE')),providerNetworkApproved:Boolean(run.providerApprovals?.network),providerCredentialApproved:Boolean(run.providerApprovals?.credential),resume:Boolean(task.resume),onWorkerSpawn:workerAcquired&&this.workerRegistry?(processId=>{this.workerRegistry.updateAssignment(selectedWorkerId,{processId}).catch(()=>{});}):null,onEvent:async e=>{task.lastEvent=e;task.updatedAt=now();const evidence=await this.evidence.appendEvent(run.id,e).catch(()=>null);await this.persist();await this.event('task.event',{runId:run.id,taskId:task.id,data:e,evidence:evidence?{file:evidence.file,sha256:evidence.eventSha256,summary:String(e.type||'UNKNOWN').slice(0,200)}:null});}});
+      if(result?.policyViolation)await this.recordPolicyViolation({runId:run.id,taskId:task.id,...result.policyViolation});
       task.phase='VERIFYING';
       if(workerAcquired&&this.workerRegistry) await this.workerRegistry.updateAssignment(selectedWorkerId,{worktree:result.worktree||path.join(subRoot,'worktree'),verificationState:'RUNNING'}).catch(()=>{});
       await this.persist(); task.result=result;task.state=result.state==='DONE'?'DONE':result.state;task.lease=null;task.resume=false;task.finishedAt=now();
@@ -676,9 +686,9 @@ class ControlPlane {
         task.phase='DELIVERY'; await this.persist();
         try{
           const repo=task.delivery?.repo || (path.resolve(taskRoot)===path.resolve(run.sourceRoot)?run.githubRepo:null) || await this.detectRepo(taskRoot); if(!repo) throw new Error('GitHub repository could not be detected.');
-          runPolicy.assert({action:'COMMIT',path:result.worktree,approved:Boolean(run.delivery)});
-          runPolicy.assert({action:'PUSH',path:result.worktree,approved:Boolean(run.delivery)});
-          runPolicy.assert({action:'PR',path:result.worktree,approved:Boolean(run.delivery)});
+          await this.assertPolicyRecorded(runPolicy,{action:'COMMIT',path:result.worktree,approved:Boolean(run.delivery)},{runId:run.id,taskId:task.id});
+          await this.assertPolicyRecorded(runPolicy,{action:'PUSH',path:result.worktree,approved:Boolean(run.delivery)},{runId:run.id,taskId:task.id});
+          await this.assertPolicyRecorded(runPolicy,{action:'PR',path:result.worktree,approved:Boolean(run.delivery)},{runId:run.id,taskId:task.id});
           const branch='agent/'+task.id;
           const delivery=new DeliveryManager({repo,cwd:taskRoot});
           await delivery.branch(result.worktree,branch);

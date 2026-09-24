@@ -33,4 +33,19 @@ class SecurityPolicy{
  }
  assert(input){const r=this.check(input);if(!r.allowed)throw Object.assign(new Error(r.reason),{code:r.requiresApproval?'APPROVAL_REQUIRED':'POLICY_DENIED',policy:r});return r;}
 }
-module.exports={SecurityPolicy,ACTIONS,RISK,ORDER};
+// Stable reason codes for the policy.violation event: no path, prompt or payload is ever recorded.
+const REASON_CODES=Object.freeze({
+  'Unknown action.':'UNKNOWN_ACTION',
+  'Risk exceeds policy ceiling.':'RISK_CEILING',
+  'Human approval required by policy.':'HUMAN_APPROVAL_REQUIRED',
+  'UNC/network paths are disabled by policy.':'NETWORK_PATH_DENIED',
+  'Path is outside the configured allowlist.':'OUTSIDE_ALLOWLIST'
+});
+function policyReasonCode(reason,requiresApproval=false){return REASON_CODES[reason]||(requiresApproval?'HUMAN_APPROVAL_REQUIRED':'POLICY_DENIED');}
+// Returns {action,reasonCode} for an error raised by a policy gate (denied or approval required), otherwise null.
+function policyViolationOf(error){
+  if(!error||!['POLICY_DENIED','APPROVAL_REQUIRED'].includes(error.code))return null;
+  const check=error.policy||{};
+  return {action:String(check.action||error.action||'UNKNOWN').slice(0,32),reasonCode:policyReasonCode(check.reason,error.code==='APPROVAL_REQUIRED')};
+}
+module.exports={SecurityPolicy,ACTIONS,RISK,ORDER,policyReasonCode,policyViolationOf};

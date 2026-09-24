@@ -11,6 +11,7 @@ const { makeExecutionContract, updateExecutionContract, validateExecutionContrac
 const {buildReviewInput}=require('./review-context.cjs');
 const {validateReviewReport,saveReviewReport}=require('./review-report.cjs');
 const {writeImmutable}=require('./evidence-manager.cjs');
+const {policyViolationOf}=require('./security-policy.cjs');
 const {gitChangedFiles,gitUntrackedFiles,makeWorkerReport,saveWorkerReport,saveVerificationEvidence,completeWorkerReport}=require('./worker-report.cjs');
 const {discoverRepoKnowledge,knowledgeManifest,formatKnowledge}=require('./repo-knowledge.cjs');
 
@@ -569,6 +570,7 @@ async function runHarness(options) {
     else if (e?.code === 'APPROVAL_REQUIRED') {
       record.error = text(e?.message || e, 4000);
       record.requiredAction = e?.policy?.action || e?.action || null;
+      record.policyViolation = policyViolationOf(e);
       await transition('HUMAN_REQUIRED', { reason: 'policy-approval-required', action: record.requiredAction, error: record.error });
     }
     else if (['PROVIDER_CALL_BUDGET_EXHAUSTED','FAILED_ATTEMPT_BUDGET_EXHAUSTED','WALL_CLOCK_BUDGET_EXHAUSTED','PROVIDER_COST_BUDGET_EXHAUSTED','LOCAL_COMPUTE_BUDGET_EXHAUSTED','PATCH_BUDGET_EXHAUSTED','CHANGED_FILE_BUDGET_EXHAUSTED'].includes(e?.code)) {
@@ -581,7 +583,7 @@ async function runHarness(options) {
       const activeTask=(record.tasks||[]).find(task=>!['DONE','HUMAN_REQUIRED','BLOCKED'].includes(task.state));
       if(activeTask){activeTask.state='BLOCKED';activeTask.stopReason=e.code;}
       await transition('BLOCKED', { reason: e.code, error: record.error });
-    } else { record.error = text(e?.message || e, 4000); await transition('FAILED', { error: record.error }); }
+    } else { record.error = text(e?.message || e, 4000); if (e?.code === 'POLICY_DENIED') record.policyViolation = policyViolationOf(e); await transition('FAILED', { error: record.error }); }
     return record;
   }
 }

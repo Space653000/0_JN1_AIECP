@@ -17,7 +17,7 @@ const { PEGA_PROVIDER_ID, PEGA_WORKER_ID, PEGA_BASE_URL, PEGA_ENV_KEY, makePegaP
 const { clearEvidence, removeWorkspaceBinding, clearCredentials, resetActiveState } = require('./lib/local-data-manager.cjs');
 const { assertWithinRoot } = require('./lib/path-safety.cjs');
 const { redactSensitive } = require('./lib/redaction.cjs');
-const { SecurityPolicy } = require('./lib/security-policy.cjs');
+const { SecurityPolicy, policyReasonCode } = require('./lib/security-policy.cjs');
 const { makeExecutionContract, updateExecutionContract } = require('./lib/execution-contract.cjs');
 const { normalizeWorkspacePolicy, compileWorkspacePolicy, editableActions } = require('./lib/workspace-policy.cjs');
 const { migrateState } = require('./lib/state-migration.cjs');
@@ -298,7 +298,10 @@ async function approveBoundedLocalExecution(workspace, runRoot, label) {
   for (const action of ['WRITE', 'EXECUTE']) {
     const check = policy.check({ action, path: runRoot, approved: false });
     if (!check.allowed) {
-      if (!check.requiresApproval) throw Object.assign(new Error(check.reason), { code: 'POLICY_DENIED', policy: check });
+      if (!check.requiresApproval) {
+        await controlPlane?.recordPolicyViolation?.({ action, reasonCode: policyReasonCode(check.reason, false) });
+        throw Object.assign(new Error(check.reason), { code: 'POLICY_DENIED', policy: check });
+      }
       required.push(action);
     }
   }
