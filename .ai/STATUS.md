@@ -53,7 +53,7 @@
 
 ## 🚧 施工中 / 部分完成
 
-- **Codex 施工入口與本輪修正**：`AGENTS.md`、`.ai/CODEX_WORKER.md` 已建立；`provider-router.cjs` 原有 pipe/程序收斂修正已納入測試；README 已明確區分 `v0.3.0` 套件版本與 V3.0 Multi-Worker 藍圖階段，並補齊 19–24 號藍圖索引。本機 `npm run verify` 通過、`npm test` 254/254 PASS；`268f01d` 的四組 GitHub workflows 皆 SUCCESS。Claude Code Review／驗收仍待執行。
+- **Codex 施工入口與本輪修正**：`AGENTS.md`、`.ai/CODEX_WORKER.md` 已建立；`provider-router.cjs` 原有 pipe/程序收斂修正已納入測試；README 已明確區分 `v0.3.0` 套件版本與 V3.0 Multi-Worker 藍圖階段，並補齊 19–24 號藍圖索引。本機 `npm run verify` 通過、`npm test` 254/254 PASS；`268f01d` 的四組 GitHub workflows 皆 SUCCESS。Claude Code Review（2026-09-24，HEAD `9c232a9`）：**接受**，證據等級 CI；非阻擋意見 R1（`run()` 強制收斂路徑缺測試）、R2（README 狀態堆疊）已列入 [施工單 0001](WORK_ORDERS/0001.md)。
 - **文件累積雜訊**：README 內多段按日期附加的狀態區塊（2026-09-19/22/23）尚未整併，閱讀體驗差但無實質矛盾。
 
 ---
