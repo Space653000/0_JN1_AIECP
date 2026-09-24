@@ -27,7 +27,8 @@ const { writeBackup, stageRestore, applyPendingRestore } = require('./lib/backup
 const { WindowsUiAdapter } = require('./lib/windows-ui-adapter.cjs');
 const { PythonWorker } = require('./lib/python-worker.cjs');
 
-const { parseCommandCard, makeTaskId, makeResultCapsule, hashJson } = require('./lib/protocol.cjs');
+const { parseCommandCard, makeTaskId, makeResultCapsule, hashJson, withinClipboardWriteLimit } = require('./lib/protocol.cjs');
+const { isAllowedNavigation } = require('./lib/navigation-policy.cjs');
 const { compareVersions, versionFromTag, selectHighestRelease, selectInstallerAsset } = require('./lib/version.cjs');
 const { createUpdateTransaction, transitionUpdate, reconcileFirstBoot } = require('./lib/update-state.cjs');
 const { verifyAuthenticode } = require('./lib/authenticode.cjs');
@@ -1772,7 +1773,7 @@ function registerIpc() {
   ipcMain.handle('clipboard:read', async () => clipboard.readText());
   ipcMain.handle('clipboard:write', async (_event, payload) => {
     const text = payload?.text;
-    if (typeof text !== 'string' || text.length > 128 * 1024) throw new Error('Clipboard write rejected.');
+    if (typeof text !== 'string' || !withinClipboardWriteLimit(text)) throw new Error('Clipboard write rejected.');
     await clipboard.writeText(text);
     return true;
   });
@@ -1892,7 +1893,7 @@ async function createMainWindow() {
     return { action: 'deny' };
   });
   mainWindow.webContents.on('will-navigate', (event, url) => {
-    if (!url.startsWith('file:')) event.preventDefault();
+    if (!isAllowedNavigation(url, path.join(__dirname, '..', 'ui', 'index.html'))) event.preventDefault();
   });
   await mainWindow.loadFile(path.join(__dirname, '..', 'ui', 'index.html'));
   mainWindow.once('ready-to-show', () => mainWindow.show());

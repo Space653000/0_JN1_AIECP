@@ -105,7 +105,7 @@
 | OWNER-EXTERNAL gate | 4 類 | 只有 `Space653000`（repo 擁有者）本人 |
 | 刻意不做 | 6 項 | 需要新的獨立 Blueprint 決策才會開放，非「忘記做」 |
 
-**結論（2026-09-25 更新）：** 藍圖對標已完成**分類**：追溯矩陣 231 條，**0 條未分類**（115 已實作、91 部分、5 確認缺失、9 需人工驗證、3 擁有者、8 蓄意不做），且 `npm run verify` 已用 `--strict` 強制。這代表「完整性」現在是**可被機器持續驗證**的，但**不代表藍圖已完全實作**：仍有 5 個確認的真缺陷（G9，含 Electron 導覽與 IPC 驗證等安全項）、91 條缺針對性測試（G10）、9 條需人工驗收（第 6 節協定）、以及 ENVIRONMENT／OWNER-EXTERNAL 閘門。詳見 [GAP_REGISTER.md](GAP_REGISTER.md)。Codex 額度用完至 2026-09-29；期間由 Claude Code 接手。
+**結論（2026-09-25 更新）：** 藍圖對標已完成**分類**：追溯矩陣 231 條，**0 條未分類**（117 已實作、91 部分、3 確認缺失、9 需人工驗證、3 擁有者、8 蓄意不做），且 `npm run verify` 已用 `--strict` 強制。這代表「完整性」現在是**可被機器持續驗證**的，但**不代表藍圖已完全實作**：仍有 3 個確認的真缺陷（G9：IPC 統一參數驗證、Evidence 不可變、Result Capsule 未驗證不得宣稱成功；另 2 個——Electron 導覽限制與剪貼簿位元組上限——已由 Claude 修好並驗證）、91 條缺針對性測試（G10）、9 條需人工驗收（第 6 節協定）、以及 ENVIRONMENT／OWNER-EXTERNAL 閘門。詳見 [GAP_REGISTER.md](GAP_REGISTER.md)。Codex 額度用完至 2026-09-29；期間由 Claude Code 接手。
 
 ### 施工單 0006 施工進度（Claude 驗收 CLOSED）
 

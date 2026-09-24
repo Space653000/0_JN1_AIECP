@@ -6,6 +6,7 @@ const { redactText, redactSensitive } = require('./redaction.cjs');
 const COMMAND_SCHEMA = 'aecp.task/v1';
 const RESULT_SCHEMA = 'aecp.result/v1';
 const MAX_CARD_BYTES = 64 * 1024;
+const MAX_CLIPBOARD_WRITE_BYTES = 128 * 1024;
 const MAX_RESULT_BYTES = 32 * 1024;
 const MAX_RESULT_FACTS = 20;
 const ACTION_TYPES = ['inspect-workspace', 'git-status'];
@@ -98,11 +99,18 @@ function hashJson(value) {
   return crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex');
 }
 
+// The limit is measured in UTF-8 bytes, so CJK text cannot exceed it while staying under a character count.
+function withinClipboardWriteLimit(text) {
+  return typeof text === 'string' && Buffer.byteLength(text, 'utf8') <= MAX_CLIPBOARD_WRITE_BYTES;
+}
+
 module.exports = {
   COMMAND_SCHEMA,
   RESULT_SCHEMA,
   ACTION_TYPES,
   MAX_CARD_BYTES,
+  MAX_CLIPBOARD_WRITE_BYTES,
+  withinClipboardWriteLimit,
   MAX_RESULT_BYTES,
   MAX_RESULT_FACTS,
   extractJsonPayload,

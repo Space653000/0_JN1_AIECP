@@ -600,16 +600,25 @@
         "section": "## 3. Electron baseline"
       },
       "text": "- deny arbitrary navigation",
-      "status": "CONFIRMED_GAP",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/main.cjs",
-          "symbol": "will-navigate",
-          "description": "Navigation handler permits any file: URL rather than only the packaged local UI origin."
+          "file": "tests/navigation-clipboard-limits.test.cjs",
+          "kind": "test",
+          "name": "B04-ELECTRON-L34 navigation is limited to the packaged UI document"
+        },
+        {
+          "file": "tests/navigation-clipboard-limits.test.cjs",
+          "kind": "test",
+          "name": "B04-ELECTRON-L34 other file destinations, remote origins and malformed input are denied"
+        },
+        {
+          "file": "tests/navigation-clipboard-limits.test.cjs",
+          "kind": "test",
+          "name": "B04-ELECTRON-L34 a sibling file with the UI name prefix is not the UI document"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Restrict navigation to the known local UI document and deny other file: destinations."
+      "note": "Fixed by Claude Code (was CONFIRMED_GAP): will-navigate now uses electron/lib/navigation-policy.cjs and allows only the packaged UI document. Sabotage-checked: making the policy return true fails the tests."
     },
     {
       "id": "B04-ELECTRON-L35",
@@ -1261,16 +1270,20 @@
         "section": "## 8. Size limits"
       },
       "text": "- Result clipboard write: 128 KiB maximum",
-      "status": "CONFIRMED_GAP",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/main.cjs",
-          "symbol": "text.length > 128 * 1024",
-          "description": "Clipboard write limit counts UTF-16 code units, not UTF-8 bytes; CJK may exceed 128 KiB in bytes."
+          "file": "tests/navigation-clipboard-limits.test.cjs",
+          "kind": "test",
+          "name": "B11-8-L137 clipboard write limit is measured in UTF-8 bytes"
+        },
+        {
+          "file": "tests/navigation-clipboard-limits.test.cjs",
+          "kind": "test",
+          "name": "B11-8-L137 CJK text under the character count but over the byte limit is rejected"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Enforce Buffer.byteLength(text, utf8) <= 128 KiB at the clipboard write boundary."
+      "note": "Fixed by Claude Code (was CONFIRMED_GAP): clipboard:write now measures UTF-8 bytes via withinClipboardWriteLimit. Sabotage-checked: reverting to a character count fails the tests."
     },
     {
       "id": "B11-8-L138",
