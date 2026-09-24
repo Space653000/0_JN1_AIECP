@@ -84,17 +84,6 @@
 node scripts/verify-owner-evidence.cjs <填妥的記錄.json> --expect-sha <被驗收版本的40碼SHA>
 ```
 
-### 6.2 ENVIRONMENT 級別驗收（2026-09-25 新增，施工單 0013 批次 1 適用）
-
-下列項目的行為在程式碼中存在，但無法用單元測試自動驗證，需要特定的環境或裝置：
-
-- **B04-L157**：SmartScreen 提示（`electron/main.cjs` 行 157）— 安裝在真實 Windows 上才能觀察。
-- **B04-RED-L70**：系統權限分類（`electron/lib/security-policy.cjs` 的 SYSTEM 常數）— 屬於作業系統層政策，非程式碼層可自動驗證。
-- **B04-RED-L71**：計費操作（無公開實裝）— 未來適配器的配置層面，非現有程式碼可測。
-- **R1.1**：官方 ChatGPT DOM 不被碰觸 — 需安全審計團隊的手動驗證。
-
-這些項目的標記依據：證據等級為 ENVIRONMENT 或 OWNER-EXTERNAL，暫無法在 CI 或自動化測試中結案。
-
 通則：證據等級為 ENVIRONMENT；須附安裝檔 `fileName` + `sha256`（必須是該 SHA 的 Packaging artifact）、截圖的 `fileName` + `sha256`、機器代號與 `arch`、操作者聲明。截圖不得含憑證、帳號或私人內容。Codex 不得代為填寫或結案，只有 Claude Code 對照 SHA 審核後才可改 STATUS。
 
 ### 6.1 視覺、對比與縮放

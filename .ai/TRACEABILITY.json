@@ -755,15 +755,16 @@
         "section": "## 1. Threat model"
       },
       "text": "- a compromised provider must not automatically gain unrestricted local control.",
-      "status": "IMPLEMENTED",
+      "status": "PARTIAL",
       "evidence": [
         {
-          "file": "tests/batch1-security-policy.test.cjs",
-          "kind": "test",
-          "name": "B04-L11 compromised provider cannot gain unrestricted local control through policy bypass"
+          "file": "electron/lib/security-policy.cjs",
+          "kind": "code",
+          "name": "SecurityPolicy"
         }
       ],
-      "note": "Adversarial test proves policy engine blocks unrestricted SYSTEM access"
+      "workOrder": "UNASSIGNED",
+      "note": "Claude review of 0013 batch 1: a single SYSTEM-action denial does not prove the broad compromised-provider scenario; an adversarial end-to-end test is still missing. Original gap: Policy is outside the provider, but this broad compromise scenario lacks an adversarial end-to-end test."
     },
     {
       "id": "B04-L112",
@@ -856,10 +857,10 @@
       "status": "ENVIRONMENT",
       "evidence": [],
       "workOrder": "UNASSIGNED",
-      "note": "Windows SmartScreen warnings require real installed device and browser, not automated testing",
+      "note": "Needs an installed bootstrap build on a real Windows machine to observe the SmartScreen presentation. Preview labeling exists in README/UI.",
       "acceptanceRef": {
         "file": ".ai/ACCEPTANCE.md",
-        "section": "### 6.2 ENVIRONMENT 級別驗收"
+        "section": "## 5. ENVIRONMENT / OWNER 項目的驗收協定"
       }
     },
     {
@@ -891,20 +892,16 @@
         "section": "## 12. Local MCP boundary"
       },
       "text": "- changing Workspace must not silently expand an already-running server's scope.",
-      "status": "IMPLEMENTED",
+      "status": "PARTIAL",
       "evidence": [
         {
-          "file": "tests/batch1-mcp-scope.test.cjs",
-          "kind": "test",
-          "name": "B04-L185 changing Workspace does not silently expand already-running MCP scope"
-        },
-        {
-          "file": "tests/batch1-mcp-scope.test.cjs",
-          "kind": "test",
-          "name": "B04-L185 MCP scope binding respects workspace boundaries on Workspace switch"
+          "file": "electron/main.cjs",
+          "kind": "code",
+          "name": "startLocalMcp"
         }
       ],
-      "note": "Tests verify MCP scope rebinds cleanly on Workspace switch without expansion"
+      "workOrder": "UNASSIGNED",
+      "note": "Claude review of 0013 batch 1: the submitted test only mutated local variables and never called MCP code (it still passed with the behavior broken), so it was removed. Needs a real test of the MCP runtime Workspace binding across a Workspace switch. Original gap: MCP binds a Workspace at startup; active-server scope across Workspace switching lacks an integration assertion."
     },
     {
       "id": "B04-L193",
@@ -1050,14 +1047,16 @@
         "section": "## 4. Risk classes"
       },
       "text": "- admin/elevation",
-      "status": "ENVIRONMENT",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/security-policy.cjs",
+          "kind": "code",
+          "name": "SYSTEM"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "Admin/elevation commands are unsupported at code level; classification is system-layer policy, not automatable",
-      "acceptanceRef": {
-        "file": ".ai/ACCEPTANCE.md",
-        "section": "### 6.2 ENVIRONMENT 級別驗收"
-      }
+      "note": "SYSTEM is approval-gated, but explicit admin/elevation commands are unsupported rather than separately classified."
     },
     {
       "id": "B04-RED-L71",
@@ -1066,14 +1065,16 @@
         "section": "## 4. Risk classes"
       },
       "text": "- payment/billing",
-      "status": "ENVIRONMENT",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/lib/security-policy.cjs",
+          "kind": "code",
+          "name": "ACTIONS"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "No billing action exposed; future billing adapter would be configuration/environment concern",
-      "acceptanceRef": {
-        "file": ".ai/ACCEPTANCE.md",
-        "section": "### 6.2 ENVIRONMENT 級別驗收"
-      }
+      "note": "No billing action is exposed; a future billing adapter would need an explicit deny/approval decision."
     },
     {
       "id": "B04-RED-L72",
@@ -3513,14 +3514,16 @@
         "section": "## R1 — Trust boundaries"
       },
       "text": "Official ChatGPT remains an external official surface. AECP must not scrape its DOM, copy session cookies, intercept traffic, or use undocumented private endpoints.",
-      "status": "ENVIRONMENT",
-      "evidence": [],
+      "status": "PARTIAL",
+      "evidence": [
+        {
+          "file": "electron/main.cjs",
+          "kind": "code",
+          "name": "chatgpt:open"
+        }
+      ],
       "workOrder": "UNASSIGNED",
-      "note": "ChatGPT DOM/session interference requires security audit by human reviewer, not automatable",
-      "acceptanceRef": {
-        "file": ".ai/ACCEPTANCE.md",
-        "section": "### 6.2 ENVIRONMENT 級別驗收"
-      }
+      "note": "Official site opens in OS browser; broad absence of DOM/session/network interference still needs manual security audit."
     },
     {
       "id": "R1.2",
