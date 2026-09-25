@@ -2689,17 +2689,15 @@
         "section": "## 27. Acceptance criteria"
       },
       "text": "Harness dispatches a task without manual copy/paste between Claude and Codex.",
-      "status": "CONFIRMED_GAP",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/lib/control-plane.cjs",
-          "kind": "code",
-          "symbol": "prepareWorktree",
-          "description": "executeTask calls prepareWorktree(taskRoot,subRoot,controller.signal,baseRef) but control-plane.cjs never imports or defines prepareWorktree (only runHarness, safeJson, DEFAULT_ROLE_PROVIDERS, invokeRole are imported from harness.cjs, which exports it as prepareWorktree). Every non-resumed task therefore throws ReferenceError: prepareWorktree is not defined; the mission ends BLOCKED and no task is ever dispatched to a Worker. Reproduced with a real ControlPlane, a temp Git repo and a fake provider router."
+          "file": "tests/control-plane-dispatch-e2e.test.cjs",
+          "kind": "test",
+          "name": "B20-27-02 the Control Plane dispatches a queued task to a Worker in an isolated worktree and completes it without manual copy/paste"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Missing: the Control Plane cannot carry a planned task through Worker execution because of the undefined prepareWorktree; add the import (const { prepareWorktree } = require(./harness.cjs)) and an end-to-end mission test (planner -> builder -> verifier -> reviewer with no manual step). Not fixed here (feature code is out of scope for work order 0013)."
+      "note": "Fixed by Claude Code (was CONFIRMED_GAP): control-plane.cjs called prepareWorktree without importing it, so every dispatched task threw ReferenceError and the mission was BLOCKED. Import added; an end-to-end test now dispatches a queued task through a real ControlPlane, real runHarness and a temp Git repo, and asserts DONE in an isolated worktree with the source Workspace untouched. Sabotage-checked by removing the import and by stubbing the call."
     },
     {
       "id": "B20-27-03",
@@ -2814,10 +2812,19 @@
           "file": "tests/queue-dispatch-order.test.cjs",
           "kind": "test",
           "name": "B20-27-08 the queue dispatches the next eligible task after each completion: by priority, one at a time, dependencies first"
+        },
+        {
+          "file": "tests/control-plane-dispatch-e2e.test.cjs",
+          "kind": "test",
+          "name": "B20-27-02 the Control Plane dispatches a queued task to a Worker in an isolated worktree and completes it without manual copy/paste",
+          "covers": [
+            "B20-27-02",
+            "B20-27-08"
+          ]
         }
       ],
       "workOrder": "UNASSIGNED",
-      "note": "Proven with the real ControlPlane scheduler and a stubbed executeTask: after each completion the queue dispatches the next eligible task by priority, one at a time, with dependencies first. Not proven end to end because a real task cannot execute (see B20-27-02 gap: prepareWorktree is undefined in control-plane.cjs)."
+      "note": "Proven with the real ControlPlane scheduler and a stubbed executeTask: after each completion the queue dispatches the next eligible task by priority, one at a time, with dependencies first. Not proven end to end because a real task cannot execute (see B20-27-02 gap: prepareWorktree is undefined in control-plane.cjs). Claude review: the dispatch blocker is fixed and the end-to-end dispatch test now exists; the queue-order test covers the next-eligible rule. Left PARTIAL only until a test shows a second queued task starts automatically after the first completes in a real run."
     },
     {
       "id": "B20-27-09",
