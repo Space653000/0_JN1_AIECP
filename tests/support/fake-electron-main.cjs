@@ -9,7 +9,7 @@ const path = require('node:path');
 
 const noop = () => {};
 
-function loadMain({ userData: existingUserData = null } = {}) {
+function loadMain({ userData: existingUserData = null, version = '0.0.0-test' } = {}) {
   const userData = existingUserData || fs.mkdtempSync(path.join(os.tmpdir(), 'aecp-main-'));
   const handlers = {};
   const record = { openExternal: [], clipboard: [], console: [] };
@@ -21,7 +21,7 @@ function loadMain({ userData: existingUserData = null } = {}) {
   });
   let ready = null;
   const app = {
-    getPath: () => userData, getVersion: () => '0.0.0-test', getName: () => 'aecp', isPackaged: false, getAppPath: () => process.cwd(),
+    getPath: () => userData, getVersion: () => version, getName: () => 'aecp', isPackaged: false, getAppPath: () => process.cwd(),
     whenReady: () => ({ then: (fn) => { ready = fn; return { catch: noop }; } }),
     on: noop, once: noop, quit: noop, setAppUserModelId: noop, requestSingleInstanceLock: () => true, setName: noop, setPath: noop,
     commandLine: { appendSwitch: noop }, disableHardwareAcceleration: noop

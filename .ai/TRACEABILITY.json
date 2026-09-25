@@ -1725,16 +1725,25 @@
         "section": "## 7. Provider-neutral execution"
       },
       "text": "The Goal Loop never hard-codes a model vendor.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
+        {
+          "file": "tests/goal-loop-vendor-and-autonomy.test.cjs",
+          "kind": "test",
+          "name": "B14-L263 the Goal Loop takes vendors only from the role configuration: any provider names run the same loop with the same state shape"
+        },
+        {
+          "file": "tests/goal-loop-vendor-and-autonomy.test.cjs",
+          "kind": "test",
+          "name": "B14-L263 changing the vendor of one role for the next run changes nothing but who is called"
+        },
         {
           "file": "electron/lib/provider-router.cjs",
           "kind": "code",
           "name": "ProviderRouter"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Harness uses provider roles, but full vendor-substitution invariance is not yet established."
+      "note": "The real runHarness runs to DONE with three unrelated sets of provider names (defaults, invented vendors, one vendor in two roles); the router is called with exactly the configured ids per role and the persisted loop state has the same key structure whatever the vendor."
     },
     {
       "id": "B14-L292",
@@ -1804,16 +1813,20 @@
         "section": "## 11. Recovery and trust UX"
       },
       "text": "If AECP crashes, loop/task state must be recoverable from local state and evidence rather than inferred from chat history.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
+        {
+          "file": "tests/full-process-crash-recovery.test.cjs",
+          "kind": "test",
+          "name": "B14-L419 after a process is killed in the middle of a Goal Loop, a new process reconstructs loop, task and evidence from local state and finishes the work after an explicit resume"
+        },
         {
           "file": "electron/lib/control-plane.cjs",
           "kind": "code",
           "name": "recover"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Restart recovery exists; complete loop/task/evidence reconstruction needs a full-process crash test."
+      "note": "A real Control Plane process is killed with SIGKILL in the middle of a builder step; a new process recovers the mission as PAUSED (explicit resume required), the task as QUEUED/RECOVERED, keeps the pre-crash event journal and Goal Loop record intact, leaves the Workspace untouched, replays nothing until a human resumes, then finishes the same Goal Loop record with a verifying evidence manifest."
     },
     {
       "id": "B14-L438",
@@ -1822,16 +1835,25 @@
         "section": "## 12. Acceptance criteria"
       },
       "text": "Goal Loop becomes fully autonomous only when the selected provider + adapter + policy combination can execute every required step with deterministic verification and bounded permissions.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
+        {
+          "file": "tests/goal-loop-vendor-and-autonomy.test.cjs",
+          "kind": "test",
+          "name": "B14-L438 the Goal Loop is fully autonomous only when every required step is possible: it reaches DONE with all steps and stops at the first missing one"
+        },
+        {
+          "file": "tests/goal-loop-vendor-and-autonomy.test.cjs",
+          "kind": "test",
+          "name": "B14-L438 a provider that needs network or credentials, or a policy without execution rights, stops the loop before anything runs"
+        },
         {
           "file": "electron/lib/harness.cjs",
           "kind": "code",
           "name": "runHarness"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Autonomy is conditional on capabilities; no proof that every listed provider/adapter/policy combination supports all required steps."
+      "note": "The real runHarness reaches DONE only with a plan, a permitted build, a passing deterministic verification and a review; a failing verifier, a missing plan, a reviewer that cannot approve, or a provider needing network/credential/process rights without approval each stop the loop (HUMAN_REQUIRED or not DONE) before the builder runs, and the same loop proceeds autonomously once approved. It does not prove that every real provider/adapter/policy combination supports every step (ENVIRONMENT)."
     },
     {
       "id": "B14-L5",
@@ -1855,16 +1877,35 @@
         "section": "## 3. First-run UX"
       },
       "text": "This remains explicit by design. AECP must not scan the entire disk to guess which personal folders, repositories, or documents are intended for AI access.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
+        {
+          "file": "tests/workspace-boundary-scan.test.cjs",
+          "kind": "test",
+          "name": "B14-L88 with no Workspace chosen nothing on the disk is listed or scanned, however much onboarding state is requested"
+        },
+        {
+          "file": "tests/workspace-boundary-scan.test.cjs",
+          "kind": "test",
+          "name": "B14-L88 an explicitly chosen Workspace is scanned only inside its own boundary and only one level deep"
+        },
+        {
+          "file": "tests/workspace-boundary-scan.test.cjs",
+          "kind": "test",
+          "name": "B14-L88 adding a repository is an explicit choice that cannot reach outside the Workspace"
+        },
+        {
+          "file": "tests/workspace-boundary-scan.test.cjs",
+          "kind": "test",
+          "name": "B14-L88 the Mission resource scan (ResourceManager) also stays inside the approved root and one level deep"
+        },
         {
           "file": "electron/main.cjs",
           "kind": "code",
           "name": "workspace:select"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Workspace selection is explicit; negative whole-disk scan audit should include future onboarding paths."
+      "note": "Real main.cjs handlers and the real ResourceManager run with every directory listing and process working directory recorded: with no Workspace nothing outside AECP data is touched; a chosen Workspace is scanned only inside its own root and one level deep (no depth-2 repo, no hidden folder, no sibling project, never the parent); a cancelled dialog binds nothing; adding a repository is explicit and cannot reach outside the Workspace."
     },
     {
       "id": "B14-REQUIRED-L167",
@@ -2134,16 +2175,40 @@
         "section": "## 4. Agent Adapter model"
       },
       "text": "Detection and launch are fixed-capability operations. The UI may show an unavailable adapter, but must not fabricate availability.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
+        {
+          "file": "tests/adapter-availability-truth.test.cjs",
+          "kind": "test",
+          "name": "B15-L117 when detection finds nothing, every local adapter is reported unavailable and the UI shows and enables nothing for it"
+        },
+        {
+          "file": "tests/adapter-availability-truth.test.cjs",
+          "kind": "test",
+          "name": "B15-L117 launching an adapter is re-checked in the main process: an undetectable adapter cannot be launched"
+        },
+        {
+          "file": "tests/adapter-availability-truth.test.cjs",
+          "kind": "test",
+          "name": "B15-L117 only the adapter that really runs is reported available, with the version it printed"
+        },
+        {
+          "file": "tests/adapter-availability-truth.test.cjs",
+          "kind": "test",
+          "name": "B15-L117 a failed browser-window detection leaves the dock unavailable instead of inventing a window"
+        },
+        {
+          "file": "tests/adapter-availability-truth.test.cjs",
+          "kind": "test",
+          "name": "B15-L117 the desktop adapter only reports allowlisted browser windows it actually parsed, and a failed detection throws"
+        },
         {
           "file": "electron/lib/windows-desktop-adapter.cjs",
           "kind": "code",
           "name": "listBrowserWindows"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Adapters are fixed-capability and deny by default; no test asserts the UI never reports an adapter as available when detection fails."
+      "note": "Real agents:list with PATH controlled: with nothing installed every local adapter is unavailable with no fabricated version and the real UI disables its launch button and says Not detected; a fake codex on PATH makes only codex available; agents:launch re-probes and refuses undetectable adapters; a failed browser-window detection leaves the dock disabled; the real desktop adapter keeps only allowlisted, parsed windows and throws on failed detection."
     },
     {
       "id": "B15-L12",
@@ -2152,16 +2217,35 @@
         "section": "## 1. Purpose"
       },
       "text": "These chains must remain separate. ChatGPT Web credentials are never reused as GitHub credentials, and AECP never scrapes ChatGPT to discover code changes.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
+        {
+          "file": "tests/credential-chain-separation.test.cjs",
+          "kind": "test",
+          "name": "B15-L12 opening official ChatGPT hands the browser one plain URL: no GitHub credential, no gh, no AECP request"
+        },
+        {
+          "file": "tests/credential-chain-separation.test.cjs",
+          "kind": "test",
+          "name": "B15-L12 the GitHub chain only talks to the GitHub CLI and returns no credential of any kind"
+        },
+        {
+          "file": "tests/credential-chain-separation.test.cjs",
+          "kind": "test",
+          "name": "B15-L12 GitHub sign-in is its own gh device/web flow, launched in a separate terminal, and never through the ChatGPT surface"
+        },
+        {
+          "file": "tests/credential-chain-separation.test.cjs",
+          "kind": "test",
+          "name": "B15-L12 neither credential ever reaches AECP storage: provider keys, state and evidence contain neither marker"
+        },
         {
           "file": "electron/main.cjs",
           "kind": "code",
           "name": "chatgpt:open"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Official browser and GitHub credentials are separate in code; a credential-cross-contamination regression test is absent."
+      "note": "With marker GitHub and ChatGPT credentials in the environment: chatgpt:open hands the browser one plain URL and never touches gh; the GitHub chain only runs fixed gh status/browser-login commands and returns no token; sign-in is a separate gh --web flow that opens no ChatGPT page; no AECP file (state, credentials, evidence) contains either marker and the credential store holds only the provider key."
     },
     {
       "id": "B15-L291",
@@ -2170,16 +2254,20 @@
         "section": "## 9. Update UX"
       },
       "text": "The user should never need to identify CPU architecture for an ordinary update.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
+        {
+          "file": "tests/update-channel-safety.test.cjs",
+          "kind": "test",
+          "name": "B15-L291 the installer for this machine is chosen automatically: no architecture parameter, and the UI has no architecture control"
+        },
         {
           "file": "electron/lib/update-state.cjs",
           "kind": "code",
           "name": "targetVersion"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Universal bootstrap is wired, but ordinary installed upgrade architecture choice requires device evidence."
+      "note": "The installer for the running machine is chosen automatically: update:check returns the arm64 or x64 asset from process.arch, a universal installer wins when present, unknown architectures fall back to x64 without asking and an installer for the wrong architecture is never handed out; update:apply takes no parameters, the UI passes none and no UI control mentions an architecture. Real-device upgrade evidence stays under the owner/environment gates."
     },
     {
       "id": "B15-L324",
@@ -2203,16 +2291,35 @@
         "section": "## 2. Conversation → GitHub → Release → AECP"
       },
       "text": "The installed app never pulls arbitrary branches and never installs an artifact directly from a chat message.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
+        {
+          "file": "tests/update-channel-safety.test.cjs",
+          "kind": "test",
+          "name": "B15-L40 an installer whose SHA-256 does not match the release manifest is never launched"
+        },
+        {
+          "file": "tests/update-channel-safety.test.cjs",
+          "kind": "test",
+          "name": "B15-L40 a renderer- or chat-supplied URL, branch or artifact cannot steer the update"
+        },
+        {
+          "file": "tests/update-channel-safety.test.cjs",
+          "kind": "test",
+          "name": "B15-L40 nothing is downloaded or launched unless the release is newer than the running version"
+        },
+        {
+          "file": "tests/update-channel-safety.test.cjs",
+          "kind": "test",
+          "name": "B15-L40 a verified update comes only from the allowlisted release repository and never through a branch pull"
+        },
         {
           "file": "electron/lib/update-state.cjs",
           "kind": "code",
           "name": "createUpdateTransaction"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Verified release transaction exists; an installed-app test should prove chat-supplied or arbitrary-branch artifacts are never installed."
+      "note": "The real update:* handlers run against a scripted release channel: only gh release list/view/download for the allowlisted repository (no git command, no branch pull, no HTTP request); a digest mismatch or missing manifest entry never launches an installer or creates a transaction; renderer-supplied URL/branch/asset payloads are rejected; only a newer release is downloaded; the launched installer is the AECP-downloaded file whose SHA-256 matches the manifest."
     },
     {
       "id": "B15-L61",
@@ -2236,16 +2343,13 @@
         "section": "## 3. Private GitHub update channel"
       },
       "text": "Stable/signed builds now support Authenticode verification in addition to the SHA-256 manifest. A build can embed a required signer thumbprint; if present, downloaded target and rollback installers are rejected unless Windows reports a valid Authenticode signature from that exact signer. Preview builds may leave the signer pin empty and remain checksum-only.",
-      "status": "PARTIAL",
-      "evidence": [
-        {
-          "file": "electron/lib/authenticode.cjs",
-          "kind": "code",
-          "name": "normalizeThumbprint"
-        }
-      ],
-      "workOrder": "UNASSIGNED",
-      "note": "Signer pin and rollback verification have automated tests; actual signed stable installer needs owner certificate and device evidence."
+      "status": "OWNER",
+      "evidence": [],
+      "note": "The signer-pin and rollback verification logic is covered by tests/authenticode.test.cjs (and the real rollbackUpdate SHA re-verification in tests/update-channel-safety.test.cjs). A stable signed installer needs the owner production Authenticode certificate and a real device to observe; repository wiring cannot close it.",
+      "acceptanceRef": {
+        "file": ".ai/ACCEPTANCE.md",
+        "section": "## 5. ENVIRONMENT / OWNER 項目的驗收協定"
+      }
     },
     {
       "id": "B15-L90",
@@ -2254,16 +2358,20 @@
         "section": "## 3. Private GitHub update channel"
       },
       "text": "Required stable rollback states:",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
+        {
+          "file": "tests/update-channel-safety.test.cjs",
+          "kind": "test",
+          "name": "B15-L90 the required update states are all reachable in order and a first boot reports HEALTHY or ROLLBACK_REQUIRED"
+        },
         {
           "file": "electron/lib/update-state.cjs",
           "kind": "code",
           "name": "ROLLBACK_REQUIRED"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Rollback state machine is tested, but stable installer rollback on real installed machines remains an environment gate."
+      "note": "Real update state machine and real main.cjs restarts (separate OS processes as v9.9.9 or v0.0.0-test): the six required states exist with enforced transitions (nothing installs before VERIFIED, no skip to HEALTHY); a first boot on the target version records FIRST_BOOT_PENDING then HEALTHY, otherwise ROLLBACK_REQUIRED; rollback runs only from ROLLBACK_REQUIRED, re-verifies the retained installer SHA-256 and reaches ROLLED_BACK. Stable installer rollback on a real machine stays an owner/environment gate (R7.4)."
     },
     {
       "id": "B16-L171",

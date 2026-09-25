@@ -12,8 +12,9 @@ function makeElement(selector, doc) {
   const listeners = {};
   const attrs = {};
   const classes = new Set();
+  let explicitValue = null;
   const el = {
-    selector, dataset: {}, style: {}, children: [], textContent: '', value: '', checked: false, disabled: false, title: '', hidden: false, tabIndex: 0,
+    selector, dataset: {}, style: {}, children: [], textContent: '', checked: false, disabled: false, title: '', hidden: false, tabIndex: 0,
     innerHTML: '', innerText: '', open: false,
     classList: {
       add: (...names) => names.forEach((name) => classes.add(name)),
@@ -21,6 +22,9 @@ function makeElement(selector, doc) {
       toggle: (name, force) => { const on = force === undefined ? !classes.has(name) : Boolean(force); if (on) classes.add(name); else classes.delete(name); return on; },
       contains: (name) => classes.has(name)
     },
+    // A <select> shows its first option until something else is chosen, exactly like the real DOM.
+    get value() { if (explicitValue !== null) return explicitValue; return /select/i.test(selector) ? (/<option value="([^"]*)"/.exec(el.innerHTML)?.[1] ?? '') : ''; },
+    set value(next) { explicitValue = String(next); },
     get className() { return [...classes].join(' '); },
     set className(value) { classes.clear(); String(value || '').split(/\s+/).filter(Boolean).forEach((name) => classes.add(name)); },
     setAttribute: (key, value) => { attrs[key] = String(value); },
