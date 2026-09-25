@@ -120,6 +120,46 @@ test('B05-L34 the webhook receiver rejects unsigned or wrongly signed deliveries
   });
 });
 
+test('B05-L34 a malformed or wrong-length signature is answered 401 promptly and never hangs or crashes the receiver', async () => {
+  const unhandled = [];
+  const onUnhandled = (reason) => unhandled.push(reason);
+  process.on('unhandledRejection', onUnhandled);
+  try {
+    await withWebhook(async ({ events, post, receiver }) => {
+      const body = JSON.stringify({ workflow_run: { id: 1 } });
+      const good = sign(body);
+      const hex = good.slice('sha256='.length);
+      const malformed = {
+        'too short': 'sha256=abc',
+        'empty digest': 'sha256=',
+        'one char short': `sha256=${hex.slice(0, -1)}`,
+        'one char long': `sha256=${hex}0`,
+        'double length': `sha256=${hex}${hex}`,
+        'multibyte digest': `sha256=${'é'.repeat(32)}`,
+        'prefix only': 'sha256',
+        'wrong case prefix': `SHA256=${hex}`
+      };
+      for (const [label, signature] of Object.entries(malformed)) {
+        const response = await post(body, { 'x-hub-signature-256': signature });
+        assert.equal(response.status, 401, label);
+      }
+      assert.equal(receiver.verify(Buffer.from(body), 'sha256=abc'), false, 'verify() returns false instead of throwing');
+      assert.equal(receiver.verify(Buffer.from(body), undefined), false);
+      assert.equal(receiver.verify(Buffer.from(body), 42), false);
+      assert.equal(receiver.verify(Buffer.from(body), good), true);
+      assert.equal(events.length, 0, 'nothing malformed reaches the Control Plane');
+
+      const ok = await post(body, { 'x-hub-signature-256': good, 'x-github-delivery': 'after-malformed' });
+      assert.equal(ok.status, 202, 'the receiver keeps serving after rejecting malformed signatures');
+      assert.equal(events.length, 1);
+    });
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.deepEqual(unhandled, [], 'no unhandled promise rejection');
+  } finally {
+    process.off('unhandledRejection', onUnhandled);
+  }
+});
+
 test('B05-L118 external events are journaled with their correlation id but never change task state, and replays are deduplicated', async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'aecp-external-'));
   const cp = new ControlPlane({ rootDir: path.join(root, 'runtime') });
@@ -139,10 +179,42 @@ test('B05-L118 external events are journaled with their correlation id but never
 
     assert.equal(JSON.stringify({ runs: cp.state.runs, tasks: cp.state.tasks }), before, 'external events must not mutate task or run state');
 
-    const ledger = (await fs.readFile(cp.ledger.file, 'utf8')).trim().split(/\r?\n/).map((line) => JSON.parse(line));
+    const readLedger = async () => (await fs.readFile(cp.ledger.file, 'utf8')).trim().split(/\r?\n/).map((line) => JSON.parse(line));
+    const ledger = await readLedger();
     const received = ledger.filter((event) => event.type === 'external.received');
     assert.deepEqual(received.map((event) => [event.externalId, event.correlationId, event.eventType]), [['d-1', '555', 'workflow_run'], ['d-2', null, 'repository_dispatch']]);
     assert.ok(received.every((event) => event.schema === 'aecp.event-ledger/v1' && event.idempotencyKey.startsWith('github:')));
+
+    // Each accepted delivery is also correlated: the external.correlated event has its own idempotency key,
+    // so the ledger does not swallow it as a duplicate of external.received, and it reaches the event journal.
+    const correlated = ledger.filter((event) => event.type === 'external.correlated');
+    assert.deepEqual(correlated.map((event) => [event.externalId, event.correlationId, event.idempotencyKey]),
+      [['d-1', '555', 'github:d-1:correlated'], ['d-2', null, 'github:d-2:correlated']]);
+    const journal = (await cp.listEvents(100)).filter((event) => event.type === 'external.correlated');
+    assert.deepEqual(journal.map((event) => [event.externalId, event.correlationId, event.idempotencyKey]),
+      [['d-1', '555', 'github:d-1:correlated'], ['d-2', null, 'github:d-2:correlated']]);
+    assert.ok(journal.every((event) => event.schema === 'aecp.event/v1'));
+
+    // A replay of an already-ingested delivery writes nothing at all: not to the ledger, not to the journal.
+    const ledgerLines = (await readLedger()).length;
+    const journalLines = (await cp.listEvents(1000)).length;
+    assert.deepEqual(await cp.ingestExternalEvent(workflow), { duplicate: true });
+    assert.deepEqual(await cp.ingestExternalEvent(dispatch), { duplicate: true });
+    assert.equal((await readLedger()).length, ledgerLines, 'a duplicate delivery adds nothing to the ledger');
+    assert.equal((await cp.listEvents(1000)).length, journalLines, 'a duplicate delivery adds nothing to the event journal');
+
+    // The dedup state is rebuilt from disk: a restarted Control Plane still treats the delivery as a duplicate.
+    await cp.shutdown();
+    const restarted = new ControlPlane({ rootDir: path.join(root, 'runtime') });
+    await restarted.init();
+    try {
+      assert.deepEqual(await restarted.ingestExternalEvent(workflow), { duplicate: true });
+      assert.equal((await restarted.listEvents(1000)).length, journalLines);
+      assert.deepEqual(await restarted.ingestExternalEvent({ ...workflow, externalId: 'd-3', idempotencyKey: 'github:d-3' }), { duplicate: false });
+      assert.equal((await restarted.listEvents(1000)).filter((event) => event.type === 'external.correlated').length, 3);
+    } finally {
+      await restarted.shutdown();
+    }
   } finally {
     await cp.shutdown();
     await fs.rm(root, { recursive: true, force: true });

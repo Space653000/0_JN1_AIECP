@@ -1175,7 +1175,7 @@
         }
       ],
       "workOrder": "UNASSIGNED",
-      "note": "Proven: external events are journaled with their correlation id, deduplicated by idempotency key, and never change task/run state. Remaining: ingestExternalEvent reuses the same idempotencyKey for its external.correlated event so the ledger drops it as a duplicate (never written); repository_dispatch client_payload (versioned AECP event/correlation ids) is not parsed; only workflow_run.id is correlated."
+      "note": "Proven: external events are journaled with their correlation id, each accepted delivery also persists an external.correlated event (own idempotency key <key>:correlated, present in both the ledger and events.jsonl), replays are deduplicated (also after restart, writing nothing new), and external events never change task/run state. Remaining: repository_dispatch client_payload (versioned AECP event/correlation ids) is not parsed; only workflow_run.id is correlated; workflow_dispatch is not handled."
     },
     {
       "id": "B05-L132",
@@ -1241,10 +1241,15 @@
           "file": "tests/delivery-and-external-events.test.cjs",
           "kind": "test",
           "name": "B05-L34 the webhook receiver rejects unsigned or wrongly signed deliveries and correlates signed ones to the workflow run"
+        },
+        {
+          "file": "tests/delivery-and-external-events.test.cjs",
+          "kind": "test",
+          "name": "B05-L34 a malformed or wrong-length signature is answered 401 promptly and never hangs or crashes the receiver"
         }
       ],
       "workOrder": "UNASSIGNED",
-      "note": "Proven: DeliveryManager issues only fixed git/gh primitives (draft PR only, no force/merge, single-argv inputs, task worktree cwd) and the signed webhook receiver rejects unsigned/wrong-signature deliveries and correlates workflow_run ids. Remaining defect: GitHubWebhookReceiver.verify throws RangeError (timingSafeEqual length mismatch) for a signature of the wrong length, which becomes an unhandled rejection and a hung request; GitHubGateway is unused and calls non-gh subcommands (gh rev-parse/add/commit/push)."
+      "note": "Proven: DeliveryManager issues only fixed git/gh primitives (draft PR only, no force/merge, single-argv inputs, task worktree cwd) and the signed webhook receiver rejects unsigned, wrong-signature and malformed/wrong-length-signature deliveries (401, no hang, no unhandled rejection; verify() fixed in work order 0013 batch 3 follow-up) and correlates workflow_run ids. Remaining: GitHubGateway is unused and calls non-gh subcommands (gh rev-parse/add/commit/push); direct OAuth/GitHub App adapter is optional and absent."
     },
     {
       "id": "B05-L5",

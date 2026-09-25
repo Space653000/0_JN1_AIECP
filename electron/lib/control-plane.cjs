@@ -867,7 +867,7 @@ class ControlPlane {
   listRemoteDevices(){return this.remote.listDevices()}
   revokeRemoteDevice(deviceId){return this.remote.revokeDeviceId(deviceId)}
   async scanResources(root){return this.resources.scan(root)}
-  async ingestExternalEvent(event){const key=event?.idempotencyKey||event?.externalId;if(!key)throw new Error('External event requires idempotencyKey or externalId.');const r=await this.ledger.append({type:'external.received',...event,idempotencyKey:key});if(r.duplicate)return{duplicate:true};await this.event('external.correlated',{externalId:event.externalId||null,correlationId:event.correlationId||null,idempotencyKey:key});return{duplicate:false};}
+  async ingestExternalEvent(event){const key=event?.idempotencyKey||event?.externalId;if(!key)throw new Error('External event requires idempotencyKey or externalId.');const r=await this.ledger.append({type:'external.received',...event,idempotencyKey:key});if(r.duplicate)return{duplicate:true};await this.event('external.correlated',{externalId:event.externalId||null,correlationId:event.correlationId||null,idempotencyKey:key+':correlated'});return{duplicate:false};}
   async gc(){const removed=await this.contextBus.gc();await this.locks.recover();await this.event('maintenance.gc',{removedCapsules:removed});return{removedCapsules:removed};}
   async replay(runId,limit=500){const events=await this.listEvents(limit);return events.filter(e=>!runId||e.runId===runId);}
   async listEvents(limit=500){
