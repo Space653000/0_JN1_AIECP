@@ -50,5 +50,6 @@ test('G11-5 two cross-repository tasks that want the same two repositories in op
   assert.match(blocked.error, /repo-write:/, 'the lock key is reported');
   assert.ok(blocked.error.includes(winner.id), 'and so is the task that holds it');
   assert.equal(blocked.phase, 'LOCK_BUSY');
+  await waitFor(() => cp.locks.list().length === 0, { label: 'the locks to be released' });
   assert.deepEqual(cp.locks.list(), [], 'no lock is leaked');
 });

@@ -23,6 +23,7 @@ test('G13 two tasks of the same repository dispatched together both complete: th
   await cp.startMission(run.id);
   await waitFor(() => [one, two].every((task) => TASK_TERMINAL.includes(task.state)), { timeoutMs: 90000, label: 'both tasks to finish' });
   assert.deepEqual([one.state, two.state], ['DONE', 'DONE'], `${one.error || ''} ${two.error || ''}`);
+  await waitFor(() => cp.locks.list().length === 0, { label: 'the locks to be released' });
   assert.deepEqual(cp.locks.list(), []);
 });
 
