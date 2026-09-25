@@ -80,7 +80,7 @@ test('R3.9 a PEGA worker and an arbitrary custom Codex worker produce identical 
       ? makePegaProvider({ model: 'worker-model', wireApi: 'responses', apiKey: KEY, codexHome: profile.codexHome, runtimeEnv: { ...profile.env } })
       : { id: providerId, command: 'codex', roles: ['builder'], mode: 'codex-cli', network: true, credential: true, requiresCredential: true, apiKey: KEY, workerId, workerName: workerId, providerName: providerId, baseUrl: 'https://generic.example/v1', defaultModel: 'worker-model', wireApi: 'responses', codexHome: profile.codexHome, runtimeEnv: { ...profile.env }, kind: 'codex-worker' };
     const log = [];
-    const router = new ProviderRouter({ ...PROVIDERS, [providerId]: providerEntry }, { runner: makeCliRunner(log) });
+    const router = new ProviderRouter({ ...PROVIDERS, [providerId]: providerEntry }, { runner: makeCliRunner(log), fetchImpl: async () => ({ status: 401, ok: false }) });
     const workers = new WorkerRegistry(path.join(base, 'registry'));
     await workers.init();
     await workers.register({ id: workerId, name: workerId, providerId, providerName: providerId, role: 'builder', runtime: 'codex-cli', codexHome: profile.codexHome });

@@ -215,6 +215,27 @@ class ProviderRouter {
     try { await this.metricsSink(metric); } catch {}
   }
 
+  // One bounded, credential-less request to the selected API family. A 404/501 means the endpoint does not serve it;
+  // any other HTTP answer (401, 400, 405 ...) proves the route exists. Details carry a reason code, never a URL.
+  async probeWireApi(provider, opts = {}) {
+    if (typeof this.fetchImpl !== 'function') return null;
+    const base = safeNetworkUrl(provider.baseUrl);
+    const baseHref = base.href.endsWith('/') ? base.href : base.href + '/';
+    const endpoint = new URL(provider.wireApi === 'chat' ? 'chat/completions' : 'responses', baseHref);
+    const controller = new AbortController();
+    let timedOut = false;
+    const timer = setTimeout(() => { timedOut = true; controller.abort(); }, Math.min(5000, Math.max(1000, Number(opts.timeoutMs || 5000))));
+    try {
+      const response = await this.fetchImpl(endpoint, { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json' }, body: '{}', signal: controller.signal });
+      if (response.status === 404 || response.status === 501) return { reason: 'WIRE_API_UNSUPPORTED', detail: `The endpoint does not serve the selected ${provider.wireApi === 'chat' ? 'Chat Completions' : 'Responses'} API.` };
+      if (response.status >= 500) return { reason: 'ENDPOINT_ERROR', detail: `The endpoint answered HTTP ${response.status}.` };
+      return null;
+    } catch (error) {
+      if (error?.name === 'AbortError') return { reason: timedOut ? 'ENDPOINT_TIMEOUT' : 'ENDPOINT_UNREACHABLE', detail: timedOut ? 'The endpoint did not answer in time.' : 'The endpoint probe was cancelled.' };
+      return { reason: 'ENDPOINT_UNREACHABLE', detail: 'The endpoint could not be reached.' };
+    } finally { clearTimeout(timer); }
+  }
+
   async health(providerId, opts = {}) {
     const provider = this.registry[providerId];
     const checkedAt = new Date().toISOString();
@@ -238,6 +259,10 @@ class ProviderRouter {
         if (provider.requiresAuthFiles && !provider.authPresent) return result('AUTH_REQUIRED', 'Codex OFFICIAL isolated CODEX_HOME requires authentication.', { workerId: provider.workerId || providerId, codexHome: provider.codexHome });
         if (provider.network && !opts.networkApproved) return result('DEGRADED', 'Codex worker is configured, but live network use is not approved.', { workerId: provider.workerId || providerId, codexHome: provider.codexHome, model: opts.model || provider.defaultModel || null, wireApi: provider.wireApi || null });
         if (provider.requiresCredential && !opts.credentialApproved) return result('DEGRADED', 'Codex worker credential is configured, but credential use is not approved.', { workerId: provider.workerId || providerId, codexHome: provider.codexHome, model: opts.model || provider.defaultModel || null, wireApi: provider.wireApi || null });
+        if (provider.baseUrl && provider.network && opts.networkApproved) {
+          const probeFailure = await this.probeWireApi(provider, opts);
+          if (probeFailure) return result('DEGRADED', probeFailure.detail, { reason: probeFailure.reason, workerId: provider.workerId || providerId, codexHome: provider.codexHome, wireApi: provider.wireApi || null });
+        }
         return result('READY', 'Codex CLI and isolated worker runtime are approved for this run.', {
           version: (probe.stdout || probe.stderr || '').split(/\r?\n/)[0],
           workerId: provider.workerId || providerId,

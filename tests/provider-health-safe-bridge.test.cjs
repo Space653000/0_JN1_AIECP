@@ -119,7 +119,8 @@ test('B03-L129 a Codex worker with a stored key but no CREDENTIAL approval repor
   assert.equal((await router.health('keyless', { networkApproved: true })).status, 'AUTH_REQUIRED', 'a worker without a stored key asks for a credential');
   const approved = await router.health('keyed', { networkApproved: true, credentialApproved: true });
   assert.equal(approved.status, 'READY');
-  assert.equal(server.requests.length, 0, 'even an approved Codex worker check only runs the version probe');
+  assert.equal(server.requests.length, 1, 'an approved Codex worker check runs the version probe plus one bounded endpoint probe');
+  assert.equal(server.requests[0].authorization, undefined, 'and that probe never carries the credential');
 });
 
 const safeBridgeFlow = async () => {

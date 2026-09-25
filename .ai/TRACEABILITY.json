@@ -562,17 +562,25 @@
         "section": "## 2A. Provider versus Worker"
       },
       "text": "The adapter must negotiate and verify the API family actually available in the environment, including Chat Completions-compatible and Responses-compatible behavior where supported. Unsupported capability combinations fail closed.",
-      "status": "CONFIRMED_GAP",
+      "status": "IMPLEMENTED",
       "evidence": [
+        {
+          "file": "tests/worker-endpoint-probe.test.cjs",
+          "kind": "test",
+          "name": "G15-C an approved worker health check probes the endpoint for the selected wire API, without credentials"
+        },
+        {
+          "file": "tests/worker-endpoint-probe.test.cjs",
+          "kind": "test",
+          "name": "G15-C a hanging or unreachable endpoint degrades the worker, and without network approval nothing is requested"
+        },
         {
           "file": "electron/lib/provider-router.cjs",
           "kind": "code",
-          "symbol": "health",
-          "description": "No API family negotiation or verification exists. For a codex-cli worker, health only runs `<command> --version` and checks static configuration; it never contacts provider.baseUrl and never probes Responses versus Chat Completions. Reproduced: a worker configured with wire_api \"chat\" and a loopback endpoint reports READY with zero requests to the endpoint. The wire API is whatever was configured; codex-worker-runtime.cjs normalizeWireApi only validates the spelling."
+          "name": "health"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Missing: negotiate/verify the API family actually available at the endpoint (and fail closed for unsupported combinations) instead of trusting configuration. Proven and kept as regression tests (tests/codex-worker-isolation.test.cjs): unknown wire APIs, non-HTTPS non-loopback endpoints, embedded credentials, missing models and invalid env keys are all rejected. Real endpoint compatibility remains environment-dependent. Not fixed here (feature code is out of scope for work order 0013)."
+      "note": "With network approval the worker health check makes one bounded, credential-less request to the selected API family (responses or chat/completions): 404/501 means WIRE_API_UNSUPPORTED, a timeout ENDPOINT_TIMEOUT, no connection ENDPOINT_UNREACHABLE, all reported as DEGRADED without any URL parameter; without approval nothing is requested. Two older tests that had assumed health never contacts the endpoint (the defect) were updated. Fixed by 0014 item C; real endpoint compatibility still needs ENVIRONMENT evidence (R3.9)."
     },
     {
       "id": "B03-L70",
