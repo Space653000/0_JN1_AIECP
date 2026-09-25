@@ -117,3 +117,4 @@
 {"ids":["B03-L56"],"file":"electron/lib/worker-registry.cjs","from":"const real = await fs.realpath(probe);","to":"const real = probe;","tests":["tests/worker-home-isolation-aliases.test.cjs"]}
 {"ids":["B03-L56"],"file":"electron/lib/worker-registry.cjs","from":"const homesOverlap = (a, b) => a === b || a.startsWith(","to":"const homesOverlap = (a, b) => a === b || false && a.startsWith(","tests":["tests/worker-home-isolation-aliases.test.cjs"]}
 {"ids":["B03-L56"],"file":"electron/lib/worker-registry.cjs","from":"if (homesOverlap(await canonicalHomePath(existing.codexHome), canonicalHome)) throw","to":"if (false) throw","tests":["tests/worker-home-isolation-aliases.test.cjs"]}
+{"ids":["B05-L20"],"file":"electron/lib/resource-manager.cjs","from":"remote=safeRemote(await run(['remote','get-url','origin'],rp))","to":"remote=await run(['remote','get-url','origin'],rp)","tests":["tests/resource-remote-redaction.test.cjs"]}

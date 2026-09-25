@@ -1243,17 +1243,25 @@
         "section": "## 2. Resource model"
       },
       "text": "AECP detects local repositories first. Remote identity is derived from `git remote -v` and normalized for display; credentials are never parsed from URLs into logs.",
-      "status": "CONFIRMED_GAP",
+      "status": "IMPLEMENTED",
       "evidence": [
+        {
+          "file": "tests/resource-remote-redaction.test.cjs",
+          "kind": "test",
+          "name": "G11-3 a remote with embedded user:token credentials is stored without them but stays identifiable"
+        },
+        {
+          "file": "tests/resource-remote-redaction.test.cjs",
+          "kind": "test",
+          "name": "G11-3 a token-only userinfo and a plain remote are handled too"
+        },
         {
           "file": "electron/lib/resource-manager.cjs",
           "kind": "code",
-          "symbol": "scan",
-          "description": "scan stores the raw output of `git remote get-url origin` (repos[].remote) and persists it to resources.json without normalization or credential stripping; a remote such as https://user:token@github.com/o/r.git is written to disk verbatim. control-plane.cjs planMission also puts r.remote into the planner prompt. Only main.cjs redactRemote (Workspace display path) strips credentials."
+          "name": "scan"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Missing: ResourceManager must normalize/redact remote URLs (drop userinfo, normalize for display) before persisting or exposing them. Verified by running scan on a repo whose origin embeds a token: the token appeared in resources.json. Not fixed here (feature code is out of scope for work order 0013)."
+      "note": "ResourceManager.scan drops user:password@ / token@ userinfo from http(s) remotes and redacts token-looking text before persisting resources.json, so neither the file, the in-memory state nor the planner prompt (which uses it) carries the credential; host and path stay identifiable. Fixed by 0014 item B."
     },
     {
       "id": "B05-L34",
