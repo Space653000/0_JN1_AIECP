@@ -320,8 +320,46 @@ async function approveBoundedLocalExecution(workspace, runRoot, label) {
   return true;
 }
 
+// Optional Control Plane / Worker state must never stop the app (and with it the Web Safe Bridge): an unreadable file is
+// renamed to <name>.corrupt-<timestamp>, reported to the UI and journaled, and the component restarts from empty state.
+const startupWarnings = [];
+const OPTIONAL_STATE_FILES = () => [
+  ['workers', 'worker-registry.json'], ['runtime', 'control-plane.json'], ['runtime', 'locks', 'locks.json'], ['runtime', 'resources', 'resources.json']
+].map((parts) => dataPath(...parts));
+
+async function quarantineUnreadableState() {
+  const moved = [];
+  for (const file of OPTIONAL_STATE_FILES()) {
+    let text;
+    try { text = await fsp.readFile(file, 'utf8'); } catch { continue; }
+    let valid = false;
+    try { const parsed = JSON.parse(text); valid = parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed); } catch { valid = false; }
+    if (valid) continue;
+    const quarantinedAs = `${path.basename(file)}.corrupt-${new Date().toISOString().replace(/[:.]/g, '-')}`;
+    try {
+      await fsp.rename(file, path.join(path.dirname(file), quarantinedAs));
+      moved.push({ file: path.basename(file), kind: 'corrupt', quarantinedAs });
+    } catch { /* leave it; the retry below reports the failure */ }
+  }
+  return moved;
+}
+
 async function initControlPlane() {
   if (controlPlane) return controlPlane;
+  try {
+    return await startControlPlane();
+  } catch (firstError) {
+    controlPlane = null;
+    const moved = await quarantineUnreadableState();
+    if (!moved.length) throw firstError;
+    startupWarnings.push(...moved);
+    const started = await startControlPlane();
+    await started.event('maintenance.failed', { quarantined: moved.map((item) => item.quarantinedAs) }).catch(() => {});
+    return started;
+  }
+}
+
+async function startControlPlane() {
   const state = await loadState();
   const workspace = getCurrentWorkspace(state);
   controlPlane = new ControlPlane({
@@ -1569,7 +1607,8 @@ function registerIpc() {
     platform: process.platform,
     arch: process.arch,
     hostname: os.hostname(),
-    userDataPath: app.getPath('userData')
+    userDataPath: app.getPath('userData'),
+    startupWarnings: [...startupWarnings]
   }));
 
   ipc.handle('guidance:recommend', async (_event, payload) => {
@@ -1917,7 +1956,10 @@ app.whenReady().then(async () => {
     app.quit();
     return;
   }
-  await initControlPlane();
+  await initControlPlane().catch((error) => {
+    console.error(error);
+    startupWarnings.push({ file: 'control-plane', kind: 'unavailable', quarantinedAs: '', detail: String(error?.message || error).slice(0, 200) });
+  });
   registerIpc();
   await createMainWindow();
   app.on('activate', async () => {

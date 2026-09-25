@@ -138,3 +138,9 @@
 {"ids":["R5.4"],"file":"electron/lib/maintenance.cjs","from":"if(attempted>=budget){result.worktreesDeferred++;continue}","to":"","tests":["tests/maintenance-worktree-budget.test.cjs"]}
 {"ids":["R5.4"],"file":"electron/lib/maintenance.cjs","from":"const budget=Math.max(1,Number(maxWorktreeCleanups)||20);","to":"const budget=1000000;","tests":["tests/maintenance-worktree-budget.test.cjs"]}
 {"ids":["G15"],"file":"electron/lib/control-plane.cjs","from":"function budgetOrDefault(n,min,max,d){return n==null?d:clamp(n,min,max,d);}","to":"function budgetOrDefault(n,min,max,d){return clamp(n,min,max,d);}","tests":["tests/mission-budget-defaults.test.cjs"]}
+{"ids":["R3.6"],"file":"electron/main.cjs","from":"if (!moved.length) throw firstError;","to":"throw firstError;","tests":["tests/corrupt-state-startup.test.cjs"]}
+{"ids":["R3.6"],"file":"electron/main.cjs","from":"await fsp.rename(file, path.join(path.dirname(file), quarantinedAs));","to":"await fsp.rm(file);","tests":["tests/corrupt-state-startup.test.cjs"]}
+{"ids":["R3.6"],"file":"electron/main.cjs","from":"startupWarnings.push(...moved);","to":"","tests":["tests/corrupt-state-startup.test.cjs"]}
+{"ids":["R3.6"],"file":"electron/main.cjs","from":"await started.event('maintenance.failed', { quarantined: moved.map((item) => item.quarantinedAs) }).catch(() => {});","to":"","tests":["tests/corrupt-state-startup.test.cjs"]}
+{"ids":["R3.6"],"file":"electron/main.cjs","from":"    startupWarnings: [...startupWarnings]\n","to":"    startupWarnings: []\n","tests":["tests/corrupt-state-startup.test.cjs"]}
+{"ids":["R3.6"],"file":"ui/app.js","from":"for (const warning of app?.startupWarnings || []) toast(","to":"for (const warning of []) toast(","tests":["tests/startup-warning-ui.test.cjs"]}

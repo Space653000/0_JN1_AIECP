@@ -120,6 +120,7 @@ async function loadAll() {
     safe(() => window.aecp.getGuidance({ chatgptOpened: state.chatgptOpened }), null)
   ]);
   state.app = app;
+  for (const warning of app?.startupWarnings || []) toast(`Started with a repaired file: ${warning.file} was unreadable${warning.quarantinedAs ? ` and was kept as ${warning.quarantinedAs}` : ''}. Its feature restarted from empty state.`, 'error');
   state.data = data;
   state.tools = tools || [];
   state.tasks = tasks || [];

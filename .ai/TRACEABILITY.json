@@ -4505,17 +4505,30 @@
         "section": "## R3 — Provider independence and local models"
       },
       "text": "Optional providers failing or being unconfigured must not break Web Safe Bridge operation.",
-      "status": "CONFIRMED_GAP",
+      "status": "IMPLEMENTED",
       "evidence": [
+        {
+          "file": "tests/corrupt-state-startup.test.cjs",
+          "kind": "test",
+          "name": "G16 corrupted optional state files never stop the app: they are set aside, reported, and the Web Safe Bridge works"
+        },
+        {
+          "file": "tests/startup-warning-ui.test.cjs",
+          "kind": "test",
+          "name": "G16 the UI tells the person when the app started with a repaired state file"
+        },
+        {
+          "file": "tests/safe-bridge-fault-injection.test.cjs",
+          "kind": "test",
+          "name": "R3.6 the Web Safe Bridge keeps working through every optional-provider failure mode, one after another"
+        },
         {
           "file": "electron/main.cjs",
           "kind": "code",
-          "symbol": "initControlPlane",
-          "description": "Startup awaits initControlPlane() before registerIpc(), and initControlPlane() reads runtime/control-plane.json and workers/worker-registry.json (optional Control Plane state) without tolerating a corrupted file. Reproduced with the real main.cjs under a fake Electron: a corrupted userData/workers/worker-registry.json (or runtime/control-plane.json) makes startup fail with \"STARTUP FAILED: Expected property name or '}' in JSON...\" and app.quit(), so no IPC handler (task:import, task:execute, chatgpt:open ...) is ever registered. A broken optional Worker/Control Plane record therefore takes the Web Safe Bridge down with it."
+          "name": "initControlPlane"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Missing: make Control Plane / Worker Registry initialisation failure non-fatal (register the Safe Bridge IPC handlers first or catch the failure, quarantine the corrupted file and report the optional feature as unavailable). Proven and kept as regression tests (tests/safe-bridge-fault-injection.test.cjs and tests/provider-health-safe-bridge.test.cjs, real main.cjs handlers): the Safe Bridge round trip (sample, import, execute, list, open ChatGPT) keeps working with a dead API provider, a dead remote MCP provider, unconfigured OFFICIAL/PEGA workers, an unknown provider, a malformed provider record in state.json, and a corrupted credential store with encryption unavailable, with no network request of its own. Not fixed here (feature code is out of scope for work order 0013)."
+      "note": "Corrupted worker-registry.json, control-plane.json, locks.json or resources.json no longer stop the app: unreadable files are renamed to <name>.corrupt-<timestamp> (bytes preserved), the component restarts empty, the event ledger records maintenance.failed with the file names, app:info exposes startupWarnings (names only) and the UI shows a toast, and the Web Safe Bridge round trip works. Fixed by 0014 item H; the earlier optional-provider failure-injection tests remain."
     },
     {
       "id": "R3.7",
