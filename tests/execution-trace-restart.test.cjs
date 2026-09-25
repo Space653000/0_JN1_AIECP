@@ -6,6 +6,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { execFileSync, spawnSync } = require('node:child_process');
+const { hashJson, parseCommandCard } = require('../electron/lib/protocol.cjs');
 
 const SESSION = path.join(__dirname, 'support', 'main-session.cjs');
 const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'aecp-trace-ud-'));
@@ -41,7 +42,9 @@ test('B11-6-TRACE every trace event has the aecp.trace/v1 shape, a gap-free sequ
   }
   assert.ok(events.every((event, index) => index === 0 || Date.parse(event.at) >= Date.parse(events[index - 1].at)), 'timestamps never go backwards');
   assert.equal(events[0].data.risk, 'GREEN');
-  assert.match(events[0].data.cardHash, /^[0-9a-f]{64}$/);
+  const stored = JSON.parse(fs.readFileSync(path.join(userData, 'evidence', id, 'task.json'), 'utf8'));
+  assert.deepEqual(parseCommandCard(JSON.stringify(stored.card)), stored.card, 'the stored card is a valid Command Card');
+  assert.equal(events[0].data.cardHash, hashJson(stored.card), 'the imported-card hash in the trace is the protocol hash of the stored card');
   assert.equal(events[1].data.adapter, 'git-status');
   assert.match(events[3].data.resultHash, /^[0-9a-f]{64}$/);
   assert.deepEqual(session('trace', id), events, 'a third process reads back exactly what was persisted');
