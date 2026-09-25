@@ -29,7 +29,7 @@ test.after(() => {
 });
 
 // Atomic-write temp files are renamed away while the tree is walked and never hold committed state.
-const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => (entry.isDirectory() ? walk(path.join(dir, entry.name)) : (/.tmp(?:-d+-d+)?$|.d+.tmp$/.test(entry.name) ? [] : [path.join(dir, entry.name)])));
+const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => (entry.isDirectory() ? walk(path.join(dir, entry.name)) : (/\.tmp(?:-\d+-\d+)?$|\.\d+\.tmp$/.test(entry.name) ? [] : [path.join(dir, entry.name)])));
 
 test('B15-L12 opening official ChatGPT hands the browser one plain URL: no GitHub credential, no gh, no AECP request', async () => {
   const opened = ctx.record.openExternal.length;
