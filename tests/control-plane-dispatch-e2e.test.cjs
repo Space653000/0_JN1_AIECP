@@ -60,7 +60,11 @@ test('B20-27-02 the Control Plane dispatches a queued task to a Worker in an iso
   const cp = new ControlPlane({ rootDir: path.join(base, 'runtime'), providerRouter: router(async (cwd) => { seen.cwd = cwd; await fs.writeFile(path.join(cwd, 'worker-output.txt'), 'made by the worker\n'); }) });
   await cp.init();
   cp.lastMaintenanceAt = Date.now();
-  t.after(async () => { await cp.shutdown().catch(() => {}); await fs.rm(base, { recursive: true, force: true }); });
+  t.after(async () => {
+    await cp.shutdown().catch(() => {});
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    await fs.rm(base, { recursive: true, force: true, maxRetries: 10, retryDelay: 250 });
+  });
 
   const run = await cp.createMission({
     goal: 'Create a small verified file.', done: 'Verification passes.', sourceRoot: workspace, autoStart: false, maxConcurrency: 1, maxTurns: 20, maxIterations: 3, maxFailedAttempts: 3, maxTasks: 4,
@@ -76,6 +80,8 @@ test('B20-27-02 the Control Plane dispatches a queued task to a Worker in an iso
   assert.ok(seen.cwd, 'the Builder ran');
   assert.notEqual(path.resolve(seen.cwd), path.resolve(workspace), 'the Worker ran in an isolated worktree, not the source Workspace');
   assert.equal(await fs.stat(path.join(workspace, 'worker-output.txt')).then(() => true, () => false), false, 'the source Workspace was not modified');
+  // task.state is set a few milliseconds before task.finished is journaled; wait for the journal instead of racing it.
+  await waitFor(async () => (await cp.listEvents()).some((event) => event.type === 'task.finished'), { timeoutMs: 15000 });
   const events = (await cp.listEvents()).map((event) => event.type);
   assert.ok(events.includes('scheduler.selected') && events.includes('task.claimed') && events.includes('task.finished'), events.join(','));
   assert.ok(!events.includes('task.failed'));

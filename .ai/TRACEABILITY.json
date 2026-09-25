@@ -2801,30 +2801,20 @@
         "section": "## 27. Acceptance criteria"
       },
       "text": "Queue dispatches the next eligible task.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/lib/control-plane.cjs",
-          "kind": "code",
-          "name": "schedule"
+          "file": "tests/control-plane-lifecycle-e2e.test.cjs",
+          "kind": "test",
+          "name": "B20-27-08 the second task starts automatically after the first one really completes, without another manual dispatch"
         },
         {
           "file": "tests/queue-dispatch-order.test.cjs",
           "kind": "test",
           "name": "B20-27-08 the queue dispatches the next eligible task after each completion: by priority, one at a time, dependencies first"
-        },
-        {
-          "file": "tests/control-plane-dispatch-e2e.test.cjs",
-          "kind": "test",
-          "name": "B20-27-02 the Control Plane dispatches a queued task to a Worker in an isolated worktree and completes it without manual copy/paste",
-          "covers": [
-            "B20-27-02",
-            "B20-27-08"
-          ]
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Proven with the real ControlPlane scheduler and a stubbed executeTask: after each completion the queue dispatches the next eligible task by priority, one at a time, with dependencies first. Not proven end to end because a real task cannot execute (see B20-27-02 gap: prepareWorktree is undefined in control-plane.cjs). Claude review: the dispatch blocker is fixed and the end-to-end dispatch test now exists; the queue-order test covers the next-eligible rule. Left PARTIAL only until a test shows a second queued task starts automatically after the first completes in a real run."
+      "note": "Real ControlPlane, real runHarness, temp Git repos, fake provider router: after the first task really completes the scheduler automatically starts the next eligible task (dependency-gated, one at a time, separate worktrees, no further manual dispatch); queue ordering by priority/dependency is also proven in isolation."
     },
     {
       "id": "B20-27-09",
@@ -3057,16 +3047,17 @@
         "section": "## 27. Acceptance criteria"
       },
       "text": "External/OpenAI-compatible providers can be attached through adapters without changing Task state; actual provider credentials/environment remain explicit approval/evidence requirements.",
-      "status": "PARTIAL",
+      "status": "CONFIRMED_GAP",
       "evidence": [
         {
-          "file": "electron/lib/provider-router.cjs",
+          "file": "electron/lib/harness.cjs",
           "kind": "code",
-          "name": "ProviderRouter"
+          "symbol": "invokeProvider",
+          "description": "The reviewer call in runHarness passes networkApproved but never credentialApproved (planner and builder calls do). A reviewer provider that holds a credential (an OpenAI-compatible endpoint with an API key) therefore hits policy.assert CREDENTIAL with approved=false and stops with \"Risk exceeds policy ceiling\" / HUMAN_REQUIRED even when the human approved credential use. Reproduced with runHarness (providerCredentialApproved: true, reviewer capability credential: true -> HUMAN_REQUIRED, reviewer calls 0) and with a real ProviderRouter plus a loopback endpoint through a real ControlPlane mission. Credentialed adapters therefore only work as planner; keyless adapters and local-command workers work and keep the Task schema."
         }
       ],
       "workOrder": "UNASSIGNED",
-      "note": "External adapters share Task schema; real credentials and environment compatibility remain separately gated."
+      "note": "Missing: pass credentialApproved to the reviewer invocation so a credentialed external provider can serve the reviewer role after human approval. Not fixed here (feature code is out of scope for work order 0013). Proven and kept as regression tests: an OpenAI-compatible planner, a keyless reviewer and a registered local worker run a real mission with an identical persisted Task/Mission schema (tests/provider-adapter-e2e.test.cjs)."
     },
     {
       "id": "B20-27-19",
@@ -3202,16 +3193,25 @@
         "section": "## 10. Handoff rules"
       },
       "text": "A provider cannot change another provider's permissions.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/lib/security-policy.cjs",
-          "kind": "code",
-          "name": "SecurityPolicy"
+          "file": "tests/provider-authority-boundaries.test.cjs",
+          "kind": "test",
+          "name": "B21-10-05 a provider only ever receives a role, a prompt and plain booleans: never the policy, other providers or approval objects"
+        },
+        {
+          "file": "tests/provider-authority-boundaries.test.cjs",
+          "kind": "test",
+          "name": "B21-10-05 one provider\\'s output cannot approve or widen another provider\\'s network or credential use"
+        },
+        {
+          "file": "tests/provider-authority-boundaries.test.cjs",
+          "kind": "test",
+          "name": "B21-10-05 a human approval given to one mission never grants providers of another mission"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Central policy is separate from providers, but cross-provider permission mutation has no dedicated adversarial test."
+      "note": "Real runHarness/ControlPlane: providers only receive role, prompt and plain booleans (never the policy or other providers), a planner or builder that claims approval for another provider does not change that provider network requirement, and a mission approval never grants the providers of another mission."
     },
     {
       "id": "B21-10-06",
@@ -3220,16 +3220,20 @@
         "section": "## 10. Handoff rules"
       },
       "text": "A review result is not an execution command.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/lib/review-report.cjs",
-          "kind": "code",
-          "name": "validateReviewReport"
+          "file": "tests/provider-authority-boundaries.test.cjs",
+          "kind": "test",
+          "name": "B21-10-06 a review report is parsed into a fixed data shape: commands, approvals and extra fields in it are dropped"
+        },
+        {
+          "file": "tests/provider-authority-boundaries.test.cjs",
+          "kind": "test",
+          "name": "B21-10-06 review text that reads like commands is only carried as data: nothing is executed, approved or pushed"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Review result is parsed into state, but a negative test should prove report text cannot trigger actions."
+      "note": "Real validateReviewReport/runHarness: a review report is reduced to a fixed schema (commands/approvals/extra fields dropped, unknown results become HUMAN_REQUIRED, PASS cannot override a failing verifier) and review text that reads like commands (git push --force, curl, delete .git) is only passed on as data: no such process is spawned and the repository is unchanged."
     },
     {
       "id": "B21-10-07",
@@ -3814,16 +3818,23 @@
         "section": "## R2 — Canonical engineering loop"
       },
       "text": "Engineering work follows a durable bounded state machine rather than an unbounded agent chat.",
-      "status": "PARTIAL",
+      "status": "CONFIRMED_GAP",
       "evidence": [
         {
           "file": "electron/lib/control-plane.cjs",
           "kind": "code",
-          "name": "ControlPlane"
+          "symbol": "approve",
+          "description": "A task-level approval (Harness HUMAN_REQUIRED, for example reviewer HUMAN_REQUIRED) sets the task back to QUEUED and calls schedule(), but finalizeRun already put the mission in HUMAN_REQUIRED, which is in TERMINAL; schedulerTick only processes QUEUED/RUNNING missions, so the approved task is never dispatched again. Reproduced end to end: after approve() the task stays QUEUED with the mission HUMAN_REQUIRED for 12+ seconds and the builder is never called again."
+        },
+        {
+          "file": "electron/lib/control-plane.cjs",
+          "kind": "code",
+          "symbol": "startMission",
+          "description": "A mission-level NETWORK/CREDENTIAL approval (mission created without providerApprovals, as with the default cloud planner) is approved through approve(), which calls startMission on a mission whose state is HUMAN_REQUIRED; startMission rejects it with \"Mission is already terminal.\", so approve() throws and the mission never starts."
         }
       ],
       "workOrder": "UNASSIGNED",
-      "note": "Durable bounded state exists, but end-to-end transition coverage for every terminal state is incomplete."
+      "note": "Missing: a HUMAN_REQUIRED mission/task must be able to continue after the human approves (the state machine has a dead end at HUMAN_REQUIRED because it is treated as terminal). Proven and kept as regression tests (tests/control-plane-lifecycle-e2e.test.cjs): DONE, BLOCKED, FAILED, BUDGET_EXHAUSTED, HUMAN_REQUIRED and CANCELLED are all reached through real execution, are persisted, and stay within iteration/turn budgets. Not fixed here (feature code is out of scope for work order 0013)."
     },
     {
       "id": "R2.2",
@@ -3926,16 +3937,15 @@
         "section": "## R2 — Canonical engineering loop"
       },
       "text": "High-risk delivery remains human-gated after CI success.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/lib/control-plane.cjs",
-          "kind": "code",
-          "name": "approveDelivery"
+          "file": "tests/delivery-e2e.test.cjs",
+          "kind": "test",
+          "name": "R2.7 and R4.6 CI success never merges by itself: the task waits for a human, and the approved merge runs exactly once"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Merge checks CI and approval; complete high-risk delivery and publication paths need more evidence."
+      "note": "Real ControlPlane delivery path (real git push to a local bare origin, faked gh only): CI success only raises a HUMAN_REQUIRED approval, nothing is merged even seconds later, and the merge runs exactly once after an explicit approveDelivery."
     },
     {
       "id": "R3.1",
@@ -4119,16 +4129,20 @@
         "section": "## R4 — Git, GitHub and multi-repository work"
       },
       "text": "A Mission can discover and route tasks to multiple repositories inside its approved resource graph.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/lib/resource-manager.cjs",
-          "kind": "code",
-          "name": "ResourceManager"
+          "file": "tests/multi-repo-mission-e2e.test.cjs",
+          "kind": "test",
+          "name": "R4.1 one Mission discovers the repositories of its approved resources and routes each task to its own repository"
+        },
+        {
+          "file": "tests/multi-repo-mission-e2e.test.cjs",
+          "kind": "test",
+          "name": "R4.1 a task cannot be routed to a repository outside the Mission\\'s approved resources"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Repository discovery/binding exists, but one Mission routing tasks to multiple approved repositories lacks end-to-end proof."
+      "note": "Real ControlPlane mission over a Workspace with two Git repositories: discovery, planner told the approved repositories, each task bound to and executed in a task worktree of its own repository (sources untouched), and a task naming an unapproved repository is rerouted."
     },
     {
       "id": "R4.2",
@@ -4154,16 +4168,15 @@
         "section": "## R4 — Git, GitHub and multi-repository work"
       },
       "text": "GitHub delivery uses governed branches/PRs and correlates CI to commit SHA.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/lib/delivery.cjs",
-          "kind": "code",
-          "name": "DeliveryManager"
+          "file": "tests/delivery-e2e.test.cjs",
+          "kind": "test",
+          "name": "R4.3 a task is delivered on a governed branch with a draft PR and CI is correlated to the pushed commit SHA"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Governed PR creation and SHA CI monitor exist, but full correlation/branch lifecycle lacks one integrated test."
+      "note": "Real ControlPlane delivery path: a governed agent/<task> branch is really pushed to a bare origin (default branch never touched), a draft PR is opened, CI is queried and journaled by the pushed commit SHA and runs of other commits are ignored. The rework update of that branch after a CI failure is blocked by the R4.5 gap."
     },
     {
       "id": "R4.4",
@@ -4189,16 +4202,17 @@
         "section": "## R4 — Git, GitHub and multi-repository work"
       },
       "text": "CI failure evidence returns only safely classified failures to bounded rework.",
-      "status": "PARTIAL",
+      "status": "CONFIRMED_GAP",
       "evidence": [
         {
-          "file": "electron/lib/failure-recovery.cjs",
+          "file": "electron/lib/harness.cjs",
           "kind": "code",
-          "name": "recommend"
+          "symbol": "makeWorktree",
+          "description": "makeWorktree removes the task worktree directory with fs.rm and then runs git worktree add, but git still has the worktree registered, so git fails with \"is a missing but already registered worktree\" (exit 128; add -f or worktree prune is needed). Every re-execution of an already executed task therefore fails: after a deterministic CI failure the recovery plan classifies it as auto-eligible rework, monitorDeliveryCI re-queues the task, and executeTask fails with the git error instead of running the rework. Reproduced end to end (real ControlPlane, real git push to a bare origin, faked gh) and with plain git."
         }
       ],
       "workOrder": "UNASSIGNED",
-      "note": "CI failure classification exists; safe bounded rework for all failure categories lacks direct integration proof."
+      "note": "Missing: bounded rework after a CI failure cannot actually run because the second worktree preparation fails. The classification side works and is proven (tests/delivery-e2e.test.cjs): credential/permission failures are classified HIGH_RISK_OR_AUTH and are never reworked, only ci.failed_max_iterations is emitted. Not fixed here (feature code is out of scope for work order 0013)."
     },
     {
       "id": "R4.6",
@@ -4207,16 +4221,15 @@
         "section": "## R4 — Git, GitHub and multi-repository work"
       },
       "text": "A governed merge requires required CI success and explicit human approval.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/lib/control-plane.cjs",
-          "kind": "code",
-          "name": "approveDelivery"
+          "file": "tests/delivery-e2e.test.cjs",
+          "kind": "test",
+          "name": "R4.6 a merge is refused when CI failed, and when the human rejected the approval, even if CI passed"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "CI plus human approval checks are implemented; no direct negative test covers both conditions together."
+      "note": "Real ControlPlane approveDelivery: a merge is refused after a CI failure and after the human rejected the approval even though CI passed, is only possible after CI success plus an explicit approval, and cannot run twice."
     },
     {
       "id": "R4.7",
@@ -4242,16 +4255,20 @@
         "section": "## R5 — Evidence, observability and recovery"
       },
       "text": "Mission/task state, event history and evidence survive process restart.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/lib/control-plane.cjs",
-          "kind": "code",
-          "name": "persist"
+          "file": "tests/control-plane-lifecycle-e2e.test.cjs",
+          "kind": "test",
+          "name": "R5.1 a completed mission, its event history and its evidence survive a process restart intact"
+        },
+        {
+          "file": "tests/control-plane-lifecycle-e2e.test.cjs",
+          "kind": "test",
+          "name": "R5.1 after a crash in the middle of a task the state, journal and evidence survive and the mission is never blindly replayed"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Mission/task/event persistence is tested, but all evidence survival paths after process restart are not."
+      "note": "Real ControlPlane restart: a completed mission, its full event journal, evidence files (byte-identical, manifest verifies), result capsule and idempotency ledger survive; after a crash mid-task the state, journal and evidence event stream survive and the mission is recovered PAUSED (requiresExplicitResume) without being replayed."
     },
     {
       "id": "R5.2",
