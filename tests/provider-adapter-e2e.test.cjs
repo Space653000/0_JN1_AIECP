@@ -121,7 +121,10 @@ test('B20-27-18 an OpenAI-compatible planner, a keyless OpenAI-compatible review
   assert.equal(await git(adapterWorkspace, 'rev-parse', 'HEAD'), adapterHead);
 
   for (const file of await allFiles(path.join(base, 'adapter-runtime'))) {
-    assert.equal((await fs.readFile(file, 'latin1')).includes(API_KEY), false, `${path.relative(base, file)} must not contain the provider credential`);
+    if (/\.tmp-\d+-\d+$/.test(file)) continue; // atomic-write scratch files are renamed away while the tree is being read
+    const content = await fs.readFile(file, 'latin1').catch((error) => (error.code === 'ENOENT' ? null : Promise.reject(error)));
+    if (content === null) continue;
+    assert.equal(content.includes(API_KEY), false, `${path.relative(base, file)} must not contain the provider credential`);
   }
 });
 
