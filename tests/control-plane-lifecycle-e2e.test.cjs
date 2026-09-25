@@ -80,6 +80,8 @@ test('R2.1 every terminal state of the bounded state machine is reachable throug
     if (scenario.builderCalls) assert.equal(fx.calls.filter((call) => call.role === 'builder').length, scenario.builderCalls, `${scenario.name}: bounded rework`);
     if (scenario.waitingApproval) assert.equal(Object.values(fx.cp.state.approvals).filter((approval) => approval.state === 'WAITING').length, 1);
 
+    // the in-memory state changes a moment before the write to disk completes
+    await waitFor(async () => { const disk = await diskState(fx.rootDir); return disk.tasks[task.id]?.state === scenario.task && disk.runs[run.id]?.state === scenario.run; }, { timeoutMs: 15000, label: `${scenario.name} to be persisted` });
     const persisted = await diskState(fx.rootDir);
     assert.equal(persisted.tasks[task.id].state, scenario.task, `${scenario.name}: state is durable`);
     assert.equal(persisted.runs[run.id].state, scenario.run);
@@ -108,6 +110,90 @@ test('R2.1 cancelling a running mission stops the Worker and ends in CANCELLED w
   assert.equal((await diskState(fx.rootDir)).tasks[task.id].state, 'CANCELLED');
   await waitFor(() => fx.cp.locks.list().every((lock) => lock.owner !== task.id), { label: 'locks to be released' });
   await assertWorkspaceUntouched(fx);
+});
+
+test('R2.1 a human approval returns a HUMAN_REQUIRED task to the queue, the mission resumes by itself and the task completes', async (t) => {
+  const fx = await boot(t, { onReviewer: async ({ index }) => (index === 1 ? { result: 'HUMAN_REQUIRED' } : null) });
+  const run = await newMission(fx.cp, fx.workspace);
+  const task = await fx.cp.enqueueTask(run, spec('Needs a human'));
+  await fx.cp.schedulerTick();
+  await waitFor(() => task.state === 'HUMAN_REQUIRED' && run.state === 'HUMAN_REQUIRED', { label: 'the human gate' });
+  const approval = Object.values(fx.cp.state.approvals).find((entry) => entry.state === 'WAITING');
+
+  await fx.cp.approve(approval.id, { by: 'human', note: 'go ahead' });
+  await waitFor(() => task.state === 'DONE' && run.state === 'DONE', { timeoutMs: 60000, label: 'the task to complete after approval' });
+
+  assert.equal(task.error || null, null);
+  assert.equal(fx.calls.filter((call) => call.role === 'builder').length, 2, 'the task was really executed again');
+  assert.equal(task.attempts, 2);
+  const events = await fx.cp.listEvents(2000);
+  assert.ok(events.some((event) => event.type === 'approval.approved' && event.runId === run.id && event.resumed === true), 'the approval records that it resumed the mission');
+  assert.equal(run.finishedAt !== null, true, 'the mission finishes again once the task is done');
+  await assertWorkspaceUntouched(fx);
+});
+
+test('R2.1 approving a mission-level NETWORK request starts the mission and never unlocks another mission', async (t) => {
+  const fx = await boot(t, {
+    caps: { planner: { process: false, network: true } },
+    missionTasks: [{ title: 'Only task', objective: 'Do it', acceptance: 'Verification passes.', dependencies: [], risk: 'GREEN' }]
+  });
+  const otherWorkspace = await makeRepo(path.join(fx.base, 'other-workspace'));
+  const common = { done: 'Verification passes.', autoStart: true, maxConcurrency: 1, maxIterations: 2, maxTurns: 30, providers: PROVIDERS };
+  const first = await fx.cp.createMission({ ...common, goal: 'Mission ONE goal', sourceRoot: fx.workspace });
+  const second = await fx.cp.createMission({ ...common, goal: 'Mission TWO goal', sourceRoot: otherWorkspace });
+  assert.deepEqual([first.state, second.state], ['HUMAN_REQUIRED', 'HUMAN_REQUIRED']);
+  assert.deepEqual([first.waitingFor, second.waitingFor], ['NETWORK', 'NETWORK']);
+  assert.equal(fx.calls.length, 0, 'nothing runs before the human decides');
+
+  const approval = Object.values(fx.cp.state.approvals).find((entry) => entry.runId === first.id && entry.state === 'WAITING');
+  await fx.cp.approve(approval.id, { by: 'human' });
+  await waitFor(() => first.state === 'DONE', { timeoutMs: 60000, label: 'the approved mission to run to completion' });
+
+  assert.equal(first.providerApprovals.network, true);
+  assert.equal(second.providerApprovals.network, false);
+  assert.equal(second.state, 'HUMAN_REQUIRED');
+  assert.equal(second.waitingFor, 'NETWORK');
+  assert.equal(fx.calls.filter((call) => call.prompt.includes('Mission TWO goal')).length, 0, 'no provider ran for the other mission');
+  await assertWorkspaceUntouched(fx);
+});
+
+test('R2.1 a mission with two tasks waiting for a human only resumes after the last decision', async (t) => {
+  const base = await makeBase('aecp-two-gates-');
+  const workspace = path.join(base, 'workspace');
+  const repoA = await makeRepo(path.join(workspace, 'repo-a'), { name: 'repo-a' });
+  const repoB = await makeRepo(path.join(workspace, 'repo-b'), { name: 'repo-b' });
+  const calls = [];
+  const router = makeRouter({
+    calls,
+    missionTasks: [
+      { title: 'First gate', objective: 'Change A', acceptance: 'Verification passes.', dependencies: [], risk: 'GREEN', repositories: [repoA] },
+      { title: 'Second gate', objective: 'Change B', acceptance: 'Verification passes.', dependencies: [], risk: 'GREEN', repositories: [repoB] }
+    ],
+    onReviewer: async ({ index }) => (index <= 2 ? { result: 'HUMAN_REQUIRED' } : null)
+  });
+  const cp = new ControlPlane({ rootDir: path.join(base, 'runtime'), providerRouter: router });
+  await cp.init();
+  cp.lastMaintenanceAt = Date.now();
+  t.after(async () => { await cp.shutdown().catch(() => {}); await removeDir(base); });
+
+  const run = await cp.createMission({ goal: 'Two gated changes', done: 'Verification passes.', sourceRoot: workspace, autoStart: true, maxConcurrency: 2, maxIterations: 2, maxTurns: 40, providers: PROVIDERS });
+  const tasks = () => run.taskIds.map((id) => cp.state.tasks[id]);
+  await waitFor(() => tasks().length === 2 && tasks().every((task) => task.state === 'HUMAN_REQUIRED') && run.state === 'HUMAN_REQUIRED', { label: 'both human gates' });
+  const [approvalOne, approvalTwo] = Object.values(cp.state.approvals).filter((entry) => entry.state === 'WAITING');
+  assert.ok(approvalOne && approvalTwo);
+  const builderCalls = () => calls.filter((call) => call.role === 'builder').length;
+  assert.equal(builderCalls(), 2);
+
+  await cp.approve(approvalOne.id, { by: 'human' });
+  await new Promise((resolve) => setTimeout(resolve, 2500));
+  assert.equal(run.state, 'HUMAN_REQUIRED', 'another decision is still pending, so the mission stays stopped');
+  assert.equal(builderCalls(), 2, 'nothing was executed again yet');
+
+  await cp.approve(approvalTwo.id, { by: 'human' });
+  await waitFor(() => tasks().every((task) => task.state === 'DONE') && run.state === 'DONE', { timeoutMs: 60000, label: 'both tasks to complete after the last approval' });
+  assert.equal(builderCalls(), 4);
+  assert.equal(await git(repoA, 'status', '--porcelain'), '');
+  assert.equal(await git(repoB, 'status', '--porcelain'), '');
 });
 
 test('R5.1 a completed mission, its event history and its evidence survive a process restart intact', async (t) => {

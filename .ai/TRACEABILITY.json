@@ -3047,17 +3047,30 @@
         "section": "## 27. Acceptance criteria"
       },
       "text": "External/OpenAI-compatible providers can be attached through adapters without changing Task state; actual provider credentials/environment remain explicit approval/evidence requirements.",
-      "status": "CONFIRMED_GAP",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/lib/harness.cjs",
-          "kind": "code",
-          "symbol": "invokeProvider",
-          "description": "The reviewer call in runHarness passes networkApproved but never credentialApproved (planner and builder calls do). A reviewer provider that holds a credential (an OpenAI-compatible endpoint with an API key) therefore hits policy.assert CREDENTIAL with approved=false and stops with \"Risk exceeds policy ceiling\" / HUMAN_REQUIRED even when the human approved credential use. Reproduced with runHarness (providerCredentialApproved: true, reviewer capability credential: true -> HUMAN_REQUIRED, reviewer calls 0) and with a real ProviderRouter plus a loopback endpoint through a real ControlPlane mission. Credentialed adapters therefore only work as planner; keyless adapters and local-command workers work and keep the Task schema."
+          "file": "tests/provider-adapter-e2e.test.cjs",
+          "kind": "test",
+          "name": "B20-27-18 an OpenAI-compatible planner, a keyless OpenAI-compatible reviewer and a registered local worker run a real mission with the same Task schema as any other provider"
+        },
+        {
+          "file": "tests/provider-adapter-e2e.test.cjs",
+          "kind": "test",
+          "name": "B20-27-18 an external provider cannot be used before the human approves network and credential use"
+        },
+        {
+          "file": "tests/provider-adapter-e2e.test.cjs",
+          "kind": "test",
+          "name": "B20-27-18 a credentialed OpenAI-compatible provider also serves as reviewer once the human approved credential use"
+        },
+        {
+          "file": "tests/harness-integrity.test.cjs",
+          "kind": "test",
+          "name": "B20-27-18 a reviewer provider that needs a credential runs once the human approved credential use and never before"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Missing: pass credentialApproved to the reviewer invocation so a credentialed external provider can serve the reviewer role after human approval. Not fixed here (feature code is out of scope for work order 0013). Proven and kept as regression tests: an OpenAI-compatible planner, a keyless reviewer and a registered local worker run a real mission with an identical persisted Task/Mission schema (tests/provider-adapter-e2e.test.cjs)."
+      "note": "Real ProviderRouter with an OpenAI-compatible loopback endpoint and a registered local-command worker through a real ControlPlane mission: the persisted Task/Mission schema equals the one for any other provider, credentialed adapters can serve planner and reviewer once the human approved credential use and are never contacted before, and no credential is persisted."
     },
     {
       "id": "B20-27-19",
@@ -3818,23 +3831,40 @@
         "section": "## R2 — Canonical engineering loop"
       },
       "text": "Engineering work follows a durable bounded state machine rather than an unbounded agent chat.",
-      "status": "CONFIRMED_GAP",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/lib/control-plane.cjs",
-          "kind": "code",
-          "symbol": "approve",
-          "description": "A task-level approval (Harness HUMAN_REQUIRED, for example reviewer HUMAN_REQUIRED) sets the task back to QUEUED and calls schedule(), but finalizeRun already put the mission in HUMAN_REQUIRED, which is in TERMINAL; schedulerTick only processes QUEUED/RUNNING missions, so the approved task is never dispatched again. Reproduced end to end: after approve() the task stays QUEUED with the mission HUMAN_REQUIRED for 12+ seconds and the builder is never called again."
+          "file": "tests/control-plane-lifecycle-e2e.test.cjs",
+          "kind": "test",
+          "name": "R2.1 every terminal state of the bounded state machine is reachable through real execution and is persisted"
         },
         {
-          "file": "electron/lib/control-plane.cjs",
-          "kind": "code",
-          "symbol": "startMission",
-          "description": "A mission-level NETWORK/CREDENTIAL approval (mission created without providerApprovals, as with the default cloud planner) is approved through approve(), which calls startMission on a mission whose state is HUMAN_REQUIRED; startMission rejects it with \"Mission is already terminal.\", so approve() throws and the mission never starts."
+          "file": "tests/control-plane-lifecycle-e2e.test.cjs",
+          "kind": "test",
+          "name": "R2.1 cancelling a running mission stops the Worker and ends in CANCELLED without touching the Workspace"
+        },
+        {
+          "file": "tests/control-plane-lifecycle-e2e.test.cjs",
+          "kind": "test",
+          "name": "R2.1 a human approval returns a HUMAN_REQUIRED task to the queue, the mission resumes by itself and the task completes"
+        },
+        {
+          "file": "tests/control-plane-lifecycle-e2e.test.cjs",
+          "kind": "test",
+          "name": "R2.1 approving a mission-level NETWORK request starts the mission and never unlocks another mission"
+        },
+        {
+          "file": "tests/control-plane-lifecycle-e2e.test.cjs",
+          "kind": "test",
+          "name": "R2.1 a mission with two tasks waiting for a human only resumes after the last decision"
+        },
+        {
+          "file": "tests/delivery-e2e.test.cjs",
+          "kind": "test",
+          "name": "R2.1 approving a delivery task through approve() neither merges nor resumes the mission, and a rejection blocks the task for good"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Missing: a HUMAN_REQUIRED mission/task must be able to continue after the human approves (the state machine has a dead end at HUMAN_REQUIRED because it is treated as terminal). Proven and kept as regression tests (tests/control-plane-lifecycle-e2e.test.cjs): DONE, BLOCKED, FAILED, BUDGET_EXHAUSTED, HUMAN_REQUIRED and CANCELLED are all reached through real execution, are persisted, and stay within iteration/turn budgets. Not fixed here (feature code is out of scope for work order 0013)."
+      "note": "Real ControlPlane/runHarness execution: every terminal state (DONE, BLOCKED, FAILED, BUDGET_EXHAUSTED, HUMAN_REQUIRED, CANCELLED) is reached, persisted and within the iteration/turn budgets, and a human approval now really continues the work: a task-level approval re-queues the task and the mission resumes only after the last pending decision, a mission-level approval starts the mission (never another mission), and an approved delivery is not merged or resumed by approve()."
     },
     {
       "id": "R2.2",
@@ -4176,7 +4206,7 @@
           "name": "R4.3 a task is delivered on a governed branch with a draft PR and CI is correlated to the pushed commit SHA"
         }
       ],
-      "note": "Real ControlPlane delivery path: a governed agent/<task> branch is really pushed to a bare origin (default branch never touched), a draft PR is opened, CI is queried and journaled by the pushed commit SHA and runs of other commits are ignored. The rework update of that branch after a CI failure is blocked by the R4.5 gap."
+      "note": "Real ControlPlane delivery path: a governed agent/<task> branch is really pushed to a bare origin (default branch never touched), a draft PR is opened, CI is queried and journaled by the pushed commit SHA and runs of other commits are ignored, and after a CI failure the reworked commit advances the same branch and is re-checked by SHA."
     },
     {
       "id": "R4.4",
@@ -4202,17 +4232,25 @@
         "section": "## R4 — Git, GitHub and multi-repository work"
       },
       "text": "CI failure evidence returns only safely classified failures to bounded rework.",
-      "status": "CONFIRMED_GAP",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/lib/harness.cjs",
-          "kind": "code",
-          "symbol": "makeWorktree",
-          "description": "makeWorktree removes the task worktree directory with fs.rm and then runs git worktree add, but git still has the worktree registered, so git fails with \"is a missing but already registered worktree\" (exit 128; add -f or worktree prune is needed). Every re-execution of an already executed task therefore fails: after a deterministic CI failure the recovery plan classifies it as auto-eligible rework, monitorDeliveryCI re-queues the task, and executeTask fails with the git error instead of running the rework. Reproduced end to end (real ControlPlane, real git push to a bare origin, faked gh) and with plain git."
+          "file": "tests/delivery-e2e.test.cjs",
+          "kind": "test",
+          "name": "R4.5 a CI failure that touches credentials or permissions is not reworked automatically"
+        },
+        {
+          "file": "tests/delivery-e2e.test.cjs",
+          "kind": "test",
+          "name": "R4.5 a deterministic CI failure returns to bounded rework with the same authority and the reworked commit is then checked by CI"
+        },
+        {
+          "file": "tests/delivery-e2e.test.cjs",
+          "kind": "test",
+          "name": "R4.5 rework after CI failure is bounded by the iteration budget"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Missing: bounded rework after a CI failure cannot actually run because the second worktree preparation fails. The classification side works and is proven (tests/delivery-e2e.test.cjs): credential/permission failures are classified HIGH_RISK_OR_AUTH and are never reworked, only ci.failed_max_iterations is emitted. Not fixed here (feature code is out of scope for work order 0013)."
+      "note": "Real ControlPlane delivery path with a real bare origin: a deterministic CI failure is classified DETERMINISTIC_FAILURE (authority NO_NEW_PERMISSIONS), returns to exactly one bounded rework in a re-prepared worktree, the reworked commit is pushed to the same branch and re-checked by CI; rework never exceeds the iteration budget, and credential/permission failures are never reworked."
     },
     {
       "id": "R4.6",

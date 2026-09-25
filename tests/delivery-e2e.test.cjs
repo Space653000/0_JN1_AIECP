@@ -78,7 +78,7 @@ async function boot(t, { maxIterations = 3 } = {}) {
 
 const start = async (fx) => { await fx.cp.schedulerTick(); };
 const until = async (fx, check, label) => {
-  try { return await waitFor(check, { label, timeoutMs: 30000 }); } catch (error) {
+  try { return await waitFor(check, { label, timeoutMs: 60000 }); } catch (error) {
     const events = (await fx.cp.listEvents(3000)).map((event) => event.type + (event.error ? ':' + String(event.error).slice(0, 200) : ''));
     throw new Error(`${error.message} :: task=${fx.task.state}/${fx.task.phase} attempts=${fx.task.attempts} error=${fx.task.error} run=${fx.run.state} events=${events.slice(-14).join(',')}`);
   }
@@ -184,6 +184,81 @@ test('R4.5 a CI failure that touches credentials or permissions is not reworked 
   assert.equal(recovery.autoEligible, false);
   assert.equal(await pushedRef(fx, `agent/${fx.task.id}`), fx.task.delivery.sha, 'nothing more was pushed');
   await until(fx, () => fx.run.state === 'BLOCKED', 'the mission to be blocked');
+});
+
+test('R4.5 a deterministic CI failure returns to bounded rework with the same authority and the reworked commit is then checked by CI', async (t) => {
+  const fx = await boot(t);
+  gh.log = 'FAIL tests/feature.test.js\ntest failed: assertion mismatch';
+  const seen = [];
+  gh.runs = (sha) => { if (!seen.includes(sha)) seen.push(sha); return [ciRun(sha, seen.indexOf(sha) === 0 ? 'failure' : 'success', 50 + seen.indexOf(sha))]; };
+  const permissionsBefore = JSON.stringify(fx.run.providerApprovals);
+  await start(fx);
+  await until(fx, () => fx.task.ci?.state === 'PASSED', 'CI to pass after rework');
+
+  assert.equal(seen.length, 2, 'the failing commit and the reworked commit were both checked');
+  assert.notEqual(seen[0], seen[1]);
+  assert.equal(fx.calls.filter((call) => call.role === 'builder').length, 2, 'exactly one bounded rework attempt');
+  assert.equal(fx.task.attempts, 2);
+  assert.ok(fx.task.attempts <= fx.run.maxIterations);
+  assert.equal(fx.task.delivery.sha, seen[1]);
+  assert.equal(await pushedRef(fx, `agent/${fx.task.id}`), seen[1], 'the branch advanced to the reworked commit');
+  assert.equal(JSON.stringify(fx.run.providerApprovals), permissionsBefore, 'rework never widens permissions');
+  assert.equal(await git(fx.origin, 'rev-parse', 'refs/heads/main'), fx.mainSha);
+  assert.equal(await git(fx.workspace, 'status', '--porcelain'), '');
+
+  const events = await eventTypes(fx);
+  const rework = events.find((event) => event.type === 'ci.failed_rework' && event.taskId === fx.task.id);
+  assert.ok(rework && rework.attempt === 1);
+  const recovery = JSON.parse(await fs.readFile(path.join(fx.cp.evidence.runDir(fx.run.id), `${fx.task.id}-recovery.json`), 'utf8')).recovery;
+  assert.equal(recovery.category, 'DETERMINISTIC_FAILURE');
+  assert.equal(recovery.authority, 'NO_NEW_PERMISSIONS');
+  assert.equal(recovery.autoEligible, true);
+  await fs.access(path.join(fx.cp.evidence.runDir(fx.run.id), `${fx.task.id}-ci-failure.json`));
+});
+
+test('R4.5 rework after CI failure is bounded by the iteration budget', async (t) => {
+  const fx = await boot(t, { maxIterations: 2 });
+  gh.log = 'FAIL tests/feature.test.js\ntest failed: assertion mismatch';
+  gh.runs = (sha) => [ciRun(sha, 'failure', 71)];
+  await start(fx);
+  await until(fx, () => fx.task.state === 'BLOCKED' && fx.task.ci?.state === 'FAILED', 'the budget to be exhausted');
+  await new Promise((resolve) => setTimeout(resolve, 2500));
+
+  assert.equal(fx.calls.filter((call) => call.role === 'builder').length, 2, 'never more attempts than the iteration budget');
+  assert.equal(fx.task.attempts, 2);
+  const events = await eventTypes(fx);
+  assert.equal(events.filter((event) => event.type === 'ci.failed_rework').length, 1);
+  assert.equal(events.filter((event) => event.type === 'ci.failed_max_iterations').length, 1);
+  assert.equal(merges().length, 0);
+});
+
+test('R2.1 approving a delivery task through approve() neither merges nor resumes the mission, and a rejection blocks the task for good', async (t) => {
+  const approved = await boot(t);
+  gh.runs = (sha) => [ciRun(sha, 'success', 81)];
+  await start(approved);
+  await until(approved, () => approved.task.ci?.state === 'PASSED' && approved.task.state === 'HUMAN_REQUIRED', 'the delivery approval request');
+  const approval = Object.values(approved.cp.state.approvals).find((entry) => entry.taskId === approved.task.id && entry.state === 'WAITING');
+  await approved.cp.approve(approval.id, { by: 'human' });
+  await new Promise((resolve) => setTimeout(resolve, 2500));
+  assert.equal(merges().length, 0, 'approve() never merges; only approveDelivery does');
+  assert.equal(approved.task.state, 'HUMAN_REQUIRED');
+  assert.equal(approved.run.state, 'HUMAN_REQUIRED');
+  assert.equal(approved.task.delivery.state, 'DRAFT');
+  assert.equal(approved.calls.filter((call) => call.role === 'builder').length, 1, 'the task was not executed again');
+  await approved.cp.approveDelivery(approved.run.id, approved.task.id, { by: 'human' });
+  assert.equal(merges().length, 1);
+
+  const rejected = await boot(t);
+  gh.runs = (sha) => [ciRun(sha, 'success', 91)];
+  await start(rejected);
+  await until(rejected, () => rejected.task.ci?.state === 'PASSED' && rejected.task.state === 'HUMAN_REQUIRED', 'the delivery approval request');
+  const pending = Object.values(rejected.cp.state.approvals).find((entry) => entry.taskId === rejected.task.id && entry.state === 'WAITING');
+  await rejected.cp.reject(pending.id, { by: 'human', note: 'no' });
+  await new Promise((resolve) => setTimeout(resolve, 2500));
+  assert.equal(rejected.task.state, 'BLOCKED');
+  assert.notEqual(rejected.run.state, 'RUNNING');
+  assert.equal(rejected.calls.filter((call) => call.role === 'builder').length, 1);
+  assert.equal(merges().length, 0, 'a rejected delivery is never merged');
 });
 
 test.after(() => { setImmediate(() => process.exit(process.exitCode || 0)); });

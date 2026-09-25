@@ -141,4 +141,32 @@ test('B20-27-18 an external provider cannot be used before the human approves ne
   assert.equal(run.taskIds.length, 0);
 });
 
+test('B20-27-18 a credentialed OpenAI-compatible provider also serves as reviewer once the human approved credential use', async (t) => {
+  const endpoint = await startEndpoint();
+  t.after(async () => endpoint.close());
+  const base = await makeBase('aecp-adapter-keyed-');
+  t.after(async () => removeDir(base));
+  const keyed = { planner: 'company-api', builder: 'local-worker', reviewer: 'company-api' };
+  const cp = new ControlPlane({ rootDir: path.join(base, 'runtime'), providerRouter: await makeAdapterRouter(base, endpoint.port) });
+  await cp.init();
+  cp.lastMaintenanceAt = Date.now();
+  t.after(async () => cp.shutdown().catch(() => {}));
+
+  const withheld = await makeRepo(path.join(base, 'withheld-workspace'));
+  const stopped = await runMission(cp, withheld, keyed, { providerApprovals: { network: true } });
+  assert.equal(stopped.state, 'HUMAN_REQUIRED');
+  assert.equal(stopped.waitingFor, 'CREDENTIAL');
+  assert.equal(endpoint.requests.length, 0, 'the credentialed endpoint is not contacted before credential approval');
+
+  const workspace = await makeRepo(path.join(base, 'approved-workspace'));
+  const run = await runMission(cp, workspace, keyed, { providerApprovals: { network: true, credential: true } });
+  await waitFor(() => run.state === 'DONE', { timeoutMs: 60000, label: 'the mission with a credentialed reviewer to finish' });
+
+  const reviews = endpoint.requests.filter((request) => request.kind === 'reviewer');
+  assert.ok(reviews.length >= 1, 'the reviewer ran through the OpenAI-compatible adapter');
+  assert.ok(endpoint.requests.every((request) => request.authorization === `Bearer ${API_KEY}`));
+  assert.equal(cp.state.tasks[run.taskIds[0]].state, 'DONE');
+  assert.equal(cp.state.tasks[run.taskIds[0]].error || null, null);
+});
+
 test.after(() => { setImmediate(() => process.exit(process.exitCode || 0)); });

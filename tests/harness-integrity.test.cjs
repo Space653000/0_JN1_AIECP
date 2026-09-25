@@ -221,6 +221,23 @@ const shapeOf = (value) => {
   return typeof value;
 };
 
+test('B20-27-18 a reviewer provider that needs a credential runs once the human approved credential use and never before', async (t) => {
+  const policyFor = (fixture) => new SecurityPolicy({ allowRoots: [fixture.repo, fixture.runRoot] });
+
+  const denied = await makeRepo(t);
+  const deniedRouter = makeRouter({ caps: { reviewer: { network: true, credential: true } } });
+  const stopped = await harness(denied, deniedRouter, { policy: policyFor(denied), executionApproved: true, providerNetworkApproved: true, providerCredentialApproved: false });
+  assert.equal(stopped.state, 'HUMAN_REQUIRED');
+  assert.equal(stopped.requiredAction, 'CREDENTIAL');
+  assert.equal(deniedRouter.calls.some((call) => call.role === 'reviewer'), false, 'no credentialed reviewer runs without approval');
+
+  const allowed = await makeRepo(t);
+  const allowedRouter = makeRouter({ caps: { reviewer: { network: true, credential: true } } });
+  const done = await harness(allowed, allowedRouter, { policy: policyFor(allowed), executionApproved: true, providerNetworkApproved: true, providerCredentialApproved: true });
+  assert.equal(done.state, 'DONE', done.error);
+  assert.equal(allowedRouter.calls.filter((call) => call.role === 'reviewer').length, 1);
+});
+
 test('B20-27-16 swapping providers changes provider identity only, never the persisted Task/Harness schema', async (t) => {
   const sets = [['claude-a', 'codex-a', 'claude-b'], ['api-p', 'opencode-q', 'api-r'], ['local-1', 'local-2', 'local-3']];
   const shapes = [];

@@ -391,10 +391,19 @@ class ControlPlane {
       if(!task.approvedActions.includes(a.action)) task.approvedActions.push(a.action);
     }
     if(task){task.lease=null;if(!task.delivery?.pr) task.state='QUEUED'; else task.state='HUMAN_REQUIRED';}
-    await this.persist(); await this.event('approval.approved',{runId:a.runId,taskId:a.taskId,approvalId:id});
+    // A task approved for rework lets a mission that only stopped for this decision continue; a delivery still
+    // waiting for its merge approval, or any other pending approval, keeps the mission stopped.
+    let resumed=false;
+    if(run && task && task.state==='QUEUED' && run.state==='HUMAN_REQUIRED'){
+      const pending=Object.values(this.state.approvals||{}).some(x=>x.runId===run.id&&x.state==='WAITING');
+      const humanTasks=(run.taskIds||[]).map(taskId=>this.state.tasks[taskId]).some(x=>x&&x.state==='HUMAN_REQUIRED');
+      if(!pending&&!humanTasks){run.state='RUNNING';run.finishedAt=null;resumed=true;}
+    }
+    await this.persist(); await this.event('approval.approved',{runId:a.runId,taskId:a.taskId,approvalId:id,...(resumed?{resumed:true}:{})});
     if(run && !a.taskId && ['NETWORK','CREDENTIAL'].includes(a.action)){
       run.waitingFor=null;
       if(await this.ensureMissionProviderApprovals(run)){
+        if(run.state==='HUMAN_REQUIRED') run.state='QUEUED';
         if(!(run.taskIds||[]).length) await this.planMission(run);
         await this.startMission(run.id);
       }

@@ -166,6 +166,7 @@ async function makeWorktree(root, runRoot, signal, baseRef = null) {
   const base = await assertCleanRepo(root, signal);
   const worktree = path.join(runRoot, 'worktree');
   await fs.rm(worktree, { recursive: true, force: true });
+  await git(root, ['worktree', 'prune'], signal);
   await fs.mkdir(runRoot, { recursive: true });
   const ref = baseRef || base.head;
   await git(root, ['worktree', 'add', '--detach', worktree, ref], signal);
@@ -532,7 +533,7 @@ async function runHarness(options) {
         task.diffStats={...reviewInput.input.diff.stats,verifierStatus:v.passed?'PASS':'FAIL'};
         await persist();
         const reviewerIdentity={provider:roleProviders.reviewer,model:roleModels.reviewer||'UNKNOWN'};
-        const rr = await invokeProvider({router:providerRouter,role:'reviewer',prompt:reviewerPrompt(task, goal, done, reviewInput.input, reviewInput.sha256,reviewerIdentity,roleKnowledge('reviewer',roleProviders.reviewer,repoKnowledge)),cwd:root,model:roleModels.reviewer,providerId:roleProviders.reviewer,policy:options.policy,signal,timeoutMs:180000,executionApproved:Boolean(options.executionApproved),networkApproved:Boolean(options.providerNetworkApproved)});
+        const rr = await invokeProvider({router:providerRouter,role:'reviewer',prompt:reviewerPrompt(task, goal, done, reviewInput.input, reviewInput.sha256,reviewerIdentity,roleKnowledge('reviewer',roleProviders.reviewer,repoKnowledge)),cwd:root,model:roleModels.reviewer,providerId:roleProviders.reviewer,policy:options.policy,signal,timeoutMs:180000,executionApproved:Boolean(options.executionApproved),networkApproved:Boolean(options.providerNetworkApproved),credentialApproved:Boolean(options.providerCredentialApproved)});
         const validated=validateReviewReport(rr.code===0?rr.stdout:null,{taskId:task.id,runId:record.id,reviewer:reviewerIdentity,verifierPassed:v.passed});
         task.review=validated.report;
         task.reviewEvidence=await saveReviewReport(runRoot,task.review,iteration);
