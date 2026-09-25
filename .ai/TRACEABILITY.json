@@ -2380,16 +2380,25 @@
         "section": "## E2 — Local Autonomous Loop"
       },
       "text": "Each adapter has its own authentication/quota rules. AECP must not imply that a provider is unlimited.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
+        {
+          "file": "tests/ui-state-projection-and-usage.test.cjs",
+          "kind": "test",
+          "name": "B16-L171 provider and adapter quota is shown as observed usage or as externally managed, never as unlimited"
+        },
+        {
+          "file": "tests/ui-state-projection-and-usage.test.cjs",
+          "kind": "test",
+          "name": "B16-L171 the usage store records only numbers a provider reported and never invents a quota or a remaining balance"
+        },
         {
           "file": "electron/lib/provider-usage.cjs",
           "kind": "code",
           "name": "ProviderUsageStore"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Usage/status surface exists; every adapter quota representation and no-unlimited implication needs a UI audit."
+      "note": "Real ui/app.js rendered against provider/adapter fixtures: quota is shown only as provider-reported observed usage (with units), as subscription-managed externally (ChatGPT) or as no recorded invocations; no rendered view or translated string implies unlimited use. The real ProviderUsageStore keeps only numbers a provider reported and has no quota, limit or remaining-balance field."
     },
     {
       "id": "B16-L190",
@@ -2398,16 +2407,29 @@
         "section": "## E2 — Local Autonomous Loop"
       },
       "text": "Claude Code, Gemini CLI, Codex CLI and OpenCode are represented through governed role/capability adapters. Codex execution may have multiple isolated Worker identities; switching Provider by mutating a shared `CODEX_HOME` is not considered isolation. Provider automation may have its own subscription/credit/quota semantics and must be surfaced in capability/status rather than treated as unlimited.",
-      "status": "PARTIAL",
+      "status": "ENVIRONMENT",
       "evidence": [
+        {
+          "file": "tests/provider-role-matrix-e2e.test.cjs",
+          "kind": "test",
+          "name": "R3.2 every supported provider in every role it can serve runs a real mission with an unchanged state schema"
+        },
+        {
+          "file": "tests/codex-worker-isolation.test.cjs",
+          "kind": "test",
+          "name": "B03-L56 the OFFICIAL and PEGA workers get disjoint CODEX_HOME, runtime, auth and configuration files"
+        },
         {
           "file": "electron/lib/provider-router.cjs",
           "kind": "code",
           "name": "ProviderRouter"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Governed CLI roles and isolated Codex workers exist; quota/capability behavior for all four CLIs is not environment-proven."
+      "note": "The governed role/capability representation of Claude Code, Gemini CLI, Codex CLI and OpenCode, the isolated Codex worker identities (disjoint CODEX_HOME) and the usage/status surface are proven with fake process runners (R3.2 matrix, B03-L56, B16-L171). What each real CLI subscription/credit/quota does can only be observed with the real CLIs and accounts, so it stays an environment gate.",
+      "acceptanceRef": {
+        "file": ".ai/ACCEPTANCE.md",
+        "section": "## 5. ENVIRONMENT / OWNER 項目的驗收協定"
+      }
     },
     {
       "id": "B16-L229",
@@ -2416,16 +2438,35 @@
         "section": "## E3 — Official Full MCP"
       },
       "text": "This tunnel credential is not the same as model-token API billing, but it is still an OpenAI platform credential and must be treated as a secret.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
+        {
+          "file": "tests/tunnel-credential-secret.test.cjs",
+          "kind": "test",
+          "name": "B16-L229 the tunnel credential leaves the machine only after explicit NETWORK and CREDENTIAL approval, and only to the configured endpoint"
+        },
+        {
+          "file": "tests/tunnel-credential-secret.test.cjs",
+          "kind": "test",
+          "name": "B16-L229 an endpoint that echoes the credential back cannot make AECP display or keep it"
+        },
+        {
+          "file": "tests/tunnel-credential-secret.test.cjs",
+          "kind": "test",
+          "name": "B16-L229 the tunnel credential exists only as OS-encrypted ciphertext: not in listings, state, backups, logs or evidence"
+        },
+        {
+          "file": "tests/tunnel-credential-secret.test.cjs",
+          "kind": "test",
+          "name": "B16-L229 when the OS cannot encrypt, the credential is refused instead of stored in the clear"
+        },
         {
           "file": "electron/main.cjs",
           "kind": "code",
           "name": "getOrCreateLocalMcpToken"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Local MCP bearer uses safeStorage; official tunnel credentials require product/environment verification."
+      "note": "A remote-MCP provider credential (the tunnel runtime credential) is used only after explicit NETWORK and CREDENTIAL approval, as a bearer to the configured endpoint only, never echoed in health results, stored only as OS-encrypted ciphertext (not in listings, state, backups, logs, clipboard or evidence) and refused when OS encryption is unavailable. The Official Full MCP tunnel itself is not implemented (E3 not ready) and stays under the environment gates."
     },
     {
       "id": "B16-L233",
@@ -2434,16 +2475,30 @@
         "section": "## E3 — Official Full MCP"
       },
       "text": "The MCP surface must expose semantic tools, not an unrestricted shell.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
+        {
+          "file": "tests/mcp-semantic-contract.test.cjs",
+          "kind": "test",
+          "name": "B16-L233 the MCP surface is exactly four semantic read-only tools with bounded typed inputs and no shell-shaped parameter"
+        },
+        {
+          "file": "tests/mcp-semantic-contract.test.cjs",
+          "kind": "test",
+          "name": "B16-L233 shell-shaped tools do not exist and extra command arguments to real tools are inert"
+        },
+        {
+          "file": "tests/mcp-semantic-contract.test.cjs",
+          "kind": "test",
+          "name": "B16-L233 an unauthenticated caller cannot list or call any tool"
+        },
         {
           "file": "electron/mcp-server.mjs",
           "kind": "code",
           "name": "startLocalMcpServer"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "MCP tools are semantic in preview; a complete negative unrestricted-shell contract test is pending."
+      "note": "The real MCP server exposes exactly four read-only semantic tools (aecp_status, inspect_workspace, git_status, read_text_file) with only a length-bounded relative path argument, offers only the tools capability, refuses shell-shaped tool names (run_shell, exec, bash, powershell ...) with no side effect, ignores injected command arguments on the real tools, and rejects unauthenticated callers."
     },
     {
       "id": "B16-L286",
@@ -2469,16 +2524,35 @@
         "section": "# 5. Same Goal, different transport"
       },
       "text": "The canonical task model must remain identical across all modes:",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
+        {
+          "file": "tests/execution-contract-modes.test.cjs",
+          "kind": "test",
+          "name": "B16-L292 Web Safe Bridge: the imported task carries the canonical contract and it survives execution"
+        },
+        {
+          "file": "tests/execution-contract-modes.test.cjs",
+          "kind": "test",
+          "name": "B16-L292 Control Plane: a mission and its task carry the canonical contract through a real run"
+        },
+        {
+          "file": "tests/execution-contract-modes.test.cjs",
+          "kind": "test",
+          "name": "B16-L292 Goal Loop Harness: a run without a supplied contract builds the canonical one"
+        },
+        {
+          "file": "tests/execution-contract-modes.test.cjs",
+          "kind": "test",
+          "name": "B16-L292 every mode carries the identical field set and only the transport-specific values differ"
+        },
         {
           "file": "electron/lib/execution-contract.cjs",
           "kind": "code",
           "name": "makeExecutionContract"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Canonical task contract exists; all execution modes need the same-field round-trip test."
+      "note": "Contracts produced by three real execution modes (Web Safe Bridge task import and execution, Control Plane mission and task through a real run, Goal Loop Harness) all carry the identical canonical field set, validate, keep goal and Definition of Done verbatim, and survive a storage round trip and update; only transport-specific values differ."
     },
     {
       "id": "B16-L335",
@@ -2487,16 +2561,35 @@
         "section": "# 6. Mobile/remote supervision"
       },
       "text": "3. Never implement remote supervision by scraping a ChatGPT session.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
+        {
+          "file": "tests/remote-supervision-no-scraping.test.cjs",
+          "kind": "test",
+          "name": "B16-L335 remote supervision is served from AECP canonical state and event ledger, and follows them exactly"
+        },
+        {
+          "file": "tests/remote-supervision-no-scraping.test.cjs",
+          "kind": "test",
+          "name": "B16-L335 the gateway has no route that could read a ChatGPT conversation or page"
+        },
+        {
+          "file": "tests/remote-supervision-no-scraping.test.cjs",
+          "kind": "test",
+          "name": "B16-L335 serving remote supervision opens no connection except to the paired device"
+        },
+        {
+          "file": "tests/remote-supervision-no-scraping.test.cjs",
+          "kind": "test",
+          "name": "B16-L335 the desktop adapter refuses to read a browser window (where ChatGPT lives) and the IPC cannot enable it"
+        },
         {
           "file": "electron/main.cjs",
           "kind": "code",
           "name": "chatgpt:open"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Official browser opens externally; a full remote-supervision no-DOM-scraping audit is missing."
+      "note": "The real RemoteGateway serves only AECP canonical control-plane state and the event ledger (and follows them exactly), exposes no route that could read a ChatGPT conversation or page, opens no TCP connection except the paired device to its own port, and the desktop adapter refuses to inspect browser windows with the IPC schema unable to enable it."
     },
     {
       "id": "B16-L85",
@@ -2836,7 +2929,7 @@
         }
       ],
       "workOrder": "UNASSIGNED",
-      "note": "Workflow has architecture build jobs; exact-HEAD installer packaging remains a CI result, not a local test claim."
+      "note": "CI-level evidence only (ACCEPTANCE section 0): the AECP Packaging workflow builds Package Windows x64 and arm64, Store AppX x64/arm64, Package Universal Bootstrap and Package Windows Auto Detect on the pull-request head, and it concluded success on 5c00588. A local test cannot prove installers package; it must be re-read from GitHub for the exact final commit."
     },
     {
       "id": "B20-14-MEMORY",
@@ -4836,16 +4929,30 @@
         "section": "## R7 — Windows distribution"
       },
       "text": "The application remains usable without an OpenAI API key.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
+        {
+          "file": "tests/no-openai-key-required.test.cjs",
+          "kind": "test",
+          "name": "R7.5 a clean profile with no OpenAI key completes the whole guided flow: Workspace, safe task, evidence, ChatGPT"
+        },
+        {
+          "file": "tests/no-openai-key-required.test.cjs",
+          "kind": "test",
+          "name": "R7.5 the built-in providers never ask for a key: ChatGPT Web is READY and needs none, and the worker providers report a state instead of blocking"
+        },
+        {
+          "file": "tests/no-openai-key-required.test.cjs",
+          "kind": "test",
+          "name": "R7.5 the UI never requires or prompts for an OpenAI key: the key field is optional and the Start view works without one"
+        },
         {
           "file": "electron/main.cjs",
           "kind": "code",
           "name": "createMainWindow"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "The local UI and Safe Bridge do not request an OpenAI API key, but clean-install operation without one needs an acceptance run."
+      "note": "A clean profile with every OPENAI/PEGA variable removed completes the guided flow with the real main.cjs handlers (Workspace, safe task, evidence, official ChatGPT open) with no network request and no credential store; ChatGPT Web is READY and needs no key; the real UI shows no key requirement and the key field is optional. A real clean install of the packaged app remains an acceptance run."
     },
     {
       "id": "R8.1",
@@ -4871,16 +4978,25 @@
         "section": "## R8 — UX and human agency"
       },
       "text": "Beginner and engineering views project the same underlying state.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
+        {
+          "file": "tests/ui-state-projection-and-usage.test.cjs",
+          "kind": "test",
+          "name": "R8.2 Beginner and Engineering mode render exactly the same content from the same underlying state, in every view"
+        },
+        {
+          "file": "tests/ui-state-projection-and-usage.test.cjs",
+          "kind": "test",
+          "name": "R8.2 the same task fields are visible in both modes, including the engineering-only details"
+        },
         {
           "file": "ui/app.js",
           "kind": "code",
           "name": "engineering-mode"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Both views share state, but a rendered cross-mode equality test is absent."
+      "note": "The real ui/app.js is rendered from one state in Beginner and Engineering mode for every view (start, board, pipeline, loop, graph, evidence): the projected content, the sidebar lists and the Workspace header are identical in both modes and switching leaves the underlying state untouched."
     },
     {
       "id": "R8.3",
@@ -4906,16 +5022,17 @@
         "section": "## R8 — UX and human agency"
       },
       "text": "Goal/Definition of Done, current state, risk, evidence and required approvals are visible.",
-      "status": "PARTIAL",
+      "status": "CONFIRMED_GAP",
       "evidence": [
         {
           "file": "ui/harness-console.js",
           "kind": "code",
-          "name": "render"
+          "symbol": "Mission Queue",
+          "description": "The Command Center Mission Queue row shows only the mission goal, id, project root, state and next step; the mission Definition of Done (run.done) is never rendered anywhere in the dashboard (only the New Mission form input), and a task card shows objective (acceptance only when there is no objective) but never the task risk, except inside a waiting approval. Verified by rendering the real harness-console.js with a run whose done text was unique: it did not appear in the HTML."
         }
       ],
       "workOrder": "UNASSIGNED",
-      "note": "Visible fields exist, but all Goal/Done/risk/evidence/approval combinations are not asserted."
+      "note": "Missing: render run.done (Definition of Done) on the mission row and the task risk on the task card so that Goal/Definition of Done, state, risk, evidence and required approvals are all visible. Visible already and kept as regression tests (tests/dashboard-visibility-ui.test.cjs): goal, current state, approval reason and its risk, Needs me, verifier result, changed files, timeline evidence path and hash, UNKNOWN for missing values. Not fixed here (feature code is out of scope for 0013)."
     },
     {
       "id": "R8.5",
