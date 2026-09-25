@@ -252,6 +252,8 @@ test('R2.1 approving a delivery task through approve() neither merges nor resume
   gh.runs = (sha) => [ciRun(sha, 'success', 91)];
   await start(rejected);
   await until(rejected, () => rejected.task.ci?.state === 'PASSED' && rejected.task.state === 'HUMAN_REQUIRED', 'the delivery approval request');
+  // the task state flips a moment before the approval record exists under load, so wait for the record itself
+  await until(rejected, () => Object.values(rejected.cp.state.approvals).some((entry) => entry.taskId === rejected.task.id && entry.state === 'WAITING'), 'the waiting approval record');
   const pending = Object.values(rejected.cp.state.approvals).find((entry) => entry.taskId === rejected.task.id && entry.state === 'WAITING');
   await rejected.cp.reject(pending.id, { by: 'human', note: 'no' });
   await new Promise((resolve) => setTimeout(resolve, 2500));
