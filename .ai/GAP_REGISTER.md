@@ -28,10 +28,11 @@
 | G8 | 全部規範條文的完整性 | 已完成分類（0010、0011）：231 條中 115 已實作、91 部分、5 確認缺失、9 人工、3 擁有者、8 蓄意不做，無任何未分類項；「部分」與「確認缺失」由 G9、G10 承接 | 中 | 0011 |
 | G9 | B04 Electron 基線、B11、B21 | **已全部修復（5/5）**：導覽限制、剪貼簿位元組上限、IPC 統一參數驗證、Evidence 不可變（write-once）、Result Capsule 未驗證不得宣稱成功；並額外修掉兩條路徑穿越（模型控制的任務 ID、`task:trace`／`task:evidence`）。詳見 0012 | 已解決 | 0012 |
 | G10 | 89 條 PARTIAL | 行為存在但缺針對該條文的測試；`policy.violation` 已涵蓋所有政策閘門（0012 D）。剩餘 89 條依風險分 11 批，見 `.ai/WORK_ORDERS/0013-batches.md` | 中 | 0013 |
-| G11 | B05 §7、§8、B02 | 0013 批次 3 發現並經 Claude 重現的真缺陷：①Webhook 簽章長度不符丟 RangeError 使請求掛住（github-webhook.cjs verify）；②external.correlated 因與 external.received 共用 idempotencyKey 被去重而從未寫入；③ResourceManager.scan 把帶內嵌憑證的 remote URL 原樣寫入 resources.json（B05-L20）；④鎖回收不記錄釋放原因（B02-L109）；⑤跨倉庫鎖無決定順序／BLOCKED（B05-L88） | 高（①③涉及安全） | 待簽發 0014 |
+| G11 | B05 §7、§8、B02 | 0013 批次 3 發現並經 Claude 重現的真缺陷：①Webhook 簽章長度不符丟 RangeError 使請求掛住（github-webhook.cjs verify）；②external.correlated 因與 external.received 共用 idempotencyKey 被去重而從未寫入；③ResourceManager.scan 把帶內嵌憑證的 remote URL 原樣寫入 resources.json（B05-L20）；④鎖回收不記錄釋放原因（B02-L109）；⑤跨倉庫鎖無決定順序／BLOCKED（B05-L88） | 高（①③涉及安全） | 待簽發 0014 | **更新：** ①webhook 簽章崩潰、②external.correlated 未寫入 已修復（見 0013 批次 7 審查）；③④⑤仍開。
 | G12 | 20 §27 #2 | **已修復**：control-plane.cjs 呼叫未 import 的 prepareWorktree，所有派發任務 ReferenceError（自 c3e547d）。修復與端到端測試見 0013 批次 4 審查 | 已解決（嚴重） | 0013 |
 | G13 | B05 §7 | **已修復（0013 批次 5 後）：** 人工核准後 Mission 卡死（R2.1）、CI 失敗後 rework 因 worktree 登記殘留失敗（R4.5）、reviewer 缺 credentialApproved（B20-27-18）。**仍開：** 同 repo 兩任務同時派發時 git-admin 鎖不等待，第二個以 Lock busy 失敗（與藍圖 05 §7 不符） | 中高 | 待簽發 0014 |
 | G14 | R5.4 / 藍圖維運 | 孤兒 worktree 清理兩缺陷：①多 repo 任務的 repoRoot 誤用 run.sourceRoot（容器目錄），git worktree remove 失敗被吞，worktreesRemoved 恆為 0；②每輪對所有歷史終態任務各跑 2 個 git 行程、無每輪上限，成本隨歷史無限增長（與 bounded budgets 不符） | 中 | 待簽發 0014 |
+| G15 | B03 §隔離、供應商 | ①**CODEX_HOME 隔離可被繞過（安全）：** WorkerRegistry 只比路徑字串，junction 別名、巢狀路徑、上層目錄皆被接受，兩個 worker 可共用同一份登入與 session（B03-L56，已重現）；②codex worker 健康檢查不連線端點就回 READY，不驗證 wire API（B03-L68）；③createMission 省略 maxTurns／maxFailedAttempts 時退化為 1，預設公式失效；④B03-L168 沒有為 agent 交接寫 Context Capsule | 高（①） | 待簽發 0014 |
 
 ## 決策紀錄（Claude Code，Blueprint 擁有者）
 - **D2｜Blueprint 22 §6–§9、§11 與 20 §16 為必要項。** `22 §17` 有一段「深入視覺檢視……為選用的呈現強化，非缺失的驗收需求」的收尾註記，是先前施工者為結案而加，且與同文件本文「dashboard must show…」衝突；依「Blueprint 是標準」，以本文為準，該註記視為被取代（不改動原檔，於此登記）。
