@@ -99,7 +99,7 @@ function checkSabotage(base, fresh, skipReplay, problems) {
       || typeof entry.to !== 'string' || !Array.isArray(entry.tests) || !entry.tests.length) {
       problems.push(`sabotage: entry ${index + 1} is malformed`); continue;
     }
-    if (!/^(electron|ui)\//.test(entry.file)) { problems.push(`sabotage: entry ${index + 1} breaks ${entry.file}; it must break product code (electron/ or ui/)`); continue; }
+    if (!/^(electron|ui|scripts)\//.test(entry.file) || /^scripts\/(review-gate|sabotage-check)\.cjs$/.test(entry.file)) { problems.push(`sabotage: entry ${index + 1} breaks ${entry.file}; it must break product code (electron/, ui/ or product scripts/)`); continue; }
     if (skipReplay) continue;
     const outcome = sabotage({ root: ROOT, file: entry.file, from: entry.from, to: entry.to, tests: entry.tests });
     if (outcome.status !== 0) problems.push(`sabotage: entry ${index + 1} (${entry.ids.join(', ')}) ${outcome.status === 1 ? 'NOT DETECTED - the tests still pass with the behavior broken' : 'could not run: ' + outcome.reason}`);
