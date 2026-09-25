@@ -34,7 +34,8 @@ test.after(async () => {
 });
 
 const health = (extra) => H('provider:health', { providerId, timeoutMs: 3000, ...extra });
-const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => (entry.isDirectory() ? walk(path.join(dir, entry.name)) : [path.join(dir, entry.name)]));
+// Atomic-write temp files are renamed away while the tree is walked and never hold committed state.
+const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => (entry.isDirectory() ? walk(path.join(dir, entry.name)) : (/.tmp(?:-d+-d+)?$|.d+.tmp$/.test(entry.name) ? [] : [path.join(dir, entry.name)])));
 
 test('B16-L229 the tunnel credential leaves the machine only after explicit NETWORK and CREDENTIAL approval, and only to the configured endpoint', async () => {
   received.length = 0;

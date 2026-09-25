@@ -30,7 +30,8 @@ const savedResponses = [];
 function walk(dir, out = []) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) walk(full, out); else out.push(full);
+    // Atomic-write temp files are renamed away while a test walks the tree; they never hold committed state.
+    if (entry.isDirectory()) walk(full, out); else if (!/.tmp(?:-d+-d+)?$|.d+.tmp$/.test(entry.name)) out.push(full);
   }
   return out;
 }

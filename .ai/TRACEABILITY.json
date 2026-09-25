@@ -2826,13 +2826,7 @@
         {
           "file": "tests/human-controls.test.cjs",
           "kind": "test",
-          "name": "Execution Mode recommendation is factual and never promotes generic MCP endpoint health to Official Full MCP",
-          "covers": [
-            "B16-L286",
-            "B08-L81",
-            "B08-L85",
-            "B08-L88"
-          ]
+          "name": "Execution Mode recommendation is factual and never promotes generic MCP endpoint health to Official Full MCP"
         }
       ],
       "note": "Clause-specific named test observes the cited behavior."
@@ -3739,35 +3733,17 @@
         {
           "file": "tests/chatgpt-untouched-integration.test.cjs",
           "kind": "test",
-          "name": "B20-27-17 every path that reaches the official ChatGPT Web only hands the URL to the OS browser",
-          "covers": [
-            "B20-27-17",
-            "B08-L7",
-            "B08-L14",
-            "B08-L15"
-          ]
+          "name": "B20-27-17 every path that reaches the official ChatGPT Web only hands the URL to the OS browser"
         },
         {
           "file": "tests/chatgpt-untouched-integration.test.cjs",
           "kind": "test",
-          "name": "B20-27-17 the app window can neither open nor navigate to ChatGPT in-app",
-          "covers": [
-            "B20-27-17",
-            "B08-L7",
-            "B08-L14",
-            "B08-L15"
-          ]
+          "name": "B20-27-17 the app window can neither open nor navigate to ChatGPT in-app"
         },
         {
           "file": "tests/chatgpt-untouched-integration.test.cjs",
           "kind": "test",
-          "name": "B20-27-17 the built-in ChatGPT Web provider is human-mediated: no health probe traffic, no stored credential, cannot be removed",
-          "covers": [
-            "B20-27-17",
-            "B08-L7",
-            "B08-L14",
-            "B08-L15"
-          ]
+          "name": "B20-27-17 the built-in ChatGPT Web provider is human-mediated: no health probe traffic, no stored credential, cannot be removed"
         },
         {
           "file": "tests/chatgpt-surface-boundary.test.cjs",
@@ -8743,37 +8719,19 @@
       "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "tests/chatgpt-untouched-integration.test.cjs",
+          "file": "tests/electron-shell-and-modes.test.cjs",
           "kind": "test",
-          "name": "B20-27-17 every path that reaches the official ChatGPT Web only hands the URL to the OS browser",
-          "covers": [
-            "B20-27-17",
-            "B08-L7",
-            "B08-L14",
-            "B08-L15"
-          ]
+          "name": "B08-SHELL the real main window is created with context isolation, no Node integration, a sandbox and web security"
         },
         {
-          "file": "tests/chatgpt-untouched-integration.test.cjs",
+          "file": "tests/electron-shell-and-modes.test.cjs",
           "kind": "test",
-          "name": "B20-27-17 the app window can neither open nor navigate to ChatGPT in-app",
-          "covers": [
-            "B20-27-17",
-            "B08-L7",
-            "B08-L14",
-            "B08-L15"
-          ]
+          "name": "B08-SHELL navigation away from the local UI is refused and new windows are denied, so no remote ChatGPT page is loaded into the privileged window"
         },
         {
-          "file": "tests/chatgpt-untouched-integration.test.cjs",
+          "file": "tests/electron-shell-and-modes.test.cjs",
           "kind": "test",
-          "name": "B20-27-17 the built-in ChatGPT Web provider is human-mediated: no health probe traffic, no stored credential, cannot be removed",
-          "covers": [
-            "B20-27-17",
-            "B08-L7",
-            "B08-L14",
-            "B08-L15"
-          ]
+          "name": "B08-SHELL the real preload exposes one frozen aecp API of fixed channel calls and never the ipcRenderer itself"
         }
       ],
       "note": "The real main.cjs is loaded with a fake Electron and its BrowserWindow options are asserted: contextIsolation, sandbox and no nodeIntegration."
@@ -8923,37 +8881,19 @@
       "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "tests/chatgpt-untouched-integration.test.cjs",
+          "file": "tests/electron-shell-and-modes.test.cjs",
           "kind": "test",
-          "name": "B20-27-17 every path that reaches the official ChatGPT Web only hands the URL to the OS browser",
-          "covers": [
-            "B20-27-17",
-            "B08-L7",
-            "B08-L14",
-            "B08-L15"
-          ]
+          "name": "B08-SHELL the real main window is created with context isolation, no Node integration, a sandbox and web security"
         },
         {
-          "file": "tests/chatgpt-untouched-integration.test.cjs",
+          "file": "tests/electron-shell-and-modes.test.cjs",
           "kind": "test",
-          "name": "B20-27-17 the app window can neither open nor navigate to ChatGPT in-app",
-          "covers": [
-            "B20-27-17",
-            "B08-L7",
-            "B08-L14",
-            "B08-L15"
-          ]
+          "name": "B08-SHELL navigation away from the local UI is refused and new windows are denied, so no remote ChatGPT page is loaded into the privileged window"
         },
         {
-          "file": "tests/chatgpt-untouched-integration.test.cjs",
+          "file": "tests/electron-shell-and-modes.test.cjs",
           "kind": "test",
-          "name": "B20-27-17 the built-in ChatGPT Web provider is human-mediated: no health probe traffic, no stored credential, cannot be removed",
-          "covers": [
-            "B20-27-17",
-            "B08-L7",
-            "B08-L14",
-            "B08-L15"
-          ]
+          "name": "B08-SHELL the real preload exposes one frozen aecp API of fixed channel calls and never the ipcRenderer itself"
         }
       ],
       "note": "The renderer has context isolation on and no Node integration (asserted from the real window options), and its preload exposes no ipcRenderer."
@@ -8968,37 +8908,19 @@
       "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "tests/chatgpt-untouched-integration.test.cjs",
+          "file": "tests/electron-shell-and-modes.test.cjs",
           "kind": "test",
-          "name": "B20-27-17 every path that reaches the official ChatGPT Web only hands the URL to the OS browser",
-          "covers": [
-            "B20-27-17",
-            "B08-L7",
-            "B08-L14",
-            "B08-L15"
-          ]
+          "name": "B08-SHELL the real main window is created with context isolation, no Node integration, a sandbox and web security"
         },
         {
-          "file": "tests/chatgpt-untouched-integration.test.cjs",
+          "file": "tests/electron-shell-and-modes.test.cjs",
           "kind": "test",
-          "name": "B20-27-17 the app window can neither open nor navigate to ChatGPT in-app",
-          "covers": [
-            "B20-27-17",
-            "B08-L7",
-            "B08-L14",
-            "B08-L15"
-          ]
+          "name": "B08-SHELL navigation away from the local UI is refused and new windows are denied, so no remote ChatGPT page is loaded into the privileged window"
         },
         {
-          "file": "tests/chatgpt-untouched-integration.test.cjs",
+          "file": "tests/electron-shell-and-modes.test.cjs",
           "kind": "test",
-          "name": "B20-27-17 the built-in ChatGPT Web provider is human-mediated: no health probe traffic, no stored credential, cannot be removed",
-          "covers": [
-            "B20-27-17",
-            "B08-L7",
-            "B08-L14",
-            "B08-L15"
-          ]
+          "name": "B08-SHELL the real preload exposes one frozen aecp API of fixed channel calls and never the ipcRenderer itself"
         }
       ],
       "note": "Navigation away from the local UI is refused and popups are denied, so no remote ChatGPT content is ever loaded into the privileged window."
@@ -10465,15 +10387,9 @@
       "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "tests/human-controls.test.cjs",
+          "file": "tests/electron-shell-and-modes.test.cjs",
           "kind": "test",
-          "name": "Execution Mode recommendation is factual and never promotes generic MCP endpoint health to Official Full MCP",
-          "covers": [
-            "B16-L286",
-            "B08-L81",
-            "B08-L85",
-            "B08-L88"
-          ]
+          "name": "B08-MODES execution-mode readiness is factual: unavailable modes are never Ready, and Official Full MCP is never Ready however healthy MCP looks"
         }
       ],
       "note": "The execution-mode cards recommend a mode from factual detection; unavailable modes are not shown as ready."
@@ -10520,15 +10436,9 @@
       "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "tests/human-controls.test.cjs",
+          "file": "tests/electron-shell-and-modes.test.cjs",
           "kind": "test",
-          "name": "Execution Mode recommendation is factual and never promotes generic MCP endpoint health to Official Full MCP",
-          "covers": [
-            "B16-L286",
-            "B08-L81",
-            "B08-L85",
-            "B08-L88"
-          ]
+          "name": "B08-MODES execution-mode readiness is factual: unavailable modes are never Ready, and Official Full MCP is never Ready however healthy MCP looks"
         }
       ],
       "note": "Official Full MCP is never shown as ready even when a local MCP server runs."
@@ -10632,15 +10542,9 @@
       "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "tests/human-controls.test.cjs",
+          "file": "tests/electron-shell-and-modes.test.cjs",
           "kind": "test",
-          "name": "Execution Mode recommendation is factual and never promotes generic MCP endpoint health to Official Full MCP",
-          "covers": [
-            "B16-L286",
-            "B08-L81",
-            "B08-L85",
-            "B08-L88"
-          ]
+          "name": "B08-MODES execution-mode readiness is factual: unavailable modes are never Ready, and Official Full MCP is never Ready however healthy MCP looks"
         }
       ],
       "note": "Full MCP write capability stays off: the mode is never marked ready without end-to-end connector health."

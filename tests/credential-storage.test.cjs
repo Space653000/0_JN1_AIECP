@@ -60,7 +60,7 @@ function allFileContents(dir) {
     for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
       const full = path.join(current, entry.name);
       if (entry.isDirectory()) walk(full);
-      else out.push({ file: full, text: fs.readFileSync(full).toString('latin1') });
+      else if (!/.tmp(?:-d+-d+)?$|.d+.tmp$/.test(entry.name)) out.push({ file: full, text: fs.readFileSync(full).toString('latin1') });
     }
   };
   walk(dir);

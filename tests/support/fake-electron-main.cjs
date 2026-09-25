@@ -12,7 +12,7 @@ const noop = () => {};
 function loadMain({ userData: existingUserData = null, version = '0.0.0-test' } = {}) {
   const userData = existingUserData || fs.mkdtempSync(path.join(os.tmpdir(), 'aecp-main-'));
   const handlers = {};
-  const record = { openExternal: [], clipboard: [], console: [] };
+  const record = { openExternal: [], clipboard: [], console: [], windows: [] };
   const control = { encryptionAvailable: true, chosenFolder: null, savePath: null, messageBoxResponse: 1 };
   const deep = (name) => new Proxy(function fake() {}, {
     get: (_t, prop) => (prop === Symbol.toPrimitive ? () => name : (prop === 'then' ? undefined : deep(`${name}.${String(prop)}`))),
@@ -32,8 +32,24 @@ function loadMain({ userData: existingUserData = null, version = '0.0.0-test' } 
     encryptString: (text) => Buffer.from(`ENC[${Buffer.from(text).reverse().toString('hex')}]`),
     decryptString: (buffer) => Buffer.from(/^ENC\[(.*)\]$/.exec(buffer.toString())[1], 'hex').reverse().toString()
   };
+  // A recording BrowserWindow: keeps its constructor options and the handlers main.cjs registers, and tolerates any other call.
+  const tolerant = (target) => new Proxy(target, { get: (t, prop) => (prop in t ? t[prop] : (prop === 'then' || typeof prop === 'symbol' ? undefined : () => undefined)) });
+  class FakeBrowserWindow {
+    constructor(options) {
+      this.options = options;
+      this.handlers = {};
+      this.windowOpenHandler = null;
+      this.webContents = tolerant({ setWindowOpenHandler: (fn) => { this.windowOpenHandler = fn; }, on: (type, fn) => { (this.handlers[type] ||= []).push(fn); }, send: () => {}, isDestroyed: () => false });
+      const proxy = tolerant(this);
+      record.windows.push(proxy);
+      return proxy;
+    }
+    loadFile() { return Promise.resolve(); }
+    isDestroyed() { return false; }
+    static getAllWindows() { return record.windows; }
+  }
   const fakes = {
-    app, safeStorage,
+    app, safeStorage, BrowserWindow: FakeBrowserWindow,
     ipcMain: { handle: (channel, fn) => { handlers[channel] = fn; }, on: noop, removeHandler: noop },
     dialog: {
       showOpenDialog: async () => (control.chosenFolder ? { canceled: false, filePaths: [control.chosenFolder] } : { canceled: true, filePaths: [] }),
