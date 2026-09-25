@@ -36,6 +36,9 @@
 | G16 | R3.6 / 藍圖 04、03 | 狀態檔損毀（worker-registry.json 或 control-plane.json）會讓 App 啟動失敗：main.cjs 在 registerIpc() 之前 await initControlPlane()，所有 IPC（含 Safe Bridge）都不會註冊。應隔離損毀、降級啟動並顯示錯誤 | 中高 | 已修復（0014，2026-09-25） |
 | G17 | B04 路徑安全 / CI | **AECP CI 自 0013 批次 3 起全紅（失敗或 20 分鐘逾時被取消）的根因，已在本機以 junction 臨時目錄重現：** `SecurityPolicy`／`isWithinRoot`（path-safety.cjs）只做文字比對、不做 realpath；Control Plane 的 rootDir 若是 8.3 短名或 junction 別名（GitHub Windows runner 的 `C:UsersRUNNER~1...`），就與 `git worktree` 回報的長路徑不同，任務以「Path is outside the configured allowlist」FAILED（fail-closed，不是安全洞，是可靠度缺陷；使用者資料夾若以別名路徑綁定也會遇到）。測試端已用 `tests/support/canonical-tmp.cjs`（`npm test` 預載）讓測試使用正規臨時路徑；**產品端尚未修**（需判斷是 SecurityPolicy 比對前先 realpath，或在 Workspace/rootDir 綁定時正規化） | 中 | 待簽發 |
 | G18 | B12 §4（B12-L134） | `persistTask`（main.cjs）寫入的 `evidence/<task>/task.json` 與 `evidence.json` 沒有任何 schema 標識；其餘各持久化檔案（state、credentials、result、trace、control-plane、events、locks、resources、worker-registry）都有。「每份持久化文件都有版本」因此不成立 | 低中 | 待簽發 |
+| G19 | B06 §3 Browser Dock UX（B06-L31） | UI 有 Dock 左／右按鈕，但沒有任何 Windows Snap（Win+←/→）教學文字，也沒有持久化的 AECP 窗格版面設定（ui/app.js、index.html、i18n.js 皆無） | 低 | 待簽發 |
+| G20 | B24（B24-L8）Ollama 角色 | 藍圖 24 寫 Ollama 註冊於 Planner／Builder／Reviewer／General，程式（provider-router.cjs）只註冊 planner／reviewer／general，UI 文字亦同（原生 Ollama 不能當 Builder，檔案修改走 OpenCode＋Ollama 或固定本機指令）；行為為 fail-closed（provider-role-matrix-e2e 已證明）。需擁有者決定：改程式加入受限的 Ollama Builder，或修訂藍圖 24 | 低（決策題） | 待決定 |
+| G21 | R8.4 / 藍圖 22 | Command Center 的 Mission Queue 只顯示目標、狀態、下一步，**從不顯示 Definition of Done（run.done）**；任務卡不顯示任務風險（只在待核准項目內出現）。以真實 harness-console.js 渲染含唯一 done 文字的 run 實測：HTML 中找不到 | 中 | 待簽發 |
 
 ## 決策紀錄（Claude Code，Blueprint 擁有者）
 - **D2｜Blueprint 22 §6–§9、§11 與 20 §16 為必要項。** `22 §17` 有一段「深入視覺檢視……為選用的呈現強化，非缺失的驗收需求」的收尾註記，是先前施工者為結案而加，且與同文件本文「dashboard must show…」衝突；依「Blueprint 是標準」，以本文為準，該註記視為被取代（不改動原檔，於此登記）。

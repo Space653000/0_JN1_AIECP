@@ -105,7 +105,7 @@
 | OWNER-EXTERNAL gate | 4 類 | 只有 `Space653000`（repo 擁有者）本人 |
 | 刻意不做 | 6 項 | 需要新的獨立 Blueprint 決策才會開放，非「忘記做」 |
 
-**結論（2026-09-25 更新）：** 藍圖對標的**分類已完成**，且 `npm run verify` 以 `--strict` 強制：追溯矩陣 231 條，0 條未分類（122 已實作、89 部分、0 確認缺失、9 需人工驗證、3 擁有者、8 蓄意不做）。**已知的 5 個真缺陷（G9）全部修復**（0012），另修掉兩條路徑穿越。**尚未完成：** 89 條「部分」需補針對性測試（0013，已分 11 批，適合便宜模型分批做，見 `0013-batches.md`）、9 條需人工驗收（`ACCEPTANCE.md` §6）、ENVIRONMENT／OWNER-EXTERNAL 閘門，以及**一次真實 Electron 冒煙檢查**（0012 的 IPC 驗證尚未在真的應用程式中點過）。藍圖 06、07、08、24 尚未納入矩陣審計。詳見 [GAP_REGISTER.md](GAP_REGISTER.md)。Codex 額度用完至 2026-09-29。
+**結論（2026-09-25 自動連跑後更新）：** 追溯矩陣現為 **441 條**（原 231 條＋藍圖 06/07/08/24 共 210 條），`--strict` 稽核通過，0 條未分類。**最終統計：320 已實作（含 0015 新增 121）、59 部分、4 確認缺失、16 需人工驗收、17 ENVIRONMENT、14 OWNER、11 蓄意不做。** 本輪（0013 批次 9–11、0014、0015）已全部完成並各自通過驗收閘門（含 GitHub CI 綠燈）。**0014 已修復** G11、G13、G14、G15、G16（CODEX_HOME 別名、remote 憑證、Worker 端點探測、鎖釋放原因、跨倉庫鎖順序、git-admin 鎖等待、孤兒 worktree 預算與 repo 根目錄、損毀狀態檔隔離、預算預設值）。**仍開的確認缺失（4）：** B12-L134（task.json／evidence.json 無 schema 標識，G18）、R8.4（Command Center 不顯示 Definition of Done 與任務風險，G21）、B06-L31（UI 沒教 Windows Snap、不記住窗格版面，G19）、B24-L8（Ollama 未註冊 Builder 角色，與藍圖 24 不符，G20，需擁有者決定改程式或改藍圖）。另有 G17：SecurityPolicy 只做文字路徑比對，8.3 短名／junction 別名會使任務 fail-closed（測試端已用 `tests/support/canonical-tmp.cjs` 繞過，產品端未修）。**部分（59）** 多為 CI 級證據（AECP Packaging／Release）、缺破壞紀錄的既有行為，或條文中屬真機／真帳號的部分；**ENVIRONMENT／OWNER／人工** 項目未被標為完成。
 
 ### 施工單 0006 施工進度（Claude 驗收 CLOSED）
 
