@@ -75,7 +75,7 @@ test('B03-L56 the Worker Registry refuses a second worker on the same CODEX_HOME
   await fs.mkdir(home);
   const worker = (id, codexHome) => ({ id, name: id, providerId: `provider-${id}`, runtime: 'codex-cli', role: 'builder', codexHome });
   await registry.register(worker('worker-a', home));
-  for (const [label, spelled] of [['identical', home], ['different case', home.toUpperCase()], ['dot-dot segment', path.join(home, '..', 'home-a')], ['trailing separator', home + path.sep]]) {
+  for (const [label, spelled] of [['identical', home], ...(process.platform === 'win32' ? [['different case', home.toUpperCase()]] : []), ['dot-dot segment', path.join(home, '..', 'home-a')], ['trailing separator', home + path.sep]]) {
     await assert.rejects(registry.register(worker(`worker-${label.replace(/\W/g, '')}`, spelled)), /must not share CODEX_HOME/, label);
   }
   await registry.register(worker('worker-b', path.join(base, 'home-b')));

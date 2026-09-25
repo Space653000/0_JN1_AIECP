@@ -159,7 +159,7 @@ test('R4.6 a merge is refused when CI failed, and when the human rejected the ap
   const rejected = await boot(t);
   gh.runs = (sha) => [ciRun(sha, 'success', 41)];
   await start(rejected);
-  await until(rejected, () => rejected.task.ci?.state === 'PASSED' && rejected.task.state === 'HUMAN_REQUIRED', 'the approval request');
+  await until(rejected, () => rejected.task.ci?.state === 'PASSED' && rejected.task.state === 'HUMAN_REQUIRED' && Object.values(rejected.cp.state.approvals).some((entry) => entry.taskId === rejected.task.id && entry.state === 'WAITING'), 'the approval request');
   const approval = Object.values(rejected.cp.state.approvals).find((entry) => entry.taskId === rejected.task.id && entry.state === 'WAITING');
   await rejected.cp.reject(approval.id, { by: 'human', note: 'not this one' });
   await assert.rejects(rejected.cp.approveDelivery(rejected.run.id, rejected.task.id, { by: 'human' }), /Explicit human approval is required before merge/);
@@ -236,7 +236,7 @@ test('R2.1 approving a delivery task through approve() neither merges nor resume
   const approved = await boot(t);
   gh.runs = (sha) => [ciRun(sha, 'success', 81)];
   await start(approved);
-  await until(approved, () => approved.task.ci?.state === 'PASSED' && approved.task.state === 'HUMAN_REQUIRED', 'the delivery approval request');
+  await until(approved, () => approved.task.ci?.state === 'PASSED' && approved.task.state === 'HUMAN_REQUIRED' && Object.values(approved.cp.state.approvals).some((entry) => entry.taskId === approved.task.id && entry.state === 'WAITING'), 'the delivery approval request');
   const approval = Object.values(approved.cp.state.approvals).find((entry) => entry.taskId === approved.task.id && entry.state === 'WAITING');
   await approved.cp.approve(approval.id, { by: 'human' });
   await new Promise((resolve) => setTimeout(resolve, 2500));
