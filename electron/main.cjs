@@ -1005,8 +1005,8 @@ async function appendTrace(taskId, type, data = {}, severity = 'info') {
 async function persistTask(task, evidence = null) {
   const dir = dataPath('evidence', task.id);
   await fsp.mkdir(dir, { recursive: true });
-  await writeJsonAtomic(path.join(dir, 'task.json'), redactSensitive(task));
-  if (evidence) await writeJsonAtomic(path.join(dir, 'evidence.json'), redactSensitive(evidence));
+  await writeJsonAtomic(path.join(dir, 'task.json'), { ...redactSensitive(task), schema: 'aecp.task-record/v1' });
+  if (evidence) await writeJsonAtomic(path.join(dir, 'evidence.json'), { ...redactSensitive(evidence), schema: 'aecp.task-evidence/v1' });
   if (task.result) await writeJsonAtomic(path.join(dir, 'result.json'), redactSensitive(task.result));
 }
 

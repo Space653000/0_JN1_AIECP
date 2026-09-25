@@ -733,6 +733,10 @@ function renderBrowserDock() {
   const enabled = Boolean(select.value);
   left.disabled = !enabled;
   right.disabled = !enabled;
+  let lastSide = null;
+  try { lastSide = localStorage.getItem('aecp-dock-side'); } catch { /* preference only */ }
+  left.setAttribute('aria-pressed', String(lastSide === 'left'));
+  right.setAttribute('aria-pressed', String(lastSide === 'right'));
 }
 
 async function refreshBrowserWindows() {
@@ -741,6 +745,7 @@ async function refreshBrowserWindows() {
 }
 
 async function dockBrowser(side) {
+  try { localStorage.setItem('aecp-dock-side', side); } catch { /* preference only */ }
   const pid = Number($('#browserWindowSelect')?.value || 0);
   if (!pid) { toast('Detect and choose a browser window first.', 'error'); return; }
   const result = await safe(() => window.aecp.dockBrowserWindow(pid, side));

@@ -49,3 +49,8 @@
 
 ## 尚未審計（誠實揭露，交 0006 產出追溯矩陣後再補登）
 01 UX（含無障礙目標）、05 GitHub 多倉庫細節、14 Goal Loop 全部 MUST、15 私有更新/Agent Adapter、16 執行模式、02/03/04 其餘 MUST、08 各階段 bullet、12 `schemaVersion`（程式碼多用 `schema` 欄位，命名與藍圖「schemaVersion」是否等價未確認）。
+
+
+## 最終驗收（2026-09-26）
+
+0013 批次 9–11、0014、0015 已由施工者連跑完成並通過驗收閘門；Claude 總驗收後另修 B12-L134、R8.4、B06-L31，並以 Blueprint 決策 D9 裁定 B24-L8。**倉庫內已知的確認缺失為 0。** 仍開：G17（SecurityPolicy 只做文字路徑比對，8.3 短名／junction 別名會使任務 fail-closed，非安全洞）、G11 尚餘的 received／correlated 崩潰窗口。

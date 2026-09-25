@@ -1765,17 +1765,15 @@
         "section": "## 4. Migration"
       },
       "text": "Every persisted document includes `schemaVersion`. Future releases apply explicit migrations; unknown newer versions cause read-only recovery mode rather than destructive downgrade.",
-      "status": "CONFIRMED_GAP",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/main.cjs",
-          "kind": "code",
-          "symbol": "persistTask",
-          "description": "persistTask writes evidence/<task>/task.json (the task object) and evidence/<task>/evidence.json without any schemaVersion or aecp.<name>/vN identifier. A real run of the app and a scan of userData shows every other store is versioned (state.json/credentials.json schemaVersion 1; result.json, trace.jsonl, control-plane.json, events.jsonl, locks.json, resources.json, worker-registry.json carry aecp.*/vN) but these two per-task files have none."
+          "file": "tests/final-gaps.test.cjs",
+          "kind": "test",
+          "name": "B12-L134 every persisted task document carries a versioned schema identifier"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Missing: give task.json and evidence.json a versioned schema identifier (D7: aecp.task-record/v1, aecp.task-evidence/v1 or similar) so every persisted document is versioned. Verified: the unknown-newer-version half of the clause works (state.json with schemaVersion 99 opens in READ_ONLY_RECOVERY and is never rewritten; regression test in tests/task-bridge-main.test.cjs). Not fixed here (feature code is out of scope for 0013)."
+      "note": "Fixed by Claude Code in final acceptance (was CONFIRMED_GAP): persistTask now writes aecp.task-record/v1 into task.json and aecp.task-evidence/v1 into evidence.json (result.json already carried aecp.result/v1); with Blueprint decision D7 every persisted document is versioned. Sabotage-checked."
     },
     {
       "id": "B14-L15",
@@ -5560,17 +5558,15 @@
         "section": "## R8 — UX and human agency"
       },
       "text": "Goal/Definition of Done, current state, risk, evidence and required approvals are visible.",
-      "status": "CONFIRMED_GAP",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "ui/harness-console.js",
-          "kind": "code",
-          "symbol": "Mission Queue",
-          "description": "The Command Center Mission Queue row shows only the mission goal, id, project root, state and next step; the mission Definition of Done (run.done) is never rendered anywhere in the dashboard (only the New Mission form input), and a task card shows objective (acceptance only when there is no objective) but never the task risk, except inside a waiting approval. Verified by rendering the real harness-console.js with a run whose done text was unique: it did not appear in the HTML."
+          "file": "tests/final-gaps.test.cjs",
+          "kind": "test",
+          "name": "R8.4 the Command Center shows each mission Definition of Done and each task risk, and UNKNOWN when missing"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Missing: render run.done (Definition of Done) on the mission row and the task risk on the task card so that Goal/Definition of Done, state, risk, evidence and required approvals are all visible. Visible already and kept as regression tests (tests/dashboard-visibility-ui.test.cjs): goal, current state, approval reason and its risk, Needs me, verifier result, changed files, timeline evidence path and hash, UNKNOWN for missing values. Not fixed here (feature code is out of scope for 0013)."
+      "note": "Fixed by Claude Code in final acceptance (was CONFIRMED_GAP): the mission row now shows Definition of Done and the task card shows Risk (UNKNOWN when absent). Goal, state, approvals and evidence were already visible and stay covered by tests/dashboard-visibility-ui.test.cjs. Sabotage-checked."
     },
     {
       "id": "R8.5",
@@ -6083,17 +6079,20 @@
         "section": "## 3. Browser Dock UX"
       },
       "text": "UI teaches Windows Snap (`Win+←/→`) and remembers AECP pane layout.",
-      "status": "CONFIRMED_GAP",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "ui/app.js",
-          "kind": "code",
-          "symbol": "dockBrowserLeftButton",
-          "description": "The UI offers Dock-left/Dock-right buttons for an allowlisted browser window, but nowhere teaches the Windows Snap shortcut (Win+Left/Right) and does not remember the AECP pane layout: neither ui/app.js, ui/index.html nor ui/i18n.js contains any Snap text or a persisted layout setting."
+          "file": "tests/final-gaps.test.cjs",
+          "kind": "test",
+          "name": "B06-L31 the dock controls teach Windows Snap and the last chosen dock side is remembered"
+        },
+        {
+          "file": "tests/final-gaps.test.cjs",
+          "kind": "test",
+          "name": "B06-L31 the Windows Snap tip is in the shipped page next to the dock controls"
         }
       ],
-      "note": "Missing: a short Windows Snap hint next to the dock controls and a persisted (local, non-secret) AECP pane layout preference. Verified by searching the UI sources for Snap/Win+ text and layout persistence.",
-      "workOrder": "UNASSIGNED"
+      "note": "Fixed by Claude Code in final acceptance (was CONFIRMED_GAP): a Windows Snap tip (Win+Left / Win+Right) sits next to the dock controls and the last dock side is stored locally (non-secret) and shown via aria-pressed. Sabotage-checked."
     },
     {
       "id": "B06-L33",
@@ -6602,17 +6601,13 @@
         "section": "## Verified in source"
       },
       "text": "Ollama is registered as a local provider for Planner / Builder / Reviewer / General roles.",
-      "status": "CONFIRMED_GAP",
-      "evidence": [
-        {
-          "file": "electron/lib/provider-router.cjs",
-          "kind": "code",
-          "symbol": "ollama",
-          "description": "The built-in registry entry is ollama: { command: 'ollama', roles: ['planner', 'reviewer', 'general'], mode: 'ollama' ... }: raw Ollama is registered for Planner, Reviewer and General but NOT Builder, and the UI text says the same. Blueprint 24 states Ollama is registered for Planner / Builder / Reviewer / General."
-        }
-      ],
-      "note": "Owner decision needed: either add Builder to the Ollama roles (then a raw Ollama Builder must be bounded like OpenCode) or amend Blueprint 24 to say raw Ollama is Planner/Reviewer/General only and file edits go through OpenCode+Ollama or a fixed local command. The current behavior (no raw Ollama Builder) is deliberate in the code and README, and is proven fail-closed by tests/provider-role-matrix-e2e.test.cjs.",
-      "workOrder": "UNASSIGNED"
+      "status": "DELIBERATE_NON_GOAL",
+      "evidence": [],
+      "note": "Blueprint owner decision D9: raw Ollama is Planner/Reviewer/General only; file edits with a local model go through OpenCode+Ollama or a fixed local command. The fail-closed registry entry is the intended design.",
+      "decisionRef": {
+        "file": "Blueprint/24_LOCAL_MODEL_PROVIDER_VERIFICATION.md",
+        "section": "## Blueprint owner decision D9 — 2026-09-26 (append-only)"
+      }
     },
     {
       "id": "B24-L9",

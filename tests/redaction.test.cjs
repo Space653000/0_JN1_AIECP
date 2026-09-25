@@ -100,7 +100,7 @@ test('all operational persistence surfaces use centralized redaction',()=>{
   assert.match(control,/JSON\.stringify\(redactSensitive\(this\.state\)/);
   assert.match(control,/const e=redactSensitive/);
   assert.match(main,/state\.json'\), redactSensitive\(state\)/);
-  assert.match(main,/task\.json'\), redactSensitive\(task\)/);
+  assert.match(main,/task\.json'\), \{ \.\.\.redactSensitive\(task\), schema:/);
   assert.match(main,/const event = redactSensitive/);
 });
 

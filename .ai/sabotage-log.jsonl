@@ -234,3 +234,10 @@
 {"ids":["B08-L156"],"file":"electron/lib/remote-gateway.cjs","from":"port=0,host='127.0.0.1',allowRemote=false","to":"port=0,host='0.0.0.0',allowRemote=false","tests":["tests/remote-pairing.test.cjs","tests/remote-pairing-authority.test.cjs"]}
 {"ids":["B08-L182"],"file":"electron/lib/state-migration.cjs","from":"  if(rawVersion>currentVersion){","to":"  if(false){","tests":["tests/state-migration.test.cjs"]}
 {"ids":["B08-L185"],"file":"ui/i18n.js","from":"return raw.startsWith('zh')?'zh-TW':'en';","to":"return 'en';","tests":["tests/i18n-accessibility.test.cjs"]}
+{"ids":["B12-L134"],"file":"electron/main.cjs","from":"{ ...redactSensitive(task), schema: 'aecp.task-record/v1' }","to":"redactSensitive(task)","tests":["tests/final-gaps.test.cjs"]}
+{"ids":["B12-L134"],"file":"electron/main.cjs","from":"{ ...redactSensitive(evidence), schema: 'aecp.task-evidence/v1' }","to":"redactSensitive(evidence)","tests":["tests/final-gaps.test.cjs"]}
+{"ids":["R8.4"],"file":"ui/harness-console.js","from":"<small>Definition of Done: '+esc(r.done||'UNKNOWN')+'</small>","to":"","tests":["tests/final-gaps.test.cjs"]}
+{"ids":["R8.4"],"file":"ui/harness-console.js","from":"<small>Risk: '+esc(t.risk||'UNKNOWN')+'</small>","to":"","tests":["tests/final-gaps.test.cjs"]}
+{"ids":["B06-L31"],"file":"ui/app.js","from":"localStorage.setItem('aecp-dock-side', side);","to":"void side;","tests":["tests/final-gaps.test.cjs"]}
+{"ids":["B06-L31"],"file":"ui/app.js","from":"left.setAttribute('aria-pressed', String(lastSide === 'left'));","to":"","tests":["tests/final-gaps.test.cjs"]}
+{"ids":["B06-L31"],"file":"ui/index.html","from":"Windows Snap (Win+Left / Win+Right)","to":"the mouse","tests":["tests/final-gaps.test.cjs"]}

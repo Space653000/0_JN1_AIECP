@@ -81,3 +81,7 @@ Required environment cases:
 ## Security invariant
 
 Local/provider Worker execution does not grant shell, filesystem, network, credential, GitHub, merge, or system privileges. Those remain controlled by the same Control Plane policy and explicit approval gates used by cloud providers. The real-provider evidence fixture runs in temporary directories and uses the same deny-first policy; it is evidence of provider execution, not authority expansion.
+
+## Blueprint owner decision D9 — 2026-09-26 (append-only)
+
+A raw Ollama provider serves the Planner, Reviewer and General roles only. It is deliberately **not** registered as a Builder: a raw model endpoint has no sandboxed file-editing tool, so an Ollama Builder could not be bounded the way OpenCode or Codex are. File edits with a local model go through **OpenCode + Ollama** (bounded worktree worker) or a **fixed local command** worker. The statement in this document that Ollama is registered for Planner / Builder / Reviewer / General is superseded accordingly. See `.ai/GAP_REGISTER.md`.
