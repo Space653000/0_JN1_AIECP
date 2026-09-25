@@ -1615,16 +1615,25 @@
         "section": "## 7. Provider-neutral execution"
       },
       "text": "Provider failure must not corrupt Workspace state. The Harness owns task state, evidence and recovery.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/lib/harness.cjs",
-          "kind": "code",
-          "name": "runHarness"
+          "file": "tests/harness-integrity.test.cjs",
+          "kind": "test",
+          "name": "B14-L292 a builder that crashes mid-work leaves the Workspace untouched and the Harness owns the state, evidence and checkpoints"
+        },
+        {
+          "file": "tests/harness-integrity.test.cjs",
+          "kind": "test",
+          "name": "B14-L292 a provider that throws or fails to plan ends in a recorded FAILED state without touching the Workspace"
+        },
+        {
+          "file": "tests/harness-integrity.test.cjs",
+          "kind": "test",
+          "name": "B14-L292 a builder that claims success cannot override a failing deterministic verifier"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Evidence/checkpoints are owned by Harness; provider-failure workspace-integrity injection needs end-to-end proof."
+      "note": "Real runHarness on temp Git repos: a builder that crashes mid-work, a provider that throws or a planner that fails leaves the source Workspace clean at the same HEAD; the Harness record (BLOCKED/FAILED, failure text, checkpoints, worker-report evidence) is persisted by the Harness, and a builder claiming PASS cannot override a failing deterministic verifier."
     },
     {
       "id": "B14-L298",
@@ -1650,16 +1659,15 @@
         "section": "## 9. Approval model"
       },
       "text": "Goal Loop must integrate with the existing risk policy.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/lib/security-policy.cjs",
-          "kind": "code",
-          "name": "SecurityPolicy"
+          "file": "tests/harness-integrity.test.cjs",
+          "kind": "test",
+          "name": "B14-L349 the Goal Loop is gated by the same risk policy: unapproved network/credential use stops for a human and approvals are independent"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Risk policy gates actions; all Goal Loop UI choices and policy outcomes need a cross-view equivalence test."
+      "note": "Real runHarness with SecurityPolicy: unapproved network/credential use ends HUMAN_REQUIRED with the same outcome as SecurityPolicy.check, network and credential approvals are independent, approvals recorded in loopContract.permissionPolicy. Renderer-view equivalence of the UI controls is not covered."
     },
     {
       "id": "B14-L419",
@@ -2681,16 +2689,17 @@
         "section": "## 27. Acceptance criteria"
       },
       "text": "Harness dispatches a task without manual copy/paste between Claude and Codex.",
-      "status": "PARTIAL",
+      "status": "CONFIRMED_GAP",
       "evidence": [
         {
           "file": "electron/lib/control-plane.cjs",
           "kind": "code",
-          "name": "executeTask"
+          "symbol": "prepareWorktree",
+          "description": "executeTask calls prepareWorktree(taskRoot,subRoot,controller.signal,baseRef) but control-plane.cjs never imports or defines prepareWorktree (only runHarness, safeJson, DEFAULT_ROLE_PROVIDERS, invokeRole are imported from harness.cjs, which exports it as prepareWorktree). Every non-resumed task therefore throws ReferenceError: prepareWorktree is not defined; the mission ends BLOCKED and no task is ever dispatched to a Worker. Reproduced with a real ControlPlane, a temp Git repo and a fake provider router."
         }
       ],
       "workOrder": "UNASSIGNED",
-      "note": "Scheduler and Harness dispatch exist; absence of manual transfer is not directly asserted in an end-to-end UI test."
+      "note": "Missing: the Control Plane cannot carry a planned task through Worker execution because of the undefined prepareWorktree; add the import (const { prepareWorktree } = require(./harness.cjs)) and an end-to-end mission test (planner -> builder -> verifier -> reviewer with no manual step). Not fixed here (feature code is out of scope for work order 0013)."
     },
     {
       "id": "B20-27-03",
@@ -2699,16 +2708,25 @@
         "section": "## 27. Acceptance criteria"
       },
       "text": "Worker executes only inside an authorized isolated worktree.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/lib/harness.cjs",
-          "kind": "code",
-          "name": "prepareWorktree"
+          "file": "tests/harness-integrity.test.cjs",
+          "kind": "test",
+          "name": "B20-27-03 the Worker runs only inside the task-scoped isolated worktree and never in the source Workspace"
+        },
+        {
+          "file": "tests/harness-integrity.test.cjs",
+          "kind": "test",
+          "name": "B20-27-03 a Worker is refused when its worktree is outside the authorized roots and never starts"
+        },
+        {
+          "file": "tests/harness-integrity.test.cjs",
+          "kind": "test",
+          "name": "B20-27-03 a prepared worktree that is not the task-scoped Harness worktree (for example the source Workspace) is refused"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Worktree isolation exists; per-task authorization and all equivalent worker adapters need one integrated test."
+      "note": "Real runHarness: the Worker cwd is the task-scoped linked Git worktree under the run root (never the source Workspace), a worktree outside SecurityPolicy allowRoots stops the Worker before it starts (OUTSIDE_ALLOWLIST), and a preparedWorktree that is not the task-scoped one is refused. The ControlPlane executeTask path is not exercised end to end because of the B20-27-02 gap."
     },
     {
       "id": "B20-27-04",
@@ -2791,10 +2809,15 @@
           "file": "electron/lib/control-plane.cjs",
           "kind": "code",
           "name": "schedule"
+        },
+        {
+          "file": "tests/queue-dispatch-order.test.cjs",
+          "kind": "test",
+          "name": "B20-27-08 the queue dispatches the next eligible task after each completion: by priority, one at a time, dependencies first"
         }
       ],
       "workOrder": "UNASSIGNED",
-      "note": "Queue selection exists; next eligible dispatch after completion lacks a direct behavioral test."
+      "note": "Proven with the real ControlPlane scheduler and a stubbed executeTask: after each completion the queue dispatches the next eligible task by priority, one at a time, with dependencies first. Not proven end to end because a real task cannot execute (see B20-27-02 gap: prepareWorktree is undefined in control-plane.cjs)."
     },
     {
       "id": "B20-27-09",
@@ -2820,16 +2843,35 @@
         "section": "## 27. Acceptance criteria"
       },
       "text": "GitHub CI results return as correlated events.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/lib/control-plane.cjs",
-          "kind": "code",
-          "name": "ci.passed"
+          "file": "tests/ci-and-approval-gates.test.cjs",
+          "kind": "test",
+          "name": "B20-27-10 the CI monitor correlates GitHub runs to the delivered commit SHA and ignores other commits"
+        },
+        {
+          "file": "tests/ci-and-approval-gates.test.cjs",
+          "kind": "test",
+          "name": "B20-27-10 a failing run for the delivered SHA fails the check and carries its failed log"
+        },
+        {
+          "file": "tests/ci-and-approval-gates.test.cjs",
+          "kind": "test",
+          "name": "B20-27-10 the Control Plane records CI results as events correlated to the run, task and commit SHA"
+        },
+        {
+          "file": "tests/ci-and-approval-gates.test.cjs",
+          "kind": "test",
+          "name": "B20-27-10 a failing CI result returns as a correlated failure event and never as a pass"
+        },
+        {
+          "file": "tests/ci-and-approval-gates.test.cjs",
+          "kind": "test",
+          "name": "B20-27-10 an auto-fixable CI failure returns as a correlated rework event for the same run and task"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "CI event includes run/task/SHA, but webhook/polling correlation across real GitHub runs needs direct test."
+      "note": "Real CIMonitor and ControlPlane.monitorDeliveryCI with a faked gh process: runs are correlated to the delivered commit SHA (other SHAs and CodeQL ignored, all runs must complete and succeed), ci.waiting/ci.passed/ci.failed_* events carry runId, taskId, sha and correlationId, evidence records the SHA, and CI success only raises a human approval. Real GitHub runs remain an ENVIRONMENT concern; the delivery path is reachable in practice only once the B20-27-02 gap is fixed."
     },
     {
       "id": "B20-27-11",
@@ -2900,16 +2942,15 @@
         "section": "## 27. Acceptance criteria"
       },
       "text": "No agent can grant itself permissions.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/lib/security-policy.cjs",
-          "kind": "code",
-          "name": "SecurityPolicy"
+          "file": "tests/harness-integrity.test.cjs",
+          "kind": "test",
+          "name": "B20-27-14 no role can grant itself network or credential permission, whatever its output claims"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Policy is outside model; every provider/role escalation path has not been adversarially proven."
+      "note": "Real runHarness: planner, builder and reviewer each declaring network (and planner/builder credential) capability are stopped before executing, whatever their output (self-approval fields, hostile plan text) claims; only the human-supplied approval flags unlock them."
     },
     {
       "id": "B20-27-15",
@@ -2918,16 +2959,20 @@
         "section": "## 27. Acceptance criteria"
       },
       "text": "Human approval protects configured high-risk operations.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/lib/control-plane.cjs",
-          "kind": "code",
-          "name": "approveDelivery"
+          "file": "tests/ci-and-approval-gates.test.cjs",
+          "kind": "test",
+          "name": "B20-27-15 the RED actions always require human approval even when the Workspace policy tries to drop them"
+        },
+        {
+          "file": "tests/ci-and-approval-gates.test.cjs",
+          "kind": "test",
+          "name": "B20-27-15 merging a delivery needs required CI success, a human approval and a policy-permitted root"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Merge gate exists; complete high-risk action set has no single proof."
+      "note": "Real SecurityPolicy/ControlPlane.approveDelivery: the RED actions (PUSH, MERGE, DELETE, CREDENTIAL, SYSTEM) always need approval even if the Workspace policy drops them or asks for a RED ceiling; a merge is refused without passing CI, without a human approval, for a non-DRAFT delivery, or outside the policy roots, and only then runs gh pr merge --squash."
     },
     {
       "id": "B20-27-16",
@@ -2936,16 +2981,15 @@
         "section": "## 27. Acceptance criteria"
       },
       "text": "Provider can be changed without rewriting Task state.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/lib/provider-router.cjs",
-          "kind": "code",
-          "name": "ProviderRouter"
+          "file": "tests/harness-integrity.test.cjs",
+          "kind": "test",
+          "name": "B20-27-16 swapping providers changes provider identity only, never the persisted Task/Harness schema"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Provider substitution exists, but persisted Task schema invariance across all role swaps is not directly tested."
+      "note": "Real runHarness with three different provider sets: the persisted Harness record, Task and Worker schemas (key shapes) are identical; only provider identity values differ."
     },
     {
       "id": "B20-27-17",
@@ -2954,16 +2998,50 @@
         "section": "## 27. Acceptance criteria"
       },
       "text": "Official ChatGPT Web remains untouched.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/main.cjs",
-          "kind": "code",
-          "name": "chatgpt:open"
+          "file": "tests/chatgpt-untouched-integration.test.cjs",
+          "kind": "test",
+          "name": "B20-27-17 every path that reaches the official ChatGPT Web only hands the URL to the OS browser"
+        },
+        {
+          "file": "tests/chatgpt-untouched-integration.test.cjs",
+          "kind": "test",
+          "name": "B20-27-17 the app window can neither open nor navigate to ChatGPT in-app"
+        },
+        {
+          "file": "tests/chatgpt-untouched-integration.test.cjs",
+          "kind": "test",
+          "name": "B20-27-17 the built-in ChatGPT Web provider is human-mediated: no health probe traffic, no stored credential, cannot be removed"
+        },
+        {
+          "file": "tests/chatgpt-surface-boundary.test.cjs",
+          "kind": "test",
+          "name": "R1.1 the app window can never be navigated to ChatGPT or any page other than the packaged UI"
+        },
+        {
+          "file": "tests/chatgpt-surface-boundary.test.cjs",
+          "kind": "test",
+          "name": "R1.1 UI Automation refuses to inspect browser windows (ChatGPT DOM) by default"
+        },
+        {
+          "file": "tests/chatgpt-surface-boundary.test.cjs",
+          "kind": "test",
+          "name": "R1.1 chatgpt:open takes no renderer payload, so the renderer cannot choose or script what is opened"
+        },
+        {
+          "file": "tests/chatgpt-surface-boundary.test.cjs",
+          "kind": "test",
+          "name": "R1.1 the renderer bridge exposes only fixed IPC functions and no raw Electron, DOM or session access"
+        },
+        {
+          "file": "tests/chatgpt-surface-boundary.test.cjs",
+          "kind": "test",
+          "name": "R1.1 no AECP code scrapes, scripts or intercepts a browser session, and ChatGPT is only opened externally"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Official Web opens externally; non-interference across every integration path needs a manual/security review."
+      "note": "Real main.cjs IPC handlers under a fake Electron plus the R1.1 boundary tests: chatgpt:open and agents:launch only call shell.openExternal(https://chatgpt.com/) (no window, webContents call, session/net API, clipboard or fetch), popups/navigation to ChatGPT are denied in-app, the window is sandboxed, the ChatGPT provider health check makes no request and the built-in provider cannot be deleted."
     },
     {
       "id": "B20-27-18",
