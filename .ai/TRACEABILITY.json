@@ -515,17 +515,45 @@
         "section": "## 2A. Provider versus Worker"
       },
       "text": "The two workers must never share `CODEX_HOME`, auth, session or runtime state.",
-      "status": "CONFIRMED_GAP",
+      "status": "IMPLEMENTED",
       "evidence": [
+        {
+          "file": "tests/codex-worker-isolation.test.cjs",
+          "kind": "test",
+          "name": "B03-L56 the OFFICIAL and PEGA workers get disjoint CODEX_HOME, runtime, auth and configuration files"
+        },
+        {
+          "file": "tests/codex-worker-isolation.test.cjs",
+          "kind": "test",
+          "name": "B03-L56 the Worker Registry refuses a second worker on the same CODEX_HOME, however the path is spelled"
+        },
+        {
+          "file": "tests/codex-worker-isolation.test.cjs",
+          "kind": "test",
+          "name": "B03-L56 in a real mission the two workers run with their own CODEX_HOME, their own credentials and their own worktrees"
+        },
+        {
+          "file": "tests/worker-home-isolation-aliases.test.cjs",
+          "kind": "test",
+          "name": "G15-A a junction or symlink alias of another worker home is refused"
+        },
+        {
+          "file": "tests/worker-home-isolation-aliases.test.cjs",
+          "kind": "test",
+          "name": "G15-A a home nested inside another worker home, or above it, is refused"
+        },
+        {
+          "file": "tests/worker-home-isolation-aliases.test.cjs",
+          "kind": "test",
+          "name": "G15-A a different-case spelling is refused on Windows and disjoint homes still register"
+        },
         {
           "file": "electron/lib/worker-registry.cjs",
           "kind": "code",
-          "symbol": "canonicalHome",
-          "description": "The Worker Registry rejects a second worker only when path.resolve(codexHome) is textually equal (case-insensitive on Windows). A directory junction/symlink that points at the first worker CODEX_HOME, a home nested inside another worker home, or a parent directory of it are all accepted (reproduced on Windows with fs.symlinkSync(..., \"junction\")): the two workers then share the same CODEX_HOME, auth and session files even though the registry guard passed. The registry does not compare real paths."
+          "name": "canonicalHome"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Missing: compare canonical real paths (fs.realpath) and reject nested/overlapping homes in WorkerRegistry.register. Proven and kept as regression tests (tests/codex-worker-isolation.test.cjs): OFFICIAL and PEGA get disjoint homes, runtime dirs, auth and config files with no secret written to disk; the registry refuses identical, differently cased, dot-dot and trailing-separator spellings; and in a real two-worker mission each Codex invocation runs in its own worktree with its own CODEX_HOME, --ephemeral, and the PEGA key only in the PEGA environment. Observation: the router merges the parent process environment into every child (run()), so a PEGA key supplied through the parent environment (AECP_PEGA_API_KEY fallback) would also be visible to the OFFICIAL worker process. Not fixed here (feature code is out of scope for work order 0013)."
+      "note": "Registry compares canonical homes (realpath of the nearest existing ancestor, Windows case folding): identical, junction/symlink alias, a not-yet-existing folder below an alias, a home nested in another worker home and the parent of one are all refused; disjoint homes still register. Fixed by 0014 item A; the earlier isolation tests remain."
     },
     {
       "id": "B03-L68",

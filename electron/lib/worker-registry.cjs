@@ -21,6 +21,27 @@ function processExists(pid) {
   }
 }
 
+// Resolves symlinks/junctions/8.3 aliases of the nearest existing ancestor, then re-appends the folders that do not exist yet.
+async function canonicalHomePath(target) {
+  const absolute = path.resolve(String(target));
+  const rest = [];
+  let probe = absolute;
+  for (;;) {
+    try {
+      const real = await fs.realpath(probe);
+      const full = path.join(real, ...rest.reverse());
+      return process.platform === 'win32' ? full.toLowerCase() : full;
+    } catch (error) {
+      const parent = path.dirname(probe);
+      if (parent === probe || !['ENOENT', 'ENOTDIR'].includes(error?.code)) return process.platform === 'win32' ? absolute.toLowerCase() : absolute;
+      rest.push(path.basename(probe));
+      probe = parent;
+    }
+  }
+}
+
+const homesOverlap = (a, b) => a === b || a.startsWith(b.endsWith(path.sep) ? b : b + path.sep) || b.startsWith(a.endsWith(path.sep) ? a : a + path.sep);
+
 function normalizeWorkerId(value) {
   const id = String(value || '').trim().toLowerCase();
   if (!/^[a-z0-9][a-z0-9._-]{1,63}$/.test(id)) throw new Error('Invalid worker id.');
@@ -142,13 +163,10 @@ class WorkerRegistry {
     if (!worker.runtime) throw new Error('Worker runtime is required.');
     if (!worker.codexHome) throw new Error('Worker CODEX_HOME is required.');
 
-    const canonicalHome = process.platform === 'win32' ? worker.codexHome.toLowerCase() : worker.codexHome;
+    const canonicalHome = await canonicalHomePath(worker.codexHome);
     for (const existing of Object.values(this.state.workers)) {
       if (existing.id === worker.id || !existing.codexHome) continue;
-      const existingHome = process.platform === 'win32'
-        ? path.resolve(existing.codexHome).toLowerCase()
-        : path.resolve(existing.codexHome);
-      if (existingHome === canonicalHome) throw new Error('Workers must not share CODEX_HOME.');
+      if (homesOverlap(await canonicalHomePath(existing.codexHome), canonicalHome)) throw new Error('Workers must not share CODEX_HOME.');
     }
 
     const current = this.state.workers[worker.id];
