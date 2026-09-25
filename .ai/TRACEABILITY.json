@@ -2700,7 +2700,13 @@
         {
           "file": "tests/provider-role-matrix-e2e.test.cjs",
           "kind": "test",
-          "name": "R3.2 every supported provider in every role it can serve runs a real mission with an unchanged state schema"
+          "name": "R3.2 every supported provider in every role it can serve runs a real mission with an unchanged state schema",
+          "covers": [
+            "B16-L190",
+            "R3.2",
+            "R3.7",
+            "B08-L65"
+          ]
         },
         {
           "file": "tests/codex-worker-isolation.test.cjs",
@@ -3074,7 +3080,9 @@
             "B08-L95",
             "B08-L102",
             "B08-L105",
-            "B08-L107"
+            "B08-L107",
+            "B08-L101",
+            "B08-L108"
           ]
         }
       ],
@@ -3105,7 +3113,9 @@
             "B08-L95",
             "B08-L102",
             "B08-L105",
-            "B08-L107"
+            "B08-L107",
+            "B08-L101",
+            "B08-L108"
           ]
         }
       ],
@@ -3193,7 +3203,9 @@
             "B08-L95",
             "B08-L102",
             "B08-L105",
-            "B08-L107"
+            "B08-L107",
+            "B08-L101",
+            "B08-L108"
           ]
         }
       ],
@@ -3241,7 +3253,9 @@
             "B08-L95",
             "B08-L102",
             "B08-L105",
-            "B08-L107"
+            "B08-L107",
+            "B08-L101",
+            "B08-L108"
           ]
         }
       ],
@@ -3272,7 +3286,9 @@
             "B08-L95",
             "B08-L102",
             "B08-L105",
-            "B08-L107"
+            "B08-L107",
+            "B08-L101",
+            "B08-L108"
           ]
         }
       ],
@@ -3303,7 +3319,9 @@
             "B08-L95",
             "B08-L102",
             "B08-L105",
-            "B08-L107"
+            "B08-L107",
+            "B08-L101",
+            "B08-L108"
           ]
         }
       ],
@@ -4639,7 +4657,9 @@
             "B08-L95",
             "B08-L102",
             "B08-L105",
-            "B08-L107"
+            "B08-L107",
+            "B08-L101",
+            "B08-L108"
           ]
         }
       ],
@@ -4774,7 +4794,13 @@
         {
           "file": "tests/provider-role-matrix-e2e.test.cjs",
           "kind": "test",
-          "name": "R3.2 every supported provider in every role it can serve runs a real mission with an unchanged state schema"
+          "name": "R3.2 every supported provider in every role it can serve runs a real mission with an unchanged state schema",
+          "covers": [
+            "B16-L190",
+            "R3.2",
+            "R3.7",
+            "B08-L65"
+          ]
         },
         {
           "file": "tests/provider-role-matrix-e2e.test.cjs",
@@ -4905,7 +4931,13 @@
         {
           "file": "tests/provider-role-matrix-e2e.test.cjs",
           "kind": "test",
-          "name": "R3.2 every supported provider in every role it can serve runs a real mission with an unchanged state schema"
+          "name": "R3.2 every supported provider in every role it can serve runs a real mission with an unchanged state schema",
+          "covers": [
+            "B16-L190",
+            "R3.2",
+            "R3.7",
+            "B08-L65"
+          ]
         },
         {
           "file": "tests/pega-abstraction.test.cjs",
@@ -5295,7 +5327,13 @@
         {
           "file": "tests/remote-pairing.test.cjs",
           "kind": "test",
-          "name": "remote gateway supports one-time pairing and revocation"
+          "name": "remote gateway supports one-time pairing and revocation",
+          "covers": [
+            "R6.3",
+            "B08-L150",
+            "B08-L156",
+            "B08-L158"
+          ]
         }
       ],
       "note": "Clause-specific named test observes the cited behavior."
@@ -5369,7 +5407,13 @@
         {
           "file": "tests/remote-pairing.test.cjs",
           "kind": "test",
-          "name": "remote gateway refuses non-loopback exposure without explicit enablement and TLS"
+          "name": "remote gateway refuses non-loopback exposure without explicit enablement and TLS",
+          "covers": [
+            "R6.5",
+            "B08-L150",
+            "B08-L151",
+            "B08-L156"
+          ]
         }
       ],
       "note": "Clause-specific named test observes the cited behavior."
@@ -9532,10 +9576,15 @@
         "section": "## P2 — Local engineering execution"
       },
       "text": "timeout/cancel",
-      "status": "PARTIAL",
-      "evidence": [],
-      "note": "Timeouts and cancellation are implemented and exercised through the Mission/Harness tests (R2.1, R3.10) but no sabotage of them was recorded in this unit.",
-      "workOrder": "UNASSIGNED"
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/roadmap-behavior-guards.test.cjs",
+          "kind": "test",
+          "name": "B08-L38 a process that outlives its timeout is killed and reported as timed out, and an abort signal stops it"
+        }
+      ],
+      "note": "The real process runner kills a process that outlives its timeout (timedOut, no late output), and an abort signal stops it (aborted, not timedOut). A sabotage of the behavior is detected by these tests (see .ai/sabotage-log.jsonl)."
     },
     {
       "id": "B08-L39",
@@ -9544,10 +9593,15 @@
         "section": "## P2 — Local engineering execution"
       },
       "text": "stdout/stderr capture",
-      "status": "PARTIAL",
-      "evidence": [],
-      "note": "stdout/stderr are captured by the process runner and stored in worker reports, covered by tests/worker-report.test.cjs, without a sabotage record in this unit.",
-      "workOrder": "UNASSIGNED"
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/roadmap-behavior-guards.test.cjs",
+          "kind": "test",
+          "name": "B08-L39 stdout and stderr of a process are captured separately and bounded"
+        }
+      ],
+      "note": "The real process runner captures stdout and stderr separately and cuts off runaway output (outputLimitExceeded). A sabotage of the behavior is detected by these tests (see .ai/sabotage-log.jsonl)."
     },
     {
       "id": "B08-L40",
@@ -9928,10 +9982,15 @@
         "section": "## P3 — Multi-repository control plane"
       },
       "text": "task resource bindings",
-      "status": "PARTIAL",
-      "evidence": [],
-      "note": "Task resource bindings exist (task.resources.repositories) and are proven end to end by R4.1, but no sabotage of the binding was recorded in this unit.",
-      "workOrder": "UNASSIGNED"
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/roadmap-behavior-guards.test.cjs",
+          "kind": "test",
+          "name": "B08-L54 binding a task to repositories records the resolved paths and their count, and drops empty entries"
+        }
+      ],
+      "note": "ResourceManager.bindTask records the resolved repository paths and count and drops empty entries; end-to-end routing stays proven by R4.1. A sabotage of the behavior is detected by these tests (see .ai/sabotage-log.jsonl)."
     },
     {
       "id": "B08-L55",
@@ -10000,10 +10059,15 @@
         "section": "## P3 — Multi-repository control plane"
       },
       "text": "worktree-per-task implementation",
-      "status": "PARTIAL",
-      "evidence": [],
-      "note": "Worktree-per-task isolation is proven by B20-27-03 and the dispatch tests, without a sabotage record in this unit.",
-      "workOrder": "UNASSIGNED"
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/control-plane-dispatch-e2e.test.cjs",
+          "kind": "test",
+          "name": "B20-27-02 the Control Plane dispatches a queued task to a Worker in an isolated worktree and completes it without manual copy/paste"
+        }
+      ],
+      "note": "The Control Plane runs each dispatched task in its own isolated worktree, not the source Workspace (real ControlPlane, real Git). A sabotage of the behavior is detected by these tests (see .ai/sabotage-log.jsonl)."
     },
     {
       "id": "B08-L59",
@@ -10090,7 +10154,9 @@
             "B08-L95",
             "B08-L102",
             "B08-L105",
-            "B08-L107"
+            "B08-L107",
+            "B08-L101",
+            "B08-L108"
           ]
         },
         {
@@ -10113,10 +10179,46 @@
         "section": "## P4 — Provider/Tool extensibility"
       },
       "text": "Provider Registry",
-      "status": "PARTIAL",
-      "evidence": [],
-      "note": "The Provider Registry is exercised by tests/provider-router.test.cjs and R3.2, without a registry-specific sabotage record in this unit.",
-      "workOrder": "UNASSIGNED"
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/provider-router.test.cjs",
+          "kind": "test",
+          "name": "provider registry exposes vendor-neutral roles including Ollama"
+        },
+        {
+          "file": "tests/provider-router.test.cjs",
+          "kind": "test",
+          "name": "unknown provider mode is rejected"
+        },
+        {
+          "file": "tests/provider-router.test.cjs",
+          "kind": "test",
+          "name": "raw Ollama is not exposed as a mutating builder"
+        },
+        {
+          "file": "tests/provider-role-matrix-e2e.test.cjs",
+          "kind": "test",
+          "name": "R3.2 every supported provider in every role it can serve runs a real mission with an unchanged state schema",
+          "covers": [
+            "B16-L190",
+            "R3.2",
+            "R3.7",
+            "B08-L65"
+          ]
+        },
+        {
+          "file": "tests/provider-role-matrix-e2e.test.cjs",
+          "kind": "test",
+          "name": "R3.2 a provider can only serve the roles it declares: unsupported substitutions fail closed"
+        },
+        {
+          "file": "tests/provider-role-matrix-e2e.test.cjs",
+          "kind": "test",
+          "name": "R3.7 Provider identity and Worker identity are separate: workers of one provider stay distinct, and a worker keeps its identity when its provider changes"
+        }
+      ],
+      "note": "The Provider Registry resolves a provider only for the roles it declares; unsupported substitutions fail closed and unknown modes are rejected. A sabotage of the behavior is detected by these tests (see .ai/sabotage-log.jsonl)."
     },
     {
       "id": "B08-L66",
@@ -10235,10 +10337,15 @@
         "section": "## P4 — Provider/Tool extensibility"
       },
       "text": "capability matrix",
-      "status": "PARTIAL",
-      "evidence": [],
-      "note": "The capability matrix (security:adapter-matrix, Engineering Settings) is asserted by tests/workspace-policy.test.cjs, without a sabotage record in this unit.",
-      "workOrder": "UNASSIGNED"
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/roadmap-behavior-guards.test.cjs",
+          "kind": "test",
+          "name": "B08-L69 the adapter capability matrix is audited: the shipped matrix is clean and an over-permissive adapter is reported"
+        }
+      ],
+      "note": "The adapter capability matrix is audited: the shipped matrix is clean, duplicate or id-less adapters are reported as errors (the read-only matrix is served by security:adapter-matrix). A sabotage of the behavior is detected by these tests (see .ai/sabotage-log.jsonl)."
     },
     {
       "id": "B08-L72",
@@ -10295,10 +10402,15 @@
         "section": "## P4 — Provider/Tool extensibility"
       },
       "text": "switching provider never changes local security policy implicitly",
-      "status": "PARTIAL",
-      "evidence": [],
-      "note": "Provider switching never granting permissions is proven by B21-10-05 and B20-27-14, without a sabotage record in this unit.",
-      "workOrder": "UNASSIGNED"
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/roadmap-behavior-guards.test.cjs",
+          "kind": "test",
+          "name": "B08-L73 invoking providers, with or without approvals, never changes the SecurityPolicy that governs them"
+        }
+      ],
+      "note": "Invoking providers with any capability set and with or without approvals leaves the SecurityPolicy (roots, ceiling, approval set) untouched; a RED action stays disallowed. A sabotage of the behavior is detected by these tests (see .ai/sabotage-log.jsonl)."
     },
     {
       "id": "B08-L78",
@@ -10598,7 +10710,9 @@
             "B08-L95",
             "B08-L102",
             "B08-L105",
-            "B08-L107"
+            "B08-L107",
+            "B08-L101",
+            "B08-L108"
           ]
         },
         {
@@ -10696,10 +10810,15 @@
         "section": "## P4.6 — Bounded autonomous execution"
       },
       "text": "deterministic verifier profiles",
-      "status": "PARTIAL",
-      "evidence": [],
-      "note": "Deterministic verifier profiles exist and are used by the Harness/autonomy runs; no profile-specific sabotage was recorded in this unit.",
-      "workOrder": "UNASSIGNED"
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/roadmap-behavior-guards.test.cjs",
+          "kind": "test",
+          "name": "B08-L98 only the four documented deterministic verification profiles are accepted"
+        }
+      ],
+      "note": "Only the four documented verification profiles are accepted by the real autonomy spec validation. A sabotage of the behavior is detected by these tests (see .ai/sabotage-log.jsonl)."
     },
     {
       "id": "B08-L99",
@@ -10772,10 +10891,15 @@
         "section": "## P4.6 — Bounded autonomous execution"
       },
       "text": "persisted run evidence",
-      "status": "PARTIAL",
-      "evidence": [],
-      "note": "Run evidence is persisted and manifest-verified (R5.1/R5.2 tests); no autonomy-specific sabotage was recorded here.",
-      "workOrder": "UNASSIGNED"
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/roadmap-behavior-guards.test.cjs",
+          "kind": "test",
+          "name": "B08-L100 a finished autonomous run persists its evidence record, which matches what the run returned"
+        }
+      ],
+      "note": "A finished autonomous run persists run.json matching the returned record (state, patch SHA-256); manifest-verified evidence is proven by R5.1/R5.2. A sabotage of the behavior is detected by these tests (see .ai/sabotage-log.jsonl)."
     },
     {
       "id": "B08-L101",
@@ -10784,10 +10908,36 @@
         "section": "## P4.6 — Bounded autonomous execution"
       },
       "text": "verified binary patch",
-      "status": "PARTIAL",
-      "evidence": [],
-      "note": "The verified binary patch is generated with a hash and revalidated on apply (tests/autonomy.test.cjs); the hash-check sabotage was not separately recorded.",
-      "workOrder": "UNASSIGNED"
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/autonomy.test.cjs",
+          "kind": "test",
+          "name": "bounded runner isolates writes in worktree then applies only after explicit apply call",
+          "covers": [
+            "B18-13-05",
+            "B18-13-06",
+            "B18-13-10",
+            "B18-13-12",
+            "B18-13-13",
+            "B18-13-14",
+            "R2.3",
+            "B08-L60",
+            "B08-L95",
+            "B08-L101",
+            "B08-L102",
+            "B08-L105",
+            "B08-L107",
+            "B08-L108"
+          ]
+        },
+        {
+          "file": "tests/autonomy.test.cjs",
+          "kind": "test",
+          "name": "Apply rejects a verified patch file modified after verification"
+        }
+      ],
+      "note": "The verified patch carries a SHA-256 that is revalidated on apply; a patch modified after verification is refused. A sabotage of the behavior is detected by these tests (see .ai/sabotage-log.jsonl)."
     },
     {
       "id": "B08-L102",
@@ -10814,7 +10964,9 @@
             "B08-L95",
             "B08-L102",
             "B08-L105",
-            "B08-L107"
+            "B08-L107",
+            "B08-L101",
+            "B08-L108"
           ]
         },
         {
@@ -10860,7 +11012,9 @@
             "B08-L95",
             "B08-L102",
             "B08-L105",
-            "B08-L107"
+            "B08-L107",
+            "B08-L101",
+            "B08-L108"
           ]
         },
         {
@@ -10966,7 +11120,9 @@
             "B08-L95",
             "B08-L102",
             "B08-L105",
-            "B08-L107"
+            "B08-L107",
+            "B08-L101",
+            "B08-L108"
           ]
         },
         {
@@ -10994,10 +11150,31 @@
         "section": "## P4.6 — Bounded autonomous execution"
       },
       "text": "no automatic commit/push/publish",
-      "status": "PARTIAL",
-      "evidence": [],
-      "note": "No automatic commit/push/publish is asserted by tests/autonomy.test.cjs (applied changes stay uncommitted); a sabotage adding a commit was not recorded in this unit.",
-      "workOrder": "UNASSIGNED"
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/autonomy.test.cjs",
+          "kind": "test",
+          "name": "bounded runner isolates writes in worktree then applies only after explicit apply call",
+          "covers": [
+            "B18-13-05",
+            "B18-13-06",
+            "B18-13-10",
+            "B18-13-12",
+            "B18-13-13",
+            "B18-13-14",
+            "R2.3",
+            "B08-L60",
+            "B08-L95",
+            "B08-L101",
+            "B08-L102",
+            "B08-L105",
+            "B08-L107",
+            "B08-L108"
+          ]
+        }
+      ],
+      "note": "Applying the verified patch leaves the change uncommitted; no automatic commit, push or publish exists in the autonomy path. A sabotage of the behavior is detected by these tests (see .ai/sabotage-log.jsonl)."
     },
     {
       "id": "B08-L109",
@@ -11183,10 +11360,15 @@
         "section": "## P4.7 — Harness Engineering Control Plane"
       },
       "text": "bounded rework loop",
-      "status": "PARTIAL",
-      "evidence": [],
-      "note": "A bounded rework loop exists (R4.5, R2.5) and is proven; no sabotage of it was recorded in this unit.",
-      "workOrder": "UNASSIGNED"
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/delivery-e2e.test.cjs",
+          "kind": "test",
+          "name": "R4.5 rework after CI failure is bounded by the iteration budget"
+        }
+      ],
+      "note": "Rework after a CI failure is bounded by the iteration budget (real ControlPlane, real git push to a local bare origin, only gh faked); harness-level rework is proven by B08-L128. A sabotage of the behavior is detected by these tests (see .ai/sabotage-log.jsonl)."
     },
     {
       "id": "B08-L119",
@@ -11318,10 +11500,15 @@
         "section": "## P4.7 — Harness Engineering Control Plane"
       },
       "text": "a Goal becomes a Plan and Task graph;",
-      "status": "PARTIAL",
-      "evidence": [],
-      "note": "A Goal becoming a durable Plan and Task graph is proven by B20-27-01 (tests/harness-bounds.test.cjs), without a sabotage record in this unit.",
-      "workOrder": "UNASSIGNED"
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/roadmap-behavior-guards.test.cjs",
+          "kind": "test",
+          "name": "B08-L125 a Goal becomes a bounded Plan and Task graph: task count is capped, ids are safe and dependencies are kept"
+        }
+      ],
+      "note": "A Goal becomes a bounded Plan: the real plan normalizer caps the task count, keeps dependency edges and sanitizes model-supplied ids. A sabotage of the behavior is detected by these tests (see .ai/sabotage-log.jsonl)."
     },
     {
       "id": "B08-L126",
@@ -11330,10 +11517,15 @@
         "section": "## P4.7 — Harness Engineering Control Plane"
       },
       "text": "Harness dispatches Worker without manual agent-to-agent copy/paste;",
-      "status": "PARTIAL",
-      "evidence": [],
-      "note": "Dispatch without manual copy/paste is proven by B20-27-02 (tests/control-plane-dispatch-e2e.test.cjs), without a sabotage record in this unit.",
-      "workOrder": "UNASSIGNED"
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/control-plane-dispatch-e2e.test.cjs",
+          "kind": "test",
+          "name": "B20-27-02 the Control Plane dispatches a queued task to a Worker in an isolated worktree and completes it without manual copy/paste"
+        }
+      ],
+      "note": "The Control Plane dispatches a queued task to a Worker and completes it with no manual copy/paste (real ControlPlane and runHarness). A sabotage of the behavior is detected by these tests (see .ai/sabotage-log.jsonl)."
     },
     {
       "id": "B08-L127",
@@ -11382,10 +11574,20 @@
         "section": "## P4.7 — Harness Engineering Control Plane"
       },
       "text": "Reviewer can return PASS/REWORK/HUMAN_REQUIRED;",
-      "status": "PARTIAL",
-      "evidence": [],
-      "note": "PASS and HUMAN_REQUIRED reviewer results are proven (B14-L438); the REWORK result path is covered by B20-27-07 but not sabotage-recorded here.",
-      "workOrder": "UNASSIGNED"
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/roadmap-behavior-guards.test.cjs",
+          "kind": "test",
+          "name": "B08-L128 a reviewer REWORK sends the required changes back to the builder and the loop continues until PASS"
+        },
+        {
+          "file": "tests/roadmap-behavior-guards.test.cjs",
+          "kind": "test",
+          "name": "B08-L128 a reviewer that keeps returning REWORK ends the loop at the iteration budget, never DONE"
+        }
+      ],
+      "note": "Reviewer PASS and HUMAN_REQUIRED are proven by B14-L438; REWORK is now proven: required changes go back to the builder, the REWORK state is recorded, PASS ends the loop and endless REWORK stops at the iteration budget. A sabotage of the behavior is detected by these tests (see .ai/sabotage-log.jsonl)."
     },
     {
       "id": "B08-L129",
@@ -11394,10 +11596,15 @@
         "section": "## P4.7 — Harness Engineering Control Plane"
       },
       "text": "queue dispatches the next eligible task;",
-      "status": "PARTIAL",
-      "evidence": [],
-      "note": "The next eligible task dispatch is proven by B20-27-08 (tests/control-plane-lifecycle-e2e.test.cjs), without a sabotage record in this unit.",
-      "workOrder": "UNASSIGNED"
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/control-plane-lifecycle-e2e.test.cjs",
+          "kind": "test",
+          "name": "B20-27-08 the second task starts automatically after the first one really completes, without another manual dispatch"
+        }
+      ],
+      "note": "The next eligible task starts automatically after the first really completes (dependency wait enforced). A sabotage of the behavior is detected by these tests (see .ai/sabotage-log.jsonl)."
     },
     {
       "id": "B08-L130",
@@ -11650,7 +11857,7 @@
       "text": "Python worker",
       "status": "PARTIAL",
       "evidence": [],
-      "note": "The Python worker is covered by tests/python-worker.test.cjs (syntax scan); no sabotage was recorded in this unit.",
+      "note": "The Python worker is covered by tests/python-worker.test.cjs and tests/roadmap-behavior-guards.test.cjs (syntax errors reported as evidence with a non-zero exit), but both tests need a real Python interpreter; the gate machine has none, so they are skipped there and a sabotage of the embedded script cannot be recorded as DETECTED. Environment limitation, not a known defect.",
       "workOrder": "UNASSIGNED"
     },
     {
@@ -11920,12 +12127,24 @@
         {
           "file": "tests/remote-pairing.test.cjs",
           "kind": "test",
-          "name": "remote gateway supports one-time pairing and revocation"
+          "name": "remote gateway supports one-time pairing and revocation",
+          "covers": [
+            "R6.3",
+            "B08-L150",
+            "B08-L156",
+            "B08-L158"
+          ]
         },
         {
           "file": "tests/remote-pairing.test.cjs",
           "kind": "test",
-          "name": "remote gateway refuses non-loopback exposure without explicit enablement and TLS"
+          "name": "remote gateway refuses non-loopback exposure without explicit enablement and TLS",
+          "covers": [
+            "R6.5",
+            "B08-L150",
+            "B08-L151",
+            "B08-L156"
+          ]
         },
         {
           "file": "tests/remote-pairing.test.cjs",
@@ -11992,10 +12211,26 @@
         "section": "## P6 — Remote supervision"
       },
       "text": "encrypted supervision/status/approval transport",
-      "status": "PARTIAL",
-      "evidence": [],
-      "note": "TLS for a non-loopback binding is required and tested (tests/remote-pairing.test.cjs); no sabotage of the TLS requirement was recorded in this unit.",
-      "workOrder": "UNASSIGNED"
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/remote-pairing.test.cjs",
+          "kind": "test",
+          "name": "remote gateway refuses non-loopback exposure without explicit enablement and TLS",
+          "covers": [
+            "R6.5",
+            "B08-L150",
+            "B08-L151",
+            "B08-L156"
+          ]
+        },
+        {
+          "file": "tests/remote-pairing.test.cjs",
+          "kind": "test",
+          "name": "TLS remote gateway serves paired read-only status over HTTPS"
+        }
+      ],
+      "note": "A non-loopback Remote Gateway is refused without allowRemote and without TLS material, and a TLS gateway serves a paired read-only device over HTTPS. A sabotage of the behavior is detected by these tests (see .ai/sabotage-log.jsonl)."
     },
     {
       "id": "B08-L152",
@@ -12158,12 +12393,24 @@
         {
           "file": "tests/remote-pairing.test.cjs",
           "kind": "test",
-          "name": "remote gateway supports one-time pairing and revocation"
+          "name": "remote gateway supports one-time pairing and revocation",
+          "covers": [
+            "R6.3",
+            "B08-L150",
+            "B08-L156",
+            "B08-L158"
+          ]
         },
         {
           "file": "tests/remote-pairing.test.cjs",
           "kind": "test",
-          "name": "remote gateway refuses non-loopback exposure without explicit enablement and TLS"
+          "name": "remote gateway refuses non-loopback exposure without explicit enablement and TLS",
+          "covers": [
+            "R6.5",
+            "B08-L150",
+            "B08-L151",
+            "B08-L156"
+          ]
         },
         {
           "file": "tests/remote-pairing.test.cjs",
@@ -12242,10 +12489,21 @@
         "section": "## P6 — Remote supervision"
       },
       "text": "lost device/session can be revoked",
-      "status": "PARTIAL",
-      "evidence": [],
-      "note": "Revoking a paired device is implemented and tested (tests/remote-pairing.test.cjs: pair/revoke), but a sabotage of the revocation made that test hang instead of fail, so it could not be recorded as a safe mutation check.",
-      "workOrder": "UNASSIGNED"
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/remote-pairing.test.cjs",
+          "kind": "test",
+          "name": "remote gateway supports one-time pairing and revocation",
+          "covers": [
+            "R6.3",
+            "B08-L150",
+            "B08-L156",
+            "B08-L158"
+          ]
+        }
+      ],
+      "note": "A paired device works, is revoked, and is refused afterwards (the test now fails instead of hanging when revocation is broken). A sabotage of the behavior is detected by these tests (see .ai/sabotage-log.jsonl)."
     },
     {
       "id": "B08-L163",

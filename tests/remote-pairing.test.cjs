@@ -11,7 +11,7 @@ test('remote gateway supports one-time pairing and revocation',async()=>{
  const request=(pathName,headers={})=>new Promise((resolve,reject)=>{
   const req=http.request({host:'127.0.0.1',port:info.port,path:pathName,headers},res=>{
    let d='';res.on('data',b=>d+=b);res.on('end',()=>resolve({status:res.statusCode,body:JSON.parse(d)}));
-  });req.on('error',reject);req.end();
+  });req.setTimeout(3000,()=>req.destroy(new Error('request timed out')));req.on('error',reject);req.end();
  });
  const pair=await request('/pair/start',{authorization:'Bearer '+info.token});
  assert.equal(pair.status,200);
@@ -146,3 +146,6 @@ test('approval-only paired device can decide existing approvals but cannot submi
   await gateway.stop();
  }
 });
+
+// A failed assertion must fail the run, not leave a listening gateway that keeps the process alive.
+test.after(() => { setImmediate(() => process.exit(process.exitCode || 0)); });
