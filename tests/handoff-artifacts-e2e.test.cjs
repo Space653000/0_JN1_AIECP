@@ -81,6 +81,7 @@ test('B03-L168 a real mission hands work over only as schema-versioned artifacts
 
   // The layers are linked: the Control Plane task points at its Harness record, and every journal event carries the mission id
   assert.equal(task.result.id, harnessId);
+  await waitFor(async () => (await cp.listEvents(2000)).some((event) => event.type === 'task.finished' && event.taskId === task.id), { label: 'the task.finished journal entry' });
   const events = (await cp.listEvents(2000)).filter((event) => event.taskId === task.id);
   assert.ok(events.length >= 3 && events.every((event) => event.runId === run.id && event.correlationId === run.id));
   for (const artifact of [record.plan, knowledge, reviewInput, workerReport, verifier, review, capsule, manifest]) assert.match(artifact.schema, /^aecp\.[a-z-]+\/v\d+$/);

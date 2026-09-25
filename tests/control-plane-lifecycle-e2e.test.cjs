@@ -46,6 +46,7 @@ test('B20-27-08 the second task starts automatically after the first one really 
   assert.equal(second.state, 'QUEUED', 'the higher-priority task waits for its dependency');
   await waitFor(() => first.state === 'DONE' && second.state === 'DONE' && run.state === 'DONE', { label: 'both tasks to complete' });
 
+  await waitFor(async () => { const seen = await fx.cp.listEvents(2000); return [first, second].every((task) => seen.some((event) => event.type === 'task.finished' && event.taskId === task.id)); }, { label: 'both task.finished journal entries' });
   const events = await fx.cp.listEvents(2000);
   const index = (type, taskId) => events.findIndex((event) => event.type === type && event.taskId === taskId);
   assert.ok(index('scheduler.selected', first.id) < index('task.finished', first.id));
@@ -126,6 +127,7 @@ test('R2.1 a human approval returns a HUMAN_REQUIRED task to the queue, the miss
   assert.equal(task.error || null, null);
   assert.equal(fx.calls.filter((call) => call.role === 'builder').length, 2, 'the task was really executed again');
   assert.equal(task.attempts, 2);
+  await waitFor(async () => (await fx.cp.listEvents(2000)).some((event) => event.type === 'approval.approved' && event.runId === run.id), { label: 'the approval.approved journal entry' });
   const events = await fx.cp.listEvents(2000);
   assert.ok(events.some((event) => event.type === 'approval.approved' && event.runId === run.id && event.resumed === true), 'the approval records that it resumed the mission');
   assert.equal(run.finishedAt !== null, true, 'the mission finishes again once the task is done');

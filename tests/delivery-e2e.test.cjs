@@ -83,7 +83,11 @@ const until = async (fx, check, label) => {
     throw new Error(`${error.message} :: task=${fx.task.state}/${fx.task.phase} attempts=${fx.task.attempts} error=${fx.task.error} run=${fx.run.state} events=${events.slice(-14).join(',')}`);
   }
 };
-const eventTypes = async (fx) => (await fx.cp.listEvents(3000));
+// The task state can change before its journal entries are written, so callers name the journal entries they are about to read.
+const eventTypes = async (fx, ...required) => {
+  if (required.length) await waitFor(async () => { const seen = await fx.cp.listEvents(3000); return required.every((type) => seen.some((event) => event.type === type && event.taskId === fx.task.id)); }, { timeoutMs: 60000, label: `journal entries ${required.join(', ')}` });
+  return fx.cp.listEvents(3000);
+};
 
 test('R4.3 a task is delivered on a governed branch with a draft PR and CI is correlated to the pushed commit SHA', async (t) => {
   const fx = await boot(t);
@@ -110,7 +114,7 @@ test('R4.3 a task is delivered on a governed branch with a draft PR and CI is co
 
   const listed = gh.calls.filter((call) => call.args[0] === 'run' && call.args[1] === 'list');
   assert.ok(listed.length >= 1 && listed.every((call) => call.args[call.args.indexOf('--commit') + 1] === fx.task.delivery.sha), 'CI is always queried by the delivered SHA');
-  const events = await eventTypes(fx);
+  const events = await eventTypes(fx, ...['delivery.pr_created', 'ci.waiting', 'ci.passed', 'approval.requested']);
   const at = (type) => events.findIndex((event) => event.type === type && event.taskId === fx.task.id);
   for (const type of ['delivery.pr_created', 'ci.waiting', 'ci.passed', 'approval.requested']) assert.ok(at(type) >= 0, `${type} must be journaled`);
   assert.ok(at('delivery.pr_created') < at('ci.waiting') && at('ci.waiting') < at('ci.passed') && at('ci.passed') < at('approval.requested'));
@@ -176,7 +180,7 @@ test('R4.5 a CI failure that touches credentials or permissions is not reworked 
   await until(fx, () => fx.task.state === 'BLOCKED' && fx.task.ci?.state === 'FAILED', 'the task to be blocked');
 
   assert.equal(fx.calls.filter((call) => call.role === 'builder').length, 1, 'no automatic rework');
-  const events = await eventTypes(fx);
+  const events = await eventTypes(fx, ...['ci.failed_max_iterations']);
   assert.ok(events.some((event) => event.type === 'ci.failed_max_iterations' && event.taskId === fx.task.id));
   assert.equal(events.some((event) => event.type === 'ci.failed_rework'), false);
   const recovery = JSON.parse(await fs.readFile(path.join(fx.cp.evidence.runDir(fx.run.id), `${fx.task.id}-recovery.json`), 'utf8')).recovery;
@@ -206,7 +210,7 @@ test('R4.5 a deterministic CI failure returns to bounded rework with the same au
   assert.equal(await git(fx.origin, 'rev-parse', 'refs/heads/main'), fx.mainSha);
   assert.equal(await git(fx.workspace, 'status', '--porcelain'), '');
 
-  const events = await eventTypes(fx);
+  const events = await eventTypes(fx, ...['ci.failed_rework']);
   const rework = events.find((event) => event.type === 'ci.failed_rework' && event.taskId === fx.task.id);
   assert.ok(rework && rework.attempt === 1);
   const recovery = JSON.parse(await fs.readFile(path.join(fx.cp.evidence.runDir(fx.run.id), `${fx.task.id}-recovery.json`), 'utf8')).recovery;
@@ -226,7 +230,7 @@ test('R4.5 rework after CI failure is bounded by the iteration budget', async (t
 
   assert.equal(fx.calls.filter((call) => call.role === 'builder').length, 2, 'never more attempts than the iteration budget');
   assert.equal(fx.task.attempts, 2);
-  const events = await eventTypes(fx);
+  const events = await eventTypes(fx, ...['ci.failed_rework', 'ci.failed_max_iterations']);
   assert.equal(events.filter((event) => event.type === 'ci.failed_rework').length, 1);
   assert.equal(events.filter((event) => event.type === 'ci.failed_max_iterations').length, 1);
   assert.equal(merges().length, 0);

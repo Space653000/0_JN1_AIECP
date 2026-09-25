@@ -99,6 +99,29 @@ test('B03-L129 live API probes need explicit NETWORK and CREDENTIAL approval, ne
   assert.ok(Date.now() - started < 4000, 'a hanging endpoint cannot block a health check for long');
 });
 
+test('B03-L129 a Codex worker with a stored key but no CREDENTIAL approval reports DEGRADED without using the credential or contacting its endpoint', async (t) => {
+  const server = await endpoint((req, res) => { res.writeHead(200); res.end('{}'); });
+  t.after(async () => server.close());
+  const calls = [];
+  const runner = async (command, args, opts = {}) => { calls.push({ command: path.basename(String(command)), args: [...args], env: opts.env || null }); return { code: 0, stdout: 'codex 1.0.0', stderr: '', timedOut: false, aborted: false }; };
+  const worker = (extra = {}) => ({ mode: 'codex-cli', command: 'codex', roles: ['builder'], workerId: 'codex-keyed', codexHome: path.join(os.tmpdir(), 'codex-keyed-home'), baseUrl: `http://127.0.0.1:${server.port}/v1`, defaultModel: 'worker-model', wireApi: 'responses', network: true, requiresCredential: true, apiKey: API_KEY, runtimeEnv: { CODEX_HOME: path.join(os.tmpdir(), 'codex-keyed-home'), AECP_TEST_API_KEY: API_KEY }, ...extra });
+  const router = new ProviderRouter({ keyed: worker(), keyless: worker({ apiKey: '', runtimeEnv: {} }) }, { runner });
+
+  const withheld = await router.health('keyed', { networkApproved: true });
+  assert.equal(withheld.status, 'DEGRADED');
+  assert.match(withheld.detail, /credential use is not approved/);
+  assert.equal(JSON.stringify(withheld).includes(API_KEY), false, 'the result never carries the key');
+  assert.equal(server.requests.length, 0, 'no request reaches the worker endpoint without approval');
+  assert.deepEqual(calls.map((call) => call.args), [['--version']], 'only the fixed version probe ran');
+  assert.equal(calls.every((call) => !call.env || !JSON.stringify(call.env).includes(API_KEY)), true, 'the probe process never received the credential');
+
+  assert.match((await router.health('keyed')).detail, /live network use is not approved/, 'network approval is required first');
+  assert.equal((await router.health('keyless', { networkApproved: true })).status, 'AUTH_REQUIRED', 'a worker without a stored key asks for a credential');
+  const approved = await router.health('keyed', { networkApproved: true, credentialApproved: true });
+  assert.equal(approved.status, 'READY');
+  assert.equal(server.requests.length, 0, 'even an approved Codex worker check only runs the version probe');
+});
+
 const safeBridgeFlow = async () => {
   const card = await ctx.handlers['task:sample']({});
   const task = await ctx.handlers['task:import']({}, { text: JSON.stringify(card) });

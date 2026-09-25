@@ -405,10 +405,15 @@
         {
           "file": "tests/provider-health-safe-bridge.test.cjs",
           "kind": "test",
+          "name": "B03-L129 a Codex worker with a stored key but no CREDENTIAL approval reports DEGRADED without using the credential or contacting its endpoint"
+        },
+        {
+          "file": "tests/provider-health-safe-bridge.test.cjs",
+          "kind": "test",
           "name": "B03-L129 the Safe Bridge keeps working while optional providers are unreachable, misconfigured or the credential store is broken"
         }
       ],
-      "note": "Real ProviderRouter health against a real HTTP endpoint and real main.cjs handlers: CLI/local-command probes only run the fixed version probe, a crashing probe becomes UNAVAILABLE, unapproved live probes report DEGRADED (network) or AUTH_REQUIRED (stored credential) without any request, approved probes are bounded, and the Safe Bridge (task import/execute, ChatGPT open) keeps working with a dead provider endpoint, a corrupted credential store and encryption unavailable. Real third-party outages remain an environment matter."
+      "note": "Real ProviderRouter health against a real HTTP endpoint and real main.cjs handlers: CLI/local-command probes only run the fixed version probe, a crashing probe becomes UNAVAILABLE, unapproved live probes report DEGRADED (network) or AUTH_REQUIRED (stored credential) without any request, approved probes are bounded, and the Safe Bridge (task import/execute, ChatGPT open) keeps working with a dead provider endpoint, a corrupted credential store and encryption unavailable. Real third-party outages remain an environment matter. The Codex worker path (provider-router.cjs health, codex-cli branch) is covered too: a worker with a stored key but no CREDENTIAL approval reports DEGRADED, runs only the fixed --version probe, exposes no key in the environment or result and sends no request to its endpoint; without any approval it reports the network gate; without a key AUTH_REQUIRED; with both approvals READY, still with zero requests."
     },
     {
       "id": "B03-L143",
@@ -4026,16 +4031,30 @@
         "section": "## R3 — Provider independence and local models"
       },
       "text": "Worker/provider failure and task-scoped cancellation are isolated; one Worker becoming unavailable must not terminate another Worker or the Web Safe Bridge.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/lib/worker-registry.cjs",
-          "kind": "code",
-          "name": "WorkerRegistry"
+          "file": "tests/worker-failure-isolation-e2e.test.cjs",
+          "kind": "test",
+          "name": "R3.10 a Worker whose provider fails does not stop another Worker that is running at the same time"
+        },
+        {
+          "file": "tests/worker-failure-isolation-e2e.test.cjs",
+          "kind": "test",
+          "name": "R3.10 cancelling one task aborts only its Worker; the other Worker keeps running and finishes"
+        },
+        {
+          "file": "tests/worker-failure-isolation-e2e.test.cjs",
+          "kind": "test",
+          "name": "R3.10 a Worker whose provider is unavailable is skipped and the other Worker carries the mission to the end"
+        },
+        {
+          "file": "tests/safe-bridge-fault-injection.test.cjs",
+          "kind": "test",
+          "name": "R3.10 a Control Plane mission that fails on an unavailable provider leaves the Web Safe Bridge untouched"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Task-scoped cancellation is tested; Safe Bridge survival under real worker failure remains an environment gate."
+      "note": "Real ControlPlane and runHarness with two Workers on two providers and two repositories: a crashing provider fails only its own task and releases its Worker, lock and worktree while the other Worker finishes; cancelTask aborts only the cancelled Worker's signal; an UNAVAILABLE Worker is skipped; and a real main.cjs run shows a Control Plane mission failing on a dead provider leaves the Web Safe Bridge (import, execute, list, ChatGPT open) working with no network request of its own. Real third-party outages remain an environment matter."
     },
     {
       "id": "R3.2",
@@ -4044,16 +4063,20 @@
         "section": "## R3 — Provider independence and local models"
       },
       "text": "Claude, Codex, Gemini, OpenCode, Ollama-compatible local inference and trusted fixed local-agent commands can be represented without changing task state schemas.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/lib/provider-router.cjs",
-          "kind": "code",
-          "name": "ProviderRouter"
+          "file": "tests/provider-role-matrix-e2e.test.cjs",
+          "kind": "test",
+          "name": "R3.2 every supported provider in every role it can serve runs a real mission with an unchanged state schema"
+        },
+        {
+          "file": "tests/provider-role-matrix-e2e.test.cjs",
+          "kind": "test",
+          "name": "R3.2 a provider can only serve the roles it declares: unsupported substitutions fail closed"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Built-in and fixed commands exist, but every listed provider/role substitution is not covered against unchanged state schema."
+      "note": "Six real ControlPlane + runHarness missions on the real default ProviderRouter registry (process runner emulating the CLIs, loopback OpenAI-compatible endpoint, a fixed local command) cover every (role, provider) pair the registry declares: Claude, Gemini, OpenCode, Ollama, Codex, the fixed local command and an OpenAI-compatible company API. Task, Mission, Harness record and patch schemas are identical across all of them and each provider is really invoked; unsupported role substitutions are rejected and create no mission."
     },
     {
       "id": "R3.3",
@@ -4113,16 +4136,17 @@
         "section": "## R3 — Provider independence and local models"
       },
       "text": "Optional providers failing or being unconfigured must not break Web Safe Bridge operation.",
-      "status": "PARTIAL",
+      "status": "CONFIRMED_GAP",
       "evidence": [
         {
           "file": "electron/main.cjs",
           "kind": "code",
-          "name": "chatgpt:open"
+          "symbol": "initControlPlane",
+          "description": "Startup awaits initControlPlane() before registerIpc(), and initControlPlane() reads runtime/control-plane.json and workers/worker-registry.json (optional Control Plane state) without tolerating a corrupted file. Reproduced with the real main.cjs under a fake Electron: a corrupted userData/workers/worker-registry.json (or runtime/control-plane.json) makes startup fail with \"STARTUP FAILED: Expected property name or '}' in JSON...\" and app.quit(), so no IPC handler (task:import, task:execute, chatgpt:open ...) is ever registered. A broken optional Worker/Control Plane record therefore takes the Web Safe Bridge down with it."
         }
       ],
       "workOrder": "UNASSIGNED",
-      "note": "Safe Bridge is independent in code; failure injection across all optional providers remains untested."
+      "note": "Missing: make Control Plane / Worker Registry initialisation failure non-fatal (register the Safe Bridge IPC handlers first or catch the failure, quarantine the corrupted file and report the optional feature as unavailable). Proven and kept as regression tests (tests/safe-bridge-fault-injection.test.cjs and tests/provider-health-safe-bridge.test.cjs, real main.cjs handlers): the Safe Bridge round trip (sample, import, execute, list, open ChatGPT) keeps working with a dead API provider, a dead remote MCP provider, unconfigured OFFICIAL/PEGA workers, an unknown provider, a malformed provider record in state.json, and a corrupted credential store with encryption unavailable, with no network request of its own. Not fixed here (feature code is out of scope for work order 0013)."
     },
     {
       "id": "R3.7",
@@ -4131,16 +4155,25 @@
         "section": "## R3 — Provider independence and local models"
       },
       "text": "Provider identity and Worker runtime identity are separate concepts; Mission/Task/Queue/Harness state machines must remain provider-neutral.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/lib/worker-registry.cjs",
-          "kind": "code",
-          "name": "WorkerRegistry"
+          "file": "tests/provider-role-matrix-e2e.test.cjs",
+          "kind": "test",
+          "name": "R3.7 Provider identity and Worker identity are separate: workers of one provider stay distinct, and a worker keeps its identity when its provider changes"
+        },
+        {
+          "file": "tests/provider-role-matrix-e2e.test.cjs",
+          "kind": "test",
+          "name": "R3.2 every supported provider in every role it can serve runs a real mission with an unchanged state schema"
+        },
+        {
+          "file": "tests/pega-abstraction.test.cjs",
+          "kind": "test",
+          "name": "R3.9 a PEGA worker and an arbitrary custom Codex worker produce identical Mission, Task, Harness and registry state"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Provider and Worker identities are separate; all Mission/Task/Queue/Harness schemas need a cross-provider invariance test."
+      "note": "Real ControlPlane with a real WorkerRegistry: two workers on one provider stay distinct identities, the Mission records provider ids only while worker ids live in builderWorkers, and re-registering a worker on another provider keeps its id and leaves Task, Mission and worker record schemas unchanged. The provider-swap missions across every provider (R3.2) and a PEGA versus generic Codex worker comparison show the Mission/Task/Harness state is provider-neutral."
     },
     {
       "id": "R3.8",
@@ -4169,13 +4202,28 @@
       "status": "PARTIAL",
       "evidence": [
         {
+          "file": "tests/pega-abstraction.test.cjs",
+          "kind": "test",
+          "name": "R3.9 PEGA is a fixed Codex worker provider behind the Provider Router: builder role only, fixed endpoint, governed by NETWORK and CREDENTIAL approval"
+        },
+        {
+          "file": "tests/pega-abstraction.test.cjs",
+          "kind": "test",
+          "name": "R3.9 PEGA health follows the same governed states as every other worker provider and never claims endpoint compatibility by itself"
+        },
+        {
+          "file": "tests/pega-abstraction.test.cjs",
+          "kind": "test",
+          "name": "R3.9 a PEGA worker and an arbitrary custom Codex worker produce identical Mission, Task, Harness and registry state"
+        },
+        {
           "file": "electron/lib/pega-provider.cjs",
           "kind": "code",
           "name": "PEGA"
         }
       ],
       "workOrder": "UNASSIGNED",
-      "note": "PEGA adapter exists; actual endpoint/model/auth compatibility requires ENVIRONMENT evidence and cannot be closed by source tests."
+      "note": "Abstraction half proven with real modules: PEGA is a fixed builder-only Codex worker provider on the real ProviderRouter (endpoint cannot be redirected, NETWORK then CREDENTIAL approval required before anything runs, sandbox network off, key only in the worker environment), its health uses the same states as any Codex worker and never claims endpoint compatibility, and a real mission with a PEGA worker produces exactly the same Mission/Task/Harness/registry state as an arbitrary custom Codex worker. Remains PARTIAL because actual PEGA endpoint/model/auth compatibility can only be closed by ENVIRONMENT evidence (ACCEPTANCE section 5), which source tests cannot supply."
     },
     {
       "id": "R4.1",

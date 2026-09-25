@@ -144,6 +144,7 @@ test('B03-L70 worker names never change Mission/Task/Queue/Harness behaviour: OF
     const run = await cp.createMission({ goal: 'Two workers, two repositories', done: 'Verification passes.', sourceRoot: workspace, autoStart: true, maxConcurrency: 2, maxIterations: 2, maxTurns: 40, providers: { planner: 'plan', builder: 'build', reviewer: 'review' }, builderWorkers: ids });
     await waitFor(() => run.state === 'DONE', { timeoutMs: 60000, label: 'both workers to finish' });
     const tasks = run.taskIds.map((id) => cp.state.tasks[id]);
+    await waitFor(async () => ids.every((id) => workers.get(id).runtimeState === 'IDLE') && (await cp.listEvents(2000)).some((event) => event.type === 'mission.finished'), { timeoutMs: 60000, label: 'the Workers to be released and the mission.finished journal entry' });
     assert.deepEqual(tasks.map((task) => task.state), ['DONE', 'DONE']);
     assert.deepEqual(tasks.map((task) => task.workerId).sort(), [...ids].sort(), 'each task ran on a different worker');
     outcomes.push({ task: shapeOf(tasks[0]), run: shapeOf(run), events: [...new Set((await cp.listEvents(2000)).map((event) => event.type))].sort(), registry: shapeOf(workers.get(ids[0])), states: ids.map((id) => workers.get(id).runtimeState) });
