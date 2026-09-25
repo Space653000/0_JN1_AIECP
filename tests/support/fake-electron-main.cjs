@@ -9,8 +9,8 @@ const path = require('node:path');
 
 const noop = () => {};
 
-function loadMain() {
-  const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'aecp-main-'));
+function loadMain({ userData: existingUserData = null } = {}) {
+  const userData = existingUserData || fs.mkdtempSync(path.join(os.tmpdir(), 'aecp-main-'));
   const handlers = {};
   const record = { openExternal: [], clipboard: [], console: [] };
   const control = { encryptionAvailable: true, chosenFolder: null, savePath: null, messageBoxResponse: 1 };
@@ -55,7 +55,7 @@ function loadMain() {
     return request === 'electron' ? electron : originalLoad.call(this, request, ...rest);
   };
   try { require(require.resolve('../../electron/main.cjs')); } finally { Module._load = originalLoad; }
-  return { userData, handlers, record, control, safeStorage, start: () => ready(), dispose: () => fs.rmSync(userData, { recursive: true, force: true }) };
+  return { userData, handlers, record, control, safeStorage, start: () => ready(), dispose: () => { if (!existingUserData) fs.rmSync(userData, { recursive: true, force: true }); } };
 }
 
 module.exports = { loadMain };

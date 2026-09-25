@@ -232,16 +232,25 @@
         "section": "## 4. Beginner vs Engineering mode"
       },
       "text": "Changing mode never changes permissions by itself.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
+        {
+          "file": "tests/ui-mode-and-guidance.test.cjs",
+          "kind": "test",
+          "name": "B01-L67 switching between Beginner and Engineering mode changes only the projection, never a permission or any stored state"
+        },
+        {
+          "file": "tests/ui-mode-and-guidance.test.cjs",
+          "kind": "test",
+          "name": "B01-L67 leaving Engineering mode while on an engineering-only view returns to Start without touching permissions"
+        },
         {
           "file": "ui/app.js",
           "kind": "code",
           "name": "engineering-mode"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Mode only changes renderer projection; a cross-mode policy-decision equivalence test is missing."
+      "note": "Real ui/app.js run against a recording fake DOM: toggling Beginner/Engineering only flips the engineering-mode body class and re-renders; it makes zero window.aecp calls, raises no prompt and leaves workspace/provider/task/policy state byte-identical."
     },
     {
       "id": "B02-L109",
@@ -1343,16 +1352,30 @@
         "section": "## 4. Context Capsule"
       },
       "text": "Context Capsule aecp.context/v1 schema and bounded content.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
+        {
+          "file": "tests/capsule-contracts.test.cjs",
+          "kind": "test",
+          "name": "B11-4-CONTEXT a Context Capsule carries the versioned schema, a bounded redacted payload, an expiry and a matching hash"
+        },
+        {
+          "file": "tests/capsule-contracts.test.cjs",
+          "kind": "test",
+          "name": "B11-4-CONTEXT an oversized Context Capsule is refused and nothing is written"
+        },
+        {
+          "file": "tests/capsule-contracts.test.cjs",
+          "kind": "test",
+          "name": "B11-4-CONTEXT expired Context Capsules are garbage collected and live ones are kept"
+        },
         {
           "file": "electron/lib/context-bus.cjs",
           "kind": "code",
           "name": "ContextBus"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Blueprint owner decision D8 accepts aecp.capsule/v1 as the implementation name for the context capsule, so this is no longer a naming gap. Remaining: a test asserting the capsule bounded content and size."
+      "note": "ContextBus.write is tested end to end: aecp.capsule/v1 (owner decision D8) with id, kind, expiry, redacted payload and a sha256 over the redacted content; oversized payloads are refused with nothing written; expired capsules are collected and live ones kept."
     },
     {
       "id": "B11-5-RESULT",
@@ -1361,16 +1384,30 @@
         "section": "## 5. Result Capsule"
       },
       "text": "Result Capsule aecp.result/v1 schema, no secrets or huge raw logs.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
+        {
+          "file": "tests/capsule-contracts.test.cjs",
+          "kind": "test",
+          "name": "B11-5-RESULT the Result Capsule has the complete aecp.result/v1 field contract, redacted and bounded"
+        },
+        {
+          "file": "tests/capsule-contracts.test.cjs",
+          "kind": "test",
+          "name": "B11-5-RESULT the Result Capsule is bounded: long text is cut, facts are capped and durations are clamped"
+        },
+        {
+          "file": "tests/capsule-contracts.test.cjs",
+          "kind": "test",
+          "name": "B11-5-RESULT a Result Capsule cannot claim success without a passing deterministic verification"
+        },
         {
           "file": "electron/lib/protocol.cjs",
           "kind": "code",
           "name": "makeResultCapsule"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "aecp.result/v1 and size/redaction exist, but the complete Result Capsule field contract is not checked in one behavioral test."
+      "note": "makeResultCapsule complete aecp.result/v1 field contract is asserted in one test (exact key set, verification object, execution duration, evidenceRef, nextDecision), plus redaction, length/fact/duration bounds and the no-success-without-passing-verification downgrade."
     },
     {
       "id": "B11-6-TRACE",
@@ -1379,16 +1416,25 @@
         "section": "## 6. Execution Trace event"
       },
       "text": "Execution Trace aecp.trace/v1 event schema.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
+        {
+          "file": "tests/execution-trace-restart.test.cjs",
+          "kind": "test",
+          "name": "B11-6-TRACE every trace event has the aecp.trace/v1 shape, a gap-free sequence, and the sequence continues across an application restart"
+        },
+        {
+          "file": "tests/execution-trace-restart.test.cjs",
+          "kind": "test",
+          "name": "B11-6-TRACE a failed task records an error-severity event and a re-run after restart keeps appending in order"
+        },
         {
           "file": "electron/main.cjs",
           "kind": "code",
           "name": "appendTrace"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "aecp.trace/v1 is written; sequence durability and full event schema across restart are not yet covered."
+      "note": "The real main.cjs is run as separate OS processes sharing one userData folder: trace events have the exact aecp.trace/v1 key set, ISO timestamps, error severity on failure, and the seq continues gap-free across an application restart and a retry."
     },
     {
       "id": "B11-7-CLIPBOARD",
@@ -1397,16 +1443,30 @@
         "section": "## 7. Clipboard framing"
       },
       "text": "Explicit clipboard framing and invalid card rejection.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
+        {
+          "file": "tests/capsule-contracts.test.cjs",
+          "kind": "test",
+          "name": "B11-7-CLIPBOARD the Command Card clipboard framing is accepted in every explicit form and anything else is rejected"
+        },
+        {
+          "file": "tests/task-bridge-main.test.cjs",
+          "kind": "test",
+          "name": "B11-7-CLIPBOARD import rejects every invalid card without creating a task, and the clipboard write is size-checked"
+        },
+        {
+          "file": "tests/task-bridge-main.test.cjs",
+          "kind": "test",
+          "name": "B11-7-CLIPBOARD the UI reads the clipboard only on the Import button and writes it only on an explicit copy, always with the framing"
+        },
         {
           "file": "electron/lib/protocol.cjs",
           "kind": "code",
           "name": "parseCommandCard"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Framing and explicit UI gestures exist, but the clipboard ingress/egress contract is not exercised end-to-end."
+      "note": "parseCommandCard accepts the explicit framings (plain, AECP_COMMAND_CARD_V1, fenced) and rejects 15 kinds of invalid card; the real task:import handler creates no task for any of them; clipboard:write enforces a UTF-8 byte limit; the real UI touches the clipboard only on the Import button / explicit copy and frames results with AECP_RESULT_CAPSULE_V1."
     },
     {
       "id": "B11-8-L136",
@@ -1471,16 +1531,25 @@
         "section": "## 5. Result Capsule"
       },
       "text": "Result Capsule must not include secrets or huge raw logs. Large artifacts are referenced locally rather than pasted into ChatGPT automatically.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
+        {
+          "file": "tests/capsule-contracts.test.cjs",
+          "kind": "test",
+          "name": "B11-L103 large output never rides in the Result Capsule: raw logs are truncated and artifacts stay behind a local reference"
+        },
+        {
+          "file": "tests/task-bridge-main.test.cjs",
+          "kind": "test",
+          "name": "B11-L103 an executed task yields a small redacted Result Capsule; the large evidence stays in a local file it references"
+        },
         {
           "file": "electron/lib/protocol.cjs",
           "kind": "code",
           "name": "makeResultCapsule"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Result Capsule is bounded/redacted, but all large artifact references and every output route are not proven."
+      "note": "Result Capsule stays small and redacted however large the raw log is (facts/summary/evidenceRef bounds, always within the clipboard limit); a real executed task keeps its bulky evidence in evidence.json and the capsule only carries a local://evidence reference, with secrets redacted in the capsule and on disk."
     },
     {
       "id": "B11-L44",
@@ -1506,16 +1575,20 @@
         "section": "## 2. Command Card — v1 preview"
       },
       "text": "- requested permissions never grant themselves;",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
+        {
+          "file": "tests/task-bridge-main.test.cjs",
+          "kind": "test",
+          "name": "B11-L46 requested permissions in a Command Card never grant themselves"
+        },
         {
           "file": "electron/main.cjs",
           "kind": "code",
           "name": "task:import"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Command Card requested permissions are stored but import risk remains GREEN; add a negative test proving no requested permission is ever granted."
+      "note": "Real task:import/task:execute with a card requesting write, network, credentials, admin, push and execute permissions: the request is only recorded; the execution contract grants exactly the fixed read-only action, the Workspace is unchanged, no network request is made, the Workspace policy is unchanged and an unsupported action cannot be smuggled in."
     },
     {
       "id": "B11-L53",
@@ -1544,13 +1617,18 @@
       "status": "PARTIAL",
       "evidence": [
         {
+          "file": "tests/task-bridge-main.test.cjs",
+          "kind": "test",
+          "name": "B11-L61 a free-form shell string cannot ride in a Command Card: extra fields are dropped and the verifier is fixed"
+        },
+        {
           "file": "electron/lib/protocol.cjs",
           "kind": "code",
           "name": "ACTION_TYPES"
         }
       ],
       "workOrder": "UNASSIGNED",
-      "note": "Preview exposes two fixed read-only actions, but per-action schema/risk/verifier metadata is not explicit in the public contract."
+      "note": "Enforcement half proven with the real task:import: a free-form shell string, extra action fields and a self-chosen verifier are dropped (action is only {type}, verification is fixed to operation-success), inputs are bounded and only the two fixed read-only actions exist. Remains PARTIAL: there is no explicit per-action metadata (schema/risk/verifier table) - task:import assigns GREEN to every accepted action, so a future action added to ACTION_TYPES would inherit GREEN unless someone remembers to classify it."
     },
     {
       "id": "B12-L134",
@@ -1559,16 +1637,17 @@
         "section": "## 4. Migration"
       },
       "text": "Every persisted document includes `schemaVersion`. Future releases apply explicit migrations; unknown newer versions cause read-only recovery mode rather than destructive downgrade.",
-      "status": "PARTIAL",
+      "status": "CONFIRMED_GAP",
       "evidence": [
         {
-          "file": "electron/lib/state-migration.cjs",
+          "file": "electron/main.cjs",
           "kind": "code",
-          "name": "schemaVersion"
+          "symbol": "persistTask",
+          "description": "persistTask writes evidence/<task>/task.json (the task object) and evidence/<task>/evidence.json without any schemaVersion or aecp.<name>/vN identifier. A real run of the app and a scan of userData shows every other store is versioned (state.json/credentials.json schemaVersion 1; result.json, trace.jsonl, control-plane.json, events.jsonl, locks.json, resources.json, worker-registry.json carry aecp.*/vN) but these two per-task files have none."
         }
       ],
       "workOrder": "UNASSIGNED",
-      "note": "Blueprint owner decision D7 accepts the persisted aecp.<name>/vN schema identifier as equivalent to schemaVersion, so no rename is needed. Remaining gap: a test proving every persisted store carries a versioned schema identifier."
+      "note": "Missing: give task.json and evidence.json a versioned schema identifier (D7: aecp.task-record/v1, aecp.task-evidence/v1 or similar) so every persisted document is versioned. Verified: the unknown-newer-version half of the clause works (state.json with schemaVersion 99 opens in READ_ONLY_RECOVERY and is never rewritten; regression test in tests/task-bridge-main.test.cjs). Not fixed here (feature code is out of scope for 0013)."
     },
     {
       "id": "B14-L15",
@@ -1577,16 +1656,35 @@
         "section": "## 1. Product principle"
       },
       "text": "Everything that can be safely detected should be detected automatically. Everything that changes data access, permissions, or blast radius must remain explicit.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
+        {
+          "file": "tests/ui-mode-and-guidance.test.cjs",
+          "kind": "test",
+          "name": "B14-L15 everything the UI detects on its own is read-only: opening the app performs only get/list/detect calls"
+        },
+        {
+          "file": "tests/ui-mode-and-guidance.test.cjs",
+          "kind": "test",
+          "name": "B14-L15 a recommended action only navigates or waits for an explicit click: approval guidance never approves anything"
+        },
+        {
+          "file": "tests/ui-mode-and-guidance.test.cjs",
+          "kind": "test",
+          "name": "B14-L15 guidance detects the next safe step but keeps Workspace choice, approvals and Goal creation explicit"
+        },
+        {
+          "file": "tests/task-bridge-main.test.cjs",
+          "kind": "test",
+          "name": "B14-L15 choosing a Workspace is explicit: guidance never selects one and a cancelled dialog changes nothing"
+        },
         {
           "file": "electron/lib/guidance.cjs",
           "kind": "code",
           "name": "recommendNextAction"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Guidance detects safe next steps, but every data-access/blast-radius change needs explicit boundary coverage."
+      "note": "Automatic = read-only, explicit = everything else: the real UI performs only get/list/detect calls at start (even when guidance recommends RUN_TASK); approval guidance only navigates; guidance never recommends approve/merge/push/apply; Workspace choice stays an explicit dialog (a cancelled dialog binds nothing) and no task can be imported before it."
     },
     {
       "id": "B14-L165",
