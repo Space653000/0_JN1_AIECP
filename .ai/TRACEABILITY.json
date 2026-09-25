@@ -356,16 +356,15 @@
         "section": "## 5. Credential handling"
       },
       "text": "- API keys never live in repository YAML/JSON.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/main.cjs",
-          "kind": "code",
-          "name": "saveProvider"
+          "file": "tests/provider-credential-surfaces.test.cjs",
+          "kind": "test",
+          "name": "B03-L113 API keys of every provider route stay out of YAML/JSON files: local data, the Workspace repository, backups and the AECP repository"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Encrypted credential store exists, but an exhaustive tracked-YAML/JSON and all-provider negative leakage test is absent."
+      "note": "Real main.cjs IPC handlers under a fake Electron: after saving and rotating keys for api, PEGA and remote-mcp providers, no plaintext key or ciphertext appears in any local data file other than the encrypted credential store, in the Workspace repository, in a decoded backup (the credential store is never backed up) or in the AECP repository tracked JSON/YAML files."
     },
     {
       "id": "B03-L116",
@@ -374,16 +373,15 @@
         "section": "## 5. Credential handling"
       },
       "text": "- UI only returns masked key metadata, never plaintext after save.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/main.cjs",
-          "kind": "code",
-          "name": "saveProvider"
+          "file": "tests/provider-credential-surfaces.test.cjs",
+          "kind": "test",
+          "name": "B03-L116 every read response returns only credential metadata, never the key, after it was saved or rotated"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Provider UI uses stored-credential boolean; every read response needs a plaintext-absence test."
+      "note": "Real main.cjs IPC handlers: provider:list, state:get, app:info, worker:list, policy/adapter/github/update/task/mcp/guidance reads, every provider:health and every provider:save response return only hasCredential:true metadata after save or rotation, and nothing is ever logged or copied to the clipboard with a key."
     },
     {
       "id": "B03-L129",
@@ -392,16 +390,25 @@
         "section": "## 6. Provider health"
       },
       "text": "Failure of an optional provider must not prevent Safe Bridge use. The current router exposes these five states through bounded health checks: fixed CLI/local-command checks never execute task text; API/Remote MCP live probes require explicit NETWORK approval, and stored credentials require explicit CREDENTIAL approval. An unapproved live probe reports `DEGRADED` rather than silently using network/credentials.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/lib/provider-router.cjs",
-          "kind": "code",
-          "name": "health"
+          "file": "tests/provider-health-safe-bridge.test.cjs",
+          "kind": "test",
+          "name": "B03-L129 fixed CLI and local-command health checks only run the tool version probe and never see task text"
+        },
+        {
+          "file": "tests/provider-health-safe-bridge.test.cjs",
+          "kind": "test",
+          "name": "B03-L129 live API probes need explicit NETWORK and CREDENTIAL approval, never use them silently, and stay bounded"
+        },
+        {
+          "file": "tests/provider-health-safe-bridge.test.cjs",
+          "kind": "test",
+          "name": "B03-L129 the Safe Bridge keeps working while optional providers are unreachable, misconfigured or the credential store is broken"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Bounded health checks have tests, but Safe Bridge survival during a real optional-provider outage remains an environment/manual gate."
+      "note": "Real ProviderRouter health against a real HTTP endpoint and real main.cjs handlers: CLI/local-command probes only run the fixed version probe, a crashing probe becomes UNAVAILABLE, unapproved live probes report DEGRADED (network) or AUTH_REQUIRED (stored credential) without any request, approved probes are bounded, and the Safe Bridge (task import/execute, ChatGPT open) keeps working with a dead provider endpoint, a corrupted credential store and encryption unavailable. Real third-party outages remain an environment matter."
     },
     {
       "id": "B03-L143",
@@ -410,16 +417,15 @@
         "section": "## 8. Failover"
       },
       "text": "Failover never silently moves private local context to a cloud provider. Any provider change that changes the data boundary requires explicit user approval or a predeclared policy.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/lib/provider-router.cjs",
-          "kind": "code",
-          "name": "ProviderRouter"
+          "file": "tests/provider-neutrality-e2e.test.cjs",
+          "kind": "test",
+          "name": "B03-L143 a local provider is never silently replaced by a cloud provider: failures stop, private context stays local, cloud use needs an explicit choice and approval"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Explicit role selection exists; private-context-to-cloud failover needs a negative integration test."
+      "note": "Real ControlPlane + real ProviderRouter: a mission on local providers never contacts the registered cloud endpoint and keeps the private context local, a failing local provider stops the mission with no other provider tried, a provider that cannot serve a role is never replaced, and moving to a cloud provider needs an explicit choice plus NETWORK/CREDENTIAL approval before any request."
     },
     {
       "id": "B03-L168",
@@ -434,10 +440,20 @@
           "file": "electron/lib/execution-contract.cjs",
           "kind": "code",
           "name": "contextCapsuleRef"
+        },
+        {
+          "file": "tests/handoff-artifacts-e2e.test.cjs",
+          "kind": "test",
+          "name": "B03-L168 a real mission hands work over only as schema-versioned artifacts that carry consistent correlation IDs"
+        },
+        {
+          "file": "tests/handoff-artifacts-e2e.test.cjs",
+          "kind": "test",
+          "name": "B03-L168 providers are invoked statelessly: no adapter passes a resume, session or conversation handle"
         }
       ],
       "workOrder": "UNASSIGNED",
-      "note": "Versioned artifact handoff exists, but the full seven-artifact correlation chain is not asserted."
+      "note": "Proven with a real mission: the Goal (aecp.execution-contract/v1), Plan (aecp.plan/v1), context (aecp.repo-knowledge/v1, aecp.review-input/v1), Worker-Report, verifier evidence, Review and Result (aecp.capsule/v1 + aecp.evidence/v1 manifest) artifacts all carry schema versions and consistent correlation IDs (harness run id across the harness artifacts, mission/task ids in the Control Plane refs, result capsule and every journal event), and no adapter passes a resume/session handle (Codex --ephemeral). Remaining: the ExecutionContract contextCapsuleRef is never populated and no aecp.capsule/v1 context capsule is written for agent handoff (only result capsules), so the Blueprint Context artifact is represented by the repo-knowledge and review-input manifests rather than a Context Capsule."
     },
     {
       "id": "B03-L172",
@@ -446,16 +462,20 @@
         "section": "## 11. Cost/attention control"
       },
       "text": "The Harness optimizes verified engineering progress per unit of human attention. It must not create extra model calls merely to keep agents busy.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/lib/harness.cjs",
-          "kind": "code",
-          "name": "maxTurns"
+          "file": "tests/provider-neutrality-e2e.test.cjs",
+          "kind": "test",
+          "name": "B03-L172 the Harness makes exactly the model calls the work needs and none to keep agents busy"
+        },
+        {
+          "file": "tests/provider-neutrality-e2e.test.cjs",
+          "kind": "test",
+          "name": "B03-L172 waiting for a dependency, waiting for a human and exhausting the iteration budget make no extra model calls"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Hard budgets exist; attention-optimization is a product metric without a deterministic no-idle-call test."
+      "note": "Real ControlPlane/runHarness with counted provider calls: a two-task mission makes exactly one mission-planning call plus planner, builder and reviewer once per task and nothing afterwards; idle scheduling, waiting for a dependency, waiting for a human and an exhausted iteration budget add no model calls."
     },
     {
       "id": "B03-L5",
@@ -464,16 +484,15 @@
         "section": "## 1. Goal"
       },
       "text": "The Local Agent Harness must not care which intelligence provider produced a task. Providers are adapters around a common capability contract.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/lib/provider-router.cjs",
-          "kind": "code",
-          "name": "ProviderRouter"
+          "file": "tests/provider-neutrality-e2e.test.cjs",
+          "kind": "test",
+          "name": "B03-L5 the Harness state is identical whichever kind of provider produced the work (CLI tools, local models, local command, OpenAI-compatible endpoint)"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Common adapter interface exists; substitution across all supported provider kinds lacks a state-invariance test."
+      "note": "Real ControlPlane + real runHarness + the real ProviderRouter (default registry with an injected process runner, a loopback OpenAI-compatible endpoint): missions on CLI tools (claude/codex/gemini, opencode/claude), local models plus a local command (ollama, local-command) and an OpenAI-compatible endpoint all finish DONE with identical persisted Task, Mission, Harness-record and patch schemas; only provider identity values differ."
     },
     {
       "id": "B03-L56",
@@ -482,16 +501,17 @@
         "section": "## 2A. Provider versus Worker"
       },
       "text": "The two workers must never share `CODEX_HOME`, auth, session or runtime state.",
-      "status": "PARTIAL",
+      "status": "CONFIRMED_GAP",
       "evidence": [
         {
-          "file": "electron/lib/codex-worker-runtime.cjs",
+          "file": "electron/lib/worker-registry.cjs",
           "kind": "code",
-          "name": "codexHome"
+          "symbol": "canonicalHome",
+          "description": "The Worker Registry rejects a second worker only when path.resolve(codexHome) is textually equal (case-insensitive on Windows). A directory junction/symlink that points at the first worker CODEX_HOME, a home nested inside another worker home, or a parent directory of it are all accepted (reproduced on Windows with fs.symlinkSync(..., \"junction\")): the two workers then share the same CODEX_HOME, auth and session files even though the registry guard passed. The registry does not compare real paths."
         }
       ],
       "workOrder": "UNASSIGNED",
-      "note": "Distinct CODEX_HOME directories are tested; exhaustive session/runtime-state non-sharing needs a negative integration test."
+      "note": "Missing: compare canonical real paths (fs.realpath) and reject nested/overlapping homes in WorkerRegistry.register. Proven and kept as regression tests (tests/codex-worker-isolation.test.cjs): OFFICIAL and PEGA get disjoint homes, runtime dirs, auth and config files with no secret written to disk; the registry refuses identical, differently cased, dot-dot and trailing-separator spellings; and in a real two-worker mission each Codex invocation runs in its own worktree with its own CODEX_HOME, --ephemeral, and the PEGA key only in the PEGA environment. Observation: the router merges the parent process environment into every child (run()), so a PEGA key supplied through the parent environment (AECP_PEGA_API_KEY fallback) would also be visible to the OFFICIAL worker process. Not fixed here (feature code is out of scope for work order 0013)."
     },
     {
       "id": "B03-L68",
@@ -500,16 +520,17 @@
         "section": "## 2A. Provider versus Worker"
       },
       "text": "The adapter must negotiate and verify the API family actually available in the environment, including Chat Completions-compatible and Responses-compatible behavior where supported. Unsupported capability combinations fail closed.",
-      "status": "PARTIAL",
+      "status": "CONFIRMED_GAP",
       "evidence": [
         {
-          "file": "electron/lib/codex-worker-runtime.cjs",
+          "file": "electron/lib/provider-router.cjs",
           "kind": "code",
-          "name": "normalizeWireApi"
+          "symbol": "health",
+          "description": "No API family negotiation or verification exists. For a codex-cli worker, health only runs `<command> --version` and checks static configuration; it never contacts provider.baseUrl and never probes Responses versus Chat Completions. Reproduced: a worker configured with wire_api \"chat\" and a loopback endpoint reports READY with zero requests to the endpoint. The wire API is whatever was configured; codex-worker-runtime.cjs normalizeWireApi only validates the spelling."
         }
       ],
       "workOrder": "UNASSIGNED",
-      "note": "Wire API normalization exists; real endpoint Chat Completions/Responses compatibility is environment-dependent."
+      "note": "Missing: negotiate/verify the API family actually available at the endpoint (and fail closed for unsupported combinations) instead of trusting configuration. Proven and kept as regression tests (tests/codex-worker-isolation.test.cjs): unknown wire APIs, non-HTTPS non-loopback endpoints, embedded credentials, missing models and invalid env keys are all rejected. Real endpoint compatibility remains environment-dependent. Not fixed here (feature code is out of scope for work order 0013)."
     },
     {
       "id": "B03-L70",
@@ -518,16 +539,15 @@
         "section": "## 2A. Provider versus Worker"
       },
       "text": "No PEGA-specific branch is permitted in Task/Mission/Queue/Harness state-machine logic. Future company/OpenAI/Gemini/Qwen/local providers must remain swappable through the same abstraction.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
-          "file": "electron/lib/control-plane.cjs",
-          "kind": "code",
-          "name": "builderWorkers"
+          "file": "tests/provider-neutrality-e2e.test.cjs",
+          "kind": "test",
+          "name": "B03-L70 worker names never change Mission/Task/Queue/Harness behaviour: OFFICIAL/PEGA worker ids and neutral ids give the same state"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Worker selection is identity-based; all Mission/Queue/Harness branches need an explicit provider-neutral invariant test."
+      "note": "Real mission with two Workers in two repositories: worker ids codex-official/codex-pega and neutral ids give identical persisted state, event vocabulary and registry shape, and the state-machine sources contain no PEGA-specific logic."
     },
     {
       "id": "B04-ELECTRON-L28",
