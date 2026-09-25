@@ -4349,16 +4349,23 @@
         "section": "## R5 — Evidence, observability and recovery"
       },
       "text": "Maintenance handles expired locks, context TTL, evidence retention and orphan worktree cleanup with bounded budgets.",
-      "status": "PARTIAL",
+      "status": "CONFIRMED_GAP",
       "evidence": [
+        {
+          "file": "electron/lib/control-plane.cjs",
+          "kind": "code",
+          "symbol": "schedulerTick",
+          "description": "The periodic maintenance in schedulerTick hands maintenance the worktree of every finished task as {worktree, repoRoot: t.delivery?.taskRoot || run.sourceRoot}. For a task bound to one repository of a multi-repository Workspace (task.resources.repositories[0], which is what executeTask really used) and without delivery, repoRoot is the Workspace container directory, which is not a Git repository, so `git worktree remove` and `git worktree prune` fail (errors are swallowed) and worktreesRemoved stays 0. Reproduced end to end with a real mission over two repositories: both task worktrees and their registrations in the source repositories are never cleaned."
+        },
         {
           "file": "electron/lib/maintenance.cjs",
           "kind": "code",
-          "name": "MaintenanceManager"
+          "symbol": "MaintenanceManager",
+          "description": "Orphan worktree cleanup has no budget: each pass attempts `git worktree remove` and `git worktree prune` (2 git processes) for every entry it is given, and the Control Plane gives it every finished task of every finished mission on every pass, including worktrees that were already removed. Measured: 60 already-gone entries cost 120 git spawns per pass, on every pass, so the work grows with mission history instead of being bounded. Lock, context and evidence cleanup are bounded (evidenceRetentionDays, maxEvidenceRuns)."
         }
       ],
       "workOrder": "UNASSIGNED",
-      "note": "Expired lock/context cleanup exists; evidence retention and orphan worktree budget cases need specific tests."
+      "note": "Missing: (1) worktree cleanup must use the repository the task was really bound to (task.resources.repositories[0]) so multi-repository missions do not leak worktrees and Git registrations; (2) worktree cleanup needs a per-pass bound and must skip worktrees that are already gone. Proven and kept as regression tests (tests/maintenance-cleanup.test.cjs, tests/maintenance-e2e.test.cjs): expired locks, context TTL, evidence retention (newest runs kept within maxEvidenceRuns, only runs also older than the retention age deleted) and same-repository orphan worktrees (removed, unregistered, failures isolated, unfinished missions untouched) all work through the real Control Plane pass. Not fixed here (feature code is out of scope for work order 0013)."
     },
     {
       "id": "R5.5",
