@@ -26,6 +26,9 @@ const { loadMain } = require('./fake-electron-main.cjs');
   } else if (action === 'import-git-status') {
     const card = { schema: 'aecp.task/v1', title: 'Status', goal: 'Read the git status', action: { type: 'git-status' }, permissions: ['workspace:read'] };
     out = (await call('task:import', { text: JSON.stringify(card) })).id;
+  } else if (action === 'state') {
+    const state = await call('state:get');
+    out = { currentWorkspaceId: state.currentWorkspaceId, name: state.currentWorkspace?.name || null, rootPath: state.currentWorkspace?.rootPath || null };
   } else if (action === 'update-status') out = await call('update:status');
   else if (action === 'update-rollback') {
     try { out = { result: await call('update:rollback') }; } catch (error) { out = { error: error.message }; }
