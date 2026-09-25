@@ -52,9 +52,11 @@ async function makeAdapterRouter(base, port) {
   });
 }
 
+// heartbeatAt is written only when a scheduler heartbeat lands while a task is RUNNING, so a fast task may never get one:
+// it is timing-dependent, not part of the schema, and must not make two otherwise identical schemas differ.
 const shapeOf = (value) => {
   if (Array.isArray(value)) return value.length ? [shapeOf(value[0])] : [];
-  if (value && typeof value === 'object') return Object.fromEntries(Object.keys(value).sort().map((key) => [key, shapeOf(value[key])]));
+  if (value && typeof value === 'object') return Object.fromEntries(Object.keys(value).filter((key) => key !== 'heartbeatAt').sort().map((key) => [key, shapeOf(value[key])]));
   return 'value';
 };
 

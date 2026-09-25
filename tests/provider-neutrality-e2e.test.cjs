@@ -14,9 +14,11 @@ const API_KEY = 'neutrality-secret-key-0123456789';
 const PRIVATE = 'PRIVATE-MARKER-XYZ-7781';
 const MISSION_TASKS = [{ title: 'Provider swap task', objective: 'Create the output file', acceptance: 'Verification passes.', dependencies: [], risk: 'GREEN' }];
 
+// heartbeatAt is written only when a scheduler heartbeat lands while a task is RUNNING, so a fast task may never get one:
+// it is timing-dependent, not part of the schema, and must not make two otherwise identical schemas differ.
 const shapeOf = (value) => {
   if (Array.isArray(value)) return value.length ? [shapeOf(value[0])] : [];
-  if (value && typeof value === 'object') return Object.fromEntries(Object.keys(value).sort().map((key) => [key, shapeOf(value[key])]));
+  if (value && typeof value === 'object') return Object.fromEntries(Object.keys(value).filter((key) => key !== 'heartbeatAt').sort().map((key) => [key, shapeOf(value[key])]));
   return 'value';
 };
 
