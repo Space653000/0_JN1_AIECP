@@ -33,6 +33,7 @@ test.after(() => {
 });
 
 function session(userData, action, { version, mode = 'good' } = {}) {
+  assert.ok(typeof userData === 'string' && path.isAbsolute(userData), 'a session needs a real state folder');
   const result = spawnSync(process.execPath, [SESSION, userData, '', action], { encoding: 'utf8', timeout: 60_000, env: { ...process.env, AECP_FAKE_VERSION: version, AECP_FAKE_UPDATE_CHANNEL: mode } });
   assert.equal(result.status, 0, result.stderr);
   return JSON.parse(result.stdout.split('\n').find((line) => line.startsWith('RESULT ')).slice(7));
@@ -155,6 +156,7 @@ test('B15-L90 the required update states are all reachable in order and a first 
   assert.throws(() => transitionUpdate(fresh, 'FIRST_BOOT_PENDING'), /Invalid update transition/);
   assert.throws(() => transitionUpdate(fresh, 'ROLLBACK_REQUIRED'), /Invalid update transition/);
 
+  assert.equal(snapshots.length, 3, 'the previous test must have produced the three state snapshots');
   const [dirHealthy, dirRollback, dirTampered] = snapshots;
   const healthy = session(dirHealthy, 'update-status', { version: '9.9.9' });
   assert.equal(healthy.state, 'HEALTHY', 'first boot on the target version confirms the update');
