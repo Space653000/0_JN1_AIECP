@@ -66,7 +66,7 @@
     'task.claimed':'INFO','task.event':null,'task.failed':'ERROR','task.finished':'SUCCESS',
     'task.lock_lost':'ERROR','task.paused':'WARNING','task.queued':'INFO',
     'task.recovery_rework':'WARNING','task.review_passed':'SUCCESS',
-    'task.waiting_for_lock':'WARNING','task.waiting_for_worker':'WARNING'
+    'task.waiting_for_lock':'WARNING','task.blocked':'WARNING','task.waiting_for_worker':'WARNING'
   }).map(([type,category])=>Object.freeze({type,category})));
   function notifications(events,{readIds=[]}={}){
     const read=new Set(readIds),seen=new Set(),out=[];

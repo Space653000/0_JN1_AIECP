@@ -35,6 +35,8 @@ const RISK={GREEN:0,YELLOW:1,RED:2};
 function uid(prefix){return prefix+'-'+Date.now().toString(36)+'-'+crypto.randomBytes(4).toString('hex');}
 function now(){return new Date().toISOString();}
 function clamp(n,min,max,d){const x=Number(n);return Number.isFinite(x)?Math.max(min,Math.min(max,x)):d;}
+// An omitted budget (undefined/null) takes its default; Number(null) is 0 and would otherwise be clamped up to the minimum.
+function budgetOrDefault(n,min,max,d){return n==null?d:clamp(n,min,max,d);}
 
 function schedulerPriority(value){return clamp(value,0,100,50);}
 function schedulerRisk(value){return RISK[String(value||'YELLOW').toUpperCase()] ?? RISK.YELLOW;}
@@ -49,8 +51,9 @@ function compareSchedulerCandidates(a,b){
 }
 
 class ControlPlane {
-  constructor({rootDir, emit=async()=>{}, providerRouter=null, workerRegistry=null, remoteOptions={}, policyConfig={}}={}) {
+  constructor({rootDir, emit=async()=>{}, providerRouter=null, workerRegistry=null, remoteOptions={}, policyConfig={}, gitAdminLockWaitMs=10000}={}) {
     this.rootDir=path.resolve(rootDir);
+    this.gitAdminLockWaitMs=gitAdminLockWaitMs;
     this.file=path.join(this.rootDir,'control-plane.json');
     this.eventFile=path.join(this.rootDir,'events.jsonl');
     this.emit=emit;
@@ -313,7 +316,7 @@ class ControlPlane {
       worker:selectedBuilderWorkers.length?selectedBuilderWorkers:roleConfig.providers.builder
     });
     const boundedMaxTasks=clamp(maxTasks,1,8,8),boundedMaxIterations=clamp(maxIterations,1,5,5);
-    const run={id,schema:'aecp.mission/v1',goal,done,sourceRoot:path.resolve(sourceRoot),workspaceId:workspaceId||null,context,maxTasks:boundedMaxTasks,maxIterations:boundedMaxIterations,maxConcurrency:clamp(maxConcurrency,1,8,2),maxTurns:clamp(maxTurns,1,200,Math.max(3,1+(boundedMaxTasks*boundedMaxIterations*2))),maxFailedAttempts:clamp(maxFailedAttempts,1,20,boundedMaxTasks*boundedMaxIterations),maxNoProgressAttempts:clamp(maxNoProgressAttempts,1,5,2),maxWallClockMs:maxWallClockMs==null?null:clamp(maxWallClockMs,1000,24*60*60*1000,null),maxProviderReportedCost:maxProviderReportedCost==null?null:Math.max(0.000001,Math.min(1000000000,Number(maxProviderReportedCost)||0.000001)),maxLocalComputeMs:maxLocalComputeMs==null?null:clamp(maxLocalComputeMs,1000,24*60*60*1000,null),maxPatchBytes:maxPatchBytes==null?8*1024*1024:clamp(maxPatchBytes,1024,64*1024*1024,8*1024*1024),maxChangedFiles:maxChangedFiles==null?100:clamp(maxChangedFiles,1,1000,100),checkpointEvery:clamp(checkpointEvery,1,boundedMaxIterations,1),autoResume:Boolean(autoResume),delivery:Boolean(delivery),githubRepo:githubRepo||null,providers:roleConfig.providers,models:roleConfig.models,builderWorkers:selectedBuilderWorkers,providerApprovals:{network:Boolean(providerApprovals?.network),credential:Boolean(providerApprovals?.credential)},executionContract,state:'QUEUED',createdAt:now(),updatedAt:now(),taskIds:[],events:[]};
+    const run={id,schema:'aecp.mission/v1',goal,done,sourceRoot:path.resolve(sourceRoot),workspaceId:workspaceId||null,context,maxTasks:boundedMaxTasks,maxIterations:boundedMaxIterations,maxConcurrency:clamp(maxConcurrency,1,8,2),maxTurns:budgetOrDefault(maxTurns,1,200,Math.max(3,1+(boundedMaxTasks*boundedMaxIterations*2))),maxFailedAttempts:budgetOrDefault(maxFailedAttempts,1,20,boundedMaxTasks*boundedMaxIterations),maxNoProgressAttempts:clamp(maxNoProgressAttempts,1,5,2),maxWallClockMs:maxWallClockMs==null?null:clamp(maxWallClockMs,1000,24*60*60*1000,null),maxProviderReportedCost:maxProviderReportedCost==null?null:Math.max(0.000001,Math.min(1000000000,Number(maxProviderReportedCost)||0.000001)),maxLocalComputeMs:maxLocalComputeMs==null?null:clamp(maxLocalComputeMs,1000,24*60*60*1000,null),maxPatchBytes:maxPatchBytes==null?8*1024*1024:clamp(maxPatchBytes,1024,64*1024*1024,8*1024*1024),maxChangedFiles:maxChangedFiles==null?100:clamp(maxChangedFiles,1,1000,100),checkpointEvery:clamp(checkpointEvery,1,boundedMaxIterations,1),autoResume:Boolean(autoResume),delivery:Boolean(delivery),githubRepo:githubRepo||null,providers:roleConfig.providers,models:roleConfig.models,builderWorkers:selectedBuilderWorkers,providerApprovals:{network:Boolean(providerApprovals?.network),credential:Boolean(providerApprovals?.credential)},executionContract,state:'QUEUED',createdAt:now(),updatedAt:now(),taskIds:[],events:[]};
     this.state.runs[id]=run;
     await this.persist();
     await this.event('mission.created',{runId:id,state:run.state,goal});
@@ -449,7 +452,24 @@ class ControlPlane {
 
   taskMutationLockKeys(run,task){
     const subRoot=path.join(this.rootDir,'runs',run.id,task.id);
-    return ['worktree:'+subRoot.toLowerCase()];
+    const keys=['worktree:'+subRoot.toLowerCase()];
+    // A task bound to several repositories also takes one write lock per repository. The keys are always sorted, so any two
+    // tasks that want the same repositories acquire them in the same order and cannot deadlock each other.
+    const repositories=[...new Set((task.resources?.repositories||[]).map(repo=>path.resolve(String(repo)).toLowerCase()))];
+    if(repositories.length>1) for(const repo of repositories) keys.push('repo-write:'+repo);
+    return keys.sort();
+  }
+
+  // Short-lived locks (git admin) are waited for with exponential backoff instead of failing on the first collision.
+  async acquireWithWait(key,owner,options,waitMs){
+    const deadline=Date.now()+Math.max(0,Number(waitMs)||0);
+    for(let attempt=0;;attempt++){
+      try{return await this.locks.acquire(key,owner,options);}
+      catch(error){
+        if(error?.code!=='LOCK_BUSY'||Date.now()>=deadline||this.shuttingDown) throw error;
+        await new Promise(resolve=>setTimeout(resolve,Math.min(500,25*2**Math.min(attempt,5))));
+      }
+    }
   }
 
   gitAdminLockKey(repositoryRoot){
@@ -558,7 +578,8 @@ class ControlPlane {
 
   async schedulerTick(){
     if(this.shuttingDown) return;
-    await this.locks.recover();
+    const releasedLocks=(await this.locks.recover()).released||[];
+    if(releasedLocks.length) await this.event('maintenance.gc',{releasedLocks});
     const locks=this.locks.list();
     for(const run of Object.values(this.state.runs)){
       if(!['QUEUED','RUNNING'].includes(run.state)) continue;
@@ -587,7 +608,7 @@ class ControlPlane {
       }
     }
     await this.persist();
-    if(!this.shuttingDown && (!this.lastMaintenanceAt || Date.now()-this.lastMaintenanceAt>60000)){this.lastMaintenanceAt=Date.now();const worktrees=[]; for(const run of Object.values(this.state.runs||{})){ if(!TERMINAL.has(run.state)) continue; for(const taskId of run.taskIds||[]){const t=this.state.tasks[taskId]; if(t?.result?.worktree) worktrees.push({worktree:t.result.worktree,repoRoot:t.delivery?.taskRoot||run.sourceRoot});}} const repoRoots=[...new Set(Object.values(this.state.runs||{}).map(r=>r.sourceRoot).filter(Boolean))];
+    if(!this.shuttingDown && (!this.lastMaintenanceAt || Date.now()-this.lastMaintenanceAt>60000)){this.lastMaintenanceAt=Date.now();const worktrees=[]; for(const run of Object.values(this.state.runs||{})){ if(!TERMINAL.has(run.state)) continue; for(const taskId of run.taskIds||[]){const t=this.state.tasks[taskId]; if(t?.result?.worktree) worktrees.push({worktree:t.result.worktree,repoRoot:t.delivery?.taskRoot||t.resources?.repositories?.[0]||run.sourceRoot});}} const repoRoots=[...new Set(Object.values(this.state.runs||{}).map(r=>r.sourceRoot).filter(Boolean))];
       const dependencyDue=!this.lastDependencyScanAt || Date.now()-this.lastDependencyScanAt>6*60*60*1000;
       const maintenance=this.maintenance?.run({worktrees,driftRoots:repoRoots,dependencyRoots:dependencyDue?repoRoots:[],dependencyScan:dependencyDue}).then(r=>{if(dependencyDue)this.lastDependencyScanAt=Date.now();return this.event('maintenance.completed',{data:r,idempotencyKey:'maintenance:'+Math.floor(Date.now()/60000)})}).catch(e=>this.event('maintenance.failed',{error:String(e.message||e)}));
       if(maintenance){this.maintenanceTask=maintenance;maintenance.finally(()=>{if(this.maintenanceTask===maintenance)this.maintenanceTask=null;}).catch(()=>{});}
@@ -645,7 +666,7 @@ class ControlPlane {
     const builderModel=workerProfile?.model||run.models.builder||null;
     const lockKeys=this.taskMutationLockKeys(run,task);
     const locks=[];
-    try { for(const key of lockKeys) locks.push(await this.locks.acquire(key,task.id,{meta:{runId:run.id,taskId:task.id,workerId:task.workerId||null}})); } catch(e) { for(const x of locks){try{await this.locks.release(x.key,task.id,x.token)}catch{}} if(workerAcquired&&this.workerRegistry)await this.workerRegistry.release(selectedWorkerId,{resultState:'WAITING_LOCK'}).catch(()=>{}); task.state='QUEUED'; task.phase='WAITING_LOCK'; task.lease=null; task.attempts=Math.max(0,task.attempts-1); await this.event('task.waiting_for_lock',{runId:run.id,taskId:task.id,workerId:selectedWorkerId,error:String(e.message||e)}); return; }
+    try { for(const key of lockKeys) locks.push(await this.locks.acquire(key,task.id,{meta:{runId:run.id,taskId:task.id,workerId:task.workerId||null}})); } catch(e) { for(const x of locks){try{await this.locks.release(x.key,task.id,x.token)}catch{}} if(workerAcquired&&this.workerRegistry)await this.workerRegistry.release(selectedWorkerId,{resultState:'WAITING_LOCK'}).catch(()=>{}); if(lockKeys.length>1&&e?.code==='LOCK_BUSY'){ task.state='BLOCKED'; task.phase='LOCK_BUSY'; task.lease=null; task.finishedAt=now(); task.error='Lock busy: '+e.key+' held by '+e.owner; await this.persist(); await this.event('task.blocked',{runId:run.id,taskId:task.id,lockKey:e.key,holder:e.owner}); this.finalizeRun(run).catch(()=>{}); this.schedule(); return; } task.state='QUEUED'; task.phase='WAITING_LOCK'; task.lease=null; task.attempts=Math.max(0,task.attempts-1); await this.event('task.waiting_for_lock',{runId:run.id,taskId:task.id,workerId:selectedWorkerId,error:String(e.message||e)}); return; }
     task.lockLeases=locks.map(x=>({key:x.key,token:x.token,expiresAt:x.expiresAt}));
     await this.persist();await this.event('task.claimed',{runId:run.id,taskId:task.id,workerId:task.workerId||null,builderProvider,lease:task.lease,locks:task.lockLeases});
     const controller=new AbortController();this.controllers.set(task.id,controller);
@@ -663,7 +684,7 @@ class ControlPlane {
       const resumableWorktree=task.resume&&existingHarness?.worktree&&await fs.stat(existingHarness.worktree).then(()=>true).catch(()=>false);
       if(!resumableWorktree){
         const adminKey=this.gitAdminLockKey(taskRoot);
-        const adminLease=await this.locks.acquire(adminKey,task.id,{leaseMs:60000,meta:{runId:run.id,taskId:task.id,scope:'git-worktree-admin'}});
+        const adminLease=await this.acquireWithWait(adminKey,task.id,{leaseMs:60000,meta:{runId:run.id,taskId:task.id,scope:'git-worktree-admin'}},this.gitAdminLockWaitMs);
         try{
           if(task.delivery?.branch){await this.gitLocal(taskRoot,['fetch','origin',task.delivery.branch]);baseRef='origin/'+task.delivery.branch;}
           const prepared=await prepareWorktree(taskRoot,subRoot,controller.signal,baseRef);

@@ -259,17 +259,25 @@
         "section": "## 6. Workspace locks and concurrency"
       },
       "text": "A stale write lock never disappears silently; recovery records why it was released.",
-      "status": "CONFIRMED_GAP",
+      "status": "IMPLEMENTED",
       "evidence": [
+        {
+          "file": "tests/lock-release-reason.test.cjs",
+          "kind": "test",
+          "name": "G11-4 a recovered stale lock records why it was released, and the record survives a restart"
+        },
+        {
+          "file": "tests/lock-release-reason.test.cjs",
+          "kind": "test",
+          "name": "G11-4 the Control Plane journals each released lock with its owner and reason"
+        },
         {
           "file": "electron/lib/lock-manager.cjs",
           "kind": "code",
-          "symbol": "_recoverUnlocked",
-          "description": "Expired locks are deleted from state.locks and only their keys are returned; no reason, previous owner or expiry is persisted or emitted, and callers (maintenance.cjs run, control-plane.cjs schedulerTick/gc) discard the returned list or keep only a count."
+          "name": "_recoverUnlocked"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Missing: recovery of a stale write lock must record why it was released (reason, owner, expiresAt) in durable state or the event ledger. Currently the lock silently disappears. Not fixed here (feature code change is out of scope for work order 0013)."
+      "note": "A recovered stale lock is recorded with key, owner, reason EXPIRED, expiredAt and releasedAt (no metadata), persisted in locks.json (bounded to 100) and journaled by the Control Plane as maintenance.gc releasedLocks; recover() still returns the keys. Fixed by 0014 item D."
     },
     {
       "id": "B02-L156",
@@ -1343,17 +1351,35 @@
         "section": "## 7. Concurrency"
       },
       "text": "Write lock/resource ownership is enforced by Harness/Resource Manager/Lock Manager. Read tasks may share. Cross-repo tasks acquire required write locks in deterministic order or fail fast with `BLOCKED`.",
-      "status": "CONFIRMED_GAP",
+      "status": "IMPLEMENTED",
       "evidence": [
+        {
+          "file": "tests/cross-repo-lock-order.test.cjs",
+          "kind": "test",
+          "name": "G11-5 the write locks of a cross-repository task are the same, in the same order, however its repositories are listed"
+        },
+        {
+          "file": "tests/cross-repo-lock-order.test.cjs",
+          "kind": "test",
+          "name": "G11-5 two cross-repository tasks that want the same two repositories in opposite order never deadlock: one runs, the other is BLOCKED with the lock and its holder"
+        },
+        {
+          "file": "tests/git-admin-lock-wait.test.cjs",
+          "kind": "test",
+          "name": "G13 two tasks of the same repository dispatched together both complete: the short git-admin lock is waited for, not failed on"
+        },
+        {
+          "file": "tests/git-admin-lock-wait.test.cjs",
+          "kind": "test",
+          "name": "G13 a git-admin lock that is never released still fails the task after a bounded wait"
+        },
         {
           "file": "electron/lib/control-plane.cjs",
           "kind": "code",
-          "symbol": "taskMutationLockKeys",
-          "description": "taskMutationLockKeys returns a single per-task worktree lock key regardless of how many repositories a task is bound to, executeTask uses only resources.repositories[0], and a busy lock sends the task back to QUEUED/WAITING_LOCK instead of failing fast with BLOCKED. There is no deterministic multi-repository write-lock acquisition order."
+          "name": "taskMutationLockKeys"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Missing: cross-repository tasks acquiring every required write lock in deterministic order, or failing fast with BLOCKED. Not fixed here (feature code is out of scope for work order 0013). Judgment call for the reviewer: per-task worktree isolation may be considered the intended design, in which case revert this to PARTIAL/DELIBERATE_NON_GOAL."
+      "note": "A task bound to several repositories takes one repo-write lock per repository, always acquired in sorted order; two such tasks wanting the same repositories in opposite order never deadlock: exactly one runs and the other ends BLOCKED (phase LOCK_BUSY) with the lock key and its holder. Single-repository tasks stay isolated by their own worktree. The short git-admin lock is now waited for with exponential backoff (bounded, default 10 s). Fixed by 0014 items E and F."
     },
     {
       "id": "B05-L93",
@@ -4765,23 +4791,75 @@
         "section": "## R5 — Evidence, observability and recovery"
       },
       "text": "Maintenance handles expired locks, context TTL, evidence retention and orphan worktree cleanup with bounded budgets.",
-      "status": "CONFIRMED_GAP",
+      "status": "IMPLEMENTED",
       "evidence": [
+        {
+          "file": "tests/maintenance-worktree-budget.test.cjs",
+          "kind": "test",
+          "name": "G14 every maintenance pass touches git a bounded number of times, however many finished tasks are remembered"
+        },
+        {
+          "file": "tests/maintenance-worktree-budget.test.cjs",
+          "kind": "test",
+          "name": "G14 real worktrees are cleaned at most N per pass and the rest is left for the next pass"
+        },
+        {
+          "file": "tests/maintenance-worktree-budget.test.cjs",
+          "kind": "test",
+          "name": "G14 the Control Plane cleans the worktree of a finished task in the repository the task was bound to, not in the Workspace container"
+        },
+        {
+          "file": "tests/maintenance-cleanup.test.cjs",
+          "kind": "test",
+          "name": "R5.4 expired locks are recovered and counted while live leases are kept, durably"
+        },
+        {
+          "file": "tests/maintenance-cleanup.test.cjs",
+          "kind": "test",
+          "name": "R5.4 expired context capsules are removed by their TTL and live capsules survive"
+        },
+        {
+          "file": "tests/maintenance-cleanup.test.cjs",
+          "kind": "test",
+          "name": "R5.4 evidence retention keeps the newest runs within the budget and only deletes runs that are also past the retention age"
+        },
+        {
+          "file": "tests/maintenance-cleanup.test.cjs",
+          "kind": "test",
+          "name": "R5.4 evidence younger than the retention age is never deleted, even beyond the run budget"
+        },
+        {
+          "file": "tests/maintenance-cleanup.test.cjs",
+          "kind": "test",
+          "name": "R5.4 orphan worktrees are removed and unregistered while other worktrees and failures are isolated"
+        },
+        {
+          "file": "tests/maintenance-cleanup.test.cjs",
+          "kind": "test",
+          "name": "R5.4 a maintenance pass reports each budgeted area and never touches unrelated data"
+        },
+        {
+          "file": "tests/maintenance-e2e.test.cjs",
+          "kind": "test",
+          "name": "R5.4 the Control Plane maintenance pass cleans expired locks, expired capsules, old evidence and the worktree of a finished mission within budget"
+        },
+        {
+          "file": "tests/maintenance-e2e.test.cjs",
+          "kind": "test",
+          "name": "R5.4 the worktrees of an unfinished mission are kept, and removed once the mission ends"
+        },
         {
           "file": "electron/lib/control-plane.cjs",
           "kind": "code",
-          "symbol": "schedulerTick",
-          "description": "The periodic maintenance in schedulerTick hands maintenance the worktree of every finished task as {worktree, repoRoot: t.delivery?.taskRoot || run.sourceRoot}. For a task bound to one repository of a multi-repository Workspace (task.resources.repositories[0], which is what executeTask really used) and without delivery, repoRoot is the Workspace container directory, which is not a Git repository, so `git worktree remove` and `git worktree prune` fail (errors are swallowed) and worktreesRemoved stays 0. Reproduced end to end with a real mission over two repositories: both task worktrees and their registrations in the source repositories are never cleaned."
+          "name": "schedulerTick"
         },
         {
           "file": "electron/lib/maintenance.cjs",
           "kind": "code",
-          "symbol": "MaintenanceManager",
-          "description": "Orphan worktree cleanup has no budget: each pass attempts `git worktree remove` and `git worktree prune` (2 git processes) for every entry it is given, and the Control Plane gives it every finished task of every finished mission on every pass, including worktrees that were already removed. Measured: 60 already-gone entries cost 120 git spawns per pass, on every pass, so the work grows with mission history instead of being bounded. Lock, context and evidence cleanup are bounded (evidenceRetentionDays, maxEvidenceRuns)."
+          "name": "MaintenanceManager"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Missing: (1) worktree cleanup must use the repository the task was really bound to (task.resources.repositories[0]) so multi-repository missions do not leak worktrees and Git registrations; (2) worktree cleanup needs a per-pass bound and must skip worktrees that are already gone. Proven and kept as regression tests (tests/maintenance-cleanup.test.cjs, tests/maintenance-e2e.test.cjs): expired locks, context TTL, evidence retention (newest runs kept within maxEvidenceRuns, only runs also older than the retention age deleted) and same-repository orphan worktrees (removed, unregistered, failures isolated, unfinished missions untouched) all work through the real Control Plane pass. Not fixed here (feature code is out of scope for work order 0013)."
+      "note": "Orphan worktree cleanup now uses the repository a task was bound to (not the Workspace container), skips entries whose folder is gone and whose git registration is already cleared (one listing per repository), and attempts at most 20 real removals per pass (maxWorktreeCleanups), reporting the rest as deferred. Fixed by 0014 item G; expired locks, context TTL and evidence retention were already proven."
     },
     {
       "id": "R5.5",
