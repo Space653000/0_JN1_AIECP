@@ -33,6 +33,7 @@
 | G13 | B05 §7 | **已修復（0013 批次 5 後）：** 人工核准後 Mission 卡死（R2.1）、CI 失敗後 rework 因 worktree 登記殘留失敗（R4.5）、reviewer 缺 credentialApproved（B20-27-18）。**仍開：** 同 repo 兩任務同時派發時 git-admin 鎖不等待，第二個以 Lock busy 失敗（與藍圖 05 §7 不符） | 中高 | 待簽發 0014 |
 | G14 | R5.4 / 藍圖維運 | 孤兒 worktree 清理兩缺陷：①多 repo 任務的 repoRoot 誤用 run.sourceRoot（容器目錄），git worktree remove 失敗被吞，worktreesRemoved 恆為 0；②每輪對所有歷史終態任務各跑 2 個 git 行程、無每輪上限，成本隨歷史無限增長（與 bounded budgets 不符） | 中 | 待簽發 0014 |
 | G15 | B03 §隔離、供應商 | ①**CODEX_HOME 隔離可被繞過（安全）：** WorkerRegistry 只比路徑字串，junction 別名、巢狀路徑、上層目錄皆被接受，兩個 worker 可共用同一份登入與 session（B03-L56，已重現）；②codex worker 健康檢查不連線端點就回 READY，不驗證 wire API（B03-L68）；③createMission 省略 maxTurns／maxFailedAttempts 時退化為 1，預設公式失效；④B03-L168 沒有為 agent 交接寫 Context Capsule | 高（①） | 待簽發 0014 |
+| G16 | R3.6 / 藍圖 04、03 | 狀態檔損毀（worker-registry.json 或 control-plane.json）會讓 App 啟動失敗：main.cjs 在 registerIpc() 之前 await initControlPlane()，所有 IPC（含 Safe Bridge）都不會註冊。應隔離損毀、降級啟動並顯示錯誤 | 中高 | 待簽發 0014 |
 
 ## 決策紀錄（Claude Code，Blueprint 擁有者）
 - **D2｜Blueprint 22 §6–§9、§11 與 20 §16 為必要項。** `22 §17` 有一段「深入視覺檢視……為選用的呈現強化，非缺失的驗收需求」的收尾註記，是先前施工者為結案而加，且與同文件本文「dashboard must show…」衝突；依「Blueprint 是標準」，以本文為準，該註記視為被取代（不改動原檔，於此登記）。
