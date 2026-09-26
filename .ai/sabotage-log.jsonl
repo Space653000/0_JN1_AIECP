@@ -313,3 +313,8 @@
 {"ids":["B01-A11Y-L172"],"file":"ui/styles.css","from":"  --warn: #b45309;","to":"  --warn: #e0a030;","tests":["tests/ui-theme-contrast.test.cjs"]}
 {"ids":["B01-A11Y-L172"],"file":"ui/styles.css","from":"  --line-strong: #808080;","to":"  --line-strong: #424242;","tests":["tests/ui-theme-contrast.test.cjs"]}
 {"ids":["B01-A11Y-L172"],"file":"ui/styles.css","from":"  --bad-text: #ffffff;","to":"  --bad-text: #ffb0b0;","tests":["tests/ui-theme-contrast.test.cjs"]}
+{"ids":["UI-default-zh-TW"],"file":"ui/i18n.js","from":"const DEFAULT_LOCALE='zh-TW';","to":"const DEFAULT_LOCALE='en';","tests":["tests/ui-default-language.test.cjs"]}
+{"ids":["UI-default-zh-TW"],"file":"ui/i18n.js","from":"initialLocale||storage?.getItem?.('aecp-locale')||DEFAULT_LOCALE","to":"initialLocale||DEFAULT_LOCALE","tests":["tests/ui-default-language.test.cjs"]}
+{"ids":["UI-default-zh-TW"],"file":"ui/i18n.js","from":"  'Add Repo': '新增儲存庫',","to":"  'Add Repo': 'Add Repo',","tests":["tests/ui-default-language.test.cjs"]}
+{"ids":["UI-default-zh-TW"],"file":"ui/i18n.js","from":"  [/^Workspace connected: (.+)$/, (name) => '已連線工作區：' + name],","to":"","tests":["tests/ui-default-language.test.cjs"]}
+{"ids":["UI-default-zh-TW"],"file":"ui/i18n.js","from":"const tx=(text)=>locale==='zh-TW'?translatePhrase(text):String(text);","to":"const tx=(text)=>translatePhrase(text);","tests":["tests/ui-default-language.test.cjs"]}

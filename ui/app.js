@@ -32,6 +32,8 @@ const state = {
 const $ = (selector) => document.querySelector(selector);
 const selectAll = (selector) => [...document.querySelectorAll(selector)];
 const tr = (key, fallback = '') => window.AECPI18N?.t(key, fallback) || fallback || key;
+// Native confirmation dialogs are shown in the current language too.
+const confirmText = (message) => window.confirm(window.AECPI18N?.tx ? window.AECPI18N.tx(message) : message);
 let providerFocusReturn = null;
 
 function esc(value) {
@@ -865,7 +867,7 @@ async function connectGitHub() {
 
 async function applyUpdate() {
   if (!state.update?.available) return;
-  if (!confirm(`Install AECP v${state.update.latestVersion}? The installer is downloaded from the allowlisted private GitHub Release and SHA-256 verified before launch.`)) return;
+  if (!confirmText(`Install AECP v${state.update.latestVersion}? The installer is downloaded from the allowlisted private GitHub Release and SHA-256 verified before launch.`)) return;
   toast('Downloading and verifying the update…');
   const result = await safe(() => window.aecp.applyUpdate());
   if (result?.ok) toast('Update verified. AECP will close and install the new version.');
@@ -874,7 +876,7 @@ async function applyUpdate() {
 async function rollbackUpdate() {
   const tx = state.updateTransaction;
   if (!(tx?.state === 'ROLLBACK_REQUIRED' && tx?.rollbackInstaller && tx?.rollbackSha256)) return;
-  if (!confirm(`Reinstall the retained, SHA-256 verified AECP v${tx.currentVersion} rollback package?`)) return;
+  if (!confirmText(`Reinstall the retained, SHA-256 verified AECP v${tx.currentVersion} rollback package?`)) return;
   toast('Verifying retained rollback installer…');
   const result = await safe(() => window.aecp.rollbackUpdate());
   if (result?.ok) toast('Rollback verified. AECP will close and reinstall the previous version.');
@@ -1053,8 +1055,8 @@ async function startHarness() {
   });
   const needsNetwork = customNeedsNetwork || builtInNeedsNetwork;
   const needsCredential = selectedCustom.some((provider) => provider.hasCredential);
-  if (needsNetwork && !confirm('This Harness run will allow the selected cloud-backed CLI/API providers to use network access for model inference. Local worktree/tool network remains separately restricted. Allow for this run?')) return;
-  if (needsCredential && !confirm('This Harness run will use an OS-protected provider credential for the selected endpoint. Allow credential use for this run?')) return;
+  if (needsNetwork && !confirmText('This Harness run will allow the selected cloud-backed CLI/API providers to use network access for model inference. Local worktree/tool network remains separately restricted. Allow for this run?')) return;
+  if (needsCredential && !confirmText('This Harness run will use an OS-protected provider credential for the selected endpoint. Allow credential use for this run?')) return;
 
   const wallMinutes = Number($('#loopWallMinutes')?.value || 0);
   const providerCost = Number($('#loopProviderCost')?.value || 0);
@@ -1131,7 +1133,7 @@ async function openAutonomyWorktree() {
 }
 
 async function applyAutonomy() {
-  if (!confirm('Apply the verified autonomous patch to your real Workspace? AECP will first require the Workspace to still be clean and at the same Git HEAD.')) return;
+  if (!confirmText('Apply the verified autonomous patch to your real Workspace? AECP will first require the Workspace to still be clean and at the same Git HEAD.')) return;
   const result = await safe(() => window.aecp.applyAutonomy());
   if (!result) return;
   state.autonomyStatus = result;
@@ -1301,7 +1303,7 @@ function bindEvents() {
       let networkApproved = false;
       let credentialApproved = false;
       if (['api', 'local', 'remote-mcp', 'codex-worker'].includes(provider.kind)) {
-        networkApproved = confirm('Check this provider endpoint now? This performs a bounded health request using the configured URL.');
+        networkApproved = confirmText('Check this provider endpoint now? This performs a bounded health request using the configured URL.');
         if (!networkApproved) {
           const result = await safe(() => window.aecp.checkProviderHealth(id, { networkApproved: false }), null);
           if (result) {
@@ -1312,7 +1314,7 @@ function bindEvents() {
         }
       }
       if (provider.hasCredential) {
-        credentialApproved = confirm('This health check needs the OS-protected provider credential. Allow credential use for this one bounded probe?');
+        credentialApproved = confirmText('This health check needs the OS-protected provider credential. Allow credential use for this one bounded probe?');
         if (!credentialApproved) {
           const result = await safe(() => window.aecp.checkProviderHealth(id, { networkApproved, credentialApproved: false }), null);
           if (result) {
@@ -1333,7 +1335,7 @@ function bindEvents() {
     const deleteNode = event.target.closest('[data-delete-provider]');
     if (deleteNode) {
       const id = deleteNode.dataset.deleteProvider;
-      if (confirm('Remove this optional provider and its stored credential from AECP?')) {
+      if (confirmText('Remove this optional provider and its stored credential from AECP?')) {
         const ok = await safe(() => window.aecp.deleteProvider(id));
         if (ok) {
           state.providers = await safe(() => window.aecp.listProviders(), state.providers);

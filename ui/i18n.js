@@ -201,14 +201,698 @@ const DICTIONARIES=Object.freeze({
   })
 });
 
+// English wording -> Traditional Chinese, for text that has no dictionary key (see translatePhrase).
+const PHRASES=Object.freeze({
+  // Static text of ui/index.html
+  'Preview': '預覽版',
+  'Choose Workspace': '選擇工作區',
+  'Local': '本機',
+  'Not set': '未設定',
+  'Choose the folder AECP is allowed to inspect.': '選擇 AECP 可以檢視的資料夾。',
+  'Add Repo': '新增儲存庫',
+  'No repositories detected.': '尚未偵測到儲存庫。',
+  'Local Fabric': '本機架構',
+  'Opens in your normal browser. AECP does not inject, scrape, or modify chatgpt.com.': '在你平常使用的瀏覽器中開啟。AECP 不會注入、擷取或修改 chatgpt.com。',
+  'Detect browser windows': '偵測瀏覽器視窗',
+  'AECP uses only the browser process ID/window handle for docking. It does not read the page title or ChatGPT DOM.': 'AECP 只使用瀏覽器的處理序 ID／視窗代碼來並排視窗，不會讀取網頁標題或 ChatGPT 的網頁內容。',
+  'Tip: you can also arrange windows yourself with Windows Snap (Win+Left / Win+Right). AECP remembers the last dock side you chose.': '提示：你也可以用 Windows 貼齊功能（Win+左／Win+右）自行排列視窗。AECP 會記住你上次選的並排側邊。',
+  'Provider-neutral': '不綁定供應商',
+  'Use ChatGPT Web as the normal supervisor, or launch detected local/CLI agents in the same Workspace. AECP never gives one agent hidden access to another agent\'s session.': '可以把 ChatGPT 網頁版當作一般的監督者，也可以在同一個工作區啟動偵測到的本機／命令列 Agent。AECP 絕不會讓某個 Agent 暗中存取另一個 Agent 的工作階段。',
+  'Local MCP': '本機 MCP',
+  'Stopped': '已停止',
+  'Read-only loopback MCP for supported official integrations. It binds only to 127.0.0.1 and requires a bearer token.': '供官方整合使用的唯讀 loopback MCP。它只綁定 127.0.0.1，並需要 bearer token。',
+  'Stop': '停止',
+  'Copy connection': '複製連線資訊',
+  'Private GitHub Update': '私人 GitHub 更新',
+  'Not checked': '尚未檢查',
+  'AECP can update itself only from the allowlisted private GitHub Release channel. Downloads must pass SHA-256 verification.': 'AECP 只會從允許清單內的私人 GitHub Release 通道更新，下載內容必須通過 SHA-256 驗證。',
+  'Apply update': '套用更新',
+  'Rollback': '回復舊版',
+  'Connect GitHub': '連接 GitHub',
+  'Open Releases': '開啟發行頁面',
+  'Safe Bridge': '安全橋接',
+  'No API key': '不需要 API 金鑰',
+  'Describe your goal.': '描述你的目標。',
+  'Hand off a Command Card.': '交接指令卡。',
+  'Verify locally.': '在本機驗證。',
+  'Continue or Loop.': '繼續或進入迴圈。',
+  'Import from Clipboard': '從剪貼簿匯入',
+  'Create safe sample task': '建立安全範例任務',
+  'Secrets excluded': '不含機密',
+  'Export state, runtime and evidence with per-file SHA-256. Provider credentials are never included. Restore is staged and keeps a pre-restore copy.': '匯出狀態、執行記錄與證據，並附上每個檔案的 SHA-256。供應商憑證絕不會被包含。還原採分階段進行，並保留還原前的副本。',
+  'Local-first': '本機優先',
+  'Repository details, tool status, traces, and evidence remain on this computer unless you explicitly copy/share them.': '儲存庫細節、工具狀態、執行軌跡與證據都留在這台電腦上，除非你明確複製或分享。',
+  'FIRST RUN': '首次使用',
+  'One choice, then AECP configures the rest.': '只需一個選擇，其餘由 AECP 自動設定。',
+  'Choose the one project folder AECP is allowed to use. AECP will detect your Windows architecture, local tools and repositories automatically. ChatGPT remains the normal official website.': '選擇 AECP 可以使用的那一個專案資料夾。AECP 會自動偵測你的 Windows 架構、本機工具與儲存庫。ChatGPT 仍然是一般的官方網站。',
+  'Choose one Workspace folder as the local permission boundary.': '選擇一個工作區資料夾作為本機權限的邊界。',
+  'AECP automatically detects Git, PowerShell, Python, Node, GitHub CLI, Ollama and repositories.': 'AECP 會自動偵測 Git、PowerShell、Python、Node、GitHub CLI、Ollama 與儲存庫。',
+  'Use Start for guided work or Goal Loop for longer research/build/verify cycles.': '一般引導式工作請用「開始」；較長的研究／建置／驗證循環請用「目標迴圈」。',
+  'GREEN = read-only local inspection. YELLOW = reversible Workspace mutation governed by policy/approval. RED = push, merge, delete, credentials, system changes and other high-impact actions always require explicit approval.': '綠色 = 唯讀的本機檢視。黃色 = 受政策／核准管控、可還原的工作區變更。紅色 = 推送、合併、刪除、憑證、系統變更與其他高影響動作，一律需要明確核准。',
+  'Choose Workspace and continue': '選擇工作區並繼續',
+  'No API key is needed for the default ChatGPT Web workflow.': '預設的 ChatGPT 網頁版流程不需要 API 金鑰。',
+  'PROVIDER REGISTRY': '供應商登錄',
+  'ChatGPT Web is built in. Optional API/local/MCP providers can be registered without changing the Local Harness. API/local providers can serve governed Planner/Reviewer roles. Secrets stay OS-protected; direct network and credential use require explicit authorization.': '已內建 ChatGPT 網頁版。你可以另外登錄選用的 API／本機／MCP 供應商，不需要改動本機 Harness。API／本機供應商可擔任受管控的規劃者／審查者角色。機密由作業系統保護；直接使用網路與憑證需要明確授權。',
+  'Kind': '類型',
+  'API': 'API',
+  'Local OpenAI-compatible': '本機 OpenAI 相容',
+  'Fixed local command': '固定的本機指令',
+  'Remote MCP': '遠端 MCP',
+  'Base URL': '基底網址',
+  'Default model': '預設模型',
+  'Wire API': '通訊 API',
+  'Responses': 'Responses',
+  'Chat Completions': 'Chat Completions',
+  'Fixed command': '固定指令',
+  'Fixed arguments': '固定參數',
+  'API key (optional)': 'API 金鑰（選填）',
+  'Appearance & accessibility': '外觀與無障礙',
+  'Local preference': '本機偏好',
+  'Reduce motion': '減少動態效果',
+  'Follow system preference': '跟隨系統設定',
+  'Workspace Policy': '工作區政策',
+  'Canonical': '標準',
+  'Controls approval requirements for future execution in the current Workspace. RED capabilities always require approval and cannot be disabled.': '控制目前工作區未來執行時的核准要求。紅色能力一律需要核准，且無法關閉。',
+  'GREEN + policy-approved YELLOW': '綠色 + 政策核准的黃色',
+  'Adapter Capability Matrix': '轉接器能力矩陣',
+  'Not loaded': '尚未載入',
+  'Read-only projection from the runtime adapter security audit. This matrix cannot grant permissions.': '來自執行期轉接器安全稽核的唯讀投影。這張矩陣不能授予任何權限。',
+  'Local data controls': '本機資料控制',
+  'Workspace files protected': '工作區檔案受保護',
+  'These controls affect only AECP-owned local state. Removing a Workspace binding or resetting AECP never deletes the original project folder.': '這些控制只影響 AECP 自己的本機狀態。移除工作區綁定或重設 AECP，絕不會刪除原本的專案資料夾。',
+  'Remove Workspace binding': '移除工作區綁定',
+  'Reset AECP local state': '重設 AECP 本機狀態',
+  'Toggle theme': '切換主題',
+  'Refresh': '重新整理',
+  'Control plane views': '控制平面檢視',
+  'Safety summary': '安全摘要',
+  'Close provider settings': '關閉供應商設定',
+  'Skip to main control plane': '跳到主要控制平面',
+  'Example: Company API': '範例：公司 API',
+  'https://api.example.com/v1 or http://localhost:11434/v1': 'https://api.example.com/v1 或 http://localhost:11434/v1',
+  'Example: company-code-model or qwen3-coder:30b': '範例：company-code-model 或 qwen3-coder:30b',
+  'Example: C:\\Tools\\my-company-worker.exe': '範例：C:\\Tools\\my-company-worker.exe',
+  'Optional fixed args, separated by spaces': '選填的固定參數，以空格分隔',
+  'Stored encrypted by Windows/Electron safeStorage': '由 Windows／Electron safeStorage 加密儲存',
+
+  // Runtime text drawn by ui/app.js and ui/harness-console.js
+  'Choose a Workspace first.': '請先選擇工作區。',
+  'Harness': 'Harness',
+  'Choose a Workspace': '請選擇工作區',
+  'AECP needs one explicit local folder boundary before it can create tasks or collect evidence.': 'AECP 需要你明確指定一個本機資料夾作為邊界，才能建立任務或蒐集證據。',
+  'Choose folder': '選擇資料夾',
+  'AI AGENT': 'AI 代理',
+  'Browser window': '瀏覽器視窗',
+  'No allowlisted browser window detected': '未偵測到允許清單內的瀏覽器視窗',
+  'No agents detected.': '尚未偵測到 Agent。',
+  'Start Local MCP': '啟動本機 MCP',
+  'Connect GitHub once, then AECP can securely read private Releases and self-update from the allowlisted repository.': '只需連接一次 GitHub，AECP 就能安全讀取私人 Release，並從允許清單內的儲存庫自我更新。',
+  'Check update': '檢查更新',
+  'ChatGPT handles reasoning and discussion.': 'ChatGPT 負責推理與討論。',
+  'AECP validates it before local execution.': 'AECP 在本機執行前先驗證。',
+  'Trace and Evidence show what actually happened.': '軌跡與證據會顯示實際發生的事。',
+  'Return the Result Capsule or advance a Goal Loop.': '回傳結果膠囊，或推進目標迴圈。',
+  'Name': '名稱',
+  'Motion': '動態效果',
+  'Maximum automatic risk': '自動執行的最高風險',
+  'GREEN only': '只允許綠色',
+  'Save Workspace policy': '儲存工作區政策',
+  'Clear evidence': '清除證據',
+  'Clear stored credentials': '清除已儲存的憑證',
+  'Harness Command Center': 'Harness 指揮中心',
+  'HARNESS COMMAND CENTER': 'HARNESS 指揮中心',
+  'AI Engineering Team Control Plane': 'AI 工程團隊控制平面',
+  'Durable queue · scheduler · leases · recovery · approvals · event journal · multi-worker execution': '持久佇列 · 排程器 · 租約 · 復原 · 核准 · 事件日誌 · 多 Worker 執行',
+  'STOP ALL': '全部停止',
+  'Runtime Signals': '執行期訊號',
+  'READY': '就緒',
+  'CORE CONTROL PLANE': '核心控制平面',
+  'Canonical mission/task snapshot': '標準的 Mission／任務快照',
+  'AI LOOP': 'AI 迴圈',
+  'ACTIVE': '進行中',
+  'GITHUB / CI': 'GITHUB / CI',
+  'RUNNING': '執行中',
+  'GOVERNANCE': '治理',
+  'ACTION REQUIRED': '需要操作',
+  'Adapter audit + approval queue': '轉接器稽核 + 核准佇列',
+  'MULTI-REPO': '多儲存庫',
+  'Canonical resource graph': '標準資源圖',
+  'REMOTE': '遠端',
+  'UNKNOWN': '未知',
+  'Authenticated supervision status': '已驗證的監督狀態',
+  'Rule:': '規則：',
+  'runtime signals come from canonical state/evidence. If AECP cannot verify a condition, this dashboard shows UNKNOWN instead of a green status.': '執行期訊號來自標準狀態／證據。如果 AECP 無法驗證某個條件，這個看板會顯示「未知」，而不是綠色狀態。',
+  'V3.0 Multi-Worker Readiness': 'V3.0 多 Worker 就緒度',
+  'CHECK REQUIRED': '需要檢查',
+  'WORKER REGISTRY': 'WORKER 登錄',
+  'INCOMPLETE': '未完成',
+  'Codex OFFICIAL + Codex PEGA canonical Worker identities': 'Codex OFFICIAL + Codex PEGA 的標準 Worker 身分',
+  'CODEX_HOME ISOLATION': 'CODEX_HOME 隔離',
+  'Independent config/auth/session/runtime roots': '獨立的設定／驗證／工作階段／執行期根目錄',
+  'PARALLEL RUNTIME': '平行執行期',
+  'IDLE': '閒置',
+  'ACTIVE only when both Workers are running on distinct worktrees': '只有兩個 Worker 在不同的 worktree 上同時執行時才會是「進行中」',
+  'OFFICIAL HEALTH': 'OFFICIAL 健康狀態',
+  'Canonical Worker health': '標準的 Worker 健康狀態',
+  'PEGA HEALTH': 'PEGA 健康狀態',
+  'REAL PROVIDER EVIDENCE': '真實供應商證據',
+  'ENVIRONMENT GATE': '環境閘門',
+  'Requires exact-source self-hosted Windows evidence; never inferred from source tests or health alone.': '需要針對完全相同原始碼、在自架 Windows 上取得的證據；絕不能只由原始碼測試或健康檢查推論。',
+  'V3.0 rule:': 'V3.0 規則：',
+  'repository implementation and CI can prove architecture/runtime invariants, but real OFFICIAL/PEGA model execution remains an ENVIRONMENT gate until the dedicated evidence workflow produces a matching artifact.': '儲存庫的實作與 CI 可以證明架構／執行期不變式，但真實的 OFFICIAL／PEGA 模型執行在專用證據工作流程產出相符的產物之前，仍然是環境閘門。',
+  'QUEUED': '已排隊',
+  'APPROVAL': '待核准',
+  'TASKS DONE': '完成的任務',
+  'PROGRESS': '進度',
+  'JOURNALED EVENTS': '已記錄的事件',
+  'Worker Runtime': 'Worker 執行期',
+  'No registered workers.': '尚無已登錄的 Worker。',
+  'Remote Supervision': '遠端監督',
+  'Read-only paired-device supervision. Non-loopback binding is disabled unless the operator explicitly enables it and supplies TLS credentials.': '唯讀的配對裝置監督。除非操作者明確啟用並提供 TLS 憑證，否則停用非 loopback 的綁定。',
+  'Create pairing code': '建立配對碼',
+  'No paired devices.': '尚無已配對的裝置。',
+  'New Mission': '新 Mission',
+  'AUTONOMOUS / BOUNDED': '自主／有界',
+  'Goal': '目標',
+  'Definition of Done': '完成定義',
+  'Concurrency': '並行數',
+  'Max iterations': '最大迭代次數',
+  'Max tasks': '最大任務數',
+  'Max provider calls': '最大供應商呼叫次數',
+  'Max failed attempts': '最大失敗嘗試次數',
+  'Max changed files': '最大變更檔案數',
+  'Max patch MiB': '最大補丁 MiB',
+  'Wall-clock minutes': '總經過分鐘數',
+  'Provider-reported cost': '供應商回報的成本',
+  'optional': '選填',
+  'Local compute minutes': '本機運算分鐘數',
+  'Governed GitHub draft PR': '受管控的 GitHub 草稿 PR',
+  'START MISSION': '開始 MISSION',
+  'Mission Queue': 'Mission 佇列',
+  'Definition of Done: UNKNOWN': '完成定義：未知',
+  'Project: UNKNOWN': '專案：未知',
+  'Next: Continue bounded scheduler': '下一步：繼續有界排程',
+  'Pause': '暫停',
+  'Cancel': '取消',
+  'Approval Queue': '核准佇列',
+  'Approve': '核准',
+  'Reject': '拒絕',
+  'Task Board': '任務看板',
+  'REVIEWING': '審查中',
+  'Risk: UNKNOWN': '風險：未知',
+  'Agent: GitHub CI': '代理：GitHub CI',
+  'Verifier/Test: PASS': '驗證器／測試：通過',
+  'Verifier/Test: UNKNOWN': '驗證器／測試：未知',
+  'Changed: UNKNOWN': '變更：未知',
+  'Needs me: NO': '需要我處理：否',
+  'Next: Wait for CI': '下一步：等待 CI',
+  'Next: Wait for scheduler': '下一步：等待排程器',
+  'Approve & Merge': '核准並合併',
+  'CI: RUNNING': 'CI：執行中',
+  'Cancel task': '取消任務',
+  'Live Event Stream': '即時事件串流',
+  'JOURNALED': '已記錄',
+  'AVAILABLE': '可用',
+  'REWORK': '需重做',
+  'PASS': '通過',
+  'WARN': '警告',
+  'Theme: light': '主題：淺色',
+  'Theme: dark': '主題：深色',
+  'Theme: system': '主題：跟隨系統',
+
+  // Status words
+  'DONE': '完成',
+  'Done': '完成',
+  'APPLIED': '已套用',
+  'FAILED': '失敗',
+  'BLOCKED': '已阻擋',
+  'BUDGET_EXHAUSTED': '預算用盡',
+  'CANCELLED': '已取消',
+  'INTERRUPTED': '已中斷',
+  'UNAVAILABLE': '無法使用',
+  'PREPARING': '準備中',
+  'VERIFYING': '驗證中',
+  'WAITING_USER': '等待使用者',
+  'CANCELLING': '取消中',
+  'DEGRADED': '降級',
+  'AUTH_REQUIRED': '需要驗證',
+  'SUCCESS': '成功',
+  'ERROR': '錯誤',
+  'INFO': '資訊',
+  'WARNING': '警告',
+  'CRITICAL': '嚴重',
+  'Bound': '已綁定',
+  'Ready': '就緒',
+  'Not ready': '尚未就緒',
+  'Running': '執行中',
+  'Needs attention': '需要注意',
+  'YELLOW': '黃色',
+  'GREEN': '綠色',
+  'RED': '紅色',
+  'MISSING': '缺少',
+  'Unavailable': '無法使用',
+  'Verified': '已驗證',
+  'Audit failed': '稽核失敗',
+  'Update available': '有可用更新',
+  'Up to date': '已是最新',
+  'GitHub needed': '需要 GitHub',
+  'GitHub connected': 'GitHub 已連線',
+  'Rollback required': '需要回復舊版',
+  'Read-only running': '唯讀執行中',
+  'Governed': '受管控',
+  'Detecting': '偵測中',
+  'None': '無',
+  'Not detected': '未偵測到',
+  'NONE': '無',
+  'FAIL': '失敗',
+  'LOCAL ONLY': '僅限本機',
+  'REPOSITORY READY': '儲存庫就緒',
+  'Engineering': '工程模式',
+  'Beginner': '新手模式',
+
+  // Start view, Goal Loop and execution modes
+  'Web Safe Bridge': '網頁安全橋接',
+  'Works with the current ChatGPT Web subscription. Explicit handoff; no DOM automation.': '可搭配目前的 ChatGPT 網頁版訂閱使用。採明確交接，不做網頁內容自動化。',
+  'Local Autonomous': '本機自主執行',
+  'Install or connect a governed local/CLI worker such as OpenCode, Ollama, Gemini CLI, Claude Code or Codex CLI.': '請安裝或連接受管控的本機／命令列 Worker，例如 OpenCode、Ollama、Gemini CLI、Claude Code 或 Codex CLI。',
+  'Official Full MCP': '官方完整 MCP',
+  'Remote MCP endpoint health passed, but Official Full MCP is still externally gated until a supported ChatGPT workspace/tunnel, policy-gated write tool, same-task result return, disconnect fallback, and no-DOM-automation checks all pass end-to-end.': '遠端 MCP 端點的健康檢查已通過，但在受支援的 ChatGPT 工作區／通道、受政策管控的寫入工具、同任務結果回傳、斷線後備與「不做網頁內容自動化」檢查全部端對端通過之前，官方完整 MCP 仍受外部條件限制。',
+  'Remote MCP endpoint is configured but has not passed endpoint health. Official Full MCP also requires separate end-to-end ChatGPT connector/tunnel acceptance.': '遠端 MCP 端點已設定，但尚未通過端點健康檢查。官方完整 MCP 還需要另外通過 ChatGPT 連接器／通道的端對端驗收。',
+  'Local MCP is running read-only. This alone never makes Official Full MCP ready; a supported ChatGPT app/tunnel and full end-to-end acceptance are still required.': '本機 MCP 正以唯讀方式執行。光是這樣不會讓官方完整 MCP 就緒；仍需要受支援的 ChatGPT 應用程式／通道與完整的端對端驗收。',
+  'External verification required: supported ChatGPT workspace/tunnel + read/write policy + same-task result flow. No ChatGPT DOM scraping.': '需要外部驗證：受支援的 ChatGPT 工作區／通道 + 讀寫政策 + 同任務結果流程。不擷取 ChatGPT 網頁內容。',
+  'Recommended on this machine': '本機建議',
+  'No local task yet': '尚無本機任務',
+  'Define a Goal Loop': '定義目標迴圈',
+  'Create measurable work.': '建立可衡量的工作。',
+  'GUIDED START': '引導式開始',
+  'What do you want to accomplish?': '你想完成什麼？',
+  'Beginner mode hides the plumbing. AECP detects the environment, keeps the Workspace boundary, and shows the next useful action.': '新手模式會隱藏技術細節。AECP 會偵測環境、維持工作區邊界，並顯示下一個有用的動作。',
+  'Workspace': '工作區',
+  'Environment': '環境',
+  'Architecture, tools, repositories and Git state are detected automatically. AECP asks only for choices that affect data access, permissions, or high-risk actions.': '架構、工具、儲存庫與 Git 狀態都會自動偵測。AECP 只會詢問會影響資料存取、權限或高風險動作的選擇。',
+  'ChatGPT Web': 'ChatGPT 網頁版',
+  'Official browser session': '官方瀏覽器工作階段',
+  'Latest work': '最近的工作',
+  'Execution mode': '執行模式',
+  'Recommended action': '建議動作',
+  'Run safe local check': '執行安全的本機檢查',
+  'Open ChatGPT': '開啟 ChatGPT',
+  'Automatic where safe': '安全時自動進行',
+  'Research': '研究',
+  'Build': '建置',
+  'Debug': '除錯',
+  'Review': '審查',
+  'Optimization': '最佳化',
+  'Release': '發行',
+  'Research the stated engineering question, compare alternatives, identify uncertainty, and produce evidence-backed findings.': '研究所述的工程問題、比較替代方案、找出不確定之處，並產出有證據支持的結論。',
+  'Decision criteria are explicitly answered, material alternatives are compared, uncertainties are recorded, and each conclusion is supported by evidence.': '決策準則都有明確回答、重要的替代方案已比較、不確定性已記錄，且每個結論都有證據支持。',
+  'Implement the requested engineering change through inspect → plan → edit → build → test → review.': '依「檢視 → 規劃 → 編輯 → 建置 → 測試 → 審查」的流程完成所要求的工程變更。',
+  'The requested behavior is implemented, deterministic verification passes, evidence is recorded, and no unresolved acceptance criterion remains.': '所要求的行為已實作、確定性驗證通過、證據已記錄，且沒有未解決的驗收條件。',
+  'Reproduce the failure, form and test bounded hypotheses, change one variable at a time, and preserve diagnostic evidence.': '重現失敗、提出並測試有範圍的假設、一次只改一個變數，並保留診斷證據。',
+  'The root cause is demonstrated, the fix is verified against the reproduction, regression coverage exists, and relevant evidence is preserved.': '根本原因已被證明、修正已用重現步驟驗證、已有迴歸測試涵蓋，且相關證據已保留。',
+  'Review the current change for correctness, architecture, security, accessibility, and regression risk.': '審查目前的變更是否正確，並檢查架構、安全、無障礙與迴歸風險。',
+  'Diff and tests are inspected, material findings are resolved or explicitly gated, and the reviewer returns PASS, REWORK, or HUMAN_REQUIRED with evidence.': '已檢視差異與測試、重要發現已解決或明確設關卡，且審查者附上證據回覆通過（PASS）、需重做（REWORK）或需要人工（HUMAN_REQUIRED）。',
+  'Establish a measurable baseline, propose bounded improvements, benchmark them, and retain only verified gains.': '建立可衡量的基準、提出有範圍的改進、進行基準測試，只保留經驗證的成效。',
+  'The target metric is reached or the budget is exhausted; retained changes show measurable improvement without violating correctness or policy constraints.': '達成目標指標或預算用盡；保留的變更有可衡量的改進，且不違反正確性或政策限制。',
+  'Prepare the current source for release through version verification, test matrix, packaging, integrity/provenance checks, and governed publication gates.': '透過版本驗證、測試矩陣、打包、完整性／來源檢查與受管控的發布關卡，為目前的原始碼準備發行。',
+  'Required CI/package evidence passes on the exact source commit, release artifacts and hashes/provenance are complete, and any signing/Store/publish owner gates are explicitly satisfied or HUMAN_REQUIRED.': '必要的 CI／打包證據在完全相同的原始碼提交上通過、發行產物與雜湊／來源資訊完整，且任何簽章／商店／發布的擁有者關卡都已明確滿足，或標示為需要人工。',
+  'No compatible provider detected': '未偵測到相容的供應商',
+  'GOAL LOOP': '目標迴圈',
+  'Research → Plan → Act → Verify → Improve': '研究 → 規劃 → 執行 → 驗證 → 改進',
+  'Define the outcome once. AECP keeps the same Goal/Done/Evidence contract while the transport can evolve from Web Safe Bridge to a governed Local Autonomous worker or an official Full MCP connection.': '只需定義一次成果。AECP 會維持相同的目標／完成／證據契約，而傳輸方式可以從網頁安全橋接，演進到受管控的本機自主 Worker 或官方完整 MCP 連線。',
+  'Goal': '目標',
+  'Maximum iterations': '最大迭代次數',
+  'Maximum agent/tool turns': '最大代理／工具回合數',
+  'Maximum failed attempts': '最大失敗嘗試次數',
+  'Wall-clock minutes (optional)': '總經過分鐘數（選填）',
+  'Provider-reported cost (optional)': '供應商回報的成本（選填）',
+  'Local compute minutes (optional)': '本機運算分鐘數（選填）',
+  'Checkpoint every N iterations': '每 N 次迭代建立檢查點',
+  'Optional; required for raw Ollama': '選填；純 Ollama 必填',
+  'Example: ollama/qwen3-coder:30b for OpenCode': '範例：OpenCode 可用 ollama/qwen3-coder:30b',
+  'Example: Make the application install and complete its first safe task with no technical setup required.': '範例：讓應用程式安裝後，不需任何技術設定就能完成第一個安全任務。',
+  'Copy Goal Loop prompt': '複製目標迴圈提示',
+  'Start Full Harness': '啟動完整 Harness',
+  'Stop Harness': '停止 Harness',
+  'HARNESS ENGINEERING': 'HARNESS 工程',
+  'Planner → Queue → Builder → Verify → Reviewer': '規劃者 → 佇列 → 建置者 → 驗證 → 審查者',
+  'Planner': '規劃者',
+  'Builder': '建置者',
+  'Reviewer': '審查者',
+  'Verifier': '驗證器',
+  'Worker': 'Worker',
+  'Stop conditions are part of the feature': '停止條件也是功能的一部分',
+  'The loop must stop when Done is proven, iteration budget is exhausted, a required permission is missing, a high-risk action needs approval, or repeated attempts stop producing progress.': '當完成已被證明、迭代預算用盡、缺少必要權限、高風險動作需要核准，或重複嘗試已不再有進展時，迴圈必須停止。',
+  'RESEARCH': '研究',
+  'PLAN': '規劃',
+  'ACT': '執行',
+  'VERIFY': '驗證',
+  'IMPROVE': '改進',
+  'Collect only the information needed for the current uncertainty.': '只蒐集目前不確定之處所需的資訊。',
+  'Choose the smallest high-value next action and state why.': '選出最小且最有價值的下一步，並說明原因。',
+  'Use a governed capability/provider; Web mode uses an explicit Command Card.': '使用受管控的能力／供應商；網頁模式使用明確的指令卡。',
+  'BOUNDED AUTONOMOUS': '有界自主執行',
+  'Let a worker build in an isolated worktree': '讓 Worker 在隔離的 worktree 中建置',
+  'AECP requires a clean Git-root Workspace, creates a detached worktree, lets the worker edit only that isolated copy, runs a fixed verifier, retries on failure, and generates a verified patch. Your real Workspace changes only after you press Apply.': 'AECP 要求工作區是乾淨的 Git 根目錄，會建立分離的 worktree，讓 Worker 只編輯那份隔離副本，執行固定的驗證器、失敗時重試，並產生經驗證的補丁。只有在你按下「套用」之後，你真正的工作區才會改變。',
+  'Timeout / iteration (sec)': '每次迭代逾時（秒）',
+  'Start autonomous run': '開始自主執行',
+  'Resume interrupted run': '繼續被中斷的執行',
+  'Open worktree': '開啟 worktree',
+  'Apply verified changes': '套用已驗證的變更',
+
+  // Board, pipeline, graph, trace, evidence
+  'No tasks': '沒有任務',
+  'SELECTED TASK': '已選任務',
+  'Task ID': '任務 ID',
+  'Capability': '能力',
+  'Risk': '風險',
+  'Created': '建立時間',
+  'Run locally': '在本機執行',
+  'Copy Result Capsule': '複製結果膠囊',
+  'No selected task': '尚未選擇任務',
+  'Create or select a task to see its governed pipeline.': '建立或選擇一個任務，就能看到它受管控的流程。',
+  'UNDERSTAND': '理解',
+  'PREPARE': '準備',
+  'EXECUTE': '執行',
+  'PACKAGE RESULT': '封裝結果',
+  'Validate Command Card and Workspace binding.': '驗證指令卡與工作區綁定。',
+  'Resolve capability and local resources.': '解析能力與本機資源。',
+  'WORKSPACE · policy boundary': '工作區 · 政策邊界',
+  'Edit policy edge': '編輯政策邊界',
+  'REPOSITORIES': '儲存庫',
+  'Add repository binding': '新增儲存庫綁定',
+  'No repository detected': '未偵測到儲存庫',
+  'PROVIDERS': '供應商',
+  'Manage provider bindings': '管理供應商綁定',
+  'LOCAL TOOLS': '本機工具',
+  'No tools available': '沒有可用的工具',
+  'Graph mutations are governed': '圖形變更受到管控',
+  'Editing a binding routes through validated Workspace, Provider, or Policy commands. The graph itself cannot grant permissions.': '編輯綁定會經過已驗證的工作區、供應商或政策指令。圖形本身無法授予權限。',
+  'No trace yet': '尚無軌跡',
+  'Select a task first.': '請先選擇任務。',
+  'Loading trace…': '載入軌跡中…',
+  'No events recorded.': '沒有記錄到事件。',
+  'No evidence yet': '尚無證據',
+  'Run a task to produce local evidence.': '執行一個任務以產生本機證據。',
+  'Loading evidence…': '載入證據中…',
+  'No execution evidence yet': '尚無執行證據',
+  'This task has not completed a local run.': '這個任務尚未完成本機執行。',
+  'LOCAL EVIDENCE': '本機證據',
+  'Result Capsule': '結果膠囊',
+  'No Git repositories detected at the Workspace root or its direct child folders.': '在工作區根目錄或其直接子資料夾中，未偵測到 Git 儲存庫。',
+
+  // Providers, policy, adapters, agents, browser window, update, MCP
+  'Sign in isolated OFFICIAL': '登入隔離的 OFFICIAL',
+  'Check health': '檢查健康狀態',
+  'Choose a Workspace before editing policy.': '編輯政策前請先選擇工作區。',
+  'Adapter audit is unavailable.': '轉接器稽核無法使用。',
+  'No adapters reported.': '沒有轉接器回報。',
+  'Release status checked.': '已檢查 Release 狀態。',
+  'Private GitHub is authenticated. Check Release status when you want to update.': '私人 GitHub 已通過驗證。想更新時請檢查 Release 狀態。',
+  'ROLLBACK_REQUIRED': '需要回復舊版',
+  'HEALTHY': '健康',
+  'GH_NOT_INSTALLED': '未安裝 GitHub CLI',
+
+  // Toasts and confirmations
+  'Workspace policy saved. Future execution will use these approval rules.': '工作區政策已儲存。之後的執行會採用這些核准規則。',
+  'Detect and choose a browser window first.': '請先偵測並選擇一個瀏覽器視窗。',
+  'Starting read-only Local MCP…': '正在啟動唯讀的本機 MCP…',
+  'Local MCP is running on loopback only.': '本機 MCP 正在執行，且只使用 loopback。',
+  'Local MCP stopped.': '本機 MCP 已停止。',
+  'MCP connection details copied. The bearer value is a secret; paste it only into trusted tunnel/client configuration.': '已複製 MCP 連線資訊。bearer 值屬於機密，請只貼到可信任的通道／用戶端設定中。',
+  'Checking the private GitHub Release channel…': '正在檢查私人 GitHub Release 通道…',
+  'Update check completed.': '更新檢查完成。',
+  'GitHub CLI download page opened. Install it, then press Connect GitHub again.': '已開啟 GitHub CLI 下載頁面。安裝後請再按一次「連接 GitHub」。',
+  'GitHub is already connected.': 'GitHub 已經連線。',
+  'GitHub login opened in PowerShell. Finish the browser login, then press Check update.': '已在 PowerShell 開啟 GitHub 登入。完成瀏覽器登入後，請按「檢查更新」。',
+  'Downloading and verifying the update…': '正在下載並驗證更新…',
+  'Update verified. AECP will close and install the new version.': '更新已驗證。AECP 將關閉並安裝新版本。',
+  'Verifying retained rollback installer…': '正在驗證保留的回復安裝程式…',
+  'Rollback verified. AECP will close and reinstall the previous version.': '回復已驗證。AECP 將關閉並重新安裝前一個版本。',
+  'Restore staged and verified. AECP will restart to apply it.': '還原已就緒並通過驗證。AECP 將重新啟動以套用。',
+  'AECP evidence cleared. Workspace files were not touched.': '已清除 AECP 證據。工作區檔案沒有被更動。',
+  'Workspace binding removed. Original project files remain untouched.': '已移除工作區綁定。原本的專案檔案沒有被更動。',
+  'No Workspace binding to remove.': '沒有可移除的工作區綁定。',
+  'Stored AECP credentials cleared.': '已清除儲存的 AECP 憑證。',
+  'AECP local state reset. Workspace/project files remain untouched.': '已重設 AECP 本機狀態。工作區／專案檔案沒有被更動。',
+  'Local Workspace refreshed.': '已重新整理本機工作區。',
+  'Repository added inside the authorized Workspace.': '已在授權的工作區內新增儲存庫。',
+  'Official ChatGPT opened in your browser.': '已在你的瀏覽器開啟官方 ChatGPT。',
+  'Safe sample task created.': '已建立安全的範例任務。',
+  'Running local read-only capability…': '正在執行本機唯讀能力…',
+  'Task verified successfully.': '任務已驗證成功。',
+  'Task failed.': '任務失敗。',
+  'Run the task first; no Result Capsule exists yet.': '請先執行任務；目前還沒有結果膠囊。',
+  'Result Capsule copied. Paste it into your ChatGPT conversation.': '已複製結果膠囊。請貼到你的 ChatGPT 對話中。',
+  'Goal and Definition of Done are both required.': '目標與完成定義都必須填寫。',
+  'Goal and Definition of Done are required.': '目標與完成定義都必須填寫。',
+  'Goal Loop prompt copied. Paste it into ChatGPT and keep returning verified Result Capsules.': '已複製目標迴圈提示。請貼到 ChatGPT，並持續回傳已驗證的結果膠囊。',
+  'Planner, Builder and Reviewer providers must all be available.': '規劃者、建置者與審查者的供應商都必須可用。',
+  'Use the current AECP Workspace and its Blueprint as engineering constraints.': '以目前的 AECP 工作區及其藍圖作為工程限制。',
+  'Full Harness started with explicit Planner / Builder / Reviewer routing.': '完整 Harness 已啟動，並採用明確的規劃者／建置者／審查者路由。',
+  'Harness cancellation requested.': '已要求取消 Harness。',
+  'Autonomous mode currently requires the Workspace itself to be a Git repository root.': '自主模式目前要求工作區本身必須是 Git 儲存庫的根目錄。',
+  'Commit/stash/discard current changes first. Autonomous mode requires a clean Workspace.': '請先提交／暫存／捨棄目前的變更。自主模式要求工作區是乾淨的。',
+  'Bounded autonomous run started in an isolated worktree.': '有界自主執行已在隔離的 worktree 中開始。',
+  'Interrupted autonomous run resumed from its persisted checkpoint.': '被中斷的自主執行已從保存的檢查點繼續。',
+  'Cancellation requested.': '已要求取消。',
+  'Verified changes applied to the Workspace. They remain uncommitted for your review.': '已將驗證過的變更套用到工作區。它們仍未提交，供你審查。',
+  'No patch changes needed.': '不需要任何補丁變更。',
+  'Opened isolated Codex OFFICIAL login. Complete sign-in in that terminal, then Check health.': '已開啟隔離的 Codex OFFICIAL 登入。請在該終端機完成登入，然後檢查健康狀態。',
+  'Provider removed.': '已移除供應商。',
+  'Autonomous verification passed. Review the worktree or Apply verified changes.': '自主驗證已通過。請檢視 worktree，或套用已驗證的變更。',
+  'Iteration budget exhausted. Nothing was applied to the real Workspace.': '迭代預算已用盡。沒有任何內容被套用到真正的工作區。',
+  'Autonomous run failed.': '自主執行失敗。',
+  'Autonomous run cancelled. Nothing was applied.': '已取消自主執行。沒有任何內容被套用。',
+  'Full Harness completed and produced a verified patch.': '完整 Harness 已完成，並產生了經驗證的補丁。',
+  'This Harness run will allow the selected cloud-backed CLI/API providers to use network access for model inference. Local worktree/tool network remains separately restricted. Allow for this run?': '這次 Harness 執行會允許所選的雲端 CLI／API 供應商使用網路進行模型推論。本機 worktree／工具的網路仍另外受限。要為這次執行允許嗎？',
+  'This Harness run will use an OS-protected provider credential for the selected endpoint. Allow credential use for this run?': '這次 Harness 執行會為所選端點使用受作業系統保護的供應商憑證。要為這次執行允許使用憑證嗎？',
+  'Apply the verified autonomous patch to your real Workspace? AECP will first require the Workspace to still be clean and at the same Git HEAD.': '要把驗證過的自主補丁套用到你真正的工作區嗎？AECP 會先確認工作區仍然乾淨，且 Git HEAD 沒有改變。',
+  'Check this provider endpoint now? This performs a bounded health request using the configured URL.': '現在要檢查這個供應商端點嗎？這會用已設定的網址發出一次有範圍的健康檢查請求。',
+  'This health check needs the OS-protected provider credential. Allow credential use for this one bounded probe?': '這次健康檢查需要受作業系統保護的供應商憑證。要允許為這一次有範圍的探測使用憑證嗎？',
+  'Remove this optional provider and its stored credential from AECP?': '要從 AECP 移除這個選用供應商及其儲存的憑證嗎？',
+  'Revoke this paired device?': '要撤銷這台配對裝置嗎？',
+  'STOP ALL will cancel every active mission. Continue?': '「全部停止」會取消所有進行中的 Mission。要繼續嗎？',
+  'Cancel only this task? Other workers and tasks will keep running.': '只取消這個任務嗎？其他 Worker 與任務會繼續執行。',
+  'Merge this governed PR into main?': '要把這個受管控的 PR 合併到 main 嗎？',
+
+  // Harness console
+  'Deterministic verifier': '確定性驗證器',
+  'GitHub CI': 'GitHub CI',
+  'No changed files': '沒有變更的檔案',
+  'YES · approval required': '是 · 需要核准',
+  'Review CI / human merge gate': '檢視 CI／人工合併關卡',
+  'Review evidence / adjust budget or goal': '檢視證據／調整預算或目標',
+  'Review evidence / recovery': '檢視證據／復原',
+  'Human approval': '人工核准',
+  'Wait for scheduler': '等待排程器',
+  'Wait for CI': '等待 CI',
+  'Reviewer decision': '審查者決定',
+  'Continue bounded execution': '繼續有界執行',
+  'Continue bounded scheduler': '繼續有界排程',
+  'No active mission': '沒有進行中的 Mission',
+  'No CI evidence yet': '尚無 CI 證據',
+  'Worker:': 'Worker：',
+  'Provider:': '供應商：',
+  'Model:': '模型：',
+  'Role:': '角色：',
+  'Task:': '任務：',
+  'Runtime:': '執行期：',
+  'Repository:': '儲存庫：',
+  'Worktree:': 'Worktree：',
+  'Verify:': '驗證：',
+  'Heartbeat:': '心跳：',
+  'Cancel:': '取消：',
+  'Health': '健康檢查',
+  'Revoke': '撤銷',
+  'Pairing code:': '配對碼：',
+  'Builder Worker Pool': '建置者 Worker 集區',
+  'Select isolated workers. No selection keeps the legacy single-builder route.': '選擇隔離的 Worker。若不選擇，則維持舊有的單一建置者路徑。',
+  'Resume': '繼續',
+  'Definition of Done:': '完成定義：',
+  'Project:': '專案：',
+  'Next:': '下一步：',
+  'Explicit Resume required': '需要明確按下「繼續」',
+  'No missions yet.': '尚無 Mission。',
+  'No human approvals waiting.': '沒有等待人工核准的項目。',
+  'Risk:': '風險：',
+  'Agent:': '代理：',
+  'Verifier/Test:': '驗證器／測試：',
+  'Changed:': '變更：',
+  'Needs me:': '需要我處理：',
+  'Queue is empty.': '佇列是空的。',
+  'No events yet.': '尚無事件。',
+  'Run timeline': '執行時間軸',
+  'Select task': '選擇任務',
+  'Open event evidence': '開啟事件證據',
+  'No verified timeline': '尚無經驗證的時間軸',
+  'Event evidence': '事件證據',
+  'Path': '路徑',
+  'Summary': '摘要',
+  'Diff view': '差異檢視',
+  'Changed files': '變更檔案',
+  'Additions': '新增行數',
+  'Deletions': '刪除行數',
+  'Untracked files': '未追蹤檔案',
+  'Patch bytes': '補丁位元組',
+  'Base commit': '基底提交',
+  'Current commit': '目前提交',
+  'Review view': '審查檢視',
+  'Findings': '發現',
+  'Required changes': '必要修正',
+  'GitHub view': 'GitHub 檢視',
+  'Notifications': '通知',
+  'Open approvals': '開啟核准佇列',
+  'Read': '已讀',
+  'Mark read': '標為已讀',
+  'No verified notifications': '尚無經驗證的通知',
+  'Mission progress': 'Mission 進度',
+  'Each phase is verified task count / mission task count; overall is the rounded mean of five phases. No mission is UNKNOWN.': '各階段為具證據任務數除以本 Mission 任務數；總進度為五階段平均後四捨五入。沒有 Mission 時顯示「未知」。',
+  'Failure Recovery Assistant — bounded classifier implemented': '失敗復原助理 — 已實作有界分類器',
+  'Adapter Security Audit': '轉接器安全稽核',
+  'Clean E2E Matrix': '乾淨端對端矩陣',
+  'Windows Release Gate': 'Windows 發行關卡',
+  'Authenticated Remote Pairing': '已驗證的遠端配對',
+  'Drift Scans': '漂移掃描',
+  'Start': '開始',
+  'Task Pipeline': '任務流程',
+  'Goal Loop': '目標迴圈',
+  'Workspace Graph': '工作區圖形',
+  'Execution Trace': '執行軌跡',
+  'Evidence': '證據',
+  'Control Plane': '控制平面',
+  'Not supported': '不支援',
+
+});
+
+// Sentences that carry a name or a number.
+const PATTERNS=[
+  [/^Theme: (.+)$/, (v) => '主題：' + translatePhrase(v)],
+  [/^Risk: (.+)$/, (v) => '風險：' + translatePhrase(v)],
+  [/^Agent: (.+)$/, (v) => '代理：' + translatePhrase(v)],
+  [/^Verifier\/Test: (.+)$/, (v) => '驗證器／測試：' + translatePhrase(v)],
+  [/^Changed: (.+)$/, (v) => '變更：' + translatePhrase(v)],
+  [/^Needs me: NO$/, () => '需要我處理：否'],
+  [/^Needs me: YES(.*)$/, (rest) => '需要我處理：是' + rest],
+  [/^Next: (.+)$/, (v) => '下一步：' + translatePhrase(v)],
+  [/^Project: (.+)$/, (v) => '專案：' + translatePhrase(v)],
+  [/^Definition of Done: (.+)$/, (v) => '完成定義：' + translatePhrase(v)],
+  [/^CI: (.+)$/, (v) => 'CI：' + translatePhrase(v)],
+  [/^Status: (.+)$/, (v) => '狀態：' + translatePhrase(v)],
+  [/^Architecture: (.+)$/, (v) => '架構：' + v],
+  [/^Stored locally: (.+)$/, (v) => '儲存在本機：' + v],
+  [/^(\d+) repo\(s\) detected$/, (n) => '偵測到 ' + n + ' 個儲存庫'],
+  [/^(\d+)\/(\d+) tools detected$/, (a, b) => '偵測到 ' + a + '／' + b + ' 個工具'],
+  [/^(\d+) task\(s\) stored locally$/, (n) => n + ' 個任務儲存在本機'],
+  [/^(\d+) REPOS$/, (n) => n + ' 個儲存庫'],
+  [/^Detected workers: (.+)\. v0\.3 can run a bounded isolated worktree loop with supported workers\.$/, (w) => '偵測到的 Worker：' + w + '。v0.3 可以搭配受支援的 Worker 執行有界的隔離 worktree 迴圈。'],
+  [/^(\d+) requests$/, (n) => n + ' 次請求'],
+  [/^(\d+) ok \/ (\d+) failed$/, (a, b) => a + ' 成功／' + b + ' 失敗'],
+  [/^avg (.+) ms$/, (n) => '平均 ' + n + ' 毫秒'],
+  [/^(.+) total tokens$/, (n) => '共 ' + n + ' 個 token'],
+  [/^reported cost (.+)$/, (n) => '回報成本 ' + n],
+  [/^Started with a repaired file: (.+) was unreadable( and was kept as (.+))?\. Its feature restarted from empty state\.$/, (file, _kept, name) => '已使用修復後的檔案啟動：' + file + ' 無法讀取' + (name ? '，已另存為 ' + name : '') + '。該功能已從空白狀態重新開始。'],
+  [/^Browser window docked (.+)\.$/, (side) => '瀏覽器視窗已並排在' + (side === 'left' ? '左側' : side === 'right' ? '右側' : side) + '。'],
+  [/^(.+) launched\.$/, (name) => '已啟動 ' + name + '。'],
+  [/^Backup exported: (\d+) files, credentials excluded\.$/, (n) => '已匯出備份：' + n + ' 個檔案，不含憑證。'],
+  [/^Workspace connected: (.+)$/, (name) => '已連線工作區：' + name],
+  [/^Task imported: (.+)$/, (title) => '已匯入任務：' + title],
+  [/^Provider registered: (.+)$/, (name) => '已登錄供應商：' + name],
+  [/^Goal Loop preset applied: (.+)\.$/, (name) => '已套用目標迴圈預設：' + translatePhrase(name) + '。'],
+  [/^Harness accepted (.+)\.$/, (id) => 'Harness 已接受 ' + id + '。'],
+  [/^(.+): (READY|UNAVAILABLE|DEGRADED|AUTH_REQUIRED|NOT_CONFIGURED|UNKNOWN)$/, (name, status) => name + '：' + translatePhrase(status)],
+  [/^Current v(.+); latest v(.+)\.$/, (a, b) => '目前 v' + a + '；最新 v' + b + '。'],
+  [/^Update health check failed \(observed (.+); expected (.+)\)\. A verified rollback installer is available\.$/, (a, b) => '更新後的健康檢查失敗（觀察到 ' + a + '；預期 ' + b + '）。已有經驗證的回復安裝程式可用。'],
+  [/^Update health check failed \(observed (.+); expected (.+)\)\. No verified rollback installer was retained\.$/, (a, b) => '更新後的健康檢查失敗（觀察到 ' + a + '；預期 ' + b + '）。沒有保留經驗證的回復安裝程式。'],
+  [/^Last update to v(.+) passed first-boot health verification\.$/, (v) => '上次更新到 v' + v + ' 已通過首次啟動的健康驗證。'],
+  [/^Loopback endpoint: (.+)\. Workspace-bound, bearer-protected, read-only\.$/, (e) => 'Loopback 端點：' + e + '。綁定工作區、受 bearer 保護、唯讀。'],
+  [/^Install AECP v(.+)\? The installer is downloaded from the allowlisted private GitHub Release and SHA-256 verified before launch\.$/, (v) => '要安裝 AECP v' + v + ' 嗎？安裝程式會從允許清單內的私人 GitHub Release 下載，並在啟動前通過 SHA-256 驗證。'],
+  [/^Reinstall the retained, SHA-256 verified AECP v(.+) rollback package\?$/, (v) => '要重新安裝保留下來、通過 SHA-256 驗證的 AECP v' + v + ' 回復套件嗎？'],
+  [/^(.+) · PID (.+)$/, (name, pid) => name + ' · PID ' + pid],
+  [/^Risk: (.+)$/, (v) => '風險：' + v],
+  [/^ID (evt_.+)$/, (id) => 'ID ' + id],
+  [/^Rule: (.+)$/, (v) => '規則：' + translatePhrase(v)],
+  [/^(.+) \(optional\)$/, (v) => translatePhrase(v) + '（選填）'],
+  [/^(.+) · Risk · (.+)$/, (a, b) => a + ' · 風險 · ' + b],
+
+];
+
+const DEFAULT_LOCALE='zh-TW';
+
 function normalizeLocale(value){
   const raw=String(value||'').trim().toLowerCase();
   return raw.startsWith('zh')?'zh-TW':'en';
 }
 
+// Text that has no dictionary key (headings, sentences, toasts, dynamic labels) is translated by its English wording:
+// exact phrases first, then patterns for sentences that carry a name or a number. Unknown text stays as it is.
+function translatePhrase(text){
+  const raw=String(text);
+  const core=raw.trim();
+  if(!core)return raw;
+  const lead=raw.slice(0,raw.indexOf(core));
+  const tail=raw.slice(lead.length+core.length);
+  const key=core.split(/\s+/).join(' ');
+  if(Object.prototype.hasOwnProperty.call(PHRASES,key))return lead+PHRASES[key]+tail;
+  for(const [pattern,make] of PATTERNS){
+    const match=key.match(pattern);
+    if(match)return lead+make(...match.slice(1))+tail;
+  }
+  return raw;
+}
+
 function createI18n({initialLocale,storage}={}){
-  let locale=normalizeLocale(initialLocale||storage?.getItem?.('aecp-locale')||'en');
+  // An explicit choice wins, then the stored choice, and the default is Traditional Chinese (English is the switchable extra).
+  let locale=normalizeLocale(initialLocale||storage?.getItem?.('aecp-locale')||DEFAULT_LOCALE);
   const t=(key,fallback='')=>(DICTIONARIES[locale]?.[key] ?? DICTIONARIES.en[key] ?? fallback) || key;
+  const tx=(text)=>locale==='zh-TW'?translatePhrase(text):String(text);
+  const textOriginals=new WeakMap();
+  const attrOriginals=new WeakMap();
+  const ATTRS=['placeholder','aria-label','title'];
+  const SKIP=new Set(['SCRIPT','STYLE','TEXTAREA','CODE','PRE']);
+
+  // Every visible text node and label attribute is shown in the current language; the English original is remembered so switching back restores it.
+  function localizeText(node){
+    const current=node.nodeValue;
+    const rec=textOriginals.get(node);
+    if(rec&&(current===rec.zh||current===rec.en)){
+      const want=locale==='zh-TW'?rec.zh:rec.en;
+      if(current!==want)node.nodeValue=want;
+      return;
+    }
+    if(locale!=='zh-TW')return;
+    const zh=translatePhrase(current);
+    if(zh!==current){textOriginals.set(node,{en:current,zh});node.nodeValue=zh;}
+  }
+  function localizeElement(el){
+    let recs=attrOriginals.get(el);
+    for(const name of ATTRS){
+      if(!el.hasAttribute(name))continue;
+      const current=el.getAttribute(name);
+      const rec=recs?.[name];
+      if(rec&&(current===rec.zh||current===rec.en)){
+        const want=locale==='zh-TW'?rec.zh:rec.en;
+        if(current!==want)el.setAttribute(name,want);
+        continue;
+      }
+      if(locale!=='zh-TW')continue;
+      const zh=translatePhrase(current);
+      if(zh!==current){recs=recs||{};recs[name]={en:current,zh};attrOriginals.set(el,recs);el.setAttribute(name,zh);}
+    }
+  }
+  function localizeTree(root){
+    if(typeof document==='undefined'||typeof document.createTreeWalker!=='function'||!root)return;
+    if(root.nodeType===3){if(!SKIP.has(root.parentNode?.nodeName))localizeText(root);return;}
+    if(root.nodeType!==1&&root.nodeType!==9)return;
+    if(root.nodeType===1&&SKIP.has(root.nodeName))return;
+    const walker=document.createTreeWalker(root,1|4);
+    if(root.nodeType===1)localizeElement(root);
+    for(let node=walker.nextNode();node;node=walker.nextNode()){
+      if(node.nodeType===3){if(!SKIP.has(node.parentNode?.nodeName))localizeText(node);}
+      else if(!SKIP.has(node.nodeName))localizeElement(node);
+    }
+  }
+
   const apply=(root)=>{
     if(typeof document!=='undefined') document.documentElement.lang=locale;
     const scope=root||((typeof document!=='undefined')?document:null);
@@ -216,6 +900,7 @@ function createI18n({initialLocale,storage}={}){
     for(const node of scope.querySelectorAll('[data-i18n]')) node.textContent=t(node.dataset.i18n,node.textContent);
     for(const node of scope.querySelectorAll('[data-i18n-placeholder]')) node.setAttribute('placeholder',t(node.dataset.i18nPlaceholder,node.getAttribute('placeholder')||''));
     for(const node of scope.querySelectorAll('[data-i18n-aria]')) node.setAttribute('aria-label',t(node.dataset.i18nAria,node.getAttribute('aria-label')||''));
+    localizeTree(scope);
     return locale;
   };
   const setLocale=(value,root)=>{
@@ -224,13 +909,28 @@ function createI18n({initialLocale,storage}={}){
     apply(root);
     return locale;
   };
-  return Object.freeze({t,apply,setLocale,getLocale:()=>locale,supported:Object.freeze(['en','zh-TW'])});
+  // Content the renderer adds later is localized as it appears.
+  const observe=()=>{
+    if(typeof MutationObserver==='undefined'||typeof document==='undefined'||!document.body)return;
+    new MutationObserver((records)=>{
+      for(const record of records){
+        if(record.type==='characterData')localizeTree(record.target);
+        else if(record.type==='attributes')localizeElement(record.target);
+        else for(const added of record.addedNodes)localizeTree(added);
+      }
+    }).observe(document.body,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:ATTRS});
+  };
+  return Object.freeze({t,tx,apply,setLocale,observe,getLocale:()=>locale,supported:Object.freeze(['en','zh-TW'])});
 }
 
 const api=createI18n({
-  initialLocale:typeof navigator!=='undefined'?navigator.language:'en',
   storage:typeof localStorage!=='undefined'?localStorage:null
 });
 
 if(typeof window!=='undefined')window.AECPI18N=api;
-if(typeof module!=='undefined'&&module.exports)module.exports={DICTIONARIES,normalizeLocale,createI18n};
+if(typeof document!=='undefined'){
+  const start=()=>{try{api.apply(document);api.observe();}catch{/* localization is best effort; the UI works in English without it */}};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);
+  else start();
+}
+if(typeof module!=='undefined'&&module.exports)module.exports={DICTIONARIES,PHRASES,PATTERNS,DEFAULT_LOCALE,normalizeLocale,translatePhrase,createI18n};

@@ -105,7 +105,7 @@
 | OWNER-EXTERNAL gate | 4 類 | 只有 `Space653000`（repo 擁有者）本人 |
 | 刻意不做 | 6 項 | 需要新的獨立 Blueprint 決策才會開放，非「忘記做」 |
 
-**結論（2026-09-26 最終驗收，0017 之後）：** 追溯矩陣 441 條（藍圖 00–24 與 R1–R8 全數納入），`--strict` 由 `npm run verify` 強制：**358 已實作、21 部分、16 需人工驗證、18 ENVIRONMENT、14 OWNER、14 蓄意不做（含 Blueprint 決策 D2–D11）、0 確認缺失**。先前 2 條確認缺失（任務層級 role／verifierProfile 欄位 B02-L207、動作 metadata 表 B11-L61）已由施工單 0017 補齊並附破壞紀錄。21 條「部分」是打包／CI／環境／人工證據型，程式碼與測試無法代為結案。所有已知真缺陷（含 CODEX_HOME 隔離、SecurityPolicy 路徑正規化與 junction 逃逸防護、Result Capsule、Evidence 不可變、備份暫存檔競態）皆已修復並有破壞檢查。**倉庫內能自動完成的部分已完成；其餘需要真機、真帳號、憑證或人工驗收。** 介面（`ui/styles.css`）已改為 ChatGPT／Codex 風格的深淺色 token 主題（施工單 0018）：兩組主題的文字、次要文字、狀態色與控制項邊界對比由 `tests/ui-theme-contrast.test.cjs` 解析真實樣式表驗證；已安裝應用程式上的實機觀察（B01-A11Y-L172）仍是 MANUAL。
+**結論（2026-09-26 最終驗收，0017 之後）：** 追溯矩陣 441 條（藍圖 00–24 與 R1–R8 全數納入），`--strict` 由 `npm run verify` 強制：**358 已實作、21 部分、16 需人工驗證、18 ENVIRONMENT、14 OWNER、14 蓄意不做（含 Blueprint 決策 D2–D11）、0 確認缺失**。先前 2 條確認缺失（任務層級 role／verifierProfile 欄位 B02-L207、動作 metadata 表 B11-L61）已由施工單 0017 補齊並附破壞紀錄。21 條「部分」是打包／CI／環境／人工證據型，程式碼與測試無法代為結案。所有已知真缺陷（含 CODEX_HOME 隔離、SecurityPolicy 路徑正規化與 junction 逃逸防護、Result Capsule、Evidence 不可變、備份暫存檔競態）皆已修復並有破壞檢查。**倉庫內能自動完成的部分已完成；其餘需要真機、真帳號、憑證或人工驗收。** 介面（`ui/styles.css`）已改為 ChatGPT／Codex 風格的深淺色 token 主題（施工單 0018）：兩組主題的文字、次要文字、狀態色與控制項邊界對比由 `tests/ui-theme-contrast.test.cjs` 解析真實樣式表驗證；已安裝應用程式上的實機觀察（B01-A11Y-L172）仍是 MANUAL。 介面預設語言已改為繁體中文，英文為可切換的附加功能（語言按鈕，選擇會記住）；`index.html` 與執行期產生的文字皆有中文翻譯，錯誤訊息等來自主程序的英文原文暫不翻譯。
 
 ### 施工單 0006 施工進度（Claude 驗收 CLOSED）
 
