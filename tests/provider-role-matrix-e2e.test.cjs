@@ -51,6 +51,7 @@ test('R3.2 every supported provider in every role it can serve runs a real missi
       providers, models: { planner: 'llama3', reviewer: 'llama3' }, providerApprovals: { network: true, credential: true }
     });
     await waitFor(() => run.state === 'DONE', { timeoutMs: 60000, label: `mission ${index} (${JSON.stringify(providers)})` });
+    await waitFor(() => run.taskIds.every((id) => fx.cp.state.tasks[id].evidenceManifest && !(fx.cp.state.tasks[id].lockLeases || []).length), { timeoutMs: 30000, label: `task records of mission ${index}` });
     const task = fx.cp.state.tasks[run.taskIds[0]];
     assert.equal(task.state, 'DONE', `${JSON.stringify(providers)}: ${task.error || ''}`);
     assert.deepEqual(run.providers, providers);
@@ -117,6 +118,8 @@ test('R3.7 Provider identity and Worker identity are separate: workers of one pr
   const mission = async (label) => {
     const run = await cp.createMission({ goal: `Identity mission ${label}`, done: 'Verification passes.', sourceRoot: workspace, autoStart: true, maxConcurrency: 2, maxIterations: 2, maxTurns: 40, maxFailedAttempts: 6, providers: { planner: 'plan', builder: 'build', reviewer: 'review' }, builderWorkers: ['worker-one', 'worker-two'] });
     await waitFor(() => run.state === 'DONE', { timeoutMs: 60000, label: `mission ${label}` });
+    // The mission can report DONE a moment before each task record is fully written; wait for the final records themselves.
+    await waitFor(() => run.taskIds.every((id) => cp.state.tasks[id].evidenceManifest && !(cp.state.tasks[id].lockLeases || []).length), { timeoutMs: 30000, label: `task records of mission ${label}` });
     return { run, tasks: run.taskIds.map((id) => cp.state.tasks[id]) };
   };
 
