@@ -90,18 +90,35 @@ test('B0019 a model left unset says so instead of naming one', async () => {
   assert.match(panel(source, 'gemini-cli'), /<code>—<\/code>/);
 });
 
-test('B0019 saving sends only the model and the effort the tool supports, after the person changed them', async () => {
+// A stand-in for the main process: it stores what was saved and answers with the updated view, like the real one.
+function savingView(start = VIEW) {
   const saved = [];
-  const ui = await boot({ setAgentSettings: (agentId, patch) => { saved.push([agentId, patch]); return VIEW; } });
+  let view = start;
+  const setAgentSettings = (agentId, patch) => {
+    saved.push([agentId, patch]);
+    view = { ...view, agents: view.agents.map((a) => (a.id === agentId ? { ...a, model: patch.model || null, modelSource: patch.model ? 'settings' : 'default', ...(patch.effort !== undefined ? { effort: patch.effort || null } : {}) } : a)) };
+    return view;
+  };
+  return { saved, setAgentSettings };
+}
+
+test('B0019 switching a model or an effort is saved at once, sending only the fields the tool supports', async () => {
+  const store = savingView();
+  const ui = await boot({ setAgentSettings: store.setAgentSettings });
   await changeWith(ui, '[data-agent-model]', { agentModel: 'ollama' }, 'llama3.2:3b');
-  await changeWith(ui, '[data-agent-effort]', { agentEffort: 'ollama' }, 'medium');
-  await clickWith(ui, '[data-agent-save]', { agentSave: 'ollama' });
   await ui.settle();
-  assert.deepEqual(JSON.parse(JSON.stringify(saved)), [['ollama', { model: 'llama3.2:3b', effort: 'medium' }]]);
+  assert.deepEqual(JSON.parse(JSON.stringify(store.saved.at(-1))), ['ollama', { model: 'llama3.2:3b', effort: '' }], 'the model switch took effect without pressing Save');
+  await changeWith(ui, '[data-agent-effort]', { agentEffort: 'ollama' }, 'medium');
+  await ui.settle();
+  assert.deepEqual(JSON.parse(JSON.stringify(store.saved.at(-1))), ['ollama', { model: 'llama3.2:3b', effort: 'medium' }]);
+  assert.match(panel(html(ui), 'ollama'), /Model <code>llama3\.2:3b<\/code>/, 'the card now shows the switched model as the current one');
   await changeWith(ui, '[data-agent-model]', { agentModel: 'gemini-cli' }, 'gemini-2.5-pro');
+  await ui.settle();
+  assert.deepEqual(JSON.parse(JSON.stringify(store.saved.at(-1))), ['gemini-cli', { model: 'gemini-2.5-pro' }], 'no effort is sent for a tool without one');
+  const before = store.saved.length;
   await clickWith(ui, '[data-agent-save]', { agentSave: 'gemini-cli' });
   await ui.settle();
-  assert.deepEqual(JSON.parse(JSON.stringify(saved[1])), ['gemini-cli', { model: 'gemini-2.5-pro' }], 'no effort is sent for a tool without one');
+  assert.equal(store.saved.length, before + 1, 'the Save button still works');
 });
 
 test('B0019 the say-hi button sends no text, shows the model, time and reply, and a failure shows its real reason', async () => {
@@ -147,10 +164,7 @@ test('B0019 a second press while a greeting is running does not start another on
 test('B0019 the network warning shows where a greeting leaves the computer, and a missing PEGA key blocks the button', async () => {
   const source = html(await boot());
   assert.match(panel(source, 'claude-code'), /Connects to the network and uses your account quota/);
-  // codex-official has no model in this fixture; B0020-hotfix requires one before Say hi is offered.
-  assert.match(panel(source, 'codex-official'), /Choose an OFFICIAL model first\./);
-  const withModel = html(await boot({ getAgentSettings: { ...VIEW, agents: VIEW.agents.map((a) => a.id === 'codex-official' ? { ...a, model: 'gpt-5.1-codex', modelSource: 'settings' } : a) } }));
-  assert.match(panel(withModel, 'codex-official'), /Connects to the network and uses your account quota/);
+  assert.match(panel(source, 'codex-official'), /Connects to the network and uses your account quota/);
   assert.match(panel(source, 'ollama'), /Runs locally/);
   const pega = panel(source, 'codex-pega');
   assert.match(pega, /The PEGA key is not set yet/);
@@ -168,12 +182,47 @@ test('B0019 without the new settings data the agent list is drawn exactly as bef
 
 test.after(() => { setImmediate(() => process.exit(process.exitCode || 0)); });
 
-test('B0020-hotfix Codex OFFICIAL: say-hi is disabled with a clear note until a model is chosen, and enabled once one is', async () => {
-  const noModel = await boot({ getAgentSettings: { ...VIEW, agents: VIEW.agents.map((a) => a.id === 'codex-official' ? { ...a, model: null, modelSource: 'default' } : a) } });
-  const before = panel(html(noModel), 'codex-official');
-  assert.match(before, /data-agent-sayhi="codex-official" disabled/);
-  assert.match(before, /Choose an OFFICIAL model first\./);
-  await changeWith(noModel, '[data-agent-model]', { agentModel: 'codex-official' }, 'gpt-5.1-codex', 'INPUT');
-  const afterPick = panel(html(noModel), 'codex-official');
-  assert.doesNotMatch(afterPick, /data-agent-sayhi="codex-official" disabled/, 'picking a model (even before saving) enables the button');
+const CODEX_LIST = {
+  knownModels: ['gpt-6-astra', 'gpt-5.6-sol', 'gpt-5.5'],
+  knownModelLabels: { 'gpt-6-astra': 'GPT-6-Astra', 'gpt-5.6-sol': 'GPT-5.6-Sol', 'gpt-5.5': 'GPT-5.5' },
+  modelEfforts: { 'gpt-6-astra': ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'], 'gpt-5.6-sol': ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'], 'gpt-5.5': ['low', 'medium', 'high', 'xhigh'] },
+  efforts: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra']
+};
+const withOfficial = (extra) => ({ ...VIEW, agents: VIEW.agents.map((a) => (a.id === 'codex-official' ? { ...a, ...CODEX_LIST, ...extra } : a)) });
+const options = (source, attr) => [...(new RegExp('<select ' + attr + '[\\s\\S]*?</select>').exec(source)?.[0] || '').matchAll(/<option value="([^"]*)"/g)].map((m) => m[1]);
+
+test('B0020-hotfix2 Codex OFFICIAL offers the account model list by name, and says hi with the Codex default when none is chosen', async () => {
+  const ui = await boot({ getAgentSettings: withOfficial({}) });
+  const card = panel(html(ui), 'codex-official');
+  assert.match(card, /<option value="gpt-5\.6-sol">GPT-5\.6-Sol<\/option>/, 'the exact id is sent, the familiar name is shown');
+  assert.doesNotMatch(card, /data-agent-sayhi="codex-official" disabled/, 'no model is needed: Codex has its own default');
+  assert.deepEqual(options(card, 'data-agent-effort="codex-official"'), ['', 'low', 'medium', 'high', 'xhigh'], 'with the default model only the levels every model shares are offered');
+});
+
+test('B0020-hotfix2 the reasoning levels follow the chosen Codex model, and a level that model lacks is cleared on switching', async () => {
+  const start = withOfficial({ model: 'gpt-6-astra', modelSource: 'settings', effort: 'ultra' });
+  const store = savingView(start);
+  const ui = await boot({ getAgentSettings: start, setAgentSettings: store.setAgentSettings });
+  assert.deepEqual(options(panel(html(ui), 'codex-official'), 'data-agent-effort="codex-official"'), ['', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra']);
+  await changeWith(ui, '[data-agent-model]', { agentModel: 'codex-official' }, 'gpt-5.5', 'SELECT');
+  await ui.settle();
+  assert.deepEqual(JSON.parse(JSON.stringify(store.saved.at(-1))), ['codex-official', { model: 'gpt-5.5', effort: '' }], 'ultra is not a GPT-5.5 level, so it is not kept');
+  assert.deepEqual(options(panel(html(ui), 'codex-official'), 'data-agent-effort="codex-official"'), ['', 'low', 'medium', 'high', 'xhigh']);
+});
+
+test('B0020-hotfix2 a guessed model id that is not in the account list is kept but flagged', async () => {
+  const card = panel(html(await boot({ getAgentSettings: withOfficial({ model: 'chatgpt-sol-6', modelSource: 'settings' }) })), 'codex-official');
+  assert.match(card, /<option value="__custom__" selected>/);
+  assert.match(card, /value="chatgpt-sol-6"/);
+  assert.match(card, /not in the Codex model list of this account/);
+});
+
+test('B0020-hotfix2 Ollama offers only the thinking values the chosen model accepts', async () => {
+  const withOllama = (model, thinking) => ({ ...VIEW, ollamaThinking: { [model]: thinking }, agents: VIEW.agents.map((a) => (a.id === 'ollama' ? { ...a, model, modelSource: 'settings', effort: 'high' } : a)) });
+  const noThink = panel(html(await boot({ getAgentSettings: withOllama('qwen3-coder:30b', []) })), 'ollama');
+  assert.match(noThink, /This model cannot think\./);
+  assert.doesNotMatch(noThink, /data-agent-effort="ollama"/);
+  const card = panel(html(await boot({ getAgentSettings: withOllama('qwen3:14b', ['true']) })), 'ollama');
+  assert.deepEqual(options(card, 'data-agent-effort="ollama"'), ['', 'true']);
+  assert.match(card, /<option value="true">On<\/option>/);
 });

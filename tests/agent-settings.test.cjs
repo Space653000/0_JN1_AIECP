@@ -63,7 +63,7 @@ test('B0019 settings patches are whitelisted: agent ids, model names and per-age
   assert.deepEqual(settings.cleanPatch('ollama', { model: '', effort: '' }), { model: null, effort: null }, 'empty clears');
   assert.deepEqual(settings.cleanPatch('ollama', {}), {}, 'an untouched field stays untouched');
   for (const model of ['-leading', 'has space', 'semi;colon', 'a'.repeat(121), '$(calc)', '../x', 'x\ny', 7, {}]) assert.throws(() => settings.cleanPatch('opencode', { model }), /Model name/, String(model));
-  for (const [agent, effort] of [['codex-official', 'max'], ['claude-code', 'minimal'], ['ollama', 'xhigh'], ['codex-pega', 'ultra'], ['claude-code', 'HIGH'], ['ollama', 7]]) assert.throws(() => settings.cleanPatch(agent, { effort }), /Effort must be one of/, agent + effort);
+  for (const [agent, effort] of [['codex-official', 'turbo'], ['claude-code', 'minimal'], ['ollama', 'xhigh'], ['codex-pega', 'turbo'], ['claude-code', 'HIGH'], ['ollama', 7]]) assert.throws(() => settings.cleanPatch(agent, { effort }), /Effort must be one of/, agent + effort);
   for (const agent of ['gemini-cli', 'opencode', 'codex-cli']) assert.throws(() => settings.cleanPatch(agent, { effort: 'high' }), /does not support/, agent);
   for (const agentId of ['chatgpt-web', 'cmd; calc', '', undefined, 'constructor']) assert.throws(() => settings.cleanPatch(agentId, { model: 'x' }), /Unsupported agent/, String(agentId));
 });
@@ -83,7 +83,7 @@ test('B0019 stored settings are read defensively and merged without touching oth
 test('B0019 the effective model prefers the setting, then the provider entry (PEGA), then the environment, then the tool default', () => {
   const env = { AECP_CODEX_OFFICIAL_MODEL: 'env-model', AECP_OLLAMA_MODEL: 'env-ollama' };
   assert.deepEqual(settings.effective('codex-official', { settings: { 'codex-official': { model: 'set-model', effort: 'low' } }, env }),
-    { model: 'set-model', modelSource: 'settings', effort: 'low', effortSupported: true, efforts: ['minimal', 'low', 'medium', 'high', 'xhigh'] });
+    { model: 'set-model', modelSource: 'settings', effort: 'low', effortSupported: true, efforts: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra'] });
   assert.equal(settings.effective('codex-official', { settings: {}, env }).modelSource, 'env');
   assert.equal(settings.effective('codex-official', { settings: {}, env: {} }).model, null, 'nothing is invented when nothing is chosen');
   assert.equal(settings.effective('codex-official', { settings: {}, env: {} }).modelSource, 'default');
@@ -107,7 +107,7 @@ test('B0019 OFFICIAL config: a reasoning effort is written before every [table],
   assert.ok(text.indexOf('model_reasoning_effort') < text.indexOf('\n['), 'a top-level key must come before any table');
   assert.equal(text.replace('model_reasoning_effort = "xhigh"\n', ''), legacyOfficial('gpt-x'), 'the only difference is that one line');
   assert.equal(profile.effort, 'xhigh');
-  for (const effort of ['ultra', 'HIGH', 'high"\n[x]', 7, {}]) await assert.rejects(() => runtime.prepareOfficial({ effort }), /reasoning effort/, JSON.stringify(effort));
+  for (const effort of ['turbo', 'HIGH','high"\n[x]', 7, {}]) await assert.rejects(() => runtime.prepareOfficial({ effort }), /reasoning effort/, JSON.stringify(effort));
   assert.equal(await fsp.readFile(file('codex-official'), 'utf8'), text, 'a refused effort does not rewrite the file');
 });
 
@@ -122,7 +122,7 @@ test('B0019 PEGA config: effort sits before [model_providers], the key never rea
   assert.equal(text.replace('model_reasoning_effort = "medium"\n', ''), legacyCustom('Pega-Coding'));
   assert.ok(!text.includes('SECRET-VALUE'), 'the key is only in the process environment');
   assert.equal(profile.env.PEGA_API_KEY, 'sk-live-SECRET-VALUE-1234567890');
-  await assert.rejects(() => custom(runtime, { effort: 'max' }), /reasoning effort/);
+  await assert.rejects(() => custom(runtime, { effort: 'turbo' }), /reasoning effort/);
 });
 
 test('B0019 CLI flags: model and effort travel as separate array elements, and with nothing set the arguments are exactly what they were', () => {
@@ -140,7 +140,7 @@ test('B0019 CLI flags: model and effort travel as separate array elements, and w
   assert.ok(skipped.indexOf('--skip-git-repo-check') < skipped.indexOf('--model'));
   assert.ok(skipped.includes('workspace-write') && !skipped.includes('danger-full-access'), 'the sandbox stays workspace-write');
   for (const effort of ['ultra', 'minimal', 'high; calc', '--help']) assert.throws(() => router.commandSpec('claude', 'planner', 'P', { effort }), /Claude effort/, effort);
-  for (const effort of ['max', 'xhigh', 'true', '--help']) assert.throws(() => router.commandSpec('ollama', 'general', 'P', { model: 'm', effort }), /thinking level/, effort);
+  for (const effort of ['max', 'xhigh', 'on', '--help']) assert.throws(() => router.commandSpec('ollama', 'general', 'P', { model: 'm', effort }), /thinking level/, effort);
 });
 
 test('B0019 a stored default effort reaches the CLI flags for planner and reviewer calls too', () => {
@@ -157,7 +157,7 @@ test('B0019 the new IPC channels are declared, whitelisted and strict', () => {
   const bad = (channel, payload) => assert.throws(() => validatePayload(channel, IPC_SCHEMAS[channel], payload), /Invalid IPC request/, JSON.stringify(payload));
   ok('agents:settings:set', { agentId: 'claude-code', model: 'sonnet', effort: 'high' });
   ok('agents:settings:set', { agentId: 'ollama', effort: '' });
-  for (const payload of [{ agentId: 'chatgpt-web', model: 'x' }, { agentId: 'cmd; calc' }, { agentId: 'ollama', effort: 'ultra' }, { agentId: 'ollama', model: 'm', extra: 1 }, { model: 'x' }, { agentId: 'ollama', model: 'x'.repeat(200) }]) bad('agents:settings:set', payload);
+  for (const payload of [{ agentId: 'chatgpt-web', model: 'x' }, { agentId: 'cmd; calc' }, { agentId: 'ollama', effort: 'turbo' }, { agentId: 'ollama', model: 'm', extra: 1 }, { model: 'x' }, { agentId: 'ollama', model: 'x'.repeat(200) }]) bad('agents:settings:set', payload);
   ok('agents:say-hi', { agentId: 'ollama', model: 'qwen3:4b-instruct' });
   for (const payload of [{ agentId: 'chatgpt-web' }, { agentId: 'ollama', prompt: 'my own words' }, { agentId: 'ollama', text: 'hi' }, {}]) bad('agents:say-hi', payload);
 });
@@ -196,7 +196,7 @@ test('B0019 through the real main process: settings persist, drive the OFFICIAL 
   assert.ok(text.indexOf('model_reasoning_effort') < text.indexOf('\n['));
   assert.deepEqual(readState().agentSettings, { 'codex-official': { model: 'gpt-5.1-codex', effort: 'high' } });
 
-  await assert.rejects(() => H('agents:settings:set', { agentId: 'codex-official', effort: 'ultra' }), /Invalid IPC request/);
+  await assert.rejects(() => H('agents:settings:set', { agentId: 'codex-official', effort: 'turbo' }), /Invalid IPC request/);
   await assert.rejects(() => H('agents:settings:set', { agentId: 'ollama', model: 'bad model name' }), /Model name/);
   await assert.rejects(() => H('agents:settings:set', { agentId: 'chatgpt-web', model: 'x' }), /Invalid IPC request/);
 

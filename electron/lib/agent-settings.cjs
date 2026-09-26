@@ -10,11 +10,14 @@ const WORKER_AGENT_IDS = Object.freeze(['codex-official', 'codex-pega']);
 const SETTINGS_AGENT_IDS = Object.freeze([...CLI_AGENT_IDS, ...WORKER_AGENT_IDS]);
 // Effort levels per agent, as the tools themselves define them: Codex model_reasoning_effort, `claude --effort` (from claude --help)
 // and `ollama run --think` (thinking models only). Leaving a setting empty passes no flag at all.
+// Codex: the account's own models_cache.json lists low/medium/high/xhigh and, on newer models, max and ultra; the
+// card narrows this whitelist to the levels the chosen model reports. Ollama: "true" is plain on/off thinking.
+const CODEX_EFFORTS = Object.freeze(['minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra']);
 const EFFORT_LEVELS = Object.freeze({
-  'codex-official': Object.freeze(['minimal', 'low', 'medium', 'high', 'xhigh']),
-  'codex-pega': Object.freeze(['minimal', 'low', 'medium', 'high', 'xhigh']),
+  'codex-official': CODEX_EFFORTS,
+  'codex-pega': CODEX_EFFORTS,
   'claude-code': Object.freeze(['low', 'medium', 'high', 'xhigh', 'max']),
-  ollama: Object.freeze(['low', 'medium', 'high'])
+  ollama: Object.freeze(['low', 'medium', 'high', 'true'])
 });
 const EFFORTS = Object.freeze([...new Set(Object.values(EFFORT_LEVELS).flat())]);
 const MODEL_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,119}$/;
@@ -41,6 +44,58 @@ function parseOpenCodeModels(output) {
     .map((line) => line.trim())
     .filter((line) => MODEL_PATTERN.test(line))
     .slice(0, 200);
+}
+
+// Codex keeps the model list it fetched for the signed-in account in <CODEX_HOME>/models_cache.json. Only the
+// models Codex itself would list (visibility "list") are offered, in Codex's own priority order, each with the
+// reasoning levels that model really supports. Nothing is invented: an unreadable cache gives an empty list.
+const EFFORT_WORD = /^[a-z]{2,16}$/;
+function parseCodexModelsCache(text) {
+  let parsed;
+  try { parsed = JSON.parse(String(text || '')); } catch { return []; }
+  const list = Array.isArray(parsed?.models) ? parsed.models : [];
+  return list
+    .filter((m) => m && m.visibility === 'list' && MODEL_PATTERN.test(String(m.slug || '')))
+    .sort((a, b) => (Number(a.priority) || 0) - (Number(b.priority) || 0))
+    .slice(0, 100)
+    .map((m) => {
+      const efforts = (Array.isArray(m.supported_reasoning_levels) ? m.supported_reasoning_levels : [])
+        .map((level) => String(level?.effort ?? level ?? ''))
+        .filter((level) => EFFORT_WORD.test(level));
+      const name = String(m.display_name || m.slug).slice(0, 80);
+      const defaultEffort = EFFORT_WORD.test(String(m.default_reasoning_level || '')) ? m.default_reasoning_level : null;
+      return { slug: m.slug, name, efforts, defaultEffort };
+    });
+}
+
+// `ollama show <model>` prints a Capabilities section; a thinking model lists "thinking" and may add a
+// "levels  false, true" (on/off) or "levels  low, medium, high" line. The result is the list of --think values
+// that model accepts: [] = it cannot think at all; null = no Capabilities section, so nothing is known.
+function parseOllamaShowThinking(text) {
+  const lines = String(text || '').split(/\r?\n/);
+  const start = lines.findIndex((line) => line.trim() === 'Capabilities');
+  if (start < 0) return null;
+  const section = [];
+  for (const line of lines.slice(start + 1)) {
+    if (!line.trim()) break;
+    section.push(line.trim());
+  }
+  if (!section.some((line) => line.split(/\s+/)[0] === 'thinking')) return [];
+  const levelsLine = section.find((line) => line.startsWith('levels'));
+  if (!levelsLine) return ['true'];
+  const values = levelsLine.replace(/^levels\s*/, '').split(',').map((value) => value.trim()).filter(Boolean);
+  const words = values.filter((value) => EFFORT_LEVELS.ollama.includes(value) && value !== 'true');
+  if (words.length) return words;
+  return values.includes('true') ? ['true'] : [];
+}
+
+// The --think value to actually send for an Ollama model: the chosen one when the model accepts it, plain "on"
+// when the model only has on/off, nothing at all when the model cannot think. Unknown capabilities change nothing.
+function ollamaThinkFor(options, effort) {
+  if (!effort || !Array.isArray(options)) return effort || null;
+  if (options.includes(effort)) return effort;
+  if (options.includes('true')) return 'true';
+  return null;
 }
 
 const SAY_HI_PROMPT = 'Reply with one short greeting sentence.';
@@ -240,7 +295,7 @@ class SayHiService {
 }
 
 module.exports = {
-  CLI_AGENT_IDS, WORKER_AGENT_IDS, SETTINGS_AGENT_IDS, EFFORTS, MODEL_PATTERN, MODEL_ENV, CLAUDE_MODEL_ALIASES, parseOpenCodeModels,
+  CLI_AGENT_IDS, WORKER_AGENT_IDS, SETTINGS_AGENT_IDS, EFFORTS, MODEL_PATTERN, MODEL_ENV, CLAUDE_MODEL_ALIASES, parseOpenCodeModels, parseCodexModelsCache, parseOllamaShowThinking, ollamaThinkFor, CODEX_EFFORTS,
   SAY_HI_PROMPT, SAY_HI_TIMEOUT_MS, SAY_HI_REPLY_BYTES, SAY_HI_RUN_OUTPUT_BYTES,
   EFFORT_LEVELS, effortsFor, supportsEffort, validModel, validEffort, cleanPatch, readSettings, applyPatch, effective, extractReply, stripAnsi, collapseRepeatedPhrases, SayHiService
 };

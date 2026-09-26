@@ -293,6 +293,42 @@ async function listOpenCodeModels() {
   }
 }
 
+// The model list Codex itself fetched for the signed-in account (<CODEX_HOME>/models_cache.json). Read-only and
+// size-capped; an absent or unreadable cache simply means no list, and the card keeps its free-text field.
+async function readCodexModels(codexHome) {
+  try {
+    const file = path.join(codexHome, 'models_cache.json');
+    const stat = await fsp.stat(file);
+    if (!stat.isFile() || stat.size > 8 * 1024 * 1024) return [];
+    return agentSettingsLib.parseCodexModelsCache(await fsp.readFile(file, 'utf8'));
+  } catch {
+    return [];
+  }
+}
+
+// Which --think values an installed Ollama model accepts, from the fixed, read-only `ollama show <model>`.
+// Remembered per model for this run; null when Ollama did not say (unknown changes nothing).
+const ollamaThinkingCache = new Map();
+async function ollamaThinkingOptions(model) {
+  if (!agentSettingsLib.validModel(model)) return null;
+  if (ollamaThinkingCache.has(model)) return ollamaThinkingCache.get(model);
+  let options = null;
+  try { options = agentSettingsLib.parseOllamaShowThinking((await execFixed('ollama', ['show', model], undefined, 8000)).stdout); } catch { options = null; }
+  if (options !== null) ollamaThinkingCache.set(model, options);
+  return options;
+}
+
+// A Codex model list in the shape the card uses: slugs to pick from, their names, and each model's own levels.
+function codexModelFields(models) {
+  if (!models.length) return {};
+  return {
+    knownModels: models.map((model) => model.slug),
+    knownModelLabels: Object.fromEntries(models.map((model) => [model.slug, model.name])),
+    modelEfforts: Object.fromEntries(models.map((model) => [model.slug, model.efforts])),
+    modelDefaultEfforts: Object.fromEntries(models.filter((model) => model.defaultEffort).map((model) => [model.slug, model.defaultEffort]))
+  };
+}
+
 function pegaProviderState(state) {
   return (state.providers || []).find((item) => item.id === PEGA_PROVIDER_ID || normalizedProviderUrl(item.baseUrl) === PEGA_BASE_URL) || null;
 }
@@ -302,7 +338,12 @@ async function getAgentSettingsView() {
   const settings = agentSettingsLib.readSettings(state.agentSettings);
   const pegaState = pegaProviderState(state);
   const secrets = await loadSecrets();
-  const openCodeModels = await listOpenCodeModels();
+  const [openCodeModels, officialModels] = await Promise.all([
+    listOpenCodeModels(),
+    readCodexModels(getCodexWorkerRuntime().codexHome(WORKER_IDS.OFFICIAL))
+  ]);
+  const savedOllamaModel = settings.ollama?.model || null;
+  const ollamaThinking = savedOllamaModel ? { [savedOllamaModel]: await ollamaThinkingOptions(savedOllamaModel) } : {};
   const agents = agentSettingsLib.SETTINGS_AGENT_IDS.map((agentId) => {
     const isWorker = agentSettingsLib.WORKER_AGENT_IDS.includes(agentId);
     const route = SAY_HI_ROUTES[agentId] || null;
@@ -319,6 +360,9 @@ async function getAgentSettingsView() {
       // Checked against the real `gemini --help` (work order 0022): there is no maintained alias and no read-only
       // list-models command, so this is a permanent, honest "no list" state, not a failed detection attempt.
       ...(agentId === 'gemini-cli' ? { knownModelsUnavailable: true } : {}),
+      // Codex OFFICIAL: the account's own model list from its isolated CODEX_HOME's models_cache.json, so nobody
+      // has to guess a model id such as "gpt-5.6-sol". (The plain Codex CLI card stays as work order 0022 left it.)
+      ...(agentId === 'codex-official' ? codexModelFields(officialModels) : {}),
       sayHi: {
         supported: Boolean(route),
         network: route ? Boolean(agentId !== 'ollama' && (isWorker || PROVIDERS[route.provider]?.network)) : false,
@@ -330,7 +374,7 @@ async function getAgentSettingsView() {
   });
   // The official ChatGPT website is operated by the person in their own browser; AIECP never controls it (Blueprint 06).
   const chatgptWeb = { id: 'chatgpt-web', name: 'ChatGPT Web', kind: 'web', controllable: false, model: null, modelSource: 'default', effort: null, effortSupported: false, efforts: [], sayHi: { supported: false, network: false, keyConfigured: null } };
-  return { schema: 'aecp.agent-settings/v1', agents: [chatgptWeb, ...agents], ollamaModels: await listOllamaModels() };
+  return { schema: 'aecp.agent-settings/v1', agents: [chatgptWeb, ...agents], ollamaModels: await listOllamaModels(), ollamaThinking };
 }
 
 async function setAgentSettings(payload) {
@@ -358,9 +402,6 @@ async function executeSayHi({ agentId, model, prompt, timeoutMs, maxOutputBytes 
   if (agentId === 'codex-pega' && !provider.apiKey) return { skipped: true, code: 'NO_KEY', reason: 'The PEGA key is not set yet.' };
   if (agentId === 'codex-pega' && !(chosen || provider.defaultModel)) return { skipped: true, code: 'NEEDS_MODEL', reason: 'Choose a PEGA model first.' };
   if (agentId === 'codex-official' && !provider.authPresent) return { skipped: true, code: 'AUTH_REQUIRED', reason: 'Codex OFFICIAL is not signed in yet.' };
-  // Without an explicit model, codex exec falls back to an interactive model prompt that blocks on stdin
-  // instead of answering; a fixed greeting has no terminal to answer it, so a model must be chosen first.
-  if (agentId === 'codex-official' && !chosen) return { skipped: true, code: 'NEEDS_MODEL', reason: 'Choose an OFFICIAL model first.' };
   // A fresh, empty folder owned by AIECP: no Workspace is ever the working directory of a greeting.
   const cwd = dataPath('say-hi', agentId);
   await fsp.rm(cwd, { recursive: true, force: true });
@@ -377,6 +418,8 @@ async function executeSayHi({ agentId, model, prompt, timeoutMs, maxOutputBytes 
     return await router.execute(route.role, prompt, {
       provider: route.provider,
       model: chosen || undefined,
+      // Ollama: only a --think value the chosen model accepts (false = send none); other agents are unchanged.
+      ...(agentId === 'ollama' ? { effort: agentSettingsLib.ollamaThinkFor(await ollamaThinkingOptions(chosen), settings.ollama?.effort || null) || false } : {}),
       cwd,
       timeoutMs,
       maxOutputBytes,
@@ -1263,6 +1306,12 @@ async function buildRuntimeProviderRouter() {
     const own = agentSettings[agentId];
     if (!own || !registry[providerId]) continue;
     registry[providerId] = { ...registry[providerId], ...(own.model ? { defaultModel: own.model } : {}), ...(own.effort ? { defaultEffort: own.effort } : {}) };
+  }
+  // A stored Ollama thinking level is only kept when the stored model accepts it (see ollamaThinkFor).
+  if (registry.ollama?.defaultEffort && registry.ollama.defaultModel) {
+    const think = agentSettingsLib.ollamaThinkFor(await ollamaThinkingOptions(registry.ollama.defaultModel), registry.ollama.defaultEffort);
+    if (think) registry.ollama = { ...registry.ollama, defaultEffort: think };
+    else { const { defaultEffort: _dropped, ...rest } = registry.ollama; registry.ollama = rest; }
   }
   const officialSetting = agentSettings[WORKER_IDS.OFFICIAL] || {};
   const officialModel = officialSetting.model || String(process.env.AECP_CODEX_OFFICIAL_MODEL || '').trim().slice(0, 200) || null;

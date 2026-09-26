@@ -71,7 +71,12 @@ function loadMain({ userData: existingUserData = null, version = '0.0.0-test' } 
     return request === 'electron' ? electron : originalLoad.call(this, request, ...rest);
   };
   try { require(require.resolve('../../electron/main.cjs')); } finally { Module._load = originalLoad; }
-  return { userData, handlers, record, control, safeStorage, start: () => ready(), dispose: () => { if (!existingUserData) fs.rmSync(userData, { recursive: true, force: true }); } };
+  return { userData, handlers, record, control, safeStorage, start: () => ready(), dispose: () => {
+    if (existingUserData) return;
+    // main.cjs may still be finishing a background write when a test ends; on Windows that makes the folder
+    // briefly non-empty or locked. Retry, and never let cleanup of a temp folder fail the test itself.
+    try { fs.rmSync(userData, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }); } catch { /* best effort */ }
+  } };
 }
 
 module.exports = { loadMain };
