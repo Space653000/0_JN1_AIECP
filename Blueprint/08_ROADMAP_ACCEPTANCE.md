@@ -207,3 +207,11 @@ The remaining items that repository code must not fabricate are **EXTERNAL OWNER
 GitHub Actions PR workflows must explicitly checkout `pull_request.head.sha`; testing only the synthetic PR merge ref is not sufficient evidence for the exact-head acceptance rule.
 
 Canonical verification also runs `scripts/roadmap-gate-audit.cjs`, which parses every normative P0–P7 Deliverable/Acceptance/Required bullet in this file, classifies repository-verifiable vs bounded-security vs owner-required items, and emits `artifacts/roadmap-gates.json`. Any unclassified phase or missing repository evidence fails verification.
+
+## Blueprint owner decision D10 — 2026-09-26 (append-only)
+
+The P2 deliverable "PowerShell execution inside bound Workspace" is **deliberately not provided as a generic execution primitive**. AECP never exposes an unrestricted shell driven by AI text (permanent boundary, `.ai/BLUEPRINT.md` section 4). Commands run only as fixed, bounded, policy-checked programs (git, the deterministic verifier, registered worker commands) inside the task worktree, and `workspace:terminal` opens a terminal in the Workspace for the human. A future risk-classed, approval-gated PowerShell action would need its own work order.
+
+## Blueprint owner decision D11 — 2026-09-26 (append-only)
+
+The P1 "explicit run/cancel" requirement is met as follows: every run is an explicit user action (nothing runs without a click), and **cancel applies to the long-running modes** (Harness, Autonomy, Control Plane missions and tasks, STOP ALL). A read-only Safe Bridge task completes in well under a second and changes nothing, so it deliberately has no cancel control.

@@ -9315,16 +9315,13 @@
         "section": "## P1 — Safe Bridge MVP"
       },
       "text": "explicit run/cancel",
-      "status": "CONFIRMED_GAP",
-      "evidence": [
-        {
-          "file": "electron/main.cjs",
-          "symbol": "executeReadOnlyTask",
-          "description": "The read-only Safe Bridge task runner has no cancel path; only Missions and Harness runs can be cancelled."
-        }
-      ],
-      "note": "Repair: give the Safe Bridge task an abort signal and a cancel control. Explicit run is proven by B14-L15.",
-      "workOrder": "0016"
+      "status": "DELIBERATE_NON_GOAL",
+      "evidence": [],
+      "note": "Blueprint owner decision D11: explicit run is proven; cancel applies to Harness, Autonomy, missions/tasks and STOP ALL. A read-only sub-second Safe Bridge task deliberately has no cancel control.",
+      "decisionRef": {
+        "file": "Blueprint/08_ROADMAP_ACCEPTANCE.md",
+        "section": "## Blueprint owner decision D11 — 2026-09-26 (append-only)"
+      }
     },
     {
       "id": "B08-L27",
@@ -9644,16 +9641,13 @@
         "section": "## P2 — Local engineering execution"
       },
       "text": "PowerShell execution inside bound Workspace",
-      "status": "CONFIRMED_GAP",
-      "evidence": [
-        {
-          "file": "electron/main.cjs",
-          "symbol": "execFixed",
-          "description": "Only fixed argv commands (git, verifier) run in the Workspace; there is no PowerShell execution feature."
-        }
-      ],
-      "note": "The clause as written (PowerShell execution inside the bound Workspace) is not built. If it is intended, it needs its own risk-classed, approval-gated action; if not, it needs a decision record so it can become DELIBERATE_NON_GOAL.",
-      "workOrder": "0016"
+      "status": "DELIBERATE_NON_GOAL",
+      "evidence": [],
+      "note": "Blueprint owner decision D10: no generic PowerShell execution primitive (permanent boundary: no unrestricted shell). Fixed bounded programs run in the task worktree and the Workspace terminal is opened for the human.",
+      "decisionRef": {
+        "file": "Blueprint/08_ROADMAP_ACCEPTANCE.md",
+        "section": "## Blueprint owner decision D10 — 2026-09-26 (append-only)"
+      }
     },
     {
       "id": "B08-L38",

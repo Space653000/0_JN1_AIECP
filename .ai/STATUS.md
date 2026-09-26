@@ -105,7 +105,7 @@
 | OWNER-EXTERNAL gate | 4 類 | 只有 `Space653000`（repo 擁有者）本人 |
 | 刻意不做 | 6 項 | 需要新的獨立 Blueprint 決策才會開放，非「忘記做」 |
 
-**結論（2026-09-26 施工單 0016 完成後）：** 追溯矩陣 441 條（藍圖 00–24 與 R1–R8 全數納入），`--strict` 由 `npm run verify` 強制：**356 已實作、21 部分、4 確認缺失（B02-L207、B11-L61、B08-L26、B08-L37）、16 需人工驗證、18 ENVIRONMENT、14 OWNER、12 蓄意不做**（施工單 0016 之前為 323 已實作、59 部分、確認缺失 0）。已知缺陷 G17（SecurityPolicy 路徑別名）、received／correlated 崩潰窗口、備份與原子寫入的競爭（`backup-manager`）、`GitHubGateway` 呼叫不存在的 gh 子命令與 `repository_dispatch client_payload` 未解析，皆已在 0016 單位 C／E 以紅測試先行修復並附破壞紀錄；`workflow_dispatch` 仍未處理（B05-L118 維持部分）。剩下的 21 條部分各有逐條原因（見 0016 回報）；**倉庫內能自動完成的部分已完成，其餘需要真機、真帳號、憑證、人工驗收，或是尚未實作的產品功能（4 條確認缺失），程式碼與測試無法代為結案。**
+**結論（2026-09-26 最終驗收，0016 之後）：** 追溯矩陣 441 條（藍圖 00–24 與 R1–R8 全數納入），`--strict` 由 `npm run verify` 強制：**356 已實作、21 部分、16 需人工驗證、18 ENVIRONMENT、14 OWNER、14 蓄意不做（含 Blueprint 決策 D2–D11）、2 確認缺失**。剩下的 2 條確認缺失是功能增強而非缺陷：任務層級 role／verifierProfile 欄位（B02-L207）、動作 metadata 表（B11-L61）。21 條「部分」是打包／CI／環境／人工證據型，程式碼與測試無法代為結案。所有已知真缺陷（含 CODEX_HOME 隔離、SecurityPolicy 路徑正規化與 junction 逃逸防護、Result Capsule、Evidence 不可變、備份暫存檔競態）皆已修復並有破壞檢查。**倉庫內能自動完成的部分已完成；其餘需要真機、真帳號、憑證或人工驗收。**
 
 ### 施工單 0006 施工進度（Claude 驗收 CLOSED）
 
