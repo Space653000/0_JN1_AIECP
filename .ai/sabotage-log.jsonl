@@ -385,3 +385,4 @@
 {"ids":["W0022"],"file":"electron/main.cjs","from":"      ...(agentId === 'opencode' ? (openCodeModels ? { knownModels: [...openCodeModels] } : { knownModelsUnavailable: true }) : {}),","to":"","tests":["tests/opencode-known-models.test.cjs"]}
 {"ids":["W0022"],"file":"ui/app.js","from":"    + knownModelsNote","to":"","tests":["tests/opencode-known-models.test.cjs"]}
 {"ids":["W0022"],"file":"electron/main.cjs","from":"      ...(agentId === 'gemini-cli' ? { knownModelsUnavailable: true } : {}),","to":"","tests":["tests/opencode-known-models.test.cjs"]}
+{"ids":["B0020-hotfix"],"file":"electron/lib/agent-settings.cjs","from":"const ANSI_PATTERN = /[\\u001B\\u009B][[\\]()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g;\nfunction stripAnsi(value) {\n  return String(value || '').replace(ANSI_PATTERN, '').replace(/\\r/g, '');\n}","to":"function stripAnsi(value) { return String(value || ''); }","tests":["tests/agent-say-hi.test.cjs"]}

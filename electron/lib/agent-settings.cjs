@@ -116,9 +116,16 @@ function effective(agentId, { settings = {}, env = process.env, providerModel = 
   return { model, modelSource, effort: own.effort || null, effortSupported: supportsEffort(agentId), efforts: [...effortsFor(agentId)] };
 }
 
+// Strips terminal control sequences a CLI's own progress bar/spinner writes (e.g. Ollama's "pulling manifest"
+// spinner), so a failure reason or reply never carries raw escape codes into the UI.
+const ANSI_PATTERN = /[\u001B\u009B][[\]()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g;
+function stripAnsi(value) {
+  return String(value || '').replace(ANSI_PATTERN, '').replace(/\r/g, '');
+}
+
 // The reply text out of whatever a CLI printed: one JSON document, JSON lines, or plain text.
 function extractReply(stdout) {
-  const text = String(stdout || '').trim();
+  const text = stripAnsi(stdout).trim();
   if (!text) return '';
   const pick = (value, depth = 0) => {
     if (typeof value === 'string') return value.trim();
@@ -183,7 +190,7 @@ class SayHiService {
       if (outcome?.timedOut) return { ...base, model: usedModel, ok: false, code: 'TIMEOUT', reason: 'No answer within ' + SAY_HI_TIMEOUT_MS / 1000 + ' seconds.', reply: '', durationMs };
       if (outcome?.outputLimitExceeded) return { ...base, model: usedModel, ok: false, code: 'OUTPUT_LIMIT', reason: 'The agent printed more than the allowed amount.', reply: '', durationMs };
       if (outcome?.code !== 0) {
-        const detail = redactText(String(outcome?.stderr || jsonError(outcome?.stdout) || outcome?.stdout || 'The agent failed without a message.')).trim();
+        const detail = redactText(stripAnsi(outcome?.stderr || jsonError(outcome?.stdout) || outcome?.stdout || 'The agent failed without a message.')).trim();
         return { ...base, model: usedModel, ok: false, code: 'FAILED', reason: detail.slice(-REASON_CHARS), reply: '', durationMs };
       }
       const agentError = jsonError(outcome.stdout);
@@ -203,5 +210,5 @@ class SayHiService {
 module.exports = {
   CLI_AGENT_IDS, WORKER_AGENT_IDS, SETTINGS_AGENT_IDS, EFFORTS, MODEL_PATTERN, MODEL_ENV, CLAUDE_MODEL_ALIASES, parseOpenCodeModels,
   SAY_HI_PROMPT, SAY_HI_TIMEOUT_MS, SAY_HI_REPLY_BYTES, SAY_HI_RUN_OUTPUT_BYTES,
-  EFFORT_LEVELS, effortsFor, supportsEffort, validModel, validEffort, cleanPatch, readSettings, applyPatch, effective, extractReply, SayHiService
+  EFFORT_LEVELS, effortsFor, supportsEffort, validModel, validEffort, cleanPatch, readSettings, applyPatch, effective, extractReply, stripAnsi, SayHiService
 };

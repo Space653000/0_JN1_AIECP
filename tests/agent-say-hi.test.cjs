@@ -122,6 +122,14 @@ test('B0019 the reply is redacted and cut to 2 KB, and a failure keeps its real 
   assert.equal(failed.reply, '');
 });
 
+test('B0020-hotfix a failure reason strips terminal control codes (e.g. a spinner Ollama prints while pulling a model)', async () => {
+  fake.answer = () => ({ stdout: '', code: 1, stderr: '\u001b[?2026h\u001b[?25l\u001b[1Gpulling manifest ⠙ \u001b[K\u001b[?25h\u001b[?2026lError: pull model manifest: file does not exist' });
+  const failed = await H('agents:say-hi', { agentId: 'ollama', model: 'qwen3-coder:30b' });
+  assert.equal(failed.ok, false);
+  assert.match(failed.reason, /^pulling manifest.*Error: pull model manifest: file does not exist$/);
+  assert.doesNotMatch(failed.reason, /[\u001b\u009b]/, 'no raw escape byte reaches the UI');
+});
+
 test('B0019 only one greeting per agent runs at a time', async () => {
   fake.delayMs = 250;
   const first = H('agents:say-hi', { agentId: 'ollama', model: 'llama3.2:3b' });
