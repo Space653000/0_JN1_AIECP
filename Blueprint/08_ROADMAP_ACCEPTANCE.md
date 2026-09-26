@@ -215,3 +215,8 @@ The P2 deliverable "PowerShell execution inside bound Workspace" is **deliberate
 ## Blueprint owner decision D11 — 2026-09-26 (append-only)
 
 The P1 "explicit run/cancel" requirement is met as follows: every run is an explicit user action (nothing runs without a click), and **cancel applies to the long-running modes** (Harness, Autonomy, Control Plane missions and tasks, STOP ALL). A read-only Safe Bridge task completes in well under a second and changes nothing, so it deliberately has no cancel control.
+
+
+## Blueprint owner decision D12 — 2026-09-26 (append-only)
+
+On Windows the official Codex desktop app installs its CLI as `codex.exe` under `%LOCALAPPDATA%\OpenAI\Codex\bin\<hash>\`, while a `codex.cmd` wrapper on PATH cannot be launched without a shell (which stays forbidden). AIECP may therefore resolve `codex` to exactly that per-user install directory: the candidate must be a regular file named `codex.exe` directly inside a direct child folder of that fixed base, must not be a link or reparse point, and is used only after PATH lookup finds no native `codex.exe`. No shell, no wildcard beyond that one directory level, no other base directory. This narrows nothing else in the command-resolution rules.
