@@ -73,7 +73,7 @@ test('B0019 saying hi to Ollama sends exactly the fixed prompt with the chosen m
   assert.equal(result.agentName, 'Local Ollama');
   assert.ok(Number.isInteger(result.durationMs) && result.durationMs >= 0);
   assert.equal(fake.spawns.length, 1);
-  assert.deepEqual(fake.spawns[0].args, ['run', '--think', 'low', 'qwen3:4b-instruct', SAY_HI_PROMPT]);
+  assert.deepEqual(fake.spawns[0].args, ['run', 'qwen3:4b-instruct', SAY_HI_PROMPT, '--think=low']);
   assert.equal(SAY_HI_PROMPT, 'Reply with one short greeting sentence.');
   const cwd = fake.spawns[0].cwd;
   assert.equal(path.resolve(cwd), path.resolve(ctx.userData, 'say-hi', 'ollama'), 'the greeting runs in a folder AIECP owns');
@@ -254,4 +254,19 @@ test('B0019 the service enforces the limits itself: fixed prompt, 60 second time
   assert.equal(second.code, 'BUSY');
   release();
   assert.equal((await running).ok, true);
+});
+
+test('B0020-hotfix3 a structured error in the CLI\'s own JSON output wins over routine stderr status noise (Codex always writes to stderr once it starts)', async () => {
+  fake.answer = () => ({
+    stdout: [
+      '{"type":"thread.started","thread_id":"t1"}',
+      '{"type":"turn.failed","error":{"message":"{\\"type\\":\\"error\\",\\"status\\":400,\\"error\\":{\\"type\\":\\"invalid_request_error\\",\\"message\\":\\"The \'gpt-5.1-codex\' model is not supported when using Codex with a ChatGPT account.\\"}}"}}'
+    ].join('\n'),
+    code: 1,
+    stderr: 'Reading additional input from stdin...'
+  });
+  const failed = await H('agents:say-hi', { agentId: 'ollama', model: 'llama3.2:3b' });
+  assert.equal(failed.ok, false);
+  assert.match(failed.reason, /not supported when using Codex with a ChatGPT account/, 'the real, nested error is surfaced');
+  assert.doesNotMatch(failed.reason, /Reading additional input from stdin/, 'routine status noise on stderr is not shown when a real error is available');
 });

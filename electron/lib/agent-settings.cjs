@@ -154,6 +154,23 @@ function extractReply(stdout) {
 }
 
 // Claude Code prints a JSON result with is_error true (and exit code 0) when, for example, the login has expired; its message is the real reason.
+// A JSON string that is itself an encoded error (Codex nests its real message this way) is unwrapped one level.
+function unwrapMessage(value) {
+  if (typeof value !== 'string') return typeof value === 'string' ? value : '';
+  const trimmed = value.trim();
+  if (trimmed.startsWith('{')) {
+    try {
+      const inner = JSON.parse(trimmed);
+      const found = inner?.error?.message || inner?.message;
+      if (typeof found === 'string' && found) return unwrapMessage(found);
+    } catch { /* not nested JSON; use the string as it is */ }
+  }
+  return value;
+}
+
+// Finds a real, structured failure message in a CLI's own JSON/JSONL output, so noise on stderr (Codex always
+// prints "Reading additional input from stdin..." there once it starts, whether or not the run fails) never
+// hides it. Recognizes Claude Code's {"is_error":true,"result":...} and Codex's {"type":"turn.failed"|"error"}.
 function jsonError(stdout) {
   const text = String(stdout || '').trim();
   const candidates = [text, ...text.split(String.fromCharCode(10)).reverse()];
@@ -161,7 +178,13 @@ function jsonError(stdout) {
     if (!candidate.startsWith('{')) continue;
     try {
       const parsed = JSON.parse(candidate);
-      if (parsed && parsed.is_error === true) return String(typeof parsed.result === 'string' && parsed.result ? parsed.result : 'The agent reported an error.');
+      if (!parsed || typeof parsed !== 'object') continue;
+      if (parsed.is_error === true) return String(typeof parsed.result === 'string' && parsed.result ? parsed.result : 'The agent reported an error.');
+      if (parsed.type === 'turn.failed' || parsed.type === 'error') {
+        const raw = parsed.error?.message ?? parsed.message;
+        const found = unwrapMessage(raw);
+        if (found) return found;
+      }
     } catch { /* not JSON */ }
   }
   return '';
@@ -197,7 +220,9 @@ class SayHiService {
       if (outcome?.timedOut) return { ...base, model: usedModel, ok: false, code: 'TIMEOUT', reason: 'No answer within ' + SAY_HI_TIMEOUT_MS / 1000 + ' seconds.', reply: '', durationMs };
       if (outcome?.outputLimitExceeded) return { ...base, model: usedModel, ok: false, code: 'OUTPUT_LIMIT', reason: 'The agent printed more than the allowed amount.', reply: '', durationMs };
       if (outcome?.code !== 0) {
-        const detail = redactText(collapseRepeatedPhrases(stripAnsi(outcome?.stderr || jsonError(outcome?.stdout) || outcome?.stdout || 'The agent failed without a message.'))).trim();
+        // A structured error inside the CLI's own JSON output is the real reason; stderr may just be routine
+        // status noise (Codex always writes "Reading additional input from stdin..." there once it starts).
+        const detail = redactText(collapseRepeatedPhrases(stripAnsi(jsonError(outcome?.stdout) || outcome?.stderr || outcome?.stdout || 'The agent failed without a message.'))).trim();
         return { ...base, model: usedModel, ok: false, code: 'FAILED', reason: detail.slice(-REASON_CHARS), reply: '', durationMs };
       }
       const agentError = jsonError(outcome.stdout);

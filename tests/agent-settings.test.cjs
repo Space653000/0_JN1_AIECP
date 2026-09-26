@@ -131,7 +131,7 @@ test('B0019 CLI flags: model and effort travel as separate array elements, and w
   assert.deepEqual(router.commandSpec('claude', 'planner', 'P', { model: 'sonnet', effort: 'high' }).args,
     ['-p', 'P', '--output-format', 'json', '--permission-mode', 'plan', '--max-turns', '12', '--model', 'sonnet', '--effort', 'high']);
   assert.deepEqual(router.commandSpec('ollama', 'general', 'P', { model: 'm' }).args, ['run', 'm', 'P']);
-  assert.deepEqual(router.commandSpec('ollama', 'general', 'P', { model: 'm', effort: 'medium' }).args, ['run', '--think', 'medium', 'm', 'P']);
+  assert.deepEqual(router.commandSpec('ollama', 'general', 'P', { model: 'm', effort: 'medium' }).args, ['run', 'm', 'P', '--think=medium'], '--think must follow the model/prompt or Ollama can mis-parse the model as the flag value');
   assert.deepEqual(router.commandSpec('gemini', 'general', 'P', { model: 'g' }).args, ['--approval-mode', 'plan', '-p', 'P', '--model', 'g']);
   const codex = router.commandSpec('codex', 'builder', 'P', { model: 'c', cwd: '/w' }).args;
   assert.ok(!codex.includes('--skip-git-repo-check'), 'the flag is off unless asked for');
