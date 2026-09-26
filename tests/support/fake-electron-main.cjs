@@ -12,7 +12,7 @@ const noop = () => {};
 function loadMain({ userData: existingUserData = null, version = '0.0.0-test' } = {}) {
   const userData = existingUserData || fs.mkdtempSync(path.join(os.tmpdir(), 'aecp-main-'));
   const handlers = {};
-  const record = { openExternal: [], clipboard: [], console: [], windows: [] };
+  const record = { openExternal: [], clipboard: [], console: [], windows: [], autoStart: [] };
   const control = { encryptionAvailable: true, chosenFolder: null, savePath: null, messageBoxResponse: 1 };
   const deep = (name) => new Proxy(function fake() {}, {
     get: (_t, prop) => (prop === Symbol.toPrimitive ? () => name : (prop === 'then' ? undefined : deep(`${name}.${String(prop)}`))),
@@ -21,7 +21,7 @@ function loadMain({ userData: existingUserData = null, version = '0.0.0-test' } 
   });
   let ready = null;
   const app = {
-    getPath: () => userData, getVersion: () => version, getName: () => 'aecp', isPackaged: false, getAppPath: () => process.cwd(),
+    getPath: () => userData, getVersion: () => version, getName: () => 'aecp', setLoginItemSettings: (...args) => { record.autoStart.push(args); }, isPackaged: false, getAppPath: () => process.cwd(),
     whenReady: () => ({ then: (fn) => { ready = fn; return { catch: noop }; } }),
     on: noop, once: noop, quit: noop, setAppUserModelId: noop, requestSingleInstanceLock: () => true, setName: noop, setPath: noop,
     commandLine: { appendSwitch: noop }, disableHardwareAcceleration: noop

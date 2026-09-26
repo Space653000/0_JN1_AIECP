@@ -7440,7 +7440,7 @@
       "text": "A non-developer downloads **one primary installer**, double-clicks it, and lets AECP automatically select the correct Windows payload. The user should not need to understand x64 vs ARM64, install Node.js, GitHub tooling, Rust, Python, or a local model before trying the Safe Bridge.",
       "status": "PARTIAL",
       "evidence": [],
-      "note": "CI-level evidence only (ACCEPTANCE section 0): one primary auto-detect installer and its packaging. It is produced by the AECP Packaging / Build and Release GitHub workflows on the exact pull-request head, not by a local behavior test, so it is not claimed as IMPLEMENTED here.",
+      "note": "The primary-installer configuration is now sabotage-checked (B07-L53), but this clause is the newcomer goal (download one installer, double-click, no architecture choice, no developer tools): the end-to-end experience needs the hosted-Windows install smoke and a clean-account walkthrough (ACCEPTANCE 6.4), neither of which a local test can show.",
       "workOrder": "UNASSIGNED"
     },
     {
@@ -7512,7 +7512,7 @@
       "text": "AECP uses Electron + `electron-builder` NSIS. The **primary** release artifact is now a self-contained x64+ARM64 bootstrap installer. It detects the host architecture and launches the matching embedded NSIS payload:",
       "status": "PARTIAL",
       "evidence": [],
-      "note": "CI-level evidence only (ACCEPTANCE section 0): the primary self-contained x64+ARM64 bootstrap installer artifact. It is produced by the AECP Packaging / Build and Release GitHub workflows on the exact pull-request head, not by a local behavior test, so it is not claimed as IMPLEMENTED here.",
+      "note": "The build configuration for the x64+ARM64 primary installer is proven (B07-L53), but the clause says the installer detects the host architecture and launches the matching embedded payload: that is the behavior of the assembled bootstrap installer, produced and smoke-tested only by the AECP Packaging workflow (Package Universal Bootstrap).",
       "workOrder": "UNASSIGNED"
     },
     {
@@ -7522,10 +7522,15 @@
         "section": "## 2. Windows targets"
       },
       "text": "Fallback/debug artifacts remain available:",
-      "status": "PARTIAL",
-      "evidence": [],
-      "note": "CI-level evidence only (ACCEPTANCE section 0): the fallback x64/ARM64 installers and the SHA-256 manifest. It is produced by the AECP Packaging / Build and Release GitHub workflows on the exact pull-request head, not by a local behavior test, so it is not claimed as IMPLEMENTED here.",
-      "workOrder": "UNASSIGNED"
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/packaging-config.test.cjs",
+          "kind": "test",
+          "name": "B07-CFG the x64 and ARM64 fallback installers remain separate, architecture-named builds"
+        }
+      ],
+      "note": "Configuration value proven from the real package.json (electron-builder build settings) and sabotage-checked: the x64 and ARM64 fallback artifact naming (AI-Engineering-Control-Plane-Setup-<arch>-<version>.exe). The SHA-256 manifest is produced by the release workflow and cannot be sabotage-checked from here. That the installed result behaves this way on a real machine is CI/environment evidence (AECP Packaging install/uninstall smoke), not claimed here."
     },
     {
       "id": "B07-L31",
@@ -8026,10 +8031,15 @@
         "section": "## 4. Installer behavior"
       },
       "text": "one primary auto-detect installer for ordinary users",
-      "status": "PARTIAL",
-      "evidence": [],
-      "note": "CI-level evidence only (ACCEPTANCE section 0): the installer behavior \"one primary auto-detect installer\" is configured in package.json (electron-builder NSIS) and exercised by the hosted-Windows install/uninstall smoke jobs. It is produced by the AECP Packaging / Build and Release GitHub workflows on the exact pull-request head, not by a local behavior test, so it is not claimed as IMPLEMENTED here.",
-      "workOrder": "UNASSIGNED"
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/packaging-config.test.cjs",
+          "kind": "test",
+          "name": "B07-CFG the primary installer is one auto-detect x64+ARM64 build with an architecture-free file name"
+        }
+      ],
+      "note": "Configuration value proven from the real package.json (electron-builder build settings) and sabotage-checked: dist:auto builds x64 and ARM64 together into one installer whose file name has no architecture. That the installed result behaves this way on a real machine is CI/environment evidence (AECP Packaging install/uninstall smoke), not claimed here."
     },
     {
       "id": "B07-L54",
@@ -8038,10 +8048,15 @@
         "section": "## 4. Installer behavior"
       },
       "text": "x64 and ARM64 fallback installers for troubleshooting",
-      "status": "PARTIAL",
-      "evidence": [],
-      "note": "CI-level evidence only (ACCEPTANCE section 0): the installer behavior \"x64 and ARM64 fallback installers\" is configured in package.json (electron-builder NSIS) and exercised by the hosted-Windows install/uninstall smoke jobs. It is produced by the AECP Packaging / Build and Release GitHub workflows on the exact pull-request head, not by a local behavior test, so it is not claimed as IMPLEMENTED here.",
-      "workOrder": "UNASSIGNED"
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/packaging-config.test.cjs",
+          "kind": "test",
+          "name": "B07-CFG the x64 and ARM64 fallback installers remain separate, architecture-named builds"
+        }
+      ],
+      "note": "Configuration value proven from the real package.json (electron-builder build settings) and sabotage-checked: separate dist:x64 and dist:arm64 builds with architecture-named artifacts. That the installed result behaves this way on a real machine is CI/environment evidence (AECP Packaging install/uninstall smoke), not claimed here."
     },
     {
       "id": "B07-L55",
@@ -8050,10 +8065,15 @@
         "section": "## 4. Installer behavior"
       },
       "text": "per-user install by default; no Administrator requirement",
-      "status": "PARTIAL",
-      "evidence": [],
-      "note": "CI-level evidence only (ACCEPTANCE section 0): the installer behavior \"per-user install without Administrator\" is configured in package.json (electron-builder NSIS) and exercised by the hosted-Windows install/uninstall smoke jobs. It is produced by the AECP Packaging / Build and Release GitHub workflows on the exact pull-request head, not by a local behavior test, so it is not claimed as IMPLEMENTED here.",
-      "workOrder": "UNASSIGNED"
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/packaging-config.test.cjs",
+          "kind": "test",
+          "name": "B07-CFG the installer is per-user, needs no Administrator and shows an installer UI"
+        }
+      ],
+      "note": "Configuration value proven from the real package.json (electron-builder build settings) and sabotage-checked: nsis.perMachine is false, oneClick is false and no Administrator execution level is requested. That the installed result behaves this way on a real machine is CI/environment evidence (AECP Packaging install/uninstall smoke), not claimed here."
     },
     {
       "id": "B07-L56",
@@ -8062,10 +8082,15 @@
         "section": "## 4. Installer behavior"
       },
       "text": "Start Menu shortcut",
-      "status": "PARTIAL",
-      "evidence": [],
-      "note": "CI-level evidence only (ACCEPTANCE section 0): the installer behavior \"a Start Menu shortcut\" is configured in package.json (electron-builder NSIS) and exercised by the hosted-Windows install/uninstall smoke jobs. It is produced by the AECP Packaging / Build and Release GitHub workflows on the exact pull-request head, not by a local behavior test, so it is not claimed as IMPLEMENTED here.",
-      "workOrder": "UNASSIGNED"
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/packaging-config.test.cjs",
+          "kind": "test",
+          "name": "B07-CFG the installer creates a Start Menu shortcut, a Desktop shortcut offered through the installer UI, and an uninstall entry"
+        }
+      ],
+      "note": "Configuration value proven from the real package.json (electron-builder build settings) and sabotage-checked: nsis.createStartMenuShortcut is true. That the installed result behaves this way on a real machine is CI/environment evidence (AECP Packaging install/uninstall smoke), not claimed here."
     },
     {
       "id": "B07-L57",
@@ -8074,10 +8099,15 @@
         "section": "## 4. Installer behavior"
       },
       "text": "optional Desktop shortcut through installer UI",
-      "status": "PARTIAL",
-      "evidence": [],
-      "note": "CI-level evidence only (ACCEPTANCE section 0): the installer behavior \"an optional Desktop shortcut\" is configured in package.json (electron-builder NSIS) and exercised by the hosted-Windows install/uninstall smoke jobs. It is produced by the AECP Packaging / Build and Release GitHub workflows on the exact pull-request head, not by a local behavior test, so it is not claimed as IMPLEMENTED here.",
-      "workOrder": "UNASSIGNED"
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/packaging-config.test.cjs",
+          "kind": "test",
+          "name": "B07-CFG the installer creates a Start Menu shortcut, a Desktop shortcut offered through the installer UI, and an uninstall entry"
+        }
+      ],
+      "note": "Configuration value proven from the real package.json (electron-builder build settings) and sabotage-checked: nsis.createDesktopShortcut is true with a full (not one-click) installer UI. That the installed result behaves this way on a real machine is CI/environment evidence (AECP Packaging install/uninstall smoke), not claimed here."
     },
     {
       "id": "B07-L58",
@@ -8086,10 +8116,15 @@
         "section": "## 4. Installer behavior"
       },
       "text": "uninstall entry",
-      "status": "PARTIAL",
-      "evidence": [],
-      "note": "CI-level evidence only (ACCEPTANCE section 0): the installer behavior \"an uninstall entry\" is configured in package.json (electron-builder NSIS) and exercised by the hosted-Windows install/uninstall smoke jobs. It is produced by the AECP Packaging / Build and Release GitHub workflows on the exact pull-request head, not by a local behavior test, so it is not claimed as IMPLEMENTED here.",
-      "workOrder": "UNASSIGNED"
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/packaging-config.test.cjs",
+          "kind": "test",
+          "name": "B07-CFG the installer creates a Start Menu shortcut, a Desktop shortcut offered through the installer UI, and an uninstall entry"
+        }
+      ],
+      "note": "Configuration value proven from the real package.json (electron-builder build settings) and sabotage-checked: an NSIS uninstaller with a display name is configured. That the installed result behaves this way on a real machine is CI/environment evidence (AECP Packaging install/uninstall smoke), not claimed here."
     },
     {
       "id": "B07-L59",
@@ -8098,10 +8133,15 @@
         "section": "## 4. Installer behavior"
       },
       "text": "preserve user configuration/evidence unless user explicitly chooses to remove data",
-      "status": "PARTIAL",
-      "evidence": [],
-      "note": "CI-level evidence only (ACCEPTANCE section 0): the installer behavior \"preserving user configuration and evidence on uninstall\" is configured in package.json (electron-builder NSIS) and exercised by the hosted-Windows install/uninstall smoke jobs. It is produced by the AECP Packaging / Build and Release GitHub workflows on the exact pull-request head, not by a local behavior test, so it is not claimed as IMPLEMENTED here.",
-      "workOrder": "UNASSIGNED"
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/packaging-config.test.cjs",
+          "kind": "test",
+          "name": "B07-CFG uninstalling keeps the user configuration and evidence"
+        }
+      ],
+      "note": "Configuration value proven from the real package.json (electron-builder build settings) and sabotage-checked: nsis.deleteAppDataOnUninstall is false. Whether user data really survives an uninstall is verified by the AECP Packaging smoke, not here. That the installed result behaves this way on a real machine is CI/environment evidence (AECP Packaging install/uninstall smoke), not claimed here."
     },
     {
       "id": "B07-L60",
@@ -8112,7 +8152,7 @@
       "text": "no background service in bootstrap release",
       "status": "PARTIAL",
       "evidence": [],
-      "note": "CI-level evidence only (ACCEPTANCE section 0): the installer behavior \"no background service\" is configured in package.json (electron-builder NSIS) and exercised by the hosted-Windows install/uninstall smoke jobs. It is produced by the AECP Packaging / Build and Release GitHub workflows on the exact pull-request head, not by a local behavior test, so it is not claimed as IMPLEMENTED here.",
+      "note": "No custom NSIS script or service hook is configured and the main process registers nothing at startup (B07-L61), but \"no background service is installed\" is a property of the installed result on a real machine; it is verified only by inspection of a real installation (CI smoke / ACCEPTANCE 6.3).",
       "workOrder": "UNASSIGNED"
     },
     {
@@ -8122,10 +8162,15 @@
         "section": "## 4. Installer behavior"
       },
       "text": "no auto-start unless user explicitly enables it later",
-      "status": "PARTIAL",
-      "evidence": [],
-      "note": "CI-level evidence only (ACCEPTANCE section 0): the installer behavior \"no auto-start unless enabled later\" is configured in package.json (electron-builder NSIS) and exercised by the hosted-Windows install/uninstall smoke jobs. It is produced by the AECP Packaging / Build and Release GitHub workflows on the exact pull-request head, not by a local behavior test, so it is not claimed as IMPLEMENTED here.",
-      "workOrder": "UNASSIGNED"
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/packaging-config.test.cjs",
+          "kind": "test",
+          "name": "B07-CFG the real main process never registers the application to start with Windows"
+        }
+      ],
+      "note": "Real main.cjs started against a fake Electron never calls app.setLoginItemSettings, so the application does not register itself to start with Windows (sabotage-checked). An installer-level startup entry would be CI/environment evidence."
     },
     {
       "id": "B07-L66",
@@ -8608,7 +8653,7 @@
       "text": "GitHub Actions performs:",
       "status": "PARTIAL",
       "evidence": [],
-      "note": "CI-level evidence only (ACCEPTANCE section 0): the release automation steps 1-11 (verification, packaging, bootstrap, Store AppX validation, install/upgrade/rollback smoke, provenance, artifacts, tag-only publish, owner-gated Store and signing workflows). It is produced by the AECP Packaging / Build and Release GitHub workflows on the exact pull-request head, not by a local behavior test, so it is not claimed as IMPLEMENTED here.",
+      "note": "The eleven release-automation steps are GitHub Actions workflow behavior (jobs, triggers, permissions, artifacts). .github/ cannot be modified by this work, and the gate accepts sabotage only of package.json, electron/, ui/ and scripts/, so no mutation check can guard the workflow files; the evidence is the exact-HEAD workflow runs (AECP Packaging, Build and Release dry-run).",
       "workOrder": "UNASSIGNED"
     },
     {
@@ -8620,7 +8665,7 @@
       "text": "Workflow permissions are minimum necessary (`contents: write` only in release job; read elsewhere).",
       "status": "PARTIAL",
       "evidence": [],
-      "note": "Workflow permissions (contents: write only in the release job) are checked textually by tests/release-workflow.test.cjs; .github/ cannot be altered by this work and the property is a workflow-file setting, not product behavior.",
+      "note": "Minimum workflow permissions (contents: write only in the release job) are a setting inside .github/workflows, checked statically by tests/release-workflow.test.cjs; a mutation of that file is forbidden, so the gate cannot record a sabotage for it.",
       "workOrder": "UNASSIGNED"
     },
     {
@@ -8718,7 +8763,7 @@
       "text": "A release is blocked unless:",
       "status": "PARTIAL",
       "evidence": [],
-      "note": "CI-level evidence only (ACCEPTANCE section 0): the release checklist (verification, x64/ARM64/auto builds, payload evidence, packaged smoke, no secrets, README names, checksums, signed/unsigned state). It is produced by the AECP Packaging / Build and Release GitHub workflows on the exact pull-request head, not by a local behavior test, so it is not claimed as IMPLEMENTED here.",
+      "note": "The release checklist mixes CI results (verification, three builds, payload evidence, packaged smoke, checksums) with documentation and signing state; only the package.json build settings are locally provable (B07-L53/L54). Blocking a release on the checklist is enforced by workflow logic under .github/, which cannot be sabotage-checked.",
       "workOrder": "UNASSIGNED"
     },
     {
@@ -12527,10 +12572,15 @@
         "section": "## P6.5 — Private Store distribution"
       },
       "text": "Store-compatible Windows package",
-      "status": "PARTIAL",
-      "evidence": [],
-      "note": "CI-level evidence only (ACCEPTANCE section 0): the Store-compatible AppX package build and manifest validation with a non-production identity. It is produced by the AECP Packaging / Build and Release GitHub workflows on the exact pull-request head, not by a local behavior test, so it is not claimed as IMPLEMENTED here.",
-      "workOrder": "UNASSIGNED"
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/packaging-config.test.cjs",
+          "kind": "test",
+          "name": "B08-CFG the Store package is configured as a separate AppX build with its own identity and per-architecture file name"
+        }
+      ],
+      "note": "Configuration value proven from the real package.json (electron-builder build settings) and sabotage-checked: an AppX build with its own applicationId/identity/languages/file name and dist:store scripts for x64 and ARM64. That the installed result behaves this way on a real machine is CI/environment evidence (AECP Packaging install/uninstall smoke), not claimed here. The built package and its manifest validation are AECP Packaging results."
     },
     {
       "id": "B08-L165",
@@ -12581,10 +12631,15 @@
         "section": "## P6.5 — Private Store distribution"
       },
       "text": "GitHub Preview channel retained independently",
-      "status": "PARTIAL",
-      "evidence": [],
-      "note": "CI-level evidence only (ACCEPTANCE section 0): the GitHub Preview channel continuing independently of the Store lane (the updater tests prove the Preview path, B15-L40). It is produced by the AECP Packaging / Build and Release GitHub workflows on the exact pull-request head, not by a local behavior test, so it is not claimed as IMPLEMENTED here.",
-      "workOrder": "UNASSIGNED"
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/packaging-config.test.cjs",
+          "kind": "test",
+          "name": "B08-CFG the GitHub Preview updater never selects a Store package, so the two channels cannot interfere"
+        }
+      ],
+      "note": "The real updater asset selection never picks a Store package (a different file-name family) and installs nothing when a release only has Store packages, so the Preview channel and the Store lane do not interfere (sabotage-checked). The Store release itself is an owner gate."
     },
     {
       "id": "B08-L171",
@@ -12759,7 +12814,7 @@
       "text": "upgrade/uninstall tests",
       "status": "PARTIAL",
       "evidence": [],
-      "note": "Upgrade behavior is proven (B15-L40/L90) and install/uninstall smoke runs in AECP Packaging (CI evidence); uninstall itself is not a local test.",
+      "note": "Upgrade behavior is sabotage-checked (B15-L40/L90 with a real updater against a scripted release channel), but uninstalling is an installer action on a real machine: the AECP Packaging install/uninstall smoke is the evidence, not a local test.",
       "workOrder": "UNASSIGNED"
     },
     {

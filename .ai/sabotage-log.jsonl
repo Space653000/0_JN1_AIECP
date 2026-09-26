@@ -260,3 +260,14 @@
 {"ids":["B08-L129"],"file":"electron/lib/control-plane.cjs","from":"if(!dependenciesReady) reasons.push('DEPENDENCY_WAIT');","to":"","tests":["tests/control-plane-lifecycle-e2e.test.cjs"]}
 {"ids":["B08-L151"],"file":"electron/lib/remote-gateway.cjs","from":"if(!isLoopbackHost(this.host)&&!validTls(this.tls))throw new Error('Non-loopback Remote Gateway requires TLS key/certificate or PFX.');","to":"","tests":["tests/remote-pairing.test.cjs"]}
 {"ids":["B08-L158"],"file":"electron/lib/pairing.cjs","from":"  d.revoked=true;return true;","to":"  return true;","tests":["tests/remote-pairing.test.cjs"]}
+{"ids":["B07-L53"],"file":"package.json","from":"\"dist:auto\": \"electron-builder --win nsis --x64 --arm64 --publish never","to":"\"dist:auto\": \"electron-builder --win nsis --x64 --publish never","tests":["tests/packaging-config.test.cjs"]}
+{"ids":["B07-L54"],"file":"package.json","from":"\"dist:arm64\": \"electron-builder --win nsis --arm64 --publish never\"","to":"\"dist:arm64\": \"electron-builder --win nsis --x64 --arm64 --publish never\"","tests":["tests/packaging-config.test.cjs"]}
+{"ids":["B07-L21","B07-L54"],"file":"package.json","from":"\"artifactName\": \"AI-Engineering-Control-Plane-Setup-${arch}-${version}.${ext}\"","to":"\"artifactName\": \"AI-Engineering-Control-Plane-Setup-${version}.${ext}\"","tests":["tests/packaging-config.test.cjs"]}
+{"ids":["B07-L55"],"file":"package.json","from":"\"perMachine\": false,","to":"\"perMachine\": true,","tests":["tests/packaging-config.test.cjs"]}
+{"ids":["B07-L56"],"file":"package.json","from":"\"createStartMenuShortcut\": true,","to":"\"createStartMenuShortcut\": false,","tests":["tests/packaging-config.test.cjs"]}
+{"ids":["B07-L57"],"file":"package.json","from":"\"createDesktopShortcut\": true,","to":"\"createDesktopShortcut\": false,","tests":["tests/packaging-config.test.cjs"]}
+{"ids":["B07-L58"],"file":"package.json","from":"\"uninstallDisplayName\": \"AI Engineering Control Plane\",","to":"","tests":["tests/packaging-config.test.cjs"]}
+{"ids":["B07-L59"],"file":"package.json","from":"\"deleteAppDataOnUninstall\": false","to":"\"deleteAppDataOnUninstall\": true","tests":["tests/packaging-config.test.cjs"]}
+{"ids":["B07-L61"],"file":"electron/main.cjs","from":"app.whenReady().then(async () => {\n  await ensureDataDirs();","to":"app.whenReady().then(async () => {\n  app.setLoginItemSettings({ openAtLogin: true });\n  await ensureDataDirs();","tests":["tests/packaging-config.test.cjs"]}
+{"ids":["B08-L164"],"file":"package.json","from":"\"identityName\": \"Space653000.AECPPreview\",","to":"\"identityName\": \"Somebody.Else\",","tests":["tests/packaging-config.test.cjs"]}
+{"ids":["B08-L168"],"file":"electron/lib/version.cjs","from":"if (names.has(fallback)) return fallback;","to":"return fallback;","tests":["tests/packaging-config.test.cjs"]}
