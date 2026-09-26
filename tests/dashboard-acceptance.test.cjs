@@ -35,6 +35,69 @@ test('Dashboard exposes authoritative human controls and event/evidence projecti
   assert.match(ui,/Approve & Merge/);
 });
 
+test('Run timeline event buttons expose canonical event IDs and evidence by keyboard',()=>{
+  const ui=read('ui/harness-console.js');
+  const control=read('electron/lib/control-plane.cjs');
+  assert.match(ui,/AECPDashboard\.timeline\(events/);
+  assert.match(ui,/data-event-id/);
+  assert.match(ui,/selectedEvent\.evidence\.sha256/);
+  assert.match(ui,/aria-live="polite"/);
+  assert.match(read('ui/index.html'),/dashboard-projection\.js/);
+  assert.match(read('ui/styles.css'),/\.hc-event-button:focus-visible/);
+  assert.match(control,/this\.event\('task\.event'/);
+  assert.match(control,/eventSha256/);
+});
+test('Diff view renders canonical changed-file and verifier fields with UNKNOWN fallback',()=>{
+  const ui=read('ui/harness-console.js');
+  for(const field of ['diffView.changedFiles','diffView.additions','diffView.deletions','diffView.untrackedFiles','diffView.patchBytes','diffView.baseCommit','diffView.currentCommit','diffView.verifierStatus'])assert.ok(ui.includes(field));
+  assert.match(read('ui/dashboard-projection.js'),/UNKNOWN/);
+});
+test('Review view renders six dimensions and textual human-required warning',()=>{
+  const ui=read('ui/harness-console.js');
+  assert.match(ui,/AECPDashboard\.reviewView\(focusTask\)/);
+  assert.match(ui,/REVIEW_DIMENSIONS/);
+  assert.match(ui,/⚠ /);
+  assert.match(ui,/HUMAN_REQUIRED/);
+});
+test('GitHub view renders all nine Blueprint fields from projection',()=>{
+  const ui=read('ui/harness-console.js');
+  for(const field of ['branch','base','commit','pr','ciStatus','workflow','artifacts','release','lastEvent'])assert.ok(ui.includes('githubView.'+field));
+  assert.match(ui,/AECPDashboard\.githubView\(focusTask,events\)/);
+});
+test('Notification view uses event projection and presentation-only read state',()=>{
+  const ui=read('ui/harness-console.js');
+  assert.match(ui,/AECPDashboard\.notifications\(events/);
+  assert.match(ui,/presentation-only; never written to Control Plane/);
+  assert.match(ui,/data-read-notification/);
+  assert.match(ui,/href=\\?"#hcApprovals/);
+  assert.match(ui,/⚠ /);
+});
+test('Progress overview renders five named phases and UNKNOWN instead of fake mission progress',()=>{
+  const ui=read('ui/harness-console.js');
+  assert.match(ui,/AECPDashboard\.progressView\(runs,tasks/);
+  assert.match(ui,/PROGRESS_PHASES/);
+  assert.match(ui,/No mission is UNKNOWN/);
+  assert.match(ui,/<progress value=/);
+  assert.match(ui,/typeof pct==='number'\?pct\+'%':'UNKNOWN'/);
+});
+test('new Dashboard labels exist in both English and Traditional Chinese',()=>{
+  const {DICTIONARIES}=require('../ui/i18n.js');
+  for(const key of ['dashboard.timeline','dashboard.diff','dashboard.review','dashboard.github','dashboard.notifications','dashboard.progress',
+    'dashboard.progress.planning','dashboard.progress.implementation','dashboard.progress.testing','dashboard.progress.review','dashboard.progress.acceptance']){
+    assert.ok(DICTIONARIES.en[key],key+' missing en');assert.ok(DICTIONARIES['zh-TW'][key],key+' missing zh-TW');
+  }
+});
+
+test('six Dashboard notification categories are localized in both supported languages',()=>{
+  const {DICTIONARIES}=require('../ui/i18n.js');
+  for(const category of ['INFO','SUCCESS','WARNING','ACTION REQUIRED','ERROR','CRITICAL']){
+    const key='dashboard.notification.'+category;
+    assert.ok(DICTIONARIES.en[key],key+' missing en');
+    assert.ok(DICTIONARIES['zh-TW'][key],key+' missing zh-TW');
+  }
+  assert.match(read('ui/harness-console.js'),/tr\('dashboard\.notification\.'\+n\.category/);
+});
+
 test('Dashboard and shell accessibility provide keyboard focus text status and reduced motion',()=>{
   const html=read('ui/index.html');
   const css=read('ui/styles.css');
@@ -52,7 +115,7 @@ test('Dashboard and shell accessibility provide keyboard focus text status and r
 
 test('Command Center projects canonical Multi-Worker identity, health and isolated cancellation controls', async () => {
   const dashboard=read('ui/harness-console.js');
-  for(const term of ['Worker Runtime','Provider: ','Model: ','Role: ','Task: ','Runtime: ','Worktree: ','Verify: ','Heartbeat: ','Cancel: ','Health ']){
+  for(const term of ['Worker Runtime','Provider: ','Model: ','Role: ','Task: ','Runtime: ','Repository: ','Worktree: ','Verify: ','Heartbeat: ','Cancel: ','Health ']){
     assert.ok(dashboard.includes(term), 'missing dashboard worker field: '+term);
   }
   assert.ok(dashboard.includes('snapshot.workers'));

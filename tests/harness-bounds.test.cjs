@@ -28,10 +28,11 @@ async function makeRepo(prefix){
   return {root,repo,runRoot};
 }
 
-function fakeRouter(onBuilder){
+function fakeRouter(onBuilder,onRole){
   return {
-    capabilities(){return {process:false,network:false,credential:false};},
-    async execute(role,_prompt,opts){
+    capabilities(role){return {process:false,network:false,credential:false,discoversAgentsMd:role==='builder'};},
+    async execute(role,prompt,opts){
+      if(onRole)onRole(role,prompt);
       if(role==='planner'){
         return {code:0,stdout:JSON.stringify({tasks:[{
           task_id:'T1',
@@ -48,12 +49,36 @@ function fakeRouter(onBuilder){
         return {code:0,stdout:'builder done',stderr:'',timedOut:false,aborted:false};
       }
       if(role==='reviewer'){
-        return {code:0,stdout:JSON.stringify({result:'PASS',findings:[],required_changes:[]}),stderr:'',timedOut:false,aborted:false};
+        const runId=prompt.match(/"run_id":"([^"]+)"/)?.[1];
+        const provider=prompt.match(/"provider":"([^"]+)"/)?.[1];
+        return {code:0,stdout:JSON.stringify({schema:'aecp.review/v1',task_id:'T1',run_id:runId,reviewer:{provider,model:'UNKNOWN'},result:'PASS',blueprint:'PASS',plan:'PASS',implementation:'PASS',tests:'PASS',security:'PASS',architecture:'PASS',findings:[],required_changes:[]}),stderr:'',timedOut:false,aborted:false};
       }
       throw new Error('unexpected role '+role);
     }
   };
 }
+
+test('Reviewer process failure escalates to HUMAN_REQUIRED without retrying',async t=>{
+  for(const failure of [{code:9,timedOut:false},{code:1,timedOut:true}]){
+    const fixture=await makeRepo('aecp-reviewer-failure-');
+    t.after(()=>fs.rm(fixture.root,{recursive:true,force:true}));
+    const base=fakeRouter(async cwd=>fs.writeFile(path.join(cwd,'change.txt'),'verified change\n'));
+    let reviewerCalls=0;
+    const router={...base,execute:async(role,prompt,opts)=>{
+      if(role==='reviewer'){
+        reviewerCalls++;
+        return {...failure,stdout:'',stderr:'reviewer unavailable',aborted:false};
+      }
+      return base.execute(role,prompt,opts);
+    }};
+    const result=await runHarness({goal:'Make one verified change.',done:'Verification succeeds.',
+      sourceRoot:fixture.repo,runRoot:fixture.runRoot,maxTasks:1,maxIterations:3,maxTurns:8,
+      providerRouter:router,plannerProvider:'planner',builderProvider:'builder',reviewerProvider:'reviewer'});
+    assert.equal(result.state,'HUMAN_REQUIRED');
+    assert.equal(result.tasks[0].review.result,'HUMAN_REQUIRED');
+    assert.equal(reviewerCalls,1);
+  }
+});
 
 test('Harness stops before another provider call when maxTurns is exhausted',async(t)=>{
   const fixture=await makeRepo('aecp-harness-turn-budget-');
@@ -187,6 +212,8 @@ test('Harness persists the complete Goal Loop contract and checkpoint evidence',
   assert.equal(run.executionContract.transport,'full-harness');
   assert.deepEqual(run.executionContract.taskIds,run.tasks.map(task=>task.id));
   assert.match(run.executionContract.evidenceRef,/verified\.patch$/);
+  assert.equal(run.loopContract.goal,'Create a small verified file.');
+  assert.equal(run.loopContract.maxIterations,2);
   assert.equal(run.loopContract.workspaceId,'ws-test');
   assert.equal(run.loopContract.definitionOfDone,'Verification passes.');
   assert.equal(run.loopContract.checkpointEvery,1);
@@ -392,4 +419,27 @@ test('Harness enforces local-compute budget using measured local provider time',
   assert.equal(run.providerCalls,1);
   assert.ok(run.localComputeMs>=1000);
   assert.match(run.error,/Local compute budget exhausted/);
+});
+
+test('Harness gives user context priority, routes knowledge by provider capability and stores content-free manifest',async t=>{
+  const fixture=await makeRepo('aecp-harness-knowledge-');
+  t.after(()=>fs.rm(fixture.root,{recursive:true,force:true}));
+  await fs.writeFile(path.join(fixture.repo,'AGENTS.md'),'Use project verification.\n');
+  await exec('git',['add','AGENTS.md'],{cwd:fixture.repo});
+  await exec('git',['commit','-m','agents'],{cwd:fixture.repo});
+  const calls=[];
+  const router=fakeRouter(async worktree=>fs.writeFile(path.join(worktree,'README.md'),'changed\n'),(role,prompt)=>calls.push({role,prompt}));
+  const run=await runHarness({goal:'Verify knowledge routing.',done:'One verified change.',context:'Human instruction comes first.',
+    sourceRoot:fixture.repo,runRoot:fixture.runRoot,maxTasks:1,maxIterations:1,maxTurns:3,providerRouter:router,
+    plannerProvider:'planner',builderProvider:'builder',reviewerProvider:'reviewer'});
+  assert.equal(run.state,'DONE',run.error||JSON.stringify(run,null,2));
+  const planner=calls.find(x=>x.role==='planner').prompt;
+  assert.ok(planner.indexOf('Human instruction comes first.')<planner.indexOf('REPOSITORY KNOWLEDGE'));
+  assert.match(planner,/Use project verification/);
+  const builder=calls.find(x=>x.role==='builder').prompt;
+  assert.match(builder,/AGENTS.md/);assert.match(builder,/sha256/);
+  assert.doesNotMatch(builder,/Use project verification/);
+  assert.match(calls.find(x=>x.role==='reviewer').prompt,/Use project verification/);
+  assert.equal(run.repoKnowledge.manifest.files[0].path,'AGENTS.md');
+  assert.doesNotMatch(await fs.readFile(run.repoKnowledge.file,'utf8'),/Use project verification/);
 });

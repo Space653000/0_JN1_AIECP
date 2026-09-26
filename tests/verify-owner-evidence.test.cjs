@@ -9,7 +9,7 @@ const {verifyOwnerEvidence,TYPES}=require('../scripts/verify-owner-evidence.cjs'
 
 const sha='a'.repeat(40);
 const root=path.join(__dirname,'..','samples','owner-evidence');
-const names=['arm64-ui-smoke','laptop-verifier-safety','official-full-mcp','safe-bridge-during-fault'];
+const names=['arm64-ui-smoke','laptop-verifier-safety','official-full-mcp','safe-bridge-during-fault','manual-ui-acceptance'];
 const load=name=>JSON.parse(fs.readFileSync(path.join(root,`${name}.template.json`),'utf8'));
 
 function filled(name){

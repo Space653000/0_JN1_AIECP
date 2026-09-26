@@ -5,11 +5,15 @@ const { resolveKnownCommand } = require('./command-resolver.cjs');
 
 const PROVIDERS = Object.freeze({
   claude: { command: 'claude', roles: ['planner', 'reviewer'], mode: 'cli', network: true, credential: false },
-  codex: { command: 'codex', roles: ['builder'], mode: 'cli', network: false, credential: false },
+  codex: { command: 'codex', roles: ['builder'], mode: 'cli', network: false, credential: false, discoversAgentsMd: true },
   gemini: { command: 'gemini', roles: ['planner', 'reviewer', 'general'], mode: 'cli', network: true, credential: false },
   opencode: { command: 'opencode', roles: ['planner', 'builder', 'reviewer', 'general'], mode: 'cli', network: true, credential: false },
   ollama: { command: 'ollama', roles: ['planner', 'reviewer', 'general'], mode: 'ollama', network: false, credential: false }
 });
+
+// Effort flags exist only where the tool has one: `claude --effort` and `ollama run --think`. Anything else is refused, never guessed.
+const CLAUDE_EFFORTS = Object.freeze(['low', 'medium', 'high', 'xhigh', 'max']);
+const OLLAMA_THINK_LEVELS = Object.freeze(['low', 'medium', 'high']);
 
 function run(command, args, { cwd, timeoutMs = 180000, signal, env = {}, maxOutputBytes = 4 * 1024 * 1024, onSpawn = null, spawnImpl = spawn } = {}) {
   return new Promise((resolve, reject) => {
@@ -215,6 +219,27 @@ class ProviderRouter {
     try { await this.metricsSink(metric); } catch {}
   }
 
+  // One bounded, credential-less request to the selected API family. A 404/501 means the endpoint does not serve it;
+  // any other HTTP answer (401, 400, 405 ...) proves the route exists. Details carry a reason code, never a URL.
+  async probeWireApi(provider, opts = {}) {
+    if (typeof this.fetchImpl !== 'function') return null;
+    const base = safeNetworkUrl(provider.baseUrl);
+    const baseHref = base.href.endsWith('/') ? base.href : base.href + '/';
+    const endpoint = new URL(provider.wireApi === 'chat' ? 'chat/completions' : 'responses', baseHref);
+    const controller = new AbortController();
+    let timedOut = false;
+    const timer = setTimeout(() => { timedOut = true; controller.abort(); }, Math.min(5000, Math.max(1000, Number(opts.timeoutMs || 5000))));
+    try {
+      const response = await this.fetchImpl(endpoint, { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json' }, body: '{}', signal: controller.signal });
+      if (response.status === 404 || response.status === 501) return { reason: 'WIRE_API_UNSUPPORTED', detail: `The endpoint does not serve the selected ${provider.wireApi === 'chat' ? 'Chat Completions' : 'Responses'} API.` };
+      if (response.status >= 500) return { reason: 'ENDPOINT_ERROR', detail: `The endpoint answered HTTP ${response.status}.` };
+      return null;
+    } catch (error) {
+      if (error?.name === 'AbortError') return { reason: timedOut ? 'ENDPOINT_TIMEOUT' : 'ENDPOINT_UNREACHABLE', detail: timedOut ? 'The endpoint did not answer in time.' : 'The endpoint probe was cancelled.' };
+      return { reason: 'ENDPOINT_UNREACHABLE', detail: 'The endpoint could not be reached.' };
+    } finally { clearTimeout(timer); }
+  }
+
   async health(providerId, opts = {}) {
     const provider = this.registry[providerId];
     const checkedAt = new Date().toISOString();
@@ -238,6 +263,10 @@ class ProviderRouter {
         if (provider.requiresAuthFiles && !provider.authPresent) return result('AUTH_REQUIRED', 'Codex OFFICIAL isolated CODEX_HOME requires authentication.', { workerId: provider.workerId || providerId, codexHome: provider.codexHome });
         if (provider.network && !opts.networkApproved) return result('DEGRADED', 'Codex worker is configured, but live network use is not approved.', { workerId: provider.workerId || providerId, codexHome: provider.codexHome, model: opts.model || provider.defaultModel || null, wireApi: provider.wireApi || null });
         if (provider.requiresCredential && !opts.credentialApproved) return result('DEGRADED', 'Codex worker credential is configured, but credential use is not approved.', { workerId: provider.workerId || providerId, codexHome: provider.codexHome, model: opts.model || provider.defaultModel || null, wireApi: provider.wireApi || null });
+        if (provider.baseUrl && provider.network && opts.networkApproved) {
+          const probeFailure = await this.probeWireApi(provider, opts);
+          if (probeFailure) return result('DEGRADED', probeFailure.detail, { reason: probeFailure.reason, workerId: provider.workerId || providerId, codexHome: provider.codexHome, wireApi: provider.wireApi || null });
+        }
         return result('READY', 'Codex CLI and isolated worker runtime are approved for this run.', {
           version: (probe.stdout || probe.stderr || '').split(/\r?\n/)[0],
           workerId: provider.workerId || providerId,
@@ -324,18 +353,21 @@ class ProviderRouter {
       local: provider.mode === 'ollama' || provider.mode === 'local-command' || provider.mode === 'codex-cli' || localOpenCode,
       workerId: provider.workerId || null,
       workerName: provider.workerName || null,
-      providerName: provider.providerName || provider.id
+      providerName: provider.providerName || provider.id,
+      discoversAgentsMd: Boolean(provider.discoversAgentsMd || provider.mode === 'codex-cli')
     };
   }
 
-  commandSpec(providerId, role, prompt, { model, cwd, providerVersion = '' } = {}) {
+  commandSpec(providerId, role, prompt, { model, cwd, providerVersion = '', skipGitRepoCheck = false, effort } = {}) {
     const provider = this.resolve(role, providerId);
     if (!provider) throw new Error(`No provider for role: ${role}`);
+    const selectedEffort = effort || provider.defaultEffort || null;
     const selectedModel = model || provider.defaultModel || process.env[`AECP_${provider.id.toUpperCase()}_MODEL`] || '';
     if (provider.mode === 'openai-compatible') throw new Error('Network provider does not expose a local process command.');
     if (provider.mode === 'ollama') {
       if (!selectedModel) throw new Error('Ollama provider requires a model (options.model, provider defaultModel, or AECP_OLLAMA_MODEL).');
-      return { command: provider.command, args: ['run', selectedModel, prompt], provider: provider.id, model: selectedModel, cwd: cwd || null };
+      if (selectedEffort && !OLLAMA_THINK_LEVELS.includes(selectedEffort)) throw new Error('Ollama thinking level must be one of: ' + OLLAMA_THINK_LEVELS.join(', ') + '.');
+      return { command: provider.command, args: ['run', ...(selectedEffort ? ['--think', selectedEffort] : []), selectedModel, prompt], provider: provider.id, model: selectedModel, cwd: cwd || null };
     }
     if (provider.mode === 'local-command') {
       if (!provider.command || typeof provider.command !== 'string') throw new Error('Local command provider requires a fixed registered command.');
@@ -348,6 +380,8 @@ class ProviderRouter {
       args.push('--ignore-rules', '--sandbox', 'workspace-write', '--json');
       if (cwd) args.push('--cd', cwd);
       args.push('-c', 'sandbox_workspace_write.network_access=false');
+      // Only the fixed greeting runs in an app-owned folder that is not a Git repository.
+      if (skipGitRepoCheck === true) args.push('--skip-git-repo-check');
       if (selectedModel) args.push('--model', selectedModel);
       args.push(prompt);
       return {
@@ -366,6 +400,10 @@ class ProviderRouter {
     if (provider.id === 'claude') {
       const args = ['-p', prompt, '--output-format', 'json', '--permission-mode', 'plan', '--max-turns', '12'];
       if (selectedModel) args.push('--model', selectedModel);
+      if (selectedEffort) {
+        if (!CLAUDE_EFFORTS.includes(selectedEffort)) throw new Error('Claude effort must be one of: ' + CLAUDE_EFFORTS.join(', ') + '.');
+        args.push('--effort', selectedEffort);
+      }
       return { command: provider.command, args, provider: provider.id, model: selectedModel || null, cwd: cwd || null };
     }
     if (provider.id === 'opencode') {

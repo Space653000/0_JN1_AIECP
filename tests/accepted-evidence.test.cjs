@@ -75,7 +75,9 @@ test('Control Plane persists accepted evidence and a SHA manifest before publish
 
 test('Harness patch includes SHA-256 and privacy-safe Worker command metadata',()=>{
   const harness=fs.readFileSync(path.join(__dirname,'..','electron','lib','harness.cjs'),'utf8');
-  assert.match(harness,/crypto\.createHash\('sha256'\)\.update\(r\.stdout\)/);
+  // The patch hash is now produced by the write-once evidence writer (sha256 of the exact bytes stored).
+  assert.match(harness,/writeImmutable\(runRoot,\s*'verified\.patch',\s*r\.stdout\)/);
+  assert.match(harness,/sha256:\s*saved\.sha256/);
   assert.match(harness,/record\.blueprintVersion/);
   assert.match(harness,/command:\s*b\.command\s*\|\|\s*b\.provider/);
   assert.match(harness,/changedFiles/);

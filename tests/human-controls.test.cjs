@@ -11,7 +11,7 @@ const read=(file)=>fs.readFileSync(path.join(root,file),'utf8');
 test('Workspace authorization is explicit and never silently expanded by first-run logic',()=>{
   const main=read('electron/main.cjs');
   const app=read('ui/app.js');
-  assert.match(main,/ipcMain\.handle\('workspace:select'/);
+  assert.match(main,/ipc\.handle\('workspace:select'/);
   assert.match(main,/dialog\.showOpenDialog\(mainWindow,[\s\S]*properties:\s*\['openDirectory',\s*'createDirectory'\]/);
   assert.match(main,/if \(!workspace\) throw new Error\('Choose a Workspace first\.'/);
   assert.match(app,/Choose a Workspace/);
@@ -22,8 +22,8 @@ test('Workspace authorization is explicit and never silently expanded by first-r
 test('clipboard bridge remains explicit user-triggered rather than background-polled',()=>{
   const main=read('electron/main.cjs');
   const app=read('ui/app.js');
-  assert.match(main,/ipcMain\.handle\('clipboard:read'/);
-  assert.match(main,/ipcMain\.handle\('clipboard:write'/);
+  assert.match(main,/ipc\.handle\('clipboard:read'/);
+  assert.match(main,/ipc\.handle\('clipboard:write'/);
   assert.match(app,/importFromClipboard/);
   assert.doesNotMatch(main,/setInterval\([\s\S]{0,500}clipboard/i);
   assert.doesNotMatch(app,/setInterval\([\s\S]{0,500}(?:readClipboard|clipboard)/i);

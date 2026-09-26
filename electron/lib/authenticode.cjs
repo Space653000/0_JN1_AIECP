@@ -1,6 +1,7 @@
 'use strict';
 
 const {spawn}=require('node:child_process');
+const {withUtf8Output}=require('./powershell-utf8.cjs');
 
 function normalizeThumbprint(value){
  return String(value||'').replace(/[^a-f0-9]/gi,'').toUpperCase();
@@ -12,11 +13,12 @@ function psQuote(value){
 
 function runPowerShell(script,{timeoutMs=30000}={}){
  return new Promise((resolve,reject)=>{
-  const child=spawn('powershell.exe',['-NoProfile','-NonInteractive','-Command',script],{
+  const child=spawn('powershell.exe',['-NoProfile','-NonInteractive','-Command',withUtf8Output(script)],{
    windowsHide:true,stdio:['ignore','pipe','pipe']
   });
   let stdout='',stderr='',settled=false,timedOut=false;
   const timer=setTimeout(()=>{timedOut=true;try{child.kill()}catch{}},timeoutMs);
+  child.stdout.setEncoding('utf8');child.stderr.setEncoding('utf8');
   child.stdout.on('data',b=>stdout+=b);
   child.stderr.on('data',b=>stderr+=b);
   child.on('error',error=>{

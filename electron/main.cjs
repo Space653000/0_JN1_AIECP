@@ -17,7 +17,7 @@ const { PEGA_PROVIDER_ID, PEGA_WORKER_ID, PEGA_BASE_URL, PEGA_ENV_KEY, makePegaP
 const { clearEvidence, removeWorkspaceBinding, clearCredentials, resetActiveState } = require('./lib/local-data-manager.cjs');
 const { assertWithinRoot } = require('./lib/path-safety.cjs');
 const { redactSensitive } = require('./lib/redaction.cjs');
-const { SecurityPolicy } = require('./lib/security-policy.cjs');
+const { SecurityPolicy, policyReasonCode } = require('./lib/security-policy.cjs');
 const { makeExecutionContract, updateExecutionContract } = require('./lib/execution-contract.cjs');
 const { normalizeWorkspacePolicy, compileWorkspacePolicy, editableActions } = require('./lib/workspace-policy.cjs');
 const { migrateState } = require('./lib/state-migration.cjs');
@@ -27,7 +27,10 @@ const { writeBackup, stageRestore, applyPendingRestore } = require('./lib/backup
 const { WindowsUiAdapter } = require('./lib/windows-ui-adapter.cjs');
 const { PythonWorker } = require('./lib/python-worker.cjs');
 
-const { parseCommandCard, makeTaskId, makeResultCapsule, hashJson } = require('./lib/protocol.cjs');
+const agentSettingsLib = require('./lib/agent-settings.cjs');
+const { parseCommandCard, actionMeta, makeTaskId, makeResultCapsule, hashJson, withinClipboardWriteLimit } = require('./lib/protocol.cjs');
+const { isAllowedNavigation } = require('./lib/navigation-policy.cjs');
+const { createValidatedIpc, IPC_SCHEMAS } = require('./lib/ipc-validation.cjs');
 const { compareVersions, versionFromTag, selectHighestRelease, selectInstallerAsset } = require('./lib/version.cjs');
 const { createUpdateTransaction, transitionUpdate, reconcileFirstBoot } = require('./lib/update-state.cjs');
 const { verifyAuthenticode } = require('./lib/authenticode.cjs');
@@ -249,6 +252,129 @@ async function preferredPowerShell() {
   return (await probe('pwsh', ['--version'])).available ? 'pwsh' : 'powershell';
 }
 
+// ---- Per-agent model / reasoning effort and the fixed "say hi" probe (work order 0019) ----
+const WORKER_AGENT_NAMES = Object.freeze({ 'codex-official': 'Codex OFFICIAL (OpenAI Official)', 'codex-pega': 'Codex PEGA' });
+// Which router provider and role serve each agent's greeting. codex-cli is left out on purpose: the isolated workers are the Codex path.
+const SAY_HI_ROUTES = Object.freeze({
+  'claude-code': { provider: 'claude', role: 'planner' },
+  'gemini-cli': { provider: 'gemini', role: 'general' },
+  opencode: { provider: 'opencode', role: 'general' },
+  ollama: { provider: 'ollama', role: 'general' },
+  'codex-official': { provider: 'openai-official', role: 'builder' },
+  'codex-pega': { provider: PEGA_PROVIDER_ID, role: 'builder' }
+});
+
+function agentDisplayName(agentId) {
+  return WORKER_AGENT_NAMES[agentId] || AGENT_SPECS.find((item) => item.id === agentId)?.name || agentId;
+}
+
+// Installed Ollama models from the fixed, read-only `ollama list`; every name is checked against the model pattern.
+async function listOllamaModels() {
+  try {
+    const result = await execFixed('ollama', ['list'], undefined, 5000);
+    return result.stdout.split(/\r?\n/).slice(1)
+      .map((line) => line.trim().split(/\s+/)[0] || '')
+      .filter((name) => agentSettingsLib.validModel(name))
+      .slice(0, 100);
+  } catch {
+    return [];
+  }
+}
+
+function pegaProviderState(state) {
+  return (state.providers || []).find((item) => item.id === PEGA_PROVIDER_ID || normalizedProviderUrl(item.baseUrl) === PEGA_BASE_URL) || null;
+}
+
+async function getAgentSettingsView() {
+  const state = await loadState();
+  const settings = agentSettingsLib.readSettings(state.agentSettings);
+  const pegaState = pegaProviderState(state);
+  const secrets = await loadSecrets();
+  const agents = agentSettingsLib.SETTINGS_AGENT_IDS.map((agentId) => {
+    const isWorker = agentSettingsLib.WORKER_AGENT_IDS.includes(agentId);
+    const route = SAY_HI_ROUTES[agentId] || null;
+    const info = agentSettingsLib.effective(agentId, { settings, providerModel: agentId === 'codex-pega' ? pegaState?.defaultModel : null });
+    return {
+      id: agentId,
+      name: agentDisplayName(agentId),
+      kind: isWorker ? 'codex-worker' : (agentId === 'ollama' ? 'local' : 'cli'),
+      ...info,
+      sayHi: {
+        supported: Boolean(route),
+        network: route ? Boolean(agentId !== 'ollama' && (isWorker || PROVIDERS[route.provider]?.network)) : false,
+        keyConfigured: agentId === 'codex-pega'
+          ? Boolean(decryptProviderSecret(secrets, pegaState?.id || PEGA_PROVIDER_ID) || process.env[PEGA_ENV_KEY])
+          : null
+      }
+    };
+  });
+  // The official ChatGPT website is operated by the person in their own browser; AIECP never controls it (Blueprint 06).
+  const chatgptWeb = { id: 'chatgpt-web', name: 'ChatGPT Web', kind: 'web', controllable: false, model: null, modelSource: 'default', effort: null, effortSupported: false, efforts: [], sayHi: { supported: false, network: false, keyConfigured: null } };
+  return { schema: 'aecp.agent-settings/v1', agents: [chatgptWeb, ...agents], ollamaModels: await listOllamaModels() };
+}
+
+async function setAgentSettings(payload) {
+  const state = await loadState();
+  if (state.__aecpReadOnlyRecovery) throw new Error('Local state is in read-only recovery mode.');
+  state.agentSettings = agentSettingsLib.applyPatch(state.agentSettings, payload.agentId, { model: payload.model, effort: payload.effort });
+  await saveState(state);
+  if (agentSettingsLib.WORKER_AGENT_IDS.includes(payload.agentId)) await refreshRuntimeProviders();
+  return getAgentSettingsView();
+}
+
+// The one call behind the "say hi" button. The button press is the authorization for this single, fixed prompt.
+async function executeSayHi({ agentId, model, prompt, timeoutMs, maxOutputBytes }) {
+  const route = SAY_HI_ROUTES[agentId];
+  if (!route) return { skipped: true, code: 'USE_WORKERS', reason: 'Use the Codex OFFICIAL or Codex PEGA card for Codex.' };
+  const spec = AGENT_SPECS.find((item) => item.id === agentId);
+  if (spec && !(await probe(spec.command, spec.args)).available) return { skipped: true, code: 'NOT_INSTALLED', reason: `${spec.name} is not installed or not on PATH.` };
+  const state = await loadState();
+  const settings = agentSettingsLib.readSettings(state.agentSettings);
+  const chosen = model || agentSettingsLib.effective(agentId, { settings, providerModel: agentId === 'codex-pega' ? pegaProviderState(state)?.defaultModel : null }).model;
+  if (agentId === 'ollama' && !chosen) return { skipped: true, code: 'NEEDS_MODEL', reason: 'Choose an installed Ollama model first.' };
+  const router = await buildRuntimeProviderRouter();
+  const provider = router.registry[route.provider];
+  if (!provider) return { skipped: true, code: 'NOT_CONFIGURED', reason: 'This agent is not configured.' };
+  if (agentId === 'codex-pega' && !provider.apiKey) return { skipped: true, code: 'NO_KEY', reason: 'The PEGA key is not set yet.' };
+  if (agentId === 'codex-pega' && !(chosen || provider.defaultModel)) return { skipped: true, code: 'NEEDS_MODEL', reason: 'Choose a PEGA model first.' };
+  if (agentId === 'codex-official' && !provider.authPresent) return { skipped: true, code: 'AUTH_REQUIRED', reason: 'Codex OFFICIAL is not signed in yet.' };
+  // A fresh, empty folder owned by AIECP: no Workspace is ever the working directory of a greeting.
+  const cwd = dataPath('say-hi', agentId);
+  await fsp.rm(cwd, { recursive: true, force: true });
+  await fsp.mkdir(cwd, { recursive: true });
+  const isWorker = agentSettingsLib.WORKER_AGENT_IDS.includes(agentId);
+  const workers = isWorker ? await getWorkerRegistry() : null;
+  if (workers) {
+    try { await workers.acquire(agentId, { runId: 'say-hi', taskId: 'say-hi' }); } catch (error) {
+      if (error?.code === 'WORKER_BUSY') return { skipped: true, code: 'BUSY', reason: 'This worker is busy with another run.' };
+      throw error;
+    }
+  }
+  try {
+    return await router.execute(route.role, prompt, {
+      provider: route.provider,
+      model: chosen || undefined,
+      cwd,
+      timeoutMs,
+      maxOutputBytes,
+      networkApproved: Boolean(provider.network || provider.mode === 'openai-compatible'),
+      credentialApproved: Boolean(provider.requiresCredential),
+      skipGitRepoCheck: true
+    });
+  } catch (error) {
+    if (error?.code === 'APPROVAL_REQUIRED' && controlPlane) await controlPlane.recordPolicyViolation({ action: String(error.action || 'NETWORK'), reasonCode: 'APPROVAL_REQUIRED' });
+    throw error;
+  } finally {
+    if (workers) await workers.release(agentId).catch(() => {});
+  }
+}
+
+let sayHiService = null;
+async function sayHiAgent(payload) {
+  if (!sayHiService) sayHiService = new agentSettingsLib.SayHiService({ execute: executeSayHi });
+  return sayHiService.run({ agentId: payload.agentId, agentName: agentDisplayName(payload.agentId), model: payload.model || null });
+}
+
 async function launchAgent(agentId) {
   if (agentId === 'chatgpt-web') {
     await shell.openExternal('https://chatgpt.com/');
@@ -296,7 +422,10 @@ async function approveBoundedLocalExecution(workspace, runRoot, label) {
   for (const action of ['WRITE', 'EXECUTE']) {
     const check = policy.check({ action, path: runRoot, approved: false });
     if (!check.allowed) {
-      if (!check.requiresApproval) throw Object.assign(new Error(check.reason), { code: 'POLICY_DENIED', policy: check });
+      if (!check.requiresApproval) {
+        await controlPlane?.recordPolicyViolation?.({ action, reasonCode: policyReasonCode(check.reason, false) });
+        throw Object.assign(new Error(check.reason), { code: 'POLICY_DENIED', policy: check });
+      }
       required.push(action);
     }
   }
@@ -315,8 +444,46 @@ async function approveBoundedLocalExecution(workspace, runRoot, label) {
   return true;
 }
 
+// Optional Control Plane / Worker state must never stop the app (and with it the Web Safe Bridge): an unreadable file is
+// renamed to <name>.corrupt-<timestamp>, reported to the UI and journaled, and the component restarts from empty state.
+const startupWarnings = [];
+const OPTIONAL_STATE_FILES = () => [
+  ['workers', 'worker-registry.json'], ['runtime', 'control-plane.json'], ['runtime', 'locks', 'locks.json'], ['runtime', 'resources', 'resources.json']
+].map((parts) => dataPath(...parts));
+
+async function quarantineUnreadableState() {
+  const moved = [];
+  for (const file of OPTIONAL_STATE_FILES()) {
+    let text;
+    try { text = await fsp.readFile(file, 'utf8'); } catch { continue; }
+    let valid = false;
+    try { const parsed = JSON.parse(text); valid = parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed); } catch { valid = false; }
+    if (valid) continue;
+    const quarantinedAs = `${path.basename(file)}.corrupt-${new Date().toISOString().replace(/[:.]/g, '-')}`;
+    try {
+      await fsp.rename(file, path.join(path.dirname(file), quarantinedAs));
+      moved.push({ file: path.basename(file), kind: 'corrupt', quarantinedAs });
+    } catch { /* leave it; the retry below reports the failure */ }
+  }
+  return moved;
+}
+
 async function initControlPlane() {
   if (controlPlane) return controlPlane;
+  try {
+    return await startControlPlane();
+  } catch (firstError) {
+    controlPlane = null;
+    const moved = await quarantineUnreadableState();
+    if (!moved.length) throw firstError;
+    startupWarnings.push(...moved);
+    const started = await startControlPlane();
+    await started.event('maintenance.failed', { quarantined: moved.map((item) => item.quarantinedAs) }).catch(() => {});
+    return started;
+  }
+}
+
+async function startControlPlane() {
   const state = await loadState();
   const workspace = getCurrentWorkspace(state);
   controlPlane = new ControlPlane({
@@ -962,8 +1129,8 @@ async function appendTrace(taskId, type, data = {}, severity = 'info') {
 async function persistTask(task, evidence = null) {
   const dir = dataPath('evidence', task.id);
   await fsp.mkdir(dir, { recursive: true });
-  await writeJsonAtomic(path.join(dir, 'task.json'), redactSensitive(task));
-  if (evidence) await writeJsonAtomic(path.join(dir, 'evidence.json'), redactSensitive(evidence));
+  await writeJsonAtomic(path.join(dir, 'task.json'), { ...redactSensitive(task), schema: 'aecp.task-record/v1' });
+  if (evidence) await writeJsonAtomic(path.join(dir, 'evidence.json'), { ...redactSensitive(evidence), schema: 'aecp.task-evidence/v1' });
   if (task.result) await writeJsonAtomic(path.join(dir, 'result.json'), redactSensitive(task.result));
 }
 
@@ -1067,8 +1234,16 @@ async function buildRuntimeProviderRouter() {
   const runtime = getCodexWorkerRuntime();
   const workers = await getWorkerRegistry();
 
-  const officialModel = String(process.env.AECP_CODEX_OFFICIAL_MODEL || '').trim().slice(0, 200) || null;
-  const officialProfile = await runtime.prepareOfficial({ model: officialModel });
+  const agentSettings = agentSettingsLib.readSettings(state.agentSettings);
+  // A stored model or effort becomes that CLI's default; with nothing stored the registry entries are exactly what they were.
+  for (const [providerId, agentId] of [['claude', 'claude-code'], ['codex', 'codex-cli'], ['gemini', 'gemini-cli'], ['opencode', 'opencode'], ['ollama', 'ollama']]) {
+    const own = agentSettings[agentId];
+    if (!own || !registry[providerId]) continue;
+    registry[providerId] = { ...registry[providerId], ...(own.model ? { defaultModel: own.model } : {}), ...(own.effort ? { defaultEffort: own.effort } : {}) };
+  }
+  const officialSetting = agentSettings[WORKER_IDS.OFFICIAL] || {};
+  const officialModel = officialSetting.model || String(process.env.AECP_CODEX_OFFICIAL_MODEL || '').trim().slice(0, 200) || null;
+  const officialProfile = await runtime.prepareOfficial({ model: officialModel, effort: officialSetting.effort || null });
   const officialInspection = await runtime.inspect(WORKER_IDS.OFFICIAL);
   registry['openai-official'] = {
     id: 'openai-official',
@@ -1104,7 +1279,8 @@ async function buildRuntimeProviderRouter() {
   ) || null;
   const pegaSecretId = pegaState?.id || PEGA_PROVIDER_ID;
   const pegaApiKey = decryptProviderSecret(secrets, pegaSecretId) || String(process.env[PEGA_ENV_KEY] || '');
-  const pegaModel = String(pegaState?.defaultModel || process.env.AECP_PEGA_MODEL || '').trim().slice(0, 200);
+  const pegaSetting = agentSettings[PEGA_WORKER_ID] || {};
+  const pegaModel = String(pegaSetting.model || pegaState?.defaultModel || process.env.AECP_PEGA_MODEL || '').trim().slice(0, 200);
   const pegaWireApi = String(pegaState?.wireApi || process.env.AECP_PEGA_WIRE_API || 'responses').trim().toLowerCase();
   const pegaHome = runtime.codexHome(PEGA_WORKER_ID);
   let pegaRuntimeEnv = { CODEX_HOME: pegaHome };
@@ -1119,7 +1295,8 @@ async function buildRuntimeProviderRouter() {
       model: pegaModel,
       wireApi: pegaWireApi,
       envKey: PEGA_ENV_KEY,
-      apiKey: pegaApiKey
+      apiKey: pegaApiKey,
+      effort: pegaSetting.effort || null
     });
     pegaRuntimeEnv = { ...profile.env };
   }
@@ -1204,7 +1381,8 @@ async function checkProviderHealth(providerId, options = {}) {
 async function loginOfficialCodexWorker() {
   await assertDataOperationIdle();
   const runtime = getCodexWorkerRuntime();
-  const profile = await runtime.prepareOfficial({ model: String(process.env.AECP_CODEX_OFFICIAL_MODEL || '').trim() || null });
+  const loginSetting = agentSettingsLib.readSettings((await loadState()).agentSettings)[WORKER_IDS.OFFICIAL] || {};
+  const profile = await runtime.prepareOfficial({ model: loginSetting.model || String(process.env.AECP_CODEX_OFFICIAL_MODEL || '').trim() || null, effort: loginSetting.effort || null });
   const approved = await dialog.showMessageBox(mainWindow, {
     type: 'question',
     buttons: ['Cancel', 'Open isolated Codex login'],
@@ -1553,16 +1731,22 @@ async function restoreBackup() {
 }
 
 function registerIpc() {
-  ipcMain.handle('app:info', async () => ({
+  const uiIndexPath = path.join(__dirname, '..', 'ui', 'index.html');
+  // Every channel must declare a schema (electron/lib/ipc-validation.cjs); the sender frame must be the packaged UI when known.
+  const ipc = createValidatedIpc(ipcMain, IPC_SCHEMAS, {
+    senderAllowed: (event) => { const url = event?.senderFrame?.url; return !url || isAllowedNavigation(url, uiIndexPath); }
+  });
+  ipc.handle('app:info', async () => ({
     name: 'AI Engineering Control Plane',
     version: app.getVersion(),
     platform: process.platform,
     arch: process.arch,
     hostname: os.hostname(),
-    userDataPath: app.getPath('userData')
+    userDataPath: app.getPath('userData'),
+    startupWarnings: [...startupWarnings]
   }));
 
-  ipcMain.handle('guidance:recommend', async (_event, payload) => {
+  ipc.handle('guidance:recommend', async (_event, payload) => {
     const state = await loadState();
     const cp = controlPlane ? await controlPlane.status() : null;
     return recommendNextAction({
@@ -1574,19 +1758,19 @@ function registerIpc() {
     });
   });
 
-  ipcMain.handle('backup:export', exportBackup);
-  ipcMain.handle('backup:restore', restoreBackup);
-  ipcMain.handle('data:clear-evidence', clearLocalEvidence);
-  ipcMain.handle('data:remove-workspace', removeCurrentWorkspaceBinding);
-  ipcMain.handle('data:clear-credentials', clearStoredCredentials);
-  ipcMain.handle('data:reset-state', resetAecpLocalState);
+  ipc.handle('backup:export', exportBackup);
+  ipc.handle('backup:restore', restoreBackup);
+  ipc.handle('data:clear-evidence', clearLocalEvidence);
+  ipc.handle('data:remove-workspace', removeCurrentWorkspaceBinding);
+  ipc.handle('data:clear-credentials', clearStoredCredentials);
+  ipc.handle('data:reset-state', resetAecpLocalState);
 
-  ipcMain.handle('state:get', async () => {
+  ipc.handle('state:get', async () => {
     const state = await loadState();
     return { ...state, currentWorkspace: getCurrentWorkspace(state), providers: await publicProviders(state) };
   });
 
-  ipcMain.handle('policy:get', async () => {
+  ipc.handle('policy:get', async () => {
     const state = await loadState();
     const workspace = getCurrentWorkspace(state);
     return {
@@ -1596,7 +1780,7 @@ function registerIpc() {
     };
   });
 
-  ipcMain.handle('policy:save', async (_event, payload) => {
+  ipc.handle('policy:save', async (_event, payload) => {
     await assertDataOperationIdle();
     const state = await loadState();
     const workspace = getCurrentWorkspace(state);
@@ -1625,13 +1809,13 @@ function registerIpc() {
     return { workspaceId: workspace.id, policy: next, actions: editableActions() };
   });
 
-  ipcMain.handle('security:adapter-matrix', async () => {
+  ipc.handle('security:adapter-matrix', async () => {
     const cp = await initControlPlane();
     const status = await cp.status();
     return status.adapterSecurity;
   });
 
-  ipcMain.handle('workspace:select', async () => {
+  ipc.handle('workspace:select', async () => {
     const result = await dialog.showOpenDialog(mainWindow, { title: 'Choose AECP Workspace', properties: ['openDirectory', 'createDirectory'] });
     if (result.canceled || !result.filePaths[0]) return null;
     const state = await loadState();
@@ -1647,7 +1831,7 @@ function registerIpc() {
     return workspace;
   });
 
-  ipcMain.handle('workspace:refresh', async () => {
+  ipc.handle('workspace:refresh', async () => {
     const state = await loadState();
     const workspace = getCurrentWorkspace(state);
     if (!workspace) return null;
@@ -1657,9 +1841,9 @@ function registerIpc() {
     controlPlane?.setPolicyConfig(refreshed.policy || {});
     return refreshed;
   });
-  ipcMain.handle('workspace:add-repo', addWorkspaceRepository);
+  ipc.handle('workspace:add-repo', addWorkspaceRepository);
 
-  ipcMain.handle('workspace:open', async () => {
+  ipc.handle('workspace:open', async () => {
     const state = await loadState();
     const workspace = getCurrentWorkspace(state);
     if (!workspace) throw new Error('Choose a Workspace first.');
@@ -1668,7 +1852,7 @@ function registerIpc() {
     return true;
   });
 
-  ipcMain.handle('workspace:terminal', async () => {
+  ipc.handle('workspace:terminal', async () => {
     const state = await loadState();
     const workspace = getCurrentWorkspace(state);
     if (!workspace) throw new Error('Choose a Workspace first.');
@@ -1679,19 +1863,19 @@ function registerIpc() {
     return true;
   });
 
-  ipcMain.handle('chatgpt:open', async () => {
+  ipc.handle('chatgpt:open', async () => {
     await shell.openExternal('https://chatgpt.com/');
     return true;
   });
 
-  ipcMain.handle('harness:start', async (_event, payload) => startHarness(payload));
-  ipcMain.handle('control-plane:status', async () => (await initControlPlane()).status());
-  ipcMain.handle('control-plane:replay', async (_e,p)=>(await initControlPlane()).replay(p?.runId,p?.limit));
-  ipcMain.handle('control-plane:events', async (_event, payload) => (await initControlPlane()).listEvents(payload?.limit || 500));
-  ipcMain.handle('control-plane:remote-pair', async () => (await initControlPlane()).createRemotePairing());
-  ipcMain.handle('control-plane:remote-devices', async () => (await initControlPlane()).listRemoteDevices());
-  ipcMain.handle('control-plane:remote-revoke', async (_event,payload) => (await initControlPlane()).revokeRemoteDevice(payload?.deviceId));
-  ipcMain.handle('control-plane:create-mission', async (_event, payload) => {
+  ipc.handle('harness:start', async (_event, payload) => startHarness(payload));
+  ipc.handle('control-plane:status', async () => (await initControlPlane()).status());
+  ipc.handle('control-plane:replay', async (_e,p)=>(await initControlPlane()).replay(p?.runId,p?.limit));
+  ipc.handle('control-plane:events', async (_event, payload) => (await initControlPlane()).listEvents(payload?.limit || 500));
+  ipc.handle('control-plane:remote-pair', async () => (await initControlPlane()).createRemotePairing());
+  ipc.handle('control-plane:remote-devices', async () => (await initControlPlane()).listRemoteDevices());
+  ipc.handle('control-plane:remote-revoke', async (_event,payload) => (await initControlPlane()).revokeRemoteDevice(payload?.deviceId));
+  ipc.handle('control-plane:create-mission', async (_event, payload) => {
     const state = await loadState();
     const workspace = getCurrentWorkspace(state);
     if (!workspace) throw new Error('Choose a Workspace first.');
@@ -1707,41 +1891,44 @@ function registerIpc() {
       autoStart: payload?.autoStart !== false
     });
   });
-  ipcMain.handle('control-plane:start', async (_event, payload) => (await initControlPlane()).startMission(payload?.runId));
-  ipcMain.handle('control-plane:pause', async (_event, payload) => (await initControlPlane()).pauseMission(payload?.runId));
-  ipcMain.handle('control-plane:cancel', async (_event, payload) => (await initControlPlane()).cancelMission(payload?.runId));
-  ipcMain.handle('control-plane:cancel-task', async (_event, payload) => (await initControlPlane()).cancelTask(payload?.runId, payload?.taskId));
-  ipcMain.handle('control-plane:approve', async (_event, payload) => (await initControlPlane()).approve(payload?.approvalId, { by: 'human', note: payload?.note || '' }));
-  ipcMain.handle('control-plane:approve-delivery', async (_e,p)=>controlPlane.approveDelivery(p.runId,p.taskId,p));
-  ipcMain.handle('control-plane:reject', async (_event, payload) => (await initControlPlane()).reject(payload?.approvalId, { by: 'human', note: payload?.note || 'Rejected by operator.' }));
+  ipc.handle('control-plane:start', async (_event, payload) => (await initControlPlane()).startMission(payload?.runId));
+  ipc.handle('control-plane:pause', async (_event, payload) => (await initControlPlane()).pauseMission(payload?.runId));
+  ipc.handle('control-plane:cancel', async (_event, payload) => (await initControlPlane()).cancelMission(payload?.runId));
+  ipc.handle('control-plane:cancel-task', async (_event, payload) => (await initControlPlane()).cancelTask(payload?.runId, payload?.taskId));
+  ipc.handle('control-plane:approve', async (_event, payload) => (await initControlPlane()).approve(payload?.approvalId, { by: 'human', note: payload?.note || '' }));
+  ipc.handle('control-plane:approve-delivery', async (_e, p) => (await initControlPlane()).approveDelivery(p.runId, p.taskId, p));
+  ipc.handle('control-plane:reject', async (_event, payload) => (await initControlPlane()).reject(payload?.approvalId, { by: 'human', note: payload?.note || 'Rejected by operator.' }));
 
-  ipcMain.handle('harness:status', harnessStatus);
-  ipcMain.handle('harness:cancel', cancelHarness);
-  ipcMain.handle('autonomy:options', autonomyOptions);
-  ipcMain.handle('autonomy:status', latestAutonomyRecord);
-  ipcMain.handle('autonomy:start', async (_event, payload) => startAutonomy(payload));
-  ipcMain.handle('autonomy:resume', resumeAutonomy);
-  ipcMain.handle('autonomy:cancel', cancelAutonomy);
-  ipcMain.handle('autonomy:open-worktree', openAutonomyWorktree);
-  ipcMain.handle('autonomy:apply', applyAutonomy);
+  ipc.handle('harness:status', harnessStatus);
+  ipc.handle('harness:cancel', cancelHarness);
+  ipc.handle('autonomy:options', autonomyOptions);
+  ipc.handle('autonomy:status', latestAutonomyRecord);
+  ipc.handle('autonomy:start', async (_event, payload) => startAutonomy(payload));
+  ipc.handle('autonomy:resume', resumeAutonomy);
+  ipc.handle('autonomy:cancel', cancelAutonomy);
+  ipc.handle('autonomy:open-worktree', openAutonomyWorktree);
+  ipc.handle('autonomy:apply', applyAutonomy);
 
-  ipcMain.handle('mcp:status', async () => publicMcpStatus());
-  ipcMain.handle('mcp:start', startLocalMcp);
-  ipcMain.handle('mcp:stop', stopLocalMcp);
-  ipcMain.handle('mcp:copy-connection', copyLocalMcpConnection);
+  ipc.handle('mcp:status', async () => publicMcpStatus());
+  ipc.handle('mcp:start', startLocalMcp);
+  ipc.handle('mcp:stop', stopLocalMcp);
+  ipc.handle('mcp:copy-connection', copyLocalMcpConnection);
 
-  ipcMain.handle('agents:list', detectAgents);
-  ipcMain.handle('agents:launch', async (_event, payload) => launchAgent(payload?.agentId));
-  ipcMain.handle('python:syntax-scan', async () => {
+  ipc.handle('agents:list', detectAgents);
+  ipc.handle('agents:launch', async (_event, payload) => launchAgent(payload?.agentId));
+  ipc.handle('agents:settings:get', getAgentSettingsView);
+  ipc.handle('agents:settings:set', async (_event, payload) => setAgentSettings(payload));
+  ipc.handle('agents:say-hi', async (_event, payload) => sayHiAgent(payload));
+  ipc.handle('python:syntax-scan', async () => {
     const state=await loadState();
     const workspace=getCurrentWorkspace(state);
     if(!workspace) throw new Error('Choose a Workspace before running the Python syntax worker.');
     return pythonWorker.syntaxScan(workspace.rootPath);
   });
-  ipcMain.handle('desktop:list-windows', async () => windowsUiAdapter.listWindows());
-  ipcMain.handle('desktop:inspect-ui', async (_event,payload) => windowsUiAdapter.inspect(payload?.pid,{maxNodes:payload?.maxNodes||120,allowBrowser:false}));
-  ipcMain.handle('desktop:list-browser-windows', async () => desktopAdapter.listBrowserWindows());
-  ipcMain.handle('desktop:dock-browser', async (_event,payload) => {
+  ipc.handle('desktop:list-windows', async () => windowsUiAdapter.listWindows());
+  ipc.handle('desktop:inspect-ui', async (_event,payload) => windowsUiAdapter.inspect(payload?.pid,{maxNodes:payload?.maxNodes||120,allowBrowser:false}));
+  ipc.handle('desktop:list-browser-windows', async () => desktopAdapter.listBrowserWindows());
+  ipc.handle('desktop:dock-browser', async (_event,payload) => {
     const pid=Number(payload?.pid);
     const side=String(payload?.side||'right');
     const approval=await dialog.showMessageBox(mainWindow,{
@@ -1757,27 +1944,27 @@ function registerIpc() {
     if(approval.response!==1) throw new Error('Browser docking was not approved by the operator.');
     return desktopAdapter.dockBrowserWindow({pid,side});
   });
-  ipcMain.handle('github:connection', githubConnection);
-  ipcMain.handle('github:connect', connectGitHub);
-  ipcMain.handle('update:check', checkForUpdate);
-  ipcMain.handle('update:status', getUpdateTransactionStatus);
-  ipcMain.handle('update:apply', applyUpdate);
-  ipcMain.handle('update:rollback', rollbackUpdate);
-  ipcMain.handle('update:open-release', async () => {
+  ipc.handle('github:connection', githubConnection);
+  ipc.handle('github:connect', connectGitHub);
+  ipc.handle('update:check', checkForUpdate);
+  ipc.handle('update:status', getUpdateTransactionStatus);
+  ipc.handle('update:apply', applyUpdate);
+  ipc.handle('update:rollback', rollbackUpdate);
+  ipc.handle('update:open-release', async () => {
     await shell.openExternal(`https://github.com/${UPDATE_REPO}/releases`);
     return true;
   });
 
-  ipcMain.handle('tools:detect', detectTools);
-  ipcMain.handle('clipboard:read', async () => clipboard.readText());
-  ipcMain.handle('clipboard:write', async (_event, payload) => {
+  ipc.handle('tools:detect', detectTools);
+  ipc.handle('clipboard:read', async () => clipboard.readText());
+  ipc.handle('clipboard:write', async (_event, payload) => {
     const text = payload?.text;
-    if (typeof text !== 'string' || text.length > 128 * 1024) throw new Error('Clipboard write rejected.');
+    if (typeof text !== 'string' || !withinClipboardWriteLimit(text)) throw new Error('Clipboard write rejected.');
     await clipboard.writeText(text);
     return true;
   });
 
-  ipcMain.handle('task:sample', async () => {
+  ipc.handle('task:sample', async () => {
     const state = await loadState();
     const workspace = getCurrentWorkspace(state);
     if (!workspace) throw new Error('Choose a Workspace first.');
@@ -1793,19 +1980,20 @@ function registerIpc() {
     };
   });
 
-  ipcMain.handle('task:import', async (_event, payload) => {
+  ipc.handle('task:import', async (_event, payload) => {
     const card = parseCommandCard(payload?.text || '');
     const state = await loadState();
     const workspace = getCurrentWorkspace(state);
     if (!workspace) throw new Error('Choose a Workspace before importing a task.');
     const taskId = makeTaskId();
+    const meta = actionMeta(card.action.type);
     const task = {
       id: taskId,
       workspaceId: workspace.id,
       title: card.title,
       goal: card.goal,
       state: 'READY',
-      risk: 'GREEN',
+      risk: meta.risk,
       riskReason: 'Preview Command Cards expose read-only local capabilities only.',
       card,
       executionContract: makeExecutionContract({
@@ -1833,14 +2021,14 @@ function registerIpc() {
     state.tasks = state.tasks.slice(0, 200);
     await saveState(state);
     await persistTask(task);
-    await appendTrace(task.id, 'task.imported', { cardHash: hashJson(card), workspaceId: workspace.id, risk: 'GREEN' });
+    await appendTrace(task.id, 'task.imported', { cardHash: hashJson(card), workspaceId: workspace.id, risk: task.risk });
     return task;
   });
 
-  ipcMain.handle('task:list', async () => (await loadState()).tasks);
-  ipcMain.handle('task:execute', async (_event, payload) => runTask(payload?.taskId));
+  ipc.handle('task:list', async () => (await loadState()).tasks);
+  ipc.handle('task:execute', async (_event, payload) => runTask(payload?.taskId));
 
-  ipcMain.handle('task:trace', async (_event, payload) => {
+  ipc.handle('task:trace', async (_event, payload) => {
     const file = dataPath('evidence', payload?.taskId || '', 'trace.jsonl');
     try {
       const text = await fsp.readFile(file, 'utf8');
@@ -1851,7 +2039,7 @@ function registerIpc() {
     }
   });
 
-  ipcMain.handle('task:evidence', async (_event, payload) => {
+  ipc.handle('task:evidence', async (_event, payload) => {
     const dir = dataPath('evidence', payload?.taskId || '');
     return {
       task: await readJson(path.join(dir, 'task.json'), null),
@@ -1861,12 +2049,12 @@ function registerIpc() {
     };
   });
 
-  ipcMain.handle('provider:list', async () => publicProviders(await loadState()));
-  ipcMain.handle('worker:list', async () => (await getWorkerRegistry()).list());
-  ipcMain.handle('worker:login-official', loginOfficialCodexWorker);
-  ipcMain.handle('provider:health', async (_event, payload) => checkProviderHealth(payload?.providerId, payload || {}));
-  ipcMain.handle('provider:save', async (_event, payload) => saveProvider(payload));
-  ipcMain.handle('provider:delete', async (_event, payload) => deleteProvider(payload?.providerId));
+  ipc.handle('provider:list', async () => publicProviders(await loadState()));
+  ipc.handle('worker:list', async () => (await getWorkerRegistry()).list());
+  ipc.handle('worker:login-official', loginOfficialCodexWorker);
+  ipc.handle('provider:health', async (_event, payload) => checkProviderHealth(payload?.providerId, payload || {}));
+  ipc.handle('provider:save', async (_event, payload) => saveProvider(payload));
+  ipc.handle('provider:delete', async (_event, payload) => deleteProvider(payload?.providerId));
 }
 
 async function createMainWindow() {
@@ -1892,7 +2080,7 @@ async function createMainWindow() {
     return { action: 'deny' };
   });
   mainWindow.webContents.on('will-navigate', (event, url) => {
-    if (!url.startsWith('file:')) event.preventDefault();
+    if (!isAllowedNavigation(url, path.join(__dirname, '..', 'ui', 'index.html'))) event.preventDefault();
   });
   await mainWindow.loadFile(path.join(__dirname, '..', 'ui', 'index.html'));
   mainWindow.once('ready-to-show', () => mainWindow.show());
@@ -1907,7 +2095,10 @@ app.whenReady().then(async () => {
     app.quit();
     return;
   }
-  await initControlPlane();
+  await initControlPlane().catch((error) => {
+    console.error(error);
+    startupWarnings.push({ file: 'control-plane', kind: 'unavailable', quarantinedAs: '', detail: String(error?.message || error).slice(0, 200) });
+  });
   registerIpc();
   await createMainWindow();
   app.on('activate', async () => {

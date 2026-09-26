@@ -87,6 +87,7 @@
             <button id="dockBrowserRightButton" class="secondary-button" type="button" disabled data-i18n="dockRight">Dock right</button>
           </div>
           <small class="muted">AECP uses only the browser process ID/window handle for docking. It does not read the page title or ChatGPT DOM.</small>
+          <small id="snapHint" class="muted">Tip: you can also arrange windows yourself with Windows Snap (Win+Left / Win+Right). AECP remembers the last dock side you chose.</small>
         </section>
 
         <section class="handoff-card">
@@ -234,7 +235,9 @@
 
   <div id="toastRegion" class="toast-region" role="status" aria-live="polite" aria-atomic="true"></div>
   <script src="./i18n.js"></script>
+  <script src="./theme.js"></script>
   <script src="./app.js"></script>
+  <script src="./dashboard-projection.js"></script>
   <script src="./harness-console.js"></script>
 </body>
 </html>

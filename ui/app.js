@@ -1,6 +1,7 @@
 'use strict';
 
 const systemThemeMedia = window.matchMedia?.('(prefers-color-scheme: light)');
+const themeController = window.AECPTheme.createThemeController({ storage: window.localStorage, media: systemThemeMedia });
 
 const state = {
   app: null,
@@ -9,6 +10,11 @@ const state = {
   tasks: [],
   providers: [],
   agents: [],
+  agentSettings: null,
+  agentDraft: {},
+  agentOpen: {},
+  sayHi: {},
+  sayHiBusy: {},
   browserWindows: [],
   githubConnection: null,
   update: null,
@@ -23,7 +29,7 @@ const state = {
   selectedTaskId: null,
   view: 'start',
   engineering: false,
-  theme: ['system', 'dark', 'light'].includes(localStorage.getItem('aecp-theme')) ? localStorage.getItem('aecp-theme') : 'system',
+  theme: themeController.theme,
   motion: ['system', 'reduced'].includes(localStorage.getItem('aecp-motion')) ? localStorage.getItem('aecp-motion') : 'system',
   chatgptOpened: localStorage.getItem('aecp-chatgpt-opened') === '1'
 };
@@ -31,6 +37,8 @@ const state = {
 const $ = (selector) => document.querySelector(selector);
 const selectAll = (selector) => [...document.querySelectorAll(selector)];
 const tr = (key, fallback = '') => window.AECPI18N?.t(key, fallback) || fallback || key;
+// Native confirmation dialogs are shown in the current language too.
+const confirmText = (message) => window.confirm(window.AECPI18N?.tx ? window.AECPI18N.tx(message) : message);
 let providerFocusReturn = null;
 
 function esc(value) {
@@ -86,14 +94,11 @@ function formatProviderUsage(summary, managedExternally = false) {
 }
 
 function resolvedTheme() {
-  if (state.theme !== 'system') return state.theme;
-  return systemThemeMedia?.matches ? 'light' : 'dark';
+  return themeController.resolved();
 }
 
 function cycleTheme() {
-  const order = ['system', 'dark', 'light'];
-  state.theme = order[(order.indexOf(state.theme) + 1) % order.length];
-  localStorage.setItem('aecp-theme', state.theme);
+  state.theme = themeController.cycle();
   render();
 }
 
@@ -105,7 +110,7 @@ function statusClass(value) {
 }
 
 async function loadAll() {
-  const [app, data, tools, tasks, providers, agents, browserWindows, githubConnection, updateTransaction, mcpStatus, autonomyOptions, autonomyStatus, harnessStatus, guidance] = await Promise.all([
+  const [app, data, tools, tasks, providers, agents, browserWindows, githubConnection, updateTransaction, mcpStatus, autonomyOptions, autonomyStatus, harnessStatus, guidance, agentSettings] = await Promise.all([
     safe(() => window.aecp.getAppInfo()),
     safe(() => window.aecp.getState()),
     safe(() => window.aecp.detectTools(), []),
@@ -119,9 +124,12 @@ async function loadAll() {
     safe(() => window.aecp.getAutonomyOptions(), null),
     safe(() => window.aecp.getAutonomyStatus(), null),
     safe(() => window.aecp.getHarnessStatus(), null),
-    safe(() => window.aecp.getGuidance({ chatgptOpened: state.chatgptOpened }), null)
+    safe(() => window.aecp.getGuidance({ chatgptOpened: state.chatgptOpened }), null),
+    safe(() => window.aecp.getAgentSettings?.(), null)
   ]);
   state.app = app;
+  state.agentSettings = agentSettings && Array.isArray(agentSettings.agents) ? agentSettings : null;
+  for (const warning of app?.startupWarnings || []) toast(`Started with a repaired file: ${warning.file} was unreadable${warning.quarantinedAs ? ` and was kept as ${warning.quarantinedAs}` : ''}. Its feature restarted from empty state.`, 'error');
   state.data = data;
   state.tools = tools || [];
   state.tasks = tasks || [];
@@ -706,9 +714,69 @@ async function saveWorkspacePolicySettings() {
   toast('Workspace policy saved. Future execution will use these approval rules.');
 }
 
+// ---- Per-agent model / effort settings and the "say hi" panel (work order 0019). Nothing is drawn until the settings load. ----
+const agentSettingsRow = (id) => state.agentSettings?.agents?.find((item) => item.id === id) || null;
+
+function agentSayHiResultHtml(id) {
+  const result = state.sayHi[id];
+  if (state.sayHiBusy[id]) return '<div class="agent-result" data-agent-result="' + esc(id) + '" aria-live="polite"><small>Waiting for the answer…</small></div>';
+  if (!result) return '<div class="agent-result" data-agent-result="' + esc(id) + '" aria-live="polite"></div>';
+  const seconds = (Number(result.durationMs || 0) / 1000).toFixed(1);
+  return '<div class="agent-result ' + (result.ok ? 'ok' : 'failed') + '" data-agent-result="' + esc(id) + '" aria-live="polite">'
+    + '<strong>' + esc(result.agentName || id) + '</strong> <span class="status ' + (result.ok ? 'ready' : 'bad') + '">' + (result.ok ? 'Succeeded' : 'Failed') + '</span>'
+    + '<small>Model</small> <code>' + esc(result.model || '—') + '</code> <small>Time</small> <code>' + esc(seconds) + ' s</code>'
+    + (result.ok ? '<p class="agent-reply">' + esc(result.reply) + '</p>' : '<p class="agent-reason"><small>Reason</small> ' + esc(result.reason || '') + '</p>')
+    + '</div>';
+}
+
+function agentPanelHtml(id, agent) {
+  const row = agentSettingsRow(id);
+  if (!row) return '';
+  if (row.controllable === false) {
+    return '<p class="muted agent-note" data-agent-note="' + esc(id) + '">Model and effort are chosen on the ChatGPT website itself (AIECP does not control the official website).</p>';
+  }
+  const draft = state.agentDraft[id] || {};
+  const model = draft.model ?? row.model ?? '';
+  const effort = draft.effort ?? row.effort ?? '';
+  const ollamaModels = id === 'ollama' ? (state.agentSettings.ollamaModels || []) : null;
+  const modelField = ollamaModels
+    ? '<select data-agent-model="' + esc(id) + '"><option value="">Use the default</option>'
+      + [...new Set([...ollamaModels, ...(model ? [model] : [])])].map((name) => '<option value="' + esc(name) + '"' + (name === model ? ' selected' : '') + '>' + esc(name) + '</option>').join('') + '</select>'
+    : '<input data-agent-model="' + esc(id) + '" type="text" maxlength="120" value="' + esc(model) + '" placeholder="Use the default">';
+  const effortLabel = id === 'ollama' ? 'Thinking' : 'Reasoning effort';
+  const effortField = row.effortSupported
+    ? '<select data-agent-effort="' + esc(id) + '"><option value="">' + (id === 'ollama' ? 'Off' : 'Use the default') + '</option>'
+      + row.efforts.map((name) => '<option value="' + esc(name) + '"' + (name === effort ? ' selected' : '') + '>' + esc(name) + '</option>').join('') + '</select>'
+    : '<span class="muted">Not applicable</span>';
+  const source = { settings: 'Your setting', env: 'Environment variable', provider: 'Provider entry', default: 'Use the default (chosen by the tool)' }[row.modelSource] || 'Use the default (chosen by the tool)';
+  const canSayHi = row.sayHi?.supported && agent?.available !== false && row.sayHi.keyConfigured !== false;
+  const sayHiNote = !row.sayHi?.supported
+    ? (id === 'codex-cli' ? 'Use the Codex OFFICIAL or Codex PEGA cards for Codex.' : 'Open this tool in a terminal yourself.')
+    : (row.sayHi.keyConfigured === false ? 'The PEGA key is not set yet.' : (row.sayHi.network ? 'Connects to the network and uses your account quota.' : 'Runs locally.'));
+  return '<details class="agent-settings" data-agent-settings="' + esc(id) + '"' + (state.agentOpen[id] || state.sayHi[id] ? ' open' : '') + '>'
+    + '<summary>Model and effort</summary>'
+    + '<div class="agent-settings-body">'
+    + '<small class="agent-effective">Model <code>' + esc(row.model || '—') + '</code> · ' + esc(source) + '</small>'
+    + '<label>Model' + modelField + '</label>'
+    + '<label>' + effortLabel + effortField + '</label>'
+    + '<div class="button-row"><button class="secondary-button" type="button" data-agent-save="' + esc(id) + '">Save settings</button>'
+    + (row.sayHi?.supported ? '<button class="primary-button" type="button" data-agent-sayhi="' + esc(id) + '" ' + (canSayHi && !state.sayHiBusy[id] ? '' : 'disabled') + '>Say hi</button>' : '') + '</div>'
+    + '<small class="muted agent-sayhi-note">' + sayHiNote + '</small>'
+    + agentSayHiResultHtml(id)
+    + '</div></details>';
+}
+
 function renderAgents() {
   const host = $('#agentList');
   if (!host) return;
+  const workers = (state.agentSettings?.agents || []).filter((item) => item.kind === 'codex-worker');
+  const workerCards = workers.map((worker) => `
+    <div class="agent-item">
+      <div>
+        <strong>${esc(worker.name)}</strong>
+        <small>codex-worker · ${esc(worker.modelSource === 'default' ? 'Use the default (chosen by the tool)' : worker.model)}</small>
+      </div>
+    </div>${agentPanelHtml(worker.id, null)}`).join('');
   host.innerHTML = state.agents.map((agent) => `
     <div class="agent-item">
       <div>
@@ -717,7 +785,7 @@ function renderAgents() {
         <small>${esc(formatProviderUsage(agent.usage, agent.usageManagedExternally))}</small>
       </div>
       <button class="${agent.id === 'chatgpt-web' ? 'primary-button' : 'secondary-button'}" data-agent-id="${esc(agent.id)}" type="button" ${agent.available ? '' : 'disabled'}>${agent.id === 'chatgpt-web' ? 'Open' : 'Launch'}</button>
-    </div>`).join('') || '<div class="empty-list">No agents detected.</div>';
+    </div>${agentPanelHtml(agent.id, agent)}`).join('') + workerCards || '<div class="empty-list">No agents detected.</div>';
 }
 
 function renderBrowserDock() {
@@ -734,6 +802,10 @@ function renderBrowserDock() {
   const enabled = Boolean(select.value);
   left.disabled = !enabled;
   right.disabled = !enabled;
+  let lastSide = null;
+  try { lastSide = localStorage.getItem('aecp-dock-side'); } catch { /* preference only */ }
+  left.setAttribute('aria-pressed', String(lastSide === 'left'));
+  right.setAttribute('aria-pressed', String(lastSide === 'right'));
 }
 
 async function refreshBrowserWindows() {
@@ -742,6 +814,7 @@ async function refreshBrowserWindows() {
 }
 
 async function dockBrowser(side) {
+  try { localStorage.setItem('aecp-dock-side', side); } catch { /* preference only */ }
   const pid = Number($('#browserWindowSelect')?.value || 0);
   if (!pid) { toast('Detect and choose a browser window first.', 'error'); return; }
   const result = await safe(() => window.aecp.dockBrowserWindow(pid, side));
@@ -828,6 +901,35 @@ async function copyMcpConnection() {
   if (ok) toast('MCP connection details copied. The bearer value is a secret; paste it only into trusted tunnel/client configuration.');
 }
 
+async function saveAgentSettings(agentId) {
+  const draft = state.agentDraft[agentId] || {};
+  const row = agentSettingsRow(agentId);
+  if (!row) return;
+  const patch = { model: draft.model ?? row.model ?? '' };
+  if (row.effortSupported) patch.effort = draft.effort ?? row.effort ?? '';
+  const result = await safe(() => window.aecp.setAgentSettings(agentId, patch), null);
+  if (!result) return;
+  state.agentSettings = result;
+  delete state.agentDraft[agentId];
+  toast('Agent settings saved.');
+  renderAgents();
+}
+
+// The button press is the authorization for this one fixed greeting; there is no text field.
+async function sayHiToAgent(agentId) {
+  if (state.sayHiBusy[agentId]) return;
+  const row = agentSettingsRow(agentId);
+  const draft = state.agentDraft[agentId] || {};
+  state.sayHiBusy[agentId] = true;
+  state.agentOpen[agentId] = true;
+  renderAgents();
+  const model = draft.model ?? row?.model ?? '';
+  const result = await safe(() => window.aecp.sayHiAgent(agentId, model || undefined), null);
+  state.sayHiBusy[agentId] = false;
+  state.sayHi[agentId] = result || { ok: false, agentName: row?.name || agentId, model: model || null, reason: 'No answer was received.', durationMs: 0 };
+  renderAgents();
+}
+
 async function launchAgent(agentId) {
   const result = await safe(() => window.aecp.launchAgent(agentId));
   if (result?.ok) toast(`${state.agents.find((item) => item.id === agentId)?.name || 'Agent'} launched.`);
@@ -861,7 +963,7 @@ async function connectGitHub() {
 
 async function applyUpdate() {
   if (!state.update?.available) return;
-  if (!confirm(`Install AECP v${state.update.latestVersion}? The installer is downloaded from the allowlisted private GitHub Release and SHA-256 verified before launch.`)) return;
+  if (!confirmText(`Install AECP v${state.update.latestVersion}? The installer is downloaded from the allowlisted private GitHub Release and SHA-256 verified before launch.`)) return;
   toast('Downloading and verifying the update…');
   const result = await safe(() => window.aecp.applyUpdate());
   if (result?.ok) toast('Update verified. AECP will close and install the new version.');
@@ -870,7 +972,7 @@ async function applyUpdate() {
 async function rollbackUpdate() {
   const tx = state.updateTransaction;
   if (!(tx?.state === 'ROLLBACK_REQUIRED' && tx?.rollbackInstaller && tx?.rollbackSha256)) return;
-  if (!confirm(`Reinstall the retained, SHA-256 verified AECP v${tx.currentVersion} rollback package?`)) return;
+  if (!confirmText(`Reinstall the retained, SHA-256 verified AECP v${tx.currentVersion} rollback package?`)) return;
   toast('Verifying retained rollback installer…');
   const result = await safe(() => window.aecp.rollbackUpdate());
   if (result?.ok) toast('Rollback verified. AECP will close and reinstall the previous version.');
@@ -1049,8 +1151,8 @@ async function startHarness() {
   });
   const needsNetwork = customNeedsNetwork || builtInNeedsNetwork;
   const needsCredential = selectedCustom.some((provider) => provider.hasCredential);
-  if (needsNetwork && !confirm('This Harness run will allow the selected cloud-backed CLI/API providers to use network access for model inference. Local worktree/tool network remains separately restricted. Allow for this run?')) return;
-  if (needsCredential && !confirm('This Harness run will use an OS-protected provider credential for the selected endpoint. Allow credential use for this run?')) return;
+  if (needsNetwork && !confirmText('This Harness run will allow the selected cloud-backed CLI/API providers to use network access for model inference. Local worktree/tool network remains separately restricted. Allow for this run?')) return;
+  if (needsCredential && !confirmText('This Harness run will use an OS-protected provider credential for the selected endpoint. Allow credential use for this run?')) return;
 
   const wallMinutes = Number($('#loopWallMinutes')?.value || 0);
   const providerCost = Number($('#loopProviderCost')?.value || 0);
@@ -1127,7 +1229,7 @@ async function openAutonomyWorktree() {
 }
 
 async function applyAutonomy() {
-  if (!confirm('Apply the verified autonomous patch to your real Workspace? AECP will first require the Workspace to still be clean and at the same Git HEAD.')) return;
+  if (!confirmText('Apply the verified autonomous patch to your real Workspace? AECP will first require the Workspace to still be clean and at the same Git HEAD.')) return;
   const result = await safe(() => window.aecp.applyAutonomy());
   if (!result) return;
   state.autonomyStatus = result;
@@ -1163,6 +1265,16 @@ function toggleLocale() {
 }
 
 function bindEvents() {
+  document.addEventListener('change', (event) => {
+    const modelNode = event.target?.closest?.('[data-agent-model]');
+    const effortNode = event.target?.closest?.('[data-agent-effort]');
+    if (modelNode) (state.agentDraft[modelNode.dataset.agentModel] ||= {}).model = String(modelNode.value || '').trim();
+    if (effortNode) (state.agentDraft[effortNode.dataset.agentEffort] ||= {}).effort = String(effortNode.value || '');
+  });
+  document.addEventListener('toggle', (event) => {
+    const node = event.target?.closest?.('[data-agent-settings]');
+    if (node) state.agentOpen[node.dataset.agentSettings] = Boolean(node.open);
+  }, true);
   $('#workspaceButton').addEventListener('click', chooseWorkspace);
   $('#chooseWorkspaceButton').addEventListener('click', chooseWorkspace);
   $('#welcomeChooseButton').addEventListener('click', chooseWorkspace);
@@ -1278,6 +1390,10 @@ function bindEvents() {
       if (action === 'show-evidence') { state.selectedTaskId = taskId; setView('evidence'); }
       return;
     }
+    const saveNode = event.target.closest('[data-agent-save]');
+    if (saveNode) { await saveAgentSettings(saveNode.dataset.agentSave); return; }
+    const sayHiNode = event.target.closest('[data-agent-sayhi]');
+    if (sayHiNode) { await sayHiToAgent(sayHiNode.dataset.agentSayhi); return; }
     const agentNode = event.target.closest('[data-agent-id]');
     if (agentNode) {
       await launchAgent(agentNode.dataset.agentId);
@@ -1297,7 +1413,7 @@ function bindEvents() {
       let networkApproved = false;
       let credentialApproved = false;
       if (['api', 'local', 'remote-mcp', 'codex-worker'].includes(provider.kind)) {
-        networkApproved = confirm('Check this provider endpoint now? This performs a bounded health request using the configured URL.');
+        networkApproved = confirmText('Check this provider endpoint now? This performs a bounded health request using the configured URL.');
         if (!networkApproved) {
           const result = await safe(() => window.aecp.checkProviderHealth(id, { networkApproved: false }), null);
           if (result) {
@@ -1308,7 +1424,7 @@ function bindEvents() {
         }
       }
       if (provider.hasCredential) {
-        credentialApproved = confirm('This health check needs the OS-protected provider credential. Allow credential use for this one bounded probe?');
+        credentialApproved = confirmText('This health check needs the OS-protected provider credential. Allow credential use for this one bounded probe?');
         if (!credentialApproved) {
           const result = await safe(() => window.aecp.checkProviderHealth(id, { networkApproved, credentialApproved: false }), null);
           if (result) {
@@ -1329,7 +1445,7 @@ function bindEvents() {
     const deleteNode = event.target.closest('[data-delete-provider]');
     if (deleteNode) {
       const id = deleteNode.dataset.deleteProvider;
-      if (confirm('Remove this optional provider and its stored credential from AECP?')) {
+      if (confirmText('Remove this optional provider and its stored credential from AECP?')) {
         const ok = await safe(() => window.aecp.deleteProvider(id));
         if (ok) {
           state.providers = await safe(() => window.aecp.listProviders(), state.providers);
@@ -1364,7 +1480,7 @@ function bindEvents() {
 async function boot() {
   bindEvents();
   systemThemeMedia?.addEventListener?.('change', () => {
-    if (state.theme === 'system') render();
+    if (themeController.followsSystem()) render();
   });
   await loadAll();
 }

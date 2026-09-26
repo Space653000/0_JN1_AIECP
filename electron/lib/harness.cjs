@@ -8,6 +8,12 @@ const { ProviderRouter } = require('./provider-router.cjs');
 const { resolveKnownCommand } = require('./command-resolver.cjs');
 const { redactSensitive } = require('./redaction.cjs');
 const { makeExecutionContract, updateExecutionContract, validateExecutionContract } = require('./execution-contract.cjs');
+const {buildReviewInput}=require('./review-context.cjs');
+const {validateReviewReport,saveReviewReport}=require('./review-report.cjs');
+const {writeImmutable}=require('./evidence-manager.cjs');
+const {policyViolationOf}=require('./security-policy.cjs');
+const {gitChangedFiles,gitUntrackedFiles,makeWorkerReport,saveWorkerReport,saveVerificationEvidence,completeWorkerReport}=require('./worker-report.cjs');
+const {discoverRepoKnowledge,knowledgeManifest,formatKnowledge}=require('./repo-knowledge.cjs');
 
 const HARNESS_SCHEMA = 'aecp.harness/v1';
 const MAX_OUTPUT = 1024 * 1024;
@@ -160,6 +166,7 @@ async function makeWorktree(root, runRoot, signal, baseRef = null) {
   const base = await assertCleanRepo(root, signal);
   const worktree = path.join(runRoot, 'worktree');
   await fs.rm(worktree, { recursive: true, force: true });
+  await git(root, ['worktree', 'prune'], signal);
   await fs.mkdir(runRoot, { recursive: true });
   const ref = baseRef || base.head;
   await git(root, ['worktree', 'add', '--detach', worktree, ref], signal);
@@ -180,50 +187,59 @@ function cli(role, prompt, cwd, model, providerId, router = new ProviderRouter()
   return router.commandSpec(provider, role, prompt, { model, cwd });
 }
 
+// Task ids are model output and later become file names and IPC ids: keep them to a safe character set.
+const safeTaskId = (value) => String(value ?? '').replace(/[^A-Za-z0-9._-]/g, '_').replace(/^[^A-Za-z0-9]+/, '').slice(0, 100);
+
 function normalizePlan(plan, goal, done, maxTasks) {
   const source = Array.isArray(plan?.tasks) ? plan.tasks : [];
   const tasks = source.slice(0, maxTasks).map((t, i) => ({
-    id: text(t.task_id || t.id, 100) || id(`task-${i + 1}`),
+    id: safeTaskId(text(t.task_id || t.id, 100)) || id(`task-${i + 1}`),
     title: text(t.title || t.objective, 160) || `Task ${i + 1}`,
     objective: text(t.objective || t.description, 3000),
     acceptance: text(t.acceptance || done, 3000),
-    dependencies: Array.isArray(t.dependencies) ? t.dependencies.map(x => text(x, 100)).filter(Boolean) : [],
+    dependencies: Array.isArray(t.dependencies) ? t.dependencies.map(x => safeTaskId(text(x, 100))).filter(Boolean) : [],
     verifier: t.verifier || null,
-    risk: ['GREEN', 'YELLOW', 'RED'].includes(t.risk) ? t.risk : 'YELLOW'
+    risk: ['GREEN', 'YELLOW', 'RED'].includes(t.risk) ? t.risk : 'YELLOW',
+    blueprint_refs:Array.isArray(t.blueprint_refs)?t.blueprint_refs.slice(0,16).filter(x=>typeof x==='string'&&x.length<300):[],
+    target_paths:Array.isArray(t.target_paths)?t.target_paths.slice(0,100).filter(x=>typeof x==='string'&&x.length<300):[]
   })).filter(t => t.objective);
   if (!tasks.length) throw new Error('Planner returned no executable tasks.');
   return { schema: 'aecp.plan/v1', plan_id: id('plan'), goal, definition_of_done: done, tasks };
 }
 
-function plannerPrompt(goal, done, context) {
+function plannerPrompt(goal, done, context,knowledgeBlock='') {
   return [
     'You are the AECP Planner. Produce a small executable software-engineering plan.',
-    'Return ONLY JSON matching: {"tasks":[{"task_id":"T1","title":"...","objective":"...","acceptance":"...","dependencies":[],"risk":"GREEN|YELLOW|RED","verifier":"npm run verify"}]}',
+    'Return ONLY JSON matching: {"tasks":[{"task_id":"T1","title":"...","objective":"...","acceptance":"...","dependencies":[],"risk":"GREEN|YELLOW|RED","verifier":"npm run verify","blueprint_refs":["Blueprint/INDEX.md"],"target_paths":["src/example.js"]}]}',
     'Do not invent credentials, remote access, or permissions. Do not write code.',
     `GOAL:\n${goal}`,
     `DEFINITION OF DONE:\n${done}`,
-    `CONTEXT:\n${context}`,
+    `USER CONTEXT (priority over repository knowledge):\n${context}`,
+    knowledgeBlock,
     'Prefer 1-8 coherent tasks, each small enough for one isolated worker run.'
   ].join('\n\n');
 }
 
-function builderPrompt(task, goal, done, review) {
+function builderPrompt(task, goal, done, review,knowledgeBlock='') {
   return [
     'You are the AECP Builder. Work ONLY inside this isolated worktree.',
     'Do not commit, push, publish, alter credentials, install system software, or access files outside the worktree.',
     'Implement the smallest change that satisfies the task. Do not claim verification; AECP runs it.',
     `GOAL:\n${goal}`, `TASK:\n${JSON.stringify(task, null, 2)}`,
-    review ? `PREVIOUS REVIEW / REQUIRED REWORK:\n${review}` : 'This is the first implementation attempt.'
+    review ? `PREVIOUS REVIEW / REQUIRED REWORK:\n${review}` : 'This is the first implementation attempt.',
+    knowledgeBlock
   ].join('\n\n');
 }
 
-function reviewerPrompt(task, goal, done, diff, verification) {
+function reviewerPrompt(task, goal, done, reviewInput, manifestSha256,reviewer,knowledgeBlock='') {
   return [
     'You are the AECP Reviewer. Review evidence, not model confidence.',
-    'Return ONLY JSON: {"result":"PASS|REWORK|HUMAN_REQUIRED","findings":[],"required_changes":[]}',
+    `Return ONLY JSON matching aecp.review/v1: {"schema":"aecp.review/v1","task_id":"${task.id}","run_id":"${reviewInput.runId}","reviewer":{"provider":"${reviewer.provider}","model":"${reviewer.model}"},"result":"PASS|REWORK|BLOCKED|HUMAN_REQUIRED","blueprint":"PASS|WARN|FAIL","plan":"PASS|WARN|FAIL","implementation":"PASS|WARN|FAIL","tests":"PASS|WARN|FAIL","security":"PASS|WARN|FAIL","architecture":"PASS|WARN|FAIL","findings":[],"required_changes":[]}`,
     `GOAL:\n${goal}`, `DEFINITION OF DONE:\n${done}`,
     `TASK:\n${JSON.stringify(task, null, 2)}`,
-    `DIFF:\n${diff}`, `VERIFICATION:\n${JSON.stringify(verification, null, 2)}`,
+    `REVIEW INPUT (Blueprint + complete Plan + actual unified Diff + deterministic Evidence):\n${JSON.stringify(reviewInput, null, 2)}`,
+    `REVIEW INPUT SHA256:\n${manifestSha256}`,
+    knowledgeBlock,
     'PASS only when acceptance and evidence are sufficient. HUMAN_REQUIRED for permissions, credentials, destructive actions, or unresolved ambiguity.'
   ].join('\n\n');
 }
@@ -252,10 +268,8 @@ async function createPatch(worktree, runRoot, signal, { maxPatchBytes = DEFAULT_
   if (bytes > maxPatchBytes) {
     throw Object.assign(new Error(`Patch budget exceeded (${bytes} > ${maxPatchBytes}).`), { code: 'PATCH_BUDGET_EXHAUSTED' });
   }
-  const file = path.join(runRoot, 'verified.patch');
-  await fs.writeFile(file, r.stdout, 'utf8');
-  const sha256 = crypto.createHash('sha256').update(r.stdout).digest('hex');
-  return { file, bytes, sha256, changedFiles };
+  const saved = await writeImmutable(runRoot, 'verified.patch', r.stdout);
+  return { file: saved.file, bytes, sha256: saved.sha256, changedFiles };
 }
 
 async function runHarness(options) {
@@ -439,9 +453,19 @@ async function runHarness(options) {
     return result;
   };
   try {
+    const roleKnowledge=(role,providerId,knowledge)=>formatKnowledge(knowledge,{discoversAgentsMd:Boolean(providerRouter.capabilities(role,providerId,{model:roleModels[role]})?.discoversAgentsMd)});
+    let repoKnowledge=await discoverRepoKnowledge(root);
+    const saveKnowledge=async (knowledge,label)=>{
+      const manifest=knowledgeManifest(knowledge);
+      const data=JSON.stringify(manifest,null,2)+'\n';
+      const saved=await writeImmutable(runRoot,`repo-knowledge-${label}.json`,data);
+      return {manifest,file:saved.file,sha256:saved.sha256};
+    };
+    record.repoKnowledge=await saveKnowledge(repoKnowledge,'run');
+    await persist();
     if (!resumed) {
       await transition('PLANNING');
-      const p = await invokeProvider({router:providerRouter,role:'planner',prompt:plannerPrompt(goal, done, text(options.context, 8000)),cwd:root,model:roleModels.planner,providerId:roleProviders.planner,policy:options.policy,signal,timeoutMs:180000,executionApproved:Boolean(options.executionApproved),networkApproved:Boolean(options.providerNetworkApproved),credentialApproved:Boolean(options.providerCredentialApproved)});
+      const p = await invokeProvider({router:providerRouter,role:'planner',prompt:plannerPrompt(goal, done, text(options.context, 8000),roleKnowledge('planner',roleProviders.planner,repoKnowledge)),cwd:root,model:roleModels.planner,providerId:roleProviders.planner,policy:options.policy,signal,timeoutMs:180000,executionApproved:Boolean(options.executionApproved),networkApproved:Boolean(options.providerNetworkApproved),credentialApproved:Boolean(options.providerCredentialApproved)});
       if (p.code !== 0) throw new Error(`Planner failed: ${(p.stderr || p.stdout).slice(-2000)}`);
       const plan = normalizePlan(safeJson(p.stdout), goal, done, maxTasks);
       record.plan = plan; record.tasks = plan.tasks.map(t => ({ ...t, state: 'READY', iterations: 0 }));
@@ -473,13 +497,21 @@ async function runHarness(options) {
       if (task.dependencies.some(d => !record.tasks.find(x => x.id === d && x.state === 'DONE'))) {
         task.state = 'BLOCKED'; continue;
       }
+      repoKnowledge=await discoverRepoKnowledge(root,{targetPaths:task.target_paths||[]});
+      task.repoKnowledge=await saveKnowledge(repoKnowledge,String(task.id).replace(/[^a-zA-Z0-9_-]/g,'_'));
       let review = '';
       let accepted = false;
       const resumeIteration = Math.max(1, Math.min(maxIterations, Number(task.iterations) || 1));
       for (let iteration = resumeIteration; iteration <= maxIterations; iteration++) {
         task.iterations = iteration; await transition('RUNNING', { taskId: task.id, iteration });
-        const b = await invokeProvider({router:providerRouter,role:'builder',prompt:builderPrompt(task, goal, done, review),cwd:wt.worktree,model:roleModels.builder,providerId:roleProviders.builder,policy:options.policy,signal,timeoutMs:600000,executionApproved:Boolean(options.executionApproved),networkApproved:Boolean(options.providerNetworkApproved),credentialApproved:Boolean(options.providerCredentialApproved),onSpawn:options.onWorkerSpawn});
+        const b = await invokeProvider({router:providerRouter,role:'builder',prompt:builderPrompt(task, goal, done, review,roleKnowledge('builder',roleProviders.builder,repoKnowledge)),cwd:wt.worktree,model:roleModels.builder,providerId:roleProviders.builder,policy:options.policy,signal,timeoutMs:600000,executionApproved:Boolean(options.executionApproved),networkApproved:Boolean(options.providerNetworkApproved),credentialApproved:Boolean(options.providerCredentialApproved),onSpawn:options.onWorkerSpawn});
         task.worker = { workerId:b.workerId||null, workerName:b.workerName||null, provider:b.provider||roleProviders.builder, providerName:b.providerName||b.provider||roleProviders.builder, model:b.model||roleModels.builder||null, processId:b.processId||null, codexHome:b.codexHome||null, command:b.command||b.provider||roleProviders.builder, code:b.code, timedOut:b.timedOut, aborted:Boolean(b.aborted), outputLimitExceeded:Boolean(b.outputLimitExceeded), stdout:b.stdout.slice(-12000), stderr:b.stderr.slice(-12000) };
+        task.untrackedFiles=[...new Set([...(task.untrackedFiles||[]),...await gitUntrackedFiles(wt.worktree)])];
+        task.workerReport=makeWorkerReport({taskId:task.id,runId:record.id,worker:task.worker,stdout:b.stdout,changedFiles:await gitChangedFiles(wt.worktree),iteration,baseCommit:record.baseHead});
+        task.workerReportEvidence=await saveWorkerReport(runRoot,task.workerReport,iteration);
+        repoKnowledge=await discoverRepoKnowledge(root,{targetPaths:task.workerReport.changed_files});
+        task.repoKnowledge=await saveKnowledge(repoKnowledge,String(task.id).replace(/[^a-zA-Z0-9_-]/g,'_'));
+        await persist();
         if (b.code !== 0 || b.timedOut) { noteFailedAttempt(); review = `Worker failed: ${(b.stderr || b.stdout).slice(-4000)}`; await transition('REWORK', { taskId: task.id, reason: 'worker-failed' }); await checkpoint(task, iteration, 'NEXT_ITERATION', review); continue; }
         await transition('VERIFYING', { taskId: task.id });
         const verifier = task.verifier === 'npm test'
@@ -489,13 +521,23 @@ async function runHarness(options) {
         record.localComputeMs += Number(v.durationMs || 0);
         assertRuntimeBudget();
         task.verification = v;
+        const verifierEvidence=await saveVerificationEvidence(runRoot,{taskId:task.id,runId:record.id,iteration,verification:v});
+        task.workerReport=completeWorkerReport(task.workerReport,v,verifierEvidence);
+        task.workerReportEvidence=await saveWorkerReport(runRoot,task.workerReport,iteration);
+        await persist();
         if (!v.passed) { noteFailedAttempt(); observeProgress(await diffSummary(wt.worktree, signal)); review = `Deterministic verification failed.\n${v.stderr.slice(-5000)}`; await transition('REWORK', { taskId: task.id, reason: 'verification-failed' }); await checkpoint(task, iteration, iteration===maxIterations?'STOP':'NEXT_ITERATION', review); continue; }
         await transition('REVIEWING', { taskId: task.id });
         const diff = await diffSummary(wt.worktree, signal);
-        const rr = await invokeProvider({router:providerRouter,role:'reviewer',prompt:reviewerPrompt(task, goal, done, diff, v),cwd:root,model:roleModels.reviewer,providerId:roleProviders.reviewer,policy:options.policy,signal,timeoutMs:180000,executionApproved:Boolean(options.executionApproved),networkApproved:Boolean(options.providerNetworkApproved),credentialApproved:Boolean(options.providerCredentialApproved)});
-        if (rr.code !== 0) { noteFailedAttempt(); review = `Reviewer failed: ${(rr.stderr || rr.stdout).slice(-3000)}`; continue; }
-        const report = safeJson(rr.stdout);
-        task.review = report || { result: 'HUMAN_REQUIRED', findings: ['Reviewer did not return valid JSON.'], required_changes: [] };
+        const reviewInput=await buildReviewInput({sourceRoot:root,worktree:wt.worktree,runRoot,runId:record.id,task,plan:record.plan,verification:v,iteration});
+        task.reviewInput={file:reviewInput.file,sha256:reviewInput.sha256,changedFiles:reviewInput.input.diff.changedFiles};
+        task.diffStats={...reviewInput.input.diff.stats,verifierStatus:v.passed?'PASS':'FAIL'};
+        await persist();
+        const reviewerIdentity={provider:roleProviders.reviewer,model:roleModels.reviewer||'UNKNOWN'};
+        const rr = await invokeProvider({router:providerRouter,role:'reviewer',prompt:reviewerPrompt(task, goal, done, reviewInput.input, reviewInput.sha256,reviewerIdentity,roleKnowledge('reviewer',roleProviders.reviewer,repoKnowledge)),cwd:root,model:roleModels.reviewer,providerId:roleProviders.reviewer,policy:options.policy,signal,timeoutMs:180000,executionApproved:Boolean(options.executionApproved),networkApproved:Boolean(options.providerNetworkApproved),credentialApproved:Boolean(options.providerCredentialApproved)});
+        const validated=validateReviewReport(rr.code===0?rr.stdout:null,{taskId:task.id,runId:record.id,reviewer:reviewerIdentity,verifierPassed:v.passed});
+        task.review=validated.report;
+        task.reviewEvidence=await saveReviewReport(runRoot,task.review,iteration);
+        await persist();
         if (task.review.result === 'PASS') {
           task.state = 'DONE'; accepted = true; await emit('task.review_passed', { taskId: task.id, iteration }); await checkpoint(task, iteration, 'CONTINUE', diff); break;
         }
@@ -529,6 +571,7 @@ async function runHarness(options) {
     else if (e?.code === 'APPROVAL_REQUIRED') {
       record.error = text(e?.message || e, 4000);
       record.requiredAction = e?.policy?.action || e?.action || null;
+      record.policyViolation = policyViolationOf(e);
       await transition('HUMAN_REQUIRED', { reason: 'policy-approval-required', action: record.requiredAction, error: record.error });
     }
     else if (['PROVIDER_CALL_BUDGET_EXHAUSTED','FAILED_ATTEMPT_BUDGET_EXHAUSTED','WALL_CLOCK_BUDGET_EXHAUSTED','PROVIDER_COST_BUDGET_EXHAUSTED','LOCAL_COMPUTE_BUDGET_EXHAUSTED','PATCH_BUDGET_EXHAUSTED','CHANGED_FILE_BUDGET_EXHAUSTED'].includes(e?.code)) {
@@ -541,7 +584,7 @@ async function runHarness(options) {
       const activeTask=(record.tasks||[]).find(task=>!['DONE','HUMAN_REQUIRED','BLOCKED'].includes(task.state));
       if(activeTask){activeTask.state='BLOCKED';activeTask.stopReason=e.code;}
       await transition('BLOCKED', { reason: e.code, error: record.error });
-    } else { record.error = text(e?.message || e, 4000); await transition('FAILED', { error: record.error }); }
+    } else { record.error = text(e?.message || e, 4000); if (e?.code === 'POLICY_DENIED') record.policyViolation = policyViolationOf(e); await transition('FAILED', { error: record.error }); }
     return record;
   }
 }

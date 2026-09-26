@@ -75,3 +75,46 @@
 | 使用者筆電 CLI / verifier 安全 | 在一次性測試 repo 跑 Local Autonomous：run 證據 manifest、verified patch diff、verifier 輸出；操作者書面確認已審閱專案 verifier 腳本無對外網路、無 worktree 外寫入、無刪除 | patch 僅出現在 worktree；Apply 前 source 不變；verifier 決定 pass/fail；審閱聲明齊全 |
 | Official Full MCP | 需真實 ChatGPT Business/Enterprise/Edu workspace：tunnel/connector 健康紀錄；讀取工具呼叫的 event id；寫入工具**未核准被拒**與**核准後成功**各一筆 event id；斷線後回退 Safe Bridge 的紀錄 | 四項證據皆對應事件帳本 id；缺任一項不得標 Ready（見 Blueprint 16 §7） |
 | PEGA/OFFICIAL 故障隔離 | 兩次 run：(a) 讓 PEGA 失敗（僅在該次程序環境注入無效 key，不動已存 auth）→ OFFICIAL 仍 PASS；(b) 讓 OFFICIAL 失敗 → PEGA 仍 PASS；期間 Safe Bridge 可用；恢復後兩者 READY。附 evidence JSON，含每側 `registryState`（失敗方 FAILED/UNKNOWN、健康方 IDLE，來自既有 Worker Registry 狀態模型）與 Provider `health`（失敗方非 READY 或 run FAIL、健康方 READY 且 PASS）；Safe Bridge 若無法在無 Electron 下自動檢查，由操作者以擁有者範本補證 | 失敗不外溢；階段 (b) 前後真實 OFFICIAL home 的 auth 檔摘要不變、PEGA home 無 auth 檔；`codexHomeSha256` 僅為路徑雜湊，不作內容保護證據；無靜默 fallback；細則見 [施工單 0002 決策紀錄 D1](WORK_ORDERS/0002.md)。Safe Bridge 部分以 `safe-bridge-during-fault` 範本補證。 |
+
+## 6. 人工／視覺驗收協定（2026-09-25 新增）
+
+適用於追溯矩陣（`.ai/TRACEABILITY.json`）中所有 `MANUAL` 條目：這些條文無法用單元測試證明，必須在**已安裝的 AECP** 上由人操作與觀察。結果一律記錄為 `samples/owner-evidence/manual-ui-acceptance.template.json` 的填妥版本，再用下列指令驗證（未填的範本、佔位符殘留、任一勾選為 false、SHA 不符、含機密樣式皆判 FAIL）：
+
+```bash
+node scripts/verify-owner-evidence.cjs <填妥的記錄.json> --expect-sha <被驗收版本的40碼SHA>
+```
+
+通則：證據等級為 ENVIRONMENT；須附安裝檔 `fileName` + `sha256`（必須是該 SHA 的 Packaging artifact）、截圖的 `fileName` + `sha256`、機器代號與 `arch`、操作者聲明。截圖不得含憑證、帳號或私人內容。Codex 不得代為填寫或結案，只有 Claude Code 對照 SHA 審核後才可改 STATUS。
+
+### 6.1 視覺、對比與縮放
+
+對應勾選項：`contrastLightTheme45`、`contrastDarkTheme45`、`statusNotColorOnly`、`scaling125`、`scaling150`、`scaling200`、`layout1366x768`、`layout1920x1080`、`brandProminence`。
+
+1. **對比 4.5:1（Blueprint/01 §10）：** 在淺色與深色主題各取一次，對主控台、新手八問、Harness 六視圖的一般文字與狀態文字，用瀏覽器開發者工具（或同等對比量測工具）量測前景／背景對比；一般文字須 ≥ 4.5:1。記錄最低值與位置。
+2. **狀態不得只靠顏色：** 對每個狀態呈現（通過／失敗／待核准／UNKNOWN／BLOCKED／HUMAN_REQUIRED）把畫面轉為灰階（或使用系統色彩濾鏡）後，仍可由文字或圖示分辨。
+3. **縮放：** Windows 顯示縮放設定為 125%、150%、200% 各一次，主控台與 Harness 分頁無文字被截斷、無控制項被遮住、頁面無橫向捲動（表格／程式碼區塊的內部捲動除外）。
+4. **版面：** 1366×768 與 1920×1080 各一次，三面板可用，關鍵控制（STOP ALL、核准、暫停）不需捲動即可到達。
+5. **品牌主次（Blueprint/01）：** AECP 自身的名稱與識別比供應商（含 ChatGPT）識別更醒目；由擁有者判斷並在備註寫明依據。
+
+通過條件：以上每項皆有截圖與備註，且實測值符合上列門檻；任一失敗即整份記錄 FAIL。
+
+### 6.2 輔助技術
+
+對應勾選項：`screenReaderSixViews`。
+
+使用 Windows 朗讀程式（Narrator）或 NVDA，以鍵盤操作，逐一朗讀 Harness 分頁的六個新視圖（執行時間軸、差異檢視、審查檢視、GitHub 檢視、通知、任務進度）與核准控制，確認：標題有被朗讀、狀態以文字（非僅顏色）朗讀、`UNKNOWN` 被明確朗讀、焦點順序合理且焦點可見。備註寫明所用朗讀程式與版本，並附操作錄影或逐項記錄。
+
+### 6.3 Electron 實機流程
+
+對應勾選項：`officialBrowserExternalized`、`harnessSixViewsWithData`、`harnessSixViewsUnknown`、`stopAllWorks`。
+
+1. **官方瀏覽器外部化：** 開啟官方 ChatGPT 後，它在系統瀏覽器（而非 AECP 內嵌）開啟，AECP 右側窗格仍可使用（Blueprint/01）。
+2. **六視圖有資料：** 建立一個小型 Mission，使 Harness 分頁六個視圖出現真實資料，並確認顯示值與 GitHub／事件帳本一致。
+3. **六視圖缺資料：** 全新狀態（無 Mission）下六個視圖皆顯示 `UNKNOWN`，不顯示假的 0% 或 100%。
+4. **STOP ALL：** 執行中觸發 STOP ALL，所有進行中任務停止且狀態一致。
+
+### 6.4 新手首用與產品感
+
+對應勾選項：`productCohesion`。
+
+找一位未參與開發的人，在只看到「新手」模式的前提下，5 分鐘內回答：現在控制的是哪個專案？正在做什麼？需要我嗎？下一步是什麼？（對應 Blueprint/22 §16 八問）。記錄該人的回答與卡住之處；若大多數問題無法回答，視為 FAIL。此項本質上是主觀判斷，備註必須包含觀察者與受測者的具體描述，不得只寫「通過」。

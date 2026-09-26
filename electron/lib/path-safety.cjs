@@ -1,5 +1,6 @@
 'use strict';
 
+const fs=require('node:fs');
 const path=require('node:path');
 
 function looksWindowsPath(value){
@@ -11,10 +12,33 @@ function pathApiFor(...values){
   return values.some(looksWindowsPath)?path.win32:path;
 }
 
-function canonicalForCompare(value){
-  const api=pathApiFor(value);
+// Resolves symlinks, junctions and 8.3 short names of the nearest existing ancestor, then re-appends the folders that do not
+// exist yet, so a path is judged by where it really is. A path that cannot be resolved at all is returned unchanged.
+function realish(resolved){
+  const rest=[];
+  let probe=resolved;
+  for(;;){
+    try{
+      const real=fs.realpathSync.native(probe);
+      return rest.length?path.join(real,...rest.reverse()):real;
+    }catch{
+      const parent=path.dirname(probe);
+      if(parent===probe)return resolved;
+      rest.push(path.basename(probe));
+      probe=parent;
+    }
+  }
+}
+
+// Windows-style strings on a non-Windows host (and the reverse) are compared textually: they cannot be resolved on this disk.
+function canonicalWith(api,value){
   const resolved=api.resolve(String(value||''));
-  return (api===path.win32||process.platform==='win32')?resolved.toLowerCase():resolved;
+  const real=api===path?realish(resolved):resolved;
+  return (api===path.win32||process.platform==='win32')?real.toLowerCase():real;
+}
+
+function canonicalForCompare(value){
+  return canonicalWith(pathApiFor(value),value);
 }
 
 function isNetworkPath(value){
@@ -24,8 +48,8 @@ function isNetworkPath(value){
 
 function isWithinRoot(root,candidate){
   const api=pathApiFor(root,candidate);
-  const base=(api===path.win32||process.platform==='win32')?api.resolve(String(root||'')).toLowerCase():api.resolve(String(root||''));
-  const target=(api===path.win32||process.platform==='win32')?api.resolve(String(candidate||'')).toLowerCase():api.resolve(String(candidate||''));
+  const base=canonicalWith(api,root);
+  const target=canonicalWith(api,candidate);
   if(base===target)return true;
   const relative=api.relative(base,target);
   return relative!==''&&!relative.startsWith('..')&&!api.isAbsolute(relative);

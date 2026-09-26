@@ -810,3 +810,8 @@ The repository-verifiable hardening items listed above are implemented: signed/i
 ## Runtime closure update — 2026-09-19
 
 The current implementation also includes: signed GitHub webhook ingestion (opt-in), external-event idempotency, CI failed-log evidence, crash/restart recovery, repository-per-task routing, maintenance/worktree garbage collection, and an authenticated local read-only supervision gateway. GitHub commit-SHA polling remains the fallback when no webhook transport is configured. These capabilities are governed by the same Control Plane policy and are reflected in the Harness Command Center.
+
+
+## Blueprint owner decision D5 — 2026-09-24 (append-only)
+
+Maturity M0–M4 are present in the repository. M5 (Self-maintaining Agent Repository) is only partial: maintenance and drift scans diagnose but never mutate, which is an intentional boundary. M5 is not claimed. Acceptance items 6 and 19 in §27 are tracked as gaps in `.ai/GAP_REGISTER.md` until implemented and tested.

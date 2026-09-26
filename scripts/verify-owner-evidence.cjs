@@ -24,6 +24,11 @@ const TYPES={
   'aecp.owner-evidence.safe-bridge-during-fault/v1':[
     'safeBridgeAvailableDuringPegaFailure','safeBridgeAvailableDuringOfficialFailure',
     'inspectWorkspaceCardPassedDuringFault','bothWorkersRecoveredReady'
+  ],
+  'aecp.owner-evidence.manual-ui-acceptance/v1':[
+    'contrastLightTheme45','contrastDarkTheme45','statusNotColorOnly','scaling125','scaling150','scaling200',
+    'layout1366x768','layout1920x1080','brandProminence','screenReaderSixViews','officialBrowserExternalized',
+    'harnessSixViewsWithData','harnessSixViewsUnknown','stopAllWorks','productCohesion'
   ]
 };
 
@@ -63,7 +68,9 @@ function verifyOwnerEvidence(evidence,{expectSha}={}){
     :evidence?.schema==='aecp.owner-evidence.laptop-verifier-safety/v1'
       ?['runManifest','verifiedPatch','verifierOutput']
       :evidence?.schema==='aecp.owner-evidence.safe-bridge-during-fault/v1'
-        ?['providerEvidence']:['eventLedger','tunnelHealth'];
+        ?['providerEvidence']
+        :evidence?.schema==='aecp.owner-evidence.manual-ui-acceptance/v1'
+          ?['installer','screenshots']:['eventLedger','tunnelHealth'];
   for(const key of required){
     const value=artifacts?.[key];
     const items=Array.isArray(value)?value:[value];

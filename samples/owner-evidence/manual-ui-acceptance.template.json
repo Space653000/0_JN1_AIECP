@@ -1,0 +1,28 @@
+{
+  "schema": "aecp.owner-evidence.manual-ui-acceptance/v1",
+  "sourceCommit": "<placeholder>",
+  "date": "<placeholder>",
+  "machine": { "id": "<placeholder>", "arch": "x64" },
+  "operatorAttestation": { "name": "<placeholder>", "statement": "<placeholder>", "signedAt": "<placeholder>" },
+  "checklist": {
+    "contrastLightTheme45": { "passed": false, "note": "<placeholder>" },
+    "contrastDarkTheme45": { "passed": false, "note": "<placeholder>" },
+    "statusNotColorOnly": { "passed": false, "note": "<placeholder>" },
+    "scaling125": { "passed": false, "note": "<placeholder>" },
+    "scaling150": { "passed": false, "note": "<placeholder>" },
+    "scaling200": { "passed": false, "note": "<placeholder>" },
+    "layout1366x768": { "passed": false, "note": "<placeholder>" },
+    "layout1920x1080": { "passed": false, "note": "<placeholder>" },
+    "brandProminence": { "passed": false, "note": "<placeholder>" },
+    "screenReaderSixViews": { "passed": false, "note": "<placeholder>" },
+    "officialBrowserExternalized": { "passed": false, "note": "<placeholder>" },
+    "harnessSixViewsWithData": { "passed": false, "note": "<placeholder>" },
+    "harnessSixViewsUnknown": { "passed": false, "note": "<placeholder>" },
+    "stopAllWorks": { "passed": false, "note": "<placeholder>" },
+    "productCohesion": { "passed": false, "note": "<placeholder>" }
+  },
+  "artifacts": {
+    "installer": { "fileName": "<placeholder>", "sha256": "<placeholder>" },
+    "screenshots": [{ "fileName": "<placeholder>", "sha256": "<placeholder>" }]
+  }
+}

@@ -155,3 +155,8 @@ Graph is derived:
 - Workspace `GOVERNED_BY` Policy
 
 Capability/mode live on the edge. Graph editing is a policy/resource mutation and must go through validated control-plane commands.
+
+
+## Blueprint owner decision D7 — 2026-09-25 (append-only)
+
+The persisted schema identifier of the form `aecp.<name>/v<N>` (for example `aecp.worker-registry/v1`) is accepted as equivalent to the `schemaVersion` requirement in section 4. No field rename or in-place migration is required. What remains open is a test proving that every persisted store carries a versioned schema identifier and that an unknown newer version enters read-only recovery. See `.ai/GAP_REGISTER.md`.

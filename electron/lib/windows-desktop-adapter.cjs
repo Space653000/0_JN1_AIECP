@@ -3,6 +3,7 @@
 const { execFile } = require('node:child_process');
 const { promisify } = require('node:util');
 const execFileAsync = promisify(execFile);
+const {withUtf8Output}=require('./powershell-utf8.cjs');
 
 const ALLOWED_BROWSERS = Object.freeze(['msedge','chrome','firefox','brave','opera']);
 
@@ -53,8 +54,9 @@ function dockScript(pid,side){
 async function runPowerShell(script,{timeoutMs=10000}={}){
   ensureWindows();
   const executable=process.env.ComSpec? 'powershell.exe':'powershell.exe';
-  const {stdout,stderr}=await execFileAsync(executable,['-NoLogo','-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-Command',script],{
+  const {stdout,stderr}=await execFileAsync(executable,['-NoLogo','-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-Command',withUtf8Output(script)],{
     windowsHide:true,
+    encoding:'utf8',
     timeout:Math.max(1000,timeoutMs),
     maxBuffer:1024*1024
   });

@@ -126,3 +126,7 @@ Git / GitHub（工程真理來源）
 3. 想知道「現在做到哪」，去看 [STATUS.md](STATUS.md)（本文件不記錄進度）。
 4. 想知道「什麼才算做完」，去看 [ACCEPTANCE.md](ACCEPTANCE.md)。
 5. 新決策/新範圍變更，先寫回對應編號的 Blueprint 原始文件（或新增編號），再回來更新本索引——**本檔案只做索引與整理，不單獨承載新的產品決策**。
+
+## 6. 決策紀錄（已依規則寫回原始 Blueprint）
+
+D2 → `Blueprint/22` 末尾；D3 → `Blueprint/04` 末尾；D4 → `Blueprint/21` 末尾；D5 → `Blueprint/20` 末尾（皆 append-only、標註 2026-09-24）。D6（ENVIRONMENT / OWNER 閘門不變）見 [GAP_REGISTER.md](GAP_REGISTER.md)。本節僅為索引，不單獨承載決策。

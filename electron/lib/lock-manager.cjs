@@ -48,13 +48,20 @@ class LockManager{
   async _recoverUnlocked(){
     const t=Date.now();
     const removed=[];
+    const released=[];
     for(const [key,value] of Object.entries(this.state.locks||{})){
       if(!Number.isFinite(Date.parse(value?.expiresAt))||Date.parse(value.expiresAt)<=t){
+        // A stale lock never disappears silently: keep who held it, why it went and when (no metadata, so no secrets).
+        released.push({key,owner:String(value?.owner||''),reason:'EXPIRED',expiredAt:Number.isFinite(Date.parse(value?.expiresAt))?value.expiresAt:null,releasedAt:now()});
         delete this.state.locks[key];
         removed.push(key);
       }
     }
-    if(removed.length)await this._persistUnlocked();
+    if(removed.length){
+      this.state.released=[...(Array.isArray(this.state.released)?this.state.released:[]),...released].slice(-100);
+      await this._persistUnlocked();
+    }
+    Object.defineProperty(removed,'released',{value:released,enumerable:false});
     return removed;
   }
 

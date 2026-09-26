@@ -2,7 +2,7 @@
 
 **最後盤點日期：** 2026-09-24
 **權威來源：** [`Blueprint/23_IMPLEMENTATION_STATUS.md`](../Blueprint/23_IMPLEMENTATION_STATUS.md)、[`Reports/V3_IMPLEMENTATION_PROGRESS_REPORT.md`](../Reports/V3_IMPLEMENTATION_PROGRESS_REPORT.md)
-**目前分支：** `feat/control-plane-complete-loop` ｜ **整合中的 PR：** [#7](https://github.com/Space653000/0_JN1_AIECP/pull/7)（OPEN）
+**目前分支：** `feat/control-plane-complete-loop` ｜ **PR：** [#7](https://github.com/Space653000/0_JN1_AIECP/pull/7) 已由擁有者於 2026-09-24 09:24 UTC 合併進 `main`（head `294ff93`）；後續施工的 Draft PR 為 [#8](https://github.com/Space653000/0_JN1_AIECP/pull/8)（**本 repo 的 CI 只在 PR 或 push 到 main 時執行，故分支必須保持有 open PR，否則 push 不會有 CI**）。`provider-environment.yml` 已在 `main`，可於 GitHub 派發，合併後首次派發驗證仍待擁有者執行。
 
 > 本文件只記錄「現在做到哪」。要知道「應該做成什麼樣子」看 [BLUEPRINT.md](BLUEPRINT.md)；要知道「怎樣才算做完」看 [ACCEPTANCE.md](ACCEPTANCE.md)。每次重大變更後都必須更新本文件，過期的 STATUS 比沒有 STATUS 更危險。
 
@@ -105,4 +105,40 @@
 | OWNER-EXTERNAL gate | 4 類 | 只有 `Space653000`（repo 擁有者）本人 |
 | 刻意不做 | 6 項 | 需要新的獨立 Blueprint 決策才會開放，非「忘記做」 |
 
-**結論（與 [`23_IMPLEMENTATION_STATUS.md`](../Blueprint/23_IMPLEMENTATION_STATUS.md) 一致）：** 專案已從「只有藍圖」進化到「治理完整、可由倉庫自證的控制平面」，剩餘的不完整幾乎全部是外部信任/帳號/供應商證據缺口，或是刻意的安全邊界，而不是未追蹤的程式碼待辦清單。
+**結論（2026-09-26 最終驗收，0017 之後）：** 追溯矩陣 441 條（藍圖 00–24 與 R1–R8 全數納入），`--strict` 由 `npm run verify` 強制：**358 已實作、21 部分、16 需人工驗證、18 ENVIRONMENT、14 OWNER、14 蓄意不做（含 Blueprint 決策 D2–D11）、0 確認缺失**。先前 2 條確認缺失（任務層級 role／verifierProfile 欄位 B02-L207、動作 metadata 表 B11-L61）已由施工單 0017 補齊並附破壞紀錄。21 條「部分」是打包／CI／環境／人工證據型，程式碼與測試無法代為結案。所有已知真缺陷（含 CODEX_HOME 隔離、SecurityPolicy 路徑正規化與 junction 逃逸防護、Result Capsule、Evidence 不可變、備份暫存檔競態）皆已修復並有破壞檢查。**倉庫內能自動完成的部分已完成；其餘需要真機、真帳號、憑證或人工驗收。** 介面（`ui/styles.css`）已改為 ChatGPT／Codex 風格的深淺色 token 主題（施工單 0018）：兩組主題的文字、次要文字、狀態色與控制項邊界對比由 `tests/ui-theme-contrast.test.cjs` 解析真實樣式表驗證；已安裝應用程式上的實機觀察（B01-A11Y-L172）仍是 MANUAL。 介面預設語言已改為繁體中文，英文為可切換的附加功能（語言按鈕，選擇會記住）；`index.html` 與執行期產生的文字皆有中文翻譯，錯誤訊息等來自主程序的英文原文暫不翻譯。 施工單 0019：每個 Agent 可顯示並設定模型與推理強度（Claude Code、Codex OFFICIAL／PEGA、Ollama；Gemini、OpenCode 只有模型），並有固定提示詞的「打招呼」小介面；ChatGPT 網頁版依藍圖不可控制，只顯示說明。矩陣新增 4 條（W0019-A～D）皆已實作，共 445 條：362 已實作、21 部分、16 人工、18 環境、14 擁有者、14 蓄意不做。真實的 PEGA／OpenAI 官方呼叫需要擁有者的金鑰與額度，待擁有者驗證。
+
+### 施工單 0006 施工進度（Claude 驗收 CLOSED）
+
+- 新增條文追溯矩陣與機械稽核，納入 `npm run verify`；原有藍圖覆蓋稽核明示僅查檔案存在。矩陣目前 231 條：24 IMPLEMENTED（有具名測試）、1 PARTIAL、206 GAP（含尚未證明的證據缺口）。此數字**不是產品完成率**，不得將證據缺口等同功能缺失或反過來當作完成。
+- 新發現 Blueprint/12 §4 `schemaVersion` 一致性疑點；未修改 Blueprint 或執行邏輯，待藍圖擁有者裁定。Blueprint/21 §10 實際 8 條，施工單誤寫 10 條。
+- 0007–0009 尚待施工；ENVIRONMENT／OWNER-EXTERNAL 閘門及 PR #7 狀態不變。
+
+### 施工單 0007 施工進度（Claude 驗收 CLOSED）
+
+- A/B/C 已分別提交：Reviewer 取得有界且遮罩的 Blueprint/Plan/unified diff/Verifier 證據；`aecp.review/v1` 六維度驗證器拒絕舊式或矛盾 PASS；`aecp.worker-report/v1` 的變更檔取自 Git，Worker 自述不能作驗收證明。
+- 追溯矩陣從 231 條中確認 32 IMPLEMENTED、1 PARTIAL、198 GAP；GAP 主要為未取得同條文具名測試的保守證據分類，非已證明 198 個功能缺失。0008、0009 與外部環境／擁有者閘門仍待處理。
+
+### 施工單 0008 施工進度（Claude 驗收 CLOSED）
+
+- A/B/C 已分別提交：repo 內分層 AGENTS/藍圖/驗證指令/ADR 發現；依 provider 能力分送有界內容或 metadata；漂移掃描只給 WARNING，不改檔。`npm test` 312/312 PASS，完整 `npm run verify` 見施工單回報。
+- TRACEABILITY 231 條中 35 IMPLEMENTED、1 PARTIAL、195 GAP（保守證據分類）。0009 Dashboard 視圖仍待施工，ENVIRONMENT／OWNER-EXTERNAL 閘門不變。
+
+### 施工單 0009 施工進度（Claude 驗收 CLOSED，附缺陷 D1 見 0010）
+
+- A–F 已各自提交；Run timeline、Diff、Review、GitHub、Notifications 與五階段進度皆由正式 task／event／delivery 狀態唯讀投影，缺資料顯示 UNKNOWN。A 另有持久化 Harness 事件日誌的獨立修正 commit；詳見 [0009 回報](WORK_ORDERS/0009.md)。
+- `npm run verify` 通過，`npm test` **326/326 PASS**。TRACEABILITY 231 條中 52 IMPLEMENTED、1 PARTIAL、178 GAP；狀態只表示具名測試證據程度，非整體完成率。尚缺 Electron 實機 UI／輔助技術驗收；本次 HEAD 的 CI 需依 exact SHA workflow 實際結果核對。
+- 0006–0009 已由 Claude 驗收 CLOSED（0009 附通知映射缺陷，0010 修正）；另有 0010、0011 分類與修補中，**未宣稱整體藍圖完成**；ENVIRONMENT／OWNER-EXTERNAL 閘門仍未完成，不自行更改 PR #7 合併狀態。
+
+### 施工單 0010 施工進度（Claude 驗收 CLOSED）
+
+- 繁中 Windows PowerShell 輸出改以 UTF-8 傳送與解碼，避免碼頁 950 的 CJK 視窗名稱破壞 JSON。通知事件目錄改對照實際 Control Plane／Harness 事件；WRITE 政策拒絕另記 `policy.violation`，不更改原有決定。
+- Reviewer 程序非零退出或逾時的既有設計維持 **不重試、直接 HUMAN_REQUIRED 交由人處理**；Worker Report 在 Verifier 完成後回填其真實結果並重存證據。舊版 Command Center 其他非新增六視圖區塊仍有硬編碼英文，列為既知在地化限制，未擴大本施工單範圍。
+- 106 條高優先條文逐條分類後，矩陣為 100 IMPLEMENTED、49 PARTIAL、72 待 0011 的 GAP、6 CONFIRMED_GAP、0 MANUAL、0 ENVIRONMENT、1 OWNER、3 DELIBERATE_NON_GOAL；[分類詳表](../Reports/TRACEABILITY_0010_CLASSIFICATION.md) 列出每條未解缺口及定位。0010 的 10 條隨機破壞檢查均令具名測試失敗、已還原。本輪未修補新確認缺口，也未把 owner gate 標完成。
+
+### 施工單 0011 施工進度（Claude 接手完成並驗收 CLOSED）
+
+- 追溯矩陣 231 條無未分類項（115 已實作／91 部分／5 確認缺失／9 人工／3 擁有者／8 蓄意不做），`--strict` 已串入 `npm run verify`；人工驗收協定為 `.ai/ACCEPTANCE.md` 第 6 節。詳見 [0011](WORK_ORDERS/0011.md)。
+
+### 施工單 0012 施工進度（Claude 完成並驗收 CLOSED）
+
+- G9 五個確認缺陷全修（導覽限制、剪貼簿位元組上限、75 個 IPC 通道統一驗證、Evidence write-once、Result Capsule 未驗證不得宣稱成功），另修兩條路徑穿越；`policy.violation` 涵蓋所有政策閘門；主題邏輯抽出並有行為測試。詳見 [0012](WORK_ORDERS/0012.md)。**待你：** 合併前在真的 Electron 做一次冒煙檢查。
