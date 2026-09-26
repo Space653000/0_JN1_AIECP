@@ -25,11 +25,28 @@ function normalizeWireApi(value){
   return wire;
 }
 
+// Windows briefly locks a file another process (Codex, an antivirus scan) has open; renaming over it then
+// fails with EPERM/EBUSY/EACCES. Retry a bounded number of times, then give up and clean the scratch file.
+const LOCK_CODES=new Set(['EPERM','EBUSY','EACCES']);
+const RENAME_ATTEMPTS=8;
+const RENAME_BACKOFF_MS=40;
+
 async function writeAtomic(file,content){
   const tmp=file+'.tmp-'+process.pid+'-'+crypto.randomBytes(4).toString('hex');
   await fs.mkdir(path.dirname(file),{recursive:true});
   await fs.writeFile(tmp,content,'utf8');
-  await fs.rename(tmp,file);
+  try{
+    for(let attempt=1;;attempt++){
+      try{await fs.rename(tmp,file);return;}
+      catch(error){
+        if(!LOCK_CODES.has(error?.code)||attempt>=RENAME_ATTEMPTS)throw error;
+        await new Promise(resolve=>setTimeout(resolve,RENAME_BACKOFF_MS*attempt));
+      }
+    }
+  }catch(error){
+    await fs.rm(tmp,{force:true}).catch(()=>{});
+    throw error;
+  }
 }
 
 class CodexWorkerRuntime{
