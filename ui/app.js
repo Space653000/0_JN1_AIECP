@@ -10,6 +10,11 @@ const state = {
   tasks: [],
   providers: [],
   agents: [],
+  agentSettings: null,
+  agentDraft: {},
+  agentOpen: {},
+  sayHi: {},
+  sayHiBusy: {},
   browserWindows: [],
   githubConnection: null,
   update: null,
@@ -105,7 +110,7 @@ function statusClass(value) {
 }
 
 async function loadAll() {
-  const [app, data, tools, tasks, providers, agents, browserWindows, githubConnection, updateTransaction, mcpStatus, autonomyOptions, autonomyStatus, harnessStatus, guidance] = await Promise.all([
+  const [app, data, tools, tasks, providers, agents, browserWindows, githubConnection, updateTransaction, mcpStatus, autonomyOptions, autonomyStatus, harnessStatus, guidance, agentSettings] = await Promise.all([
     safe(() => window.aecp.getAppInfo()),
     safe(() => window.aecp.getState()),
     safe(() => window.aecp.detectTools(), []),
@@ -119,9 +124,11 @@ async function loadAll() {
     safe(() => window.aecp.getAutonomyOptions(), null),
     safe(() => window.aecp.getAutonomyStatus(), null),
     safe(() => window.aecp.getHarnessStatus(), null),
-    safe(() => window.aecp.getGuidance({ chatgptOpened: state.chatgptOpened }), null)
+    safe(() => window.aecp.getGuidance({ chatgptOpened: state.chatgptOpened }), null),
+    safe(() => window.aecp.getAgentSettings?.(), null)
   ]);
   state.app = app;
+  state.agentSettings = agentSettings && Array.isArray(agentSettings.agents) ? agentSettings : null;
   for (const warning of app?.startupWarnings || []) toast(`Started with a repaired file: ${warning.file} was unreadable${warning.quarantinedAs ? ` and was kept as ${warning.quarantinedAs}` : ''}. Its feature restarted from empty state.`, 'error');
   state.data = data;
   state.tools = tools || [];
@@ -707,9 +714,69 @@ async function saveWorkspacePolicySettings() {
   toast('Workspace policy saved. Future execution will use these approval rules.');
 }
 
+// ---- Per-agent model / effort settings and the "say hi" panel (work order 0019). Nothing is drawn until the settings load. ----
+const agentSettingsRow = (id) => state.agentSettings?.agents?.find((item) => item.id === id) || null;
+
+function agentSayHiResultHtml(id) {
+  const result = state.sayHi[id];
+  if (state.sayHiBusy[id]) return '<div class="agent-result" data-agent-result="' + esc(id) + '" aria-live="polite"><small>Waiting for the answer…</small></div>';
+  if (!result) return '<div class="agent-result" data-agent-result="' + esc(id) + '" aria-live="polite"></div>';
+  const seconds = (Number(result.durationMs || 0) / 1000).toFixed(1);
+  return '<div class="agent-result ' + (result.ok ? 'ok' : 'failed') + '" data-agent-result="' + esc(id) + '" aria-live="polite">'
+    + '<strong>' + esc(result.agentName || id) + '</strong> <span class="status ' + (result.ok ? 'ready' : 'bad') + '">' + (result.ok ? 'Succeeded' : 'Failed') + '</span>'
+    + '<small>Model</small> <code>' + esc(result.model || '—') + '</code> <small>Time</small> <code>' + esc(seconds) + ' s</code>'
+    + (result.ok ? '<p class="agent-reply">' + esc(result.reply) + '</p>' : '<p class="agent-reason"><small>Reason</small> ' + esc(result.reason || '') + '</p>')
+    + '</div>';
+}
+
+function agentPanelHtml(id, agent) {
+  const row = agentSettingsRow(id);
+  if (!row) return '';
+  if (row.controllable === false) {
+    return '<p class="muted agent-note" data-agent-note="' + esc(id) + '">Model and effort are chosen on the ChatGPT website itself (AIECP does not control the official website).</p>';
+  }
+  const draft = state.agentDraft[id] || {};
+  const model = draft.model ?? row.model ?? '';
+  const effort = draft.effort ?? row.effort ?? '';
+  const ollamaModels = id === 'ollama' ? (state.agentSettings.ollamaModels || []) : null;
+  const modelField = ollamaModels
+    ? '<select data-agent-model="' + esc(id) + '"><option value="">Use the default</option>'
+      + [...new Set([...ollamaModels, ...(model ? [model] : [])])].map((name) => '<option value="' + esc(name) + '"' + (name === model ? ' selected' : '') + '>' + esc(name) + '</option>').join('') + '</select>'
+    : '<input data-agent-model="' + esc(id) + '" type="text" maxlength="120" value="' + esc(model) + '" placeholder="Use the default">';
+  const effortLabel = id === 'ollama' ? 'Thinking' : 'Reasoning effort';
+  const effortField = row.effortSupported
+    ? '<select data-agent-effort="' + esc(id) + '"><option value="">' + (id === 'ollama' ? 'Off' : 'Use the default') + '</option>'
+      + row.efforts.map((name) => '<option value="' + esc(name) + '"' + (name === effort ? ' selected' : '') + '>' + esc(name) + '</option>').join('') + '</select>'
+    : '<span class="muted">Not applicable</span>';
+  const source = { settings: 'Your setting', env: 'Environment variable', provider: 'Provider entry', default: 'Use the default (chosen by the tool)' }[row.modelSource] || 'Use the default (chosen by the tool)';
+  const canSayHi = row.sayHi?.supported && agent?.available !== false && row.sayHi.keyConfigured !== false;
+  const sayHiNote = !row.sayHi?.supported
+    ? (id === 'codex-cli' ? 'Use the Codex OFFICIAL or Codex PEGA cards for Codex.' : 'Open this tool in a terminal yourself.')
+    : (row.sayHi.keyConfigured === false ? 'The PEGA key is not set yet.' : (row.sayHi.network ? 'Connects to the network and uses your account quota.' : 'Runs locally.'));
+  return '<details class="agent-settings" data-agent-settings="' + esc(id) + '"' + (state.agentOpen[id] || state.sayHi[id] ? ' open' : '') + '>'
+    + '<summary>Model and effort</summary>'
+    + '<div class="agent-settings-body">'
+    + '<small class="agent-effective">Model <code>' + esc(row.model || '—') + '</code> · ' + esc(source) + '</small>'
+    + '<label>Model' + modelField + '</label>'
+    + '<label>' + effortLabel + effortField + '</label>'
+    + '<div class="button-row"><button class="secondary-button" type="button" data-agent-save="' + esc(id) + '">Save settings</button>'
+    + (row.sayHi?.supported ? '<button class="primary-button" type="button" data-agent-sayhi="' + esc(id) + '" ' + (canSayHi && !state.sayHiBusy[id] ? '' : 'disabled') + '>Say hi</button>' : '') + '</div>'
+    + '<small class="muted agent-sayhi-note">' + sayHiNote + '</small>'
+    + agentSayHiResultHtml(id)
+    + '</div></details>';
+}
+
 function renderAgents() {
   const host = $('#agentList');
   if (!host) return;
+  const workers = (state.agentSettings?.agents || []).filter((item) => item.kind === 'codex-worker');
+  const workerCards = workers.map((worker) => `
+    <div class="agent-item">
+      <div>
+        <strong>${esc(worker.name)}</strong>
+        <small>codex-worker · ${esc(worker.modelSource === 'default' ? 'Use the default (chosen by the tool)' : worker.model)}</small>
+      </div>
+    </div>${agentPanelHtml(worker.id, null)}`).join('');
   host.innerHTML = state.agents.map((agent) => `
     <div class="agent-item">
       <div>
@@ -718,7 +785,7 @@ function renderAgents() {
         <small>${esc(formatProviderUsage(agent.usage, agent.usageManagedExternally))}</small>
       </div>
       <button class="${agent.id === 'chatgpt-web' ? 'primary-button' : 'secondary-button'}" data-agent-id="${esc(agent.id)}" type="button" ${agent.available ? '' : 'disabled'}>${agent.id === 'chatgpt-web' ? 'Open' : 'Launch'}</button>
-    </div>`).join('') || '<div class="empty-list">No agents detected.</div>';
+    </div>${agentPanelHtml(agent.id, agent)}`).join('') + workerCards || '<div class="empty-list">No agents detected.</div>';
 }
 
 function renderBrowserDock() {
@@ -832,6 +899,35 @@ async function stopMcp() {
 async function copyMcpConnection() {
   const ok = await safe(() => window.aecp.copyMcpConnection());
   if (ok) toast('MCP connection details copied. The bearer value is a secret; paste it only into trusted tunnel/client configuration.');
+}
+
+async function saveAgentSettings(agentId) {
+  const draft = state.agentDraft[agentId] || {};
+  const row = agentSettingsRow(agentId);
+  if (!row) return;
+  const patch = { model: draft.model ?? row.model ?? '' };
+  if (row.effortSupported) patch.effort = draft.effort ?? row.effort ?? '';
+  const result = await safe(() => window.aecp.setAgentSettings(agentId, patch), null);
+  if (!result) return;
+  state.agentSettings = result;
+  delete state.agentDraft[agentId];
+  toast('Agent settings saved.');
+  renderAgents();
+}
+
+// The button press is the authorization for this one fixed greeting; there is no text field.
+async function sayHiToAgent(agentId) {
+  if (state.sayHiBusy[agentId]) return;
+  const row = agentSettingsRow(agentId);
+  const draft = state.agentDraft[agentId] || {};
+  state.sayHiBusy[agentId] = true;
+  state.agentOpen[agentId] = true;
+  renderAgents();
+  const model = draft.model ?? row?.model ?? '';
+  const result = await safe(() => window.aecp.sayHiAgent(agentId, model || undefined), null);
+  state.sayHiBusy[agentId] = false;
+  state.sayHi[agentId] = result || { ok: false, agentName: row?.name || agentId, model: model || null, reason: 'No answer was received.', durationMs: 0 };
+  renderAgents();
 }
 
 async function launchAgent(agentId) {
@@ -1169,6 +1265,16 @@ function toggleLocale() {
 }
 
 function bindEvents() {
+  document.addEventListener('change', (event) => {
+    const modelNode = event.target?.closest?.('[data-agent-model]');
+    const effortNode = event.target?.closest?.('[data-agent-effort]');
+    if (modelNode) (state.agentDraft[modelNode.dataset.agentModel] ||= {}).model = String(modelNode.value || '').trim();
+    if (effortNode) (state.agentDraft[effortNode.dataset.agentEffort] ||= {}).effort = String(effortNode.value || '');
+  });
+  document.addEventListener('toggle', (event) => {
+    const node = event.target?.closest?.('[data-agent-settings]');
+    if (node) state.agentOpen[node.dataset.agentSettings] = Boolean(node.open);
+  }, true);
   $('#workspaceButton').addEventListener('click', chooseWorkspace);
   $('#chooseWorkspaceButton').addEventListener('click', chooseWorkspace);
   $('#welcomeChooseButton').addEventListener('click', chooseWorkspace);
@@ -1284,6 +1390,10 @@ function bindEvents() {
       if (action === 'show-evidence') { state.selectedTaskId = taskId; setView('evidence'); }
       return;
     }
+    const saveNode = event.target.closest('[data-agent-save]');
+    if (saveNode) { await saveAgentSettings(saveNode.dataset.agentSave); return; }
+    const sayHiNode = event.target.closest('[data-agent-sayhi]');
+    if (sayHiNode) { await sayHiToAgent(sayHiNode.dataset.agentSayhi); return; }
     const agentNode = event.target.closest('[data-agent-id]');
     if (agentNode) {
       await launchAgent(agentNode.dataset.agentId);

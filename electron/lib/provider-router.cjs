@@ -11,6 +11,10 @@ const PROVIDERS = Object.freeze({
   ollama: { command: 'ollama', roles: ['planner', 'reviewer', 'general'], mode: 'ollama', network: false, credential: false }
 });
 
+// Effort flags exist only where the tool has one: `claude --effort` and `ollama run --think`. Anything else is refused, never guessed.
+const CLAUDE_EFFORTS = Object.freeze(['low', 'medium', 'high', 'xhigh', 'max']);
+const OLLAMA_THINK_LEVELS = Object.freeze(['low', 'medium', 'high']);
+
 function run(command, args, { cwd, timeoutMs = 180000, signal, env = {}, maxOutputBytes = 4 * 1024 * 1024, onSpawn = null, spawnImpl = spawn } = {}) {
   return new Promise((resolve, reject) => {
     const resolved = resolveKnownCommand(command, args);
@@ -354,14 +358,16 @@ class ProviderRouter {
     };
   }
 
-  commandSpec(providerId, role, prompt, { model, cwd, providerVersion = '' } = {}) {
+  commandSpec(providerId, role, prompt, { model, cwd, providerVersion = '', skipGitRepoCheck = false, effort } = {}) {
     const provider = this.resolve(role, providerId);
     if (!provider) throw new Error(`No provider for role: ${role}`);
+    const selectedEffort = effort || provider.defaultEffort || null;
     const selectedModel = model || provider.defaultModel || process.env[`AECP_${provider.id.toUpperCase()}_MODEL`] || '';
     if (provider.mode === 'openai-compatible') throw new Error('Network provider does not expose a local process command.');
     if (provider.mode === 'ollama') {
       if (!selectedModel) throw new Error('Ollama provider requires a model (options.model, provider defaultModel, or AECP_OLLAMA_MODEL).');
-      return { command: provider.command, args: ['run', selectedModel, prompt], provider: provider.id, model: selectedModel, cwd: cwd || null };
+      if (selectedEffort && !OLLAMA_THINK_LEVELS.includes(selectedEffort)) throw new Error('Ollama thinking level must be one of: ' + OLLAMA_THINK_LEVELS.join(', ') + '.');
+      return { command: provider.command, args: ['run', ...(selectedEffort ? ['--think', selectedEffort] : []), selectedModel, prompt], provider: provider.id, model: selectedModel, cwd: cwd || null };
     }
     if (provider.mode === 'local-command') {
       if (!provider.command || typeof provider.command !== 'string') throw new Error('Local command provider requires a fixed registered command.');
@@ -374,6 +380,8 @@ class ProviderRouter {
       args.push('--ignore-rules', '--sandbox', 'workspace-write', '--json');
       if (cwd) args.push('--cd', cwd);
       args.push('-c', 'sandbox_workspace_write.network_access=false');
+      // Only the fixed greeting runs in an app-owned folder that is not a Git repository.
+      if (skipGitRepoCheck === true) args.push('--skip-git-repo-check');
       if (selectedModel) args.push('--model', selectedModel);
       args.push(prompt);
       return {
@@ -392,6 +400,10 @@ class ProviderRouter {
     if (provider.id === 'claude') {
       const args = ['-p', prompt, '--output-format', 'json', '--permission-mode', 'plan', '--max-turns', '12'];
       if (selectedModel) args.push('--model', selectedModel);
+      if (selectedEffort) {
+        if (!CLAUDE_EFFORTS.includes(selectedEffort)) throw new Error('Claude effort must be one of: ' + CLAUDE_EFFORTS.join(', ') + '.');
+        args.push('--effort', selectedEffort);
+      }
       return { command: provider.command, args, provider: provider.id, model: selectedModel || null, cwd: cwd || null };
     }
     if (provider.id === 'opencode') {

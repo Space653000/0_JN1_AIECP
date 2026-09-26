@@ -763,6 +763,78 @@ const PHRASES=Object.freeze({
   'Control Plane': '控制平面',
   'Not supported': '不支援',
 
+  // Per-agent model / effort panel and the say-hi probe (work order 0019)
+  'Model and effort': '模型與強度',
+  'Model': '模型',
+  'Time': '耗時',
+  'Reason': '原因',
+  'Use the default': '使用預設',
+  'Use the default (chosen by the tool)': '使用預設（由該工具決定）',
+  'Off': '關',
+  'Thinking': '思考',
+  'Reasoning effort': '推理強度',
+  'Not applicable': '不適用',
+  'Save settings': '儲存設定',
+  'Say hi': '打招呼',
+  'Succeeded': '成功',
+  'Failed': '失敗',
+  'Waiting for the answer…': '等待回覆中…',
+  'Your setting': '你的設定',
+  'Environment variable': '環境變數',
+  'Provider entry': '供應商條目',
+  'Agent settings saved.': '已儲存 Agent 設定。',
+  'Open this tool in a terminal yourself.': '請自行在終端機開啟這個工具。',
+  'Use the Codex OFFICIAL or Codex PEGA cards for Codex.': 'Codex 請使用 Codex OFFICIAL 或 Codex PEGA 卡片。',
+  'Use the Codex OFFICIAL or Codex PEGA cards for Codex': 'Codex 請使用 Codex OFFICIAL 或 Codex PEGA 卡片',
+  'Connects to the network and uses your account quota.': '會連到網路，並使用你的帳號額度。',
+  'Runs locally.': '在本機執行。',
+  'The PEGA key is not set yet.': '尚未設定 PEGA 金鑰。',
+  'Model and effort are chosen on the ChatGPT website itself (AIECP does not control the official website).': '模型與強度請在 ChatGPT 網頁上自行選擇（AIECP 不控制官方網頁）。',
+  'Codex OFFICIAL (OpenAI Official)': 'Codex OFFICIAL（OpenAI 官方）',
+  'A greeting for this agent is already in progress.': '這個 Agent 的打招呼正在進行中。',
+  'No answer within 60 seconds.': '60 秒內沒有回覆。',
+  'The agent printed more than the allowed amount.': 'Agent 輸出的內容超過允許的上限。',
+  'The agent failed without a message.': 'Agent 失敗了，但沒有留下任何訊息。',
+  'The agent answered with nothing.': 'Agent 沒有回覆任何內容。',
+  'Choose an installed Ollama model first.': '請先選擇一個已安裝的 Ollama 模型。',
+  'This agent is not configured.': '這個 Agent 尚未設定。',
+  'Choose a PEGA model first.': '請先選擇 PEGA 模型。',
+  'Codex OFFICIAL is not signed in yet.': 'Codex OFFICIAL 尚未登入。',
+  'This worker is busy with another run.': '這個 Worker 正忙於另一次執行。',
+  'No answer was received.': '沒有收到回覆。',
+  'Model name is not allowed.': '不允許這個模型名稱。',
+
+  // Provider health details (shown on the Worker cards)
+  'Codex CLI and isolated worker runtime are approved for this run.': 'Codex CLI 與隔離的 Worker 執行環境已核准供這次執行使用。',
+  'Codex worker is configured, but live network use is not approved.': 'Codex Worker 已設定，但尚未核准實際使用網路。',
+  'Codex worker credential is configured, but credential use is not approved.': 'Codex Worker 的憑證已設定，但尚未核准使用憑證。',
+  'Worker credential is not configured.': '尚未設定 Worker 憑證。',
+  'Codex OFFICIAL isolated CODEX_HOME requires authentication.': 'Codex OFFICIAL 的隔離 CODEX_HOME 需要先登入驗證。',
+  'Isolated CODEX_HOME is missing.': '找不到隔離的 CODEX_HOME。',
+  'Custom Codex worker requires an explicit model.': '自訂的 Codex Worker 必須明確指定模型。',
+  'Provider CLI is available.': '供應商命令列工具可用。',
+  'Provider CLI is unavailable.': '供應商命令列工具無法使用。',
+  'Ollama CLI is available, but an explicit model is required before invocation.': 'Ollama 命令列工具可用，但呼叫前必須明確指定模型。',
+  'Registered local worker executable is available.': '已登錄的本機 Worker 執行檔可用。',
+  'Provider endpoint responded successfully.': '供應商端點回應成功。',
+  'Live endpoint health was not probed because NETWORK approval was not granted.': '因為沒有核准網路使用，所以沒有實際探測端點的健康狀態。',
+  'Provider is not registered.': '尚未登錄這個供應商。',
+  'Provider Base URL is missing.': '缺少供應商的基底網址。',
+  'Provider model is missing.': '缺少供應商的模型。',
+  'Fixed local command is missing.': '缺少固定的本機指令。',
+  'Human-mediated official browser session.': '由人在官方瀏覽器中操作的工作階段。',
+  'Codex OFFICIAL Worker with a dedicated AECP-managed CODEX_HOME.': '使用 AIECP 專屬管理的 CODEX_HOME 的 Codex OFFICIAL Worker。',
+  'Codex PEGA Worker with isolated CODEX_HOME and a governed PEGA provider adapter.': '使用隔離 CODEX_HOME 與受管控 PEGA 供應商轉接器的 Codex PEGA Worker。',
+  'Official ChatGPT in your normal browser. No API key required.': '在你平常使用的瀏覽器中開啟官方 ChatGPT，不需要 API 金鑰。',
+  'no recorded invocations': '尚無呼叫記錄',
+  'Launch': '啟動',
+  'minimal': '最低',
+  'low': '低',
+  'medium': '中',
+  'high': '高',
+  'xhigh': '超高',
+  'max': '最大',
+
 });
 
 // Sentences that carry a name or a number.
@@ -814,10 +886,16 @@ const PATTERNS=[
   [/^Rule: (.+)$/, (v) => '規則：' + translatePhrase(v)],
   [/^(.+) \(optional\)$/, (v) => translatePhrase(v) + '（選填）'],
   [/^(.+) · Risk · (.+)$/, (a, b) => a + ' · 風險 · ' + b],
+  [/^codex-worker · (.+)$/, (v) => 'codex-worker · ' + translatePhrase(v)],
+  [/^(.+) is not installed or not on PATH\.$/, (name) => name + ' 尚未安裝，或不在 PATH 中。'],
+  [/^· (.+)$/, (v) => '· ' + translatePhrase(v)],
 
 ];
 
 const DEFAULT_LOCALE='zh-TW';
+
+// The product is called AIECP in everything the person reads; identifiers such as AECP_* are untouched (no word boundary before the underscore).
+const brand=(text)=>String(text).replace(new RegExp(String.fromCharCode(92)+"bAECP"+String.fromCharCode(92)+"b","g"),"AIECP");
 
 function normalizeLocale(value){
   const raw=String(value||'').trim().toLowerCase();
@@ -833,10 +911,10 @@ function translatePhrase(text){
   const lead=raw.slice(0,raw.indexOf(core));
   const tail=raw.slice(lead.length+core.length);
   const key=core.split(/\s+/).join(' ');
-  if(Object.prototype.hasOwnProperty.call(PHRASES,key))return lead+PHRASES[key]+tail;
+  if(Object.prototype.hasOwnProperty.call(PHRASES,key))return lead+brand(PHRASES[key])+tail;
   for(const [pattern,make] of PATTERNS){
     const match=key.match(pattern);
-    if(match)return lead+make(...match.slice(1))+tail;
+    if(match)return lead+brand(make(...match.slice(1)))+tail;
   }
   return raw;
 }
@@ -844,7 +922,7 @@ function translatePhrase(text){
 function createI18n({initialLocale,storage}={}){
   // An explicit choice wins, then the stored choice, and the default is Traditional Chinese (English is the switchable extra).
   let locale=normalizeLocale(initialLocale||storage?.getItem?.('aecp-locale')||DEFAULT_LOCALE);
-  const t=(key,fallback='')=>(DICTIONARIES[locale]?.[key] ?? DICTIONARIES.en[key] ?? fallback) || key;
+  const t=(key,fallback='')=>{const value=(DICTIONARIES[locale]?.[key] ?? DICTIONARIES.en[key] ?? fallback) || key;return locale==='zh-TW'?brand(value):value;};
   const tx=(text)=>locale==='zh-TW'?translatePhrase(text):String(text);
   const textOriginals=new WeakMap();
   const attrOriginals=new WeakMap();
@@ -933,4 +1011,4 @@ if(typeof document!=='undefined'){
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);
   else start();
 }
-if(typeof module!=='undefined'&&module.exports)module.exports={DICTIONARIES,PHRASES,PATTERNS,DEFAULT_LOCALE,normalizeLocale,translatePhrase,createI18n};
+if(typeof module!=='undefined'&&module.exports)module.exports={DICTIONARIES,PHRASES,PATTERNS,DEFAULT_LOCALE,normalizeLocale,translatePhrase,brand,createI18n};

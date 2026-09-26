@@ -5,6 +5,8 @@
 // invalid calls are rejected with a fixed error that never echoes the payload, and the
 // handler is not invoked.
 
+const { SETTINGS_AGENT_IDS, EFFORTS } = require('./agent-settings.cjs');
+
 const ID = /^[A-Za-z0-9][A-Za-z0-9._:@-]{0,127}$/;
 const FORBIDDEN_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 // Internal options that only the main process may set on Harness, Autonomy and Mission runs.
@@ -124,7 +126,7 @@ const NONE_CHANNELS = [
   'mcp:start', 'mcp:stop', 'mcp:copy-connection', 'agents:list', 'python:syntax-scan', 'desktop:list-windows',
   'desktop:list-browser-windows', 'github:connection', 'github:connect', 'update:check', 'update:status', 'update:apply',
   'update:rollback', 'update:open-release', 'tools:detect', 'clipboard:read', 'task:sample', 'task:list', 'provider:list',
-  'worker:list', 'worker:login-official'
+  'worker:list', 'worker:login-official', 'agents:settings:get'
 ];
 
 const IPC_SCHEMAS = Object.freeze({
@@ -156,6 +158,9 @@ const IPC_SCHEMAS = Object.freeze({
     maxIterations: BUDGET(), iterationTimeoutSeconds: BUDGET(), checkpointEvery: BUDGET()
   }, { requireFields: true }),
   'agents:launch': strict({ agentId: field.id() }),
+  // Agent ids and reasoning efforts are whitelists; an empty string clears a setting; the model name is pattern-checked in the handler.
+  'agents:settings:set': strict({ agentId: field.oneOf(SETTINGS_AGENT_IDS), model: field.str(120, true), effort: field.oneOf([...EFFORTS, ''], true) }),
+  'agents:say-hi': strict({ agentId: field.oneOf(SETTINGS_AGENT_IDS), model: field.str(120, true) }),
   'desktop:inspect-ui': strict({ pid: field.int(1, 4294967295), maxNodes: field.int(1, 1000, true) }),
   'desktop:dock-browser': strict({ pid: field.int(1, 4294967295), side: field.oneOf(['left', 'right']) }),
   'clipboard:write': strict({ text: field.str(128 * 1024) }),

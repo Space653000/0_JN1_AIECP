@@ -27,6 +27,7 @@ const { writeBackup, stageRestore, applyPendingRestore } = require('./lib/backup
 const { WindowsUiAdapter } = require('./lib/windows-ui-adapter.cjs');
 const { PythonWorker } = require('./lib/python-worker.cjs');
 
+const agentSettingsLib = require('./lib/agent-settings.cjs');
 const { parseCommandCard, actionMeta, makeTaskId, makeResultCapsule, hashJson, withinClipboardWriteLimit } = require('./lib/protocol.cjs');
 const { isAllowedNavigation } = require('./lib/navigation-policy.cjs');
 const { createValidatedIpc, IPC_SCHEMAS } = require('./lib/ipc-validation.cjs');
@@ -249,6 +250,129 @@ async function detectAgents() {
 
 async function preferredPowerShell() {
   return (await probe('pwsh', ['--version'])).available ? 'pwsh' : 'powershell';
+}
+
+// ---- Per-agent model / reasoning effort and the fixed "say hi" probe (work order 0019) ----
+const WORKER_AGENT_NAMES = Object.freeze({ 'codex-official': 'Codex OFFICIAL (OpenAI Official)', 'codex-pega': 'Codex PEGA' });
+// Which router provider and role serve each agent's greeting. codex-cli is left out on purpose: the isolated workers are the Codex path.
+const SAY_HI_ROUTES = Object.freeze({
+  'claude-code': { provider: 'claude', role: 'planner' },
+  'gemini-cli': { provider: 'gemini', role: 'general' },
+  opencode: { provider: 'opencode', role: 'general' },
+  ollama: { provider: 'ollama', role: 'general' },
+  'codex-official': { provider: 'openai-official', role: 'builder' },
+  'codex-pega': { provider: PEGA_PROVIDER_ID, role: 'builder' }
+});
+
+function agentDisplayName(agentId) {
+  return WORKER_AGENT_NAMES[agentId] || AGENT_SPECS.find((item) => item.id === agentId)?.name || agentId;
+}
+
+// Installed Ollama models from the fixed, read-only `ollama list`; every name is checked against the model pattern.
+async function listOllamaModels() {
+  try {
+    const result = await execFixed('ollama', ['list'], undefined, 5000);
+    return result.stdout.split(/\r?\n/).slice(1)
+      .map((line) => line.trim().split(/\s+/)[0] || '')
+      .filter((name) => agentSettingsLib.validModel(name))
+      .slice(0, 100);
+  } catch {
+    return [];
+  }
+}
+
+function pegaProviderState(state) {
+  return (state.providers || []).find((item) => item.id === PEGA_PROVIDER_ID || normalizedProviderUrl(item.baseUrl) === PEGA_BASE_URL) || null;
+}
+
+async function getAgentSettingsView() {
+  const state = await loadState();
+  const settings = agentSettingsLib.readSettings(state.agentSettings);
+  const pegaState = pegaProviderState(state);
+  const secrets = await loadSecrets();
+  const agents = agentSettingsLib.SETTINGS_AGENT_IDS.map((agentId) => {
+    const isWorker = agentSettingsLib.WORKER_AGENT_IDS.includes(agentId);
+    const route = SAY_HI_ROUTES[agentId] || null;
+    const info = agentSettingsLib.effective(agentId, { settings, providerModel: agentId === 'codex-pega' ? pegaState?.defaultModel : null });
+    return {
+      id: agentId,
+      name: agentDisplayName(agentId),
+      kind: isWorker ? 'codex-worker' : (agentId === 'ollama' ? 'local' : 'cli'),
+      ...info,
+      sayHi: {
+        supported: Boolean(route),
+        network: route ? Boolean(agentId !== 'ollama' && (isWorker || PROVIDERS[route.provider]?.network)) : false,
+        keyConfigured: agentId === 'codex-pega'
+          ? Boolean(decryptProviderSecret(secrets, pegaState?.id || PEGA_PROVIDER_ID) || process.env[PEGA_ENV_KEY])
+          : null
+      }
+    };
+  });
+  // The official ChatGPT website is operated by the person in their own browser; AIECP never controls it (Blueprint 06).
+  const chatgptWeb = { id: 'chatgpt-web', name: 'ChatGPT Web', kind: 'web', controllable: false, model: null, modelSource: 'default', effort: null, effortSupported: false, efforts: [], sayHi: { supported: false, network: false, keyConfigured: null } };
+  return { schema: 'aecp.agent-settings/v1', agents: [chatgptWeb, ...agents], ollamaModels: await listOllamaModels() };
+}
+
+async function setAgentSettings(payload) {
+  const state = await loadState();
+  if (state.__aecpReadOnlyRecovery) throw new Error('Local state is in read-only recovery mode.');
+  state.agentSettings = agentSettingsLib.applyPatch(state.agentSettings, payload.agentId, { model: payload.model, effort: payload.effort });
+  await saveState(state);
+  if (agentSettingsLib.WORKER_AGENT_IDS.includes(payload.agentId)) await refreshRuntimeProviders();
+  return getAgentSettingsView();
+}
+
+// The one call behind the "say hi" button. The button press is the authorization for this single, fixed prompt.
+async function executeSayHi({ agentId, model, prompt, timeoutMs, maxOutputBytes }) {
+  const route = SAY_HI_ROUTES[agentId];
+  if (!route) return { skipped: true, code: 'USE_WORKERS', reason: 'Use the Codex OFFICIAL or Codex PEGA card for Codex.' };
+  const spec = AGENT_SPECS.find((item) => item.id === agentId);
+  if (spec && !(await probe(spec.command, spec.args)).available) return { skipped: true, code: 'NOT_INSTALLED', reason: `${spec.name} is not installed or not on PATH.` };
+  const state = await loadState();
+  const settings = agentSettingsLib.readSettings(state.agentSettings);
+  const chosen = model || agentSettingsLib.effective(agentId, { settings, providerModel: agentId === 'codex-pega' ? pegaProviderState(state)?.defaultModel : null }).model;
+  if (agentId === 'ollama' && !chosen) return { skipped: true, code: 'NEEDS_MODEL', reason: 'Choose an installed Ollama model first.' };
+  const router = await buildRuntimeProviderRouter();
+  const provider = router.registry[route.provider];
+  if (!provider) return { skipped: true, code: 'NOT_CONFIGURED', reason: 'This agent is not configured.' };
+  if (agentId === 'codex-pega' && !provider.apiKey) return { skipped: true, code: 'NO_KEY', reason: 'The PEGA key is not set yet.' };
+  if (agentId === 'codex-pega' && !(chosen || provider.defaultModel)) return { skipped: true, code: 'NEEDS_MODEL', reason: 'Choose a PEGA model first.' };
+  if (agentId === 'codex-official' && !provider.authPresent) return { skipped: true, code: 'AUTH_REQUIRED', reason: 'Codex OFFICIAL is not signed in yet.' };
+  // A fresh, empty folder owned by AIECP: no Workspace is ever the working directory of a greeting.
+  const cwd = dataPath('say-hi', agentId);
+  await fsp.rm(cwd, { recursive: true, force: true });
+  await fsp.mkdir(cwd, { recursive: true });
+  const isWorker = agentSettingsLib.WORKER_AGENT_IDS.includes(agentId);
+  const workers = isWorker ? await getWorkerRegistry() : null;
+  if (workers) {
+    try { await workers.acquire(agentId, { runId: 'say-hi', taskId: 'say-hi' }); } catch (error) {
+      if (error?.code === 'WORKER_BUSY') return { skipped: true, code: 'BUSY', reason: 'This worker is busy with another run.' };
+      throw error;
+    }
+  }
+  try {
+    return await router.execute(route.role, prompt, {
+      provider: route.provider,
+      model: chosen || undefined,
+      cwd,
+      timeoutMs,
+      maxOutputBytes,
+      networkApproved: Boolean(provider.network || provider.mode === 'openai-compatible'),
+      credentialApproved: Boolean(provider.requiresCredential),
+      skipGitRepoCheck: true
+    });
+  } catch (error) {
+    if (error?.code === 'APPROVAL_REQUIRED' && controlPlane) await controlPlane.recordPolicyViolation({ action: String(error.action || 'NETWORK'), reasonCode: 'APPROVAL_REQUIRED' });
+    throw error;
+  } finally {
+    if (workers) await workers.release(agentId).catch(() => {});
+  }
+}
+
+let sayHiService = null;
+async function sayHiAgent(payload) {
+  if (!sayHiService) sayHiService = new agentSettingsLib.SayHiService({ execute: executeSayHi });
+  return sayHiService.run({ agentId: payload.agentId, agentName: agentDisplayName(payload.agentId), model: payload.model || null });
 }
 
 async function launchAgent(agentId) {
@@ -1110,8 +1234,16 @@ async function buildRuntimeProviderRouter() {
   const runtime = getCodexWorkerRuntime();
   const workers = await getWorkerRegistry();
 
-  const officialModel = String(process.env.AECP_CODEX_OFFICIAL_MODEL || '').trim().slice(0, 200) || null;
-  const officialProfile = await runtime.prepareOfficial({ model: officialModel });
+  const agentSettings = agentSettingsLib.readSettings(state.agentSettings);
+  // A stored model or effort becomes that CLI's default; with nothing stored the registry entries are exactly what they were.
+  for (const [providerId, agentId] of [['claude', 'claude-code'], ['codex', 'codex-cli'], ['gemini', 'gemini-cli'], ['opencode', 'opencode'], ['ollama', 'ollama']]) {
+    const own = agentSettings[agentId];
+    if (!own || !registry[providerId]) continue;
+    registry[providerId] = { ...registry[providerId], ...(own.model ? { defaultModel: own.model } : {}), ...(own.effort ? { defaultEffort: own.effort } : {}) };
+  }
+  const officialSetting = agentSettings[WORKER_IDS.OFFICIAL] || {};
+  const officialModel = officialSetting.model || String(process.env.AECP_CODEX_OFFICIAL_MODEL || '').trim().slice(0, 200) || null;
+  const officialProfile = await runtime.prepareOfficial({ model: officialModel, effort: officialSetting.effort || null });
   const officialInspection = await runtime.inspect(WORKER_IDS.OFFICIAL);
   registry['openai-official'] = {
     id: 'openai-official',
@@ -1147,7 +1279,8 @@ async function buildRuntimeProviderRouter() {
   ) || null;
   const pegaSecretId = pegaState?.id || PEGA_PROVIDER_ID;
   const pegaApiKey = decryptProviderSecret(secrets, pegaSecretId) || String(process.env[PEGA_ENV_KEY] || '');
-  const pegaModel = String(pegaState?.defaultModel || process.env.AECP_PEGA_MODEL || '').trim().slice(0, 200);
+  const pegaSetting = agentSettings[PEGA_WORKER_ID] || {};
+  const pegaModel = String(pegaSetting.model || pegaState?.defaultModel || process.env.AECP_PEGA_MODEL || '').trim().slice(0, 200);
   const pegaWireApi = String(pegaState?.wireApi || process.env.AECP_PEGA_WIRE_API || 'responses').trim().toLowerCase();
   const pegaHome = runtime.codexHome(PEGA_WORKER_ID);
   let pegaRuntimeEnv = { CODEX_HOME: pegaHome };
@@ -1162,7 +1295,8 @@ async function buildRuntimeProviderRouter() {
       model: pegaModel,
       wireApi: pegaWireApi,
       envKey: PEGA_ENV_KEY,
-      apiKey: pegaApiKey
+      apiKey: pegaApiKey,
+      effort: pegaSetting.effort || null
     });
     pegaRuntimeEnv = { ...profile.env };
   }
@@ -1247,7 +1381,8 @@ async function checkProviderHealth(providerId, options = {}) {
 async function loginOfficialCodexWorker() {
   await assertDataOperationIdle();
   const runtime = getCodexWorkerRuntime();
-  const profile = await runtime.prepareOfficial({ model: String(process.env.AECP_CODEX_OFFICIAL_MODEL || '').trim() || null });
+  const loginSetting = agentSettingsLib.readSettings((await loadState()).agentSettings)[WORKER_IDS.OFFICIAL] || {};
+  const profile = await runtime.prepareOfficial({ model: loginSetting.model || String(process.env.AECP_CODEX_OFFICIAL_MODEL || '').trim() || null, effort: loginSetting.effort || null });
   const approved = await dialog.showMessageBox(mainWindow, {
     type: 'question',
     buttons: ['Cancel', 'Open isolated Codex login'],
@@ -1781,6 +1916,9 @@ function registerIpc() {
 
   ipc.handle('agents:list', detectAgents);
   ipc.handle('agents:launch', async (_event, payload) => launchAgent(payload?.agentId));
+  ipc.handle('agents:settings:get', getAgentSettingsView);
+  ipc.handle('agents:settings:set', async (_event, payload) => setAgentSettings(payload));
+  ipc.handle('agents:say-hi', async (_event, payload) => sayHiAgent(payload));
   ipc.handle('python:syntax-scan', async () => {
     const state=await loadState();
     const workspace=getCurrentWorkspace(state);

@@ -13005,6 +13005,154 @@
         "file": ".ai/ACCEPTANCE.md",
         "section": "### 6.4 新手首用與產品感"
       }
+    },
+    {
+      "id": "W0019-A",
+      "source": {
+        "file": ".ai/WORK_ORDERS/0019.md",
+        "section": "## 2. 功能 A"
+      },
+      "text": "Every agent shows its effective model and reasoning effort and both can be set (Claude Code, Codex OFFICIAL/PEGA, Ollama, plus models for Gemini and OpenCode); values are whitelisted, flags are passed as arrays, and with nothing set the configuration and CLI arguments are exactly as before.",
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/agent-settings.test.cjs",
+          "kind": "test",
+          "name": "B0019 settings patches are whitelisted: agent ids, model names and per-agent effort levels"
+        },
+        {
+          "file": "tests/agent-settings.test.cjs",
+          "kind": "test",
+          "name": "B0019 the effective model prefers the setting, then the provider entry (PEGA), then the environment, then the tool default"
+        },
+        {
+          "file": "tests/agent-settings.test.cjs",
+          "kind": "test",
+          "name": "B0019 OFFICIAL config: a reasoning effort is written before every [table], never with a secret, and no effort leaves the file byte-for-byte as before"
+        },
+        {
+          "file": "tests/agent-settings.test.cjs",
+          "kind": "test",
+          "name": "B0019 PEGA config: effort sits before [model_providers], the key never reaches the file, and without an effort the file is unchanged"
+        },
+        {
+          "file": "tests/agent-settings.test.cjs",
+          "kind": "test",
+          "name": "B0019 CLI flags: model and effort travel as separate array elements, and with nothing set the arguments are exactly what they were"
+        },
+        {
+          "file": "tests/agent-settings.test.cjs",
+          "kind": "test",
+          "name": "B0019 through the real main process: settings persist, drive the OFFICIAL config, and an old state.json shows no settings"
+        },
+        {
+          "file": "tests/agent-settings-ui.test.cjs",
+          "kind": "test",
+          "name": "B0019 the effort control shows the levels each tool really has, \"Not applicable\" where there is none, and Ollama gets a thinking switch"
+        }
+      ],
+      "note": "Real CodexWorkerRuntime, ProviderRouter.commandSpec, IPC validation and the real main process handlers (work order 0019). Real OFFICIAL/PEGA calls are not claimed: they need the owner's account and key."
+    },
+    {
+      "id": "W0019-B",
+      "source": {
+        "file": ".ai/WORK_ORDERS/0019.md",
+        "section": "## 3. 功能 B"
+      },
+      "text": "The \"say hi\" probe under each agent sends only the fixed greeting, times out at 60 seconds, limits output, runs one request per agent at a time, redacts the reply, runs in an empty AIECP-owned folder, never returns a key and creates no task or Mission.",
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/agent-say-hi.test.cjs",
+          "kind": "test",
+          "name": "B0019 saying hi to Ollama sends exactly the fixed prompt with the chosen model and thinking level, from an empty AIECP-owned folder"
+        },
+        {
+          "file": "tests/agent-say-hi.test.cjs",
+          "kind": "test",
+          "name": "B0019 the model can be picked per greeting and nothing else about the prompt can be chosen"
+        },
+        {
+          "file": "tests/agent-say-hi.test.cjs",
+          "kind": "test",
+          "name": "B0019 a greeting is recorded as a provider call but never creates a task or a Mission"
+        },
+        {
+          "file": "tests/agent-say-hi.test.cjs",
+          "kind": "test",
+          "name": "B0019 the reply is redacted and cut to 2 KB, and a failure keeps its real reason"
+        },
+        {
+          "file": "tests/agent-say-hi.test.cjs",
+          "kind": "test",
+          "name": "B0019 only one greeting per agent runs at a time"
+        },
+        {
+          "file": "tests/agent-say-hi.test.cjs",
+          "kind": "test",
+          "name": "B0019 PEGA and OFFICIAL: refused without a key or a login, and when they run the sandbox stays workspace-write with the key only in the process environment"
+        },
+        {
+          "file": "tests/agent-say-hi.test.cjs",
+          "kind": "test",
+          "name": "B0019 the service enforces the limits itself: fixed prompt, 60 second timeout, output limit, one at a time, no approval means no call"
+        },
+        {
+          "file": "tests/agent-settings-ui.test.cjs",
+          "kind": "test",
+          "name": "B0019 the say-hi button sends no text, shows the model, time and reply, and a failure shows its real reason"
+        }
+      ],
+      "note": "Real main process handlers, ProviderRouter, Worker Registry and usage store over stand-in agent programs. Real PEGA/OFFICIAL answers still need the owner's key and quota; Codex flag --skip-git-repo-check could not be run here because Codex is not installed on this machine."
+    },
+    {
+      "id": "W0019-C",
+      "source": {
+        "file": ".ai/WORK_ORDERS/0019.md",
+        "section": "## 2.1 追加要求"
+      },
+      "text": "The official ChatGPT website is never controlled: its card only explains that the model and effort are chosen on the website, with no setting fields and no say-hi button, and no IPC accepts it.",
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/agent-settings-ui.test.cjs",
+          "kind": "test",
+          "name": "B0019 the official ChatGPT website only gets an explanation: no model or effort field and no greeting"
+        },
+        {
+          "file": "tests/agent-say-hi.test.cjs",
+          "kind": "test",
+          "name": "B0019 Codex has no greeting of its own: the isolated workers are its path, and the official website has none at all"
+        }
+      ],
+      "note": "Blueprint 06 boundary: AIECP does not inject, scrape or control chatgpt.com; this is deliberate, not a gap."
+    },
+    {
+      "id": "W0019-D",
+      "source": {
+        "file": ".ai/WORK_ORDERS/0019.md",
+        "section": "## 4. 介面與語言"
+      },
+      "text": "The whole interface defaults to Traditional Chinese with English as a switchable extra, all new panel text and Worker health details are translated, and the product is written AIECP in Chinese text.",
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/ui-default-language.test.cjs",
+          "kind": "test",
+          "name": "the interface starts in Traditional Chinese, whatever language the browser reports"
+        },
+        {
+          "file": "tests/ui-default-language.test.cjs",
+          "kind": "test",
+          "name": "the per-agent panel, its results and the Worker health details are all translated, and the product is named AIECP in Chinese"
+        },
+        {
+          "file": "tests/ui-default-language.test.cjs",
+          "kind": "test",
+          "name": "every English text, label and placeholder written into ui/index.html has a Traditional Chinese translation"
+        }
+      ],
+      "note": "Error messages that come from the main process stay in English."
     }
   ]
 }

@@ -318,6 +318,18 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { border-color
 /* Grid children may shrink below their content so wide text or fields never push the pane wider than the window */
 .hc-shell > *, .hc-card, .hc-grid > *, .hc-form > *, .hc-metrics > *, .hc-task-grid > * { min-width: 0; }
 
+/* Per-agent model / effort panel and the say-hi result (work order 0019): stacked labels, full-width controls, no horizontal overflow */
+.agent-note { margin: 0 0 8px; padding: 0 4px; font-size: 11px; line-height: 1.5; }
+.agent-settings { margin: -2px 0 8px; padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--panel-2); min-width: 0; }
+.agent-settings > summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+.agent-settings-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; margin-top: 8px; min-width: 0; }
+.agent-settings-body label { display: grid; gap: 4px; color: var(--muted); font-size: 11px; min-width: 0; }
+.agent-settings-body input, .agent-settings-body select { width: 100%; min-width: 0; height: 34px; padding: 0 10px; color: var(--text); background: var(--panel); border: 1px solid var(--line-strong); border-radius: var(--radius-sm); }
+.agent-effective, .agent-sayhi-note { display: block; overflow-wrap: anywhere; }
+.agent-result { display: grid; gap: 4px; min-width: 0; padding-top: 8px; border-top: 1px solid var(--line); overflow-wrap: anywhere; }
+.agent-result:empty { display: none; }
+.agent-reply, .agent-reason { margin: 4px 0 0; color: var(--text); }
+
 /* Monospace for code, paths and IDs */
 code, kbd, samp, .path-text, .repo-meta, .task-meta, .detail-cell code, .hc-event time { font-family: var(--mono); }
 
