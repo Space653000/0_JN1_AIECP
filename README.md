@@ -4,7 +4,7 @@
 
 > **Current package version: v0.3.0 Preview (`package.json`).**「V3.0 Multi-Worker」是施工藍圖的階段名稱，並非已發布的 3.0.0 版本。官方 ChatGPT Web 仍是主要對話介面；AECP 透過隔離 Git worktree 執行有界施工，驗證後才可經使用者明確操作套用變更。
 
-專案施工依據：[藍圖入口](.ai/BLUEPRINT.md) · [驗收標準](.ai/ACCEPTANCE.md) · [持續維護的施工狀態](.ai/STATUS.md) · [Codex 工作入口](AGENTS.md)。
+專案施工依據：[藍圖入口](.ai/BLUEPRINT.md) · [驗收標準](.ai/ACCEPTANCE.md) · [持續維護的施工狀態](.ai/STATUS.md) · [Codex 工作入口](AGENTS.md)。給使用者看的說明請見[使用手冊](docs/使用手冊.md)。
 
 ## The idea in one picture
 

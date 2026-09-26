@@ -98,7 +98,8 @@ const DICTIONARIES=Object.freeze({
     'dashboard.progress.implementation':'Implementation',
     'dashboard.progress.testing':'Testing',
     'dashboard.progress.review':'Review',
-    'dashboard.progress.acceptance':'Acceptance'
+    'dashboard.progress.acceptance':'Acceptance',
+    'worker.networkHint':'This is normal while idle: AIECP only asks you to approve network access when it actually dispatches work.'
   }),
   'zh-TW':Object.freeze({
     'workspace.choose':'選擇工作區',
@@ -197,7 +198,8 @@ const DICTIONARIES=Object.freeze({
     'dashboard.progress.implementation':'實作',
     'dashboard.progress.testing':'測試',
     'dashboard.progress.review':'審查',
-    'dashboard.progress.acceptance':'驗收'
+    'dashboard.progress.acceptance':'驗收',
+    'worker.networkHint':'這是閒置時的正常狀態：真正派工時才會請你核准網路使用。'
   })
 });
 
@@ -834,6 +836,13 @@ const PHRASES=Object.freeze({
   'high': '高',
   'xhigh': '超高',
   'max': '最大',
+
+  'This is normal while idle: AIECP only asks you to approve network access when it actually dispatches work.': '這是閒置時的正常狀態：真正派工時才會請你核准網路使用。',
+  'Custom…': '自訂…',
+  'Type the exact model name': '輸入確切的模型名稱',
+  'sonnet/opus/fable are official aliases that always resolve to the latest version; choose "Custom…" to name an exact model.': 'sonnet／opus／fable 是官方別名，會自動對應到最新版本；要指定確切型號才選「自訂…」。',
+  'Could not read the model list; please type it manually.': '無法取得清單，請手動輸入。',
+  'This tool has no auto-detectable model list; please type it manually.': '此工具沒有可自動偵測的模型清單，請手動輸入。',
 
 });
 

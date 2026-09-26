@@ -90,12 +90,15 @@ function render(){
  const officialHealth=officialWorker?.health||'UNKNOWN';
  const pegaHealth=pegaWorker?.health||'UNKNOWN';
  const healthClass=value=>value==='READY'?'ready':['DEGRADED','AUTH_REQUIRED'].includes(value)?'warn':['UNKNOWN','NOT_CONFIGURED'].includes(value)?'neutral':'bad';
+ // A DEGRADED Worker waiting only on network approval is expected while idle: AIECP asks for that approval when it actually dispatches work, not before.
+ const NETWORK_HINT='This is normal while idle: AIECP only asks you to approve network access when it actually dispatches work.';
+ const healthHint=(health,detail)=>health==='DEGRADED'&&/live network use is not approved/.test(String(detail||''))?'<small class="muted">'+esc(tr('worker.networkHint',NETWORK_HINT))+'</small>':'';
  h+='<section class="hc-card hc-status-card"><div class="section-title"><h2>V3.0 Multi-Worker Readiness</h2><span class="status '+(registryReady&&homesIsolated?'ready':'warn')+'">'+(registryReady&&homesIsolated?'REPOSITORY READY':'CHECK REQUIRED')+'</span></div><div class="hc-status-grid">'
    +'<div><b>WORKER REGISTRY</b><span class="status '+(registryReady?'ready':'warn')+'">'+esc(registryValue)+'</span><small>Codex OFFICIAL + Codex PEGA canonical Worker identities</small></div>'
    +'<div><b>CODEX_HOME ISOLATION</b><span class="status '+(isolationValue==='PASS'?'ready':isolationValue==='BLOCKED'?'bad':'neutral')+'">'+esc(isolationValue)+'</span><small>Independent config/auth/session/runtime roots</small></div>'
    +'<div><b>PARALLEL RUNTIME</b><span class="status '+(parallelValue==='ACTIVE'?'ready':parallelValue==='BLOCKED'?'bad':'neutral')+'">'+esc(parallelValue)+'</span><small>ACTIVE only when both Workers are running on distinct worktrees</small></div>'
-   +'<div><b>OFFICIAL HEALTH</b><span class="status '+healthClass(officialHealth)+'">'+esc(officialHealth)+'</span><small>'+esc(officialWorker?.healthDetail||'Canonical Worker health')+'</small></div>'
-   +'<div><b>PEGA HEALTH</b><span class="status '+healthClass(pegaHealth)+'">'+esc(pegaHealth)+'</span><small>'+esc(pegaWorker?.healthDetail||'Canonical Worker health')+'</small></div>'
+   +'<div><b>OFFICIAL HEALTH</b><span class="status '+healthClass(officialHealth)+'">'+esc(officialHealth)+'</span><small>'+esc(officialWorker?.healthDetail||'Canonical Worker health')+'</small>'+healthHint(officialHealth,officialWorker?.healthDetail)+'</div>'
+   +'<div><b>PEGA HEALTH</b><span class="status '+healthClass(pegaHealth)+'">'+esc(pegaHealth)+'</span><small>'+esc(pegaWorker?.healthDetail||'Canonical Worker health')+'</small>'+healthHint(pegaHealth,pegaWorker?.healthDetail)+'</div>'
    +'<div><b>REAL PROVIDER EVIDENCE</b><span class="status warn">ENVIRONMENT GATE</span><small>Requires exact-source self-hosted Windows evidence; never inferred from source tests or health alone.</small></div>'
    +'</div><div class="hc-pending"><strong>V3.0 rule:</strong> repository implementation and CI can prove architecture/runtime invariants, but real OFFICIAL/PEGA model execution remains an ENVIRONMENT gate until the dedicated evidence workflow produces a matching artifact.</div></section>';
  const projected=snapshot.eventProjection?.total||events.length;
@@ -114,7 +117,7 @@ function render(){
     +'<small>Heartbeat: '+esc(w.heartbeatAt?fmt(w.heartbeatAt):'UNKNOWN')+'</small>'
     +'<small>Cancel: '+esc(w.cancelState||'UNKNOWN')+'</small>'
     +'<span class="status '+healthClass+'">Health '+esc(health)+'</span>'
-    +(w.healthDetail?'<small>'+esc(w.healthDetail)+'</small>':'')+'</article>';}).join('')||'<div class="empty-list">No registered workers.</div>')
+    +(w.healthDetail?'<small>'+esc(w.healthDetail)+'</small>':'')+healthHint(health,w.healthDetail)+'</article>';}).join('')||'<div class="empty-list">No registered workers.</div>')
    +'</div></section>';
  const remote=snapshot.remote||{};
  h+='<section class="hc-card"><div class="section-title"><h2>Remote Supervision</h2><span class="status '+(remote.secure?'ready':'neutral')+'">'+esc(remote.protocol||'http')+' · '+esc(remote.host||'127.0.0.1')+':'+esc(remote.port||'—')+'</span></div><p>Read-only paired-device supervision. Non-loopback binding is disabled unless the operator explicitly enables it and supplies TLS credentials.</p><div class="hc-actions"><button id="hcPair" class="primary-button">Create pairing code</button></div>'+(pairing?'<p><strong>Pairing code: '+esc(pairing.code)+'</strong> · expires '+esc(fmt(pairing.expiresAt))+'</p>':'')+'<div class="hc-table">'+((remoteDevices||[]).map(d=>'<div class="hc-row"><div class="hc-main"><strong>'+esc(d.deviceId)+'</strong><small>'+esc(d.scope)+' · expires '+esc(fmt(d.expiresAt))+'</small></div><button class="secondary-button" data-device-revoke="'+esc(d.deviceId)+'">Revoke</button></div>').join('')||'<div class="empty-list">No paired devices.</div>')+'</div></section>';

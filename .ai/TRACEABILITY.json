@@ -12999,8 +12999,14 @@
       },
       "text": "complete user documentation",
       "status": "MANUAL",
-      "evidence": [],
-      "note": "Complete user documentation is judged by a person reading it against the installed product.",
+      "evidence": [
+        {
+          "file": "tests/user-manual.test.cjs",
+          "kind": "test",
+          "name": "B08-L188 the Traditional Chinese user manual exists and covers every required topic"
+        }
+      ],
+      "note": "A Traditional Chinese user manual (docs/使用手冊.md, linked from README) is provided and its presence/coverage is checked by tests/user-manual.test.cjs; judging whether it is genuinely complete and clear against the installed product is still a person's call.",
       "protocol": {
         "file": ".ai/ACCEPTANCE.md",
         "section": "### 6.4 新手首用與產品感"
@@ -13153,6 +13159,139 @@
         }
       ],
       "note": "Error messages that come from the main process stay in English."
+    },
+    {
+      "id": "W0020-B",
+      "source": {
+        "file": ".ai/WORK_ORDERS/0020.md",
+        "section": "## 2. 項目 B"
+      },
+      "text": "A one-line command (npm run evidence:local -- <ollama|pega|official>) maps to the existing provider-environment-verify.cjs through a fixed mode table, asks a secret key without echo and keeps it only in the child process environment, writes a summary under artifacts/, and gives a plain-language pass/fail with a classified reason instead of raw counts.",
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/local-provider-evidence.test.cjs",
+          "kind": "test",
+          "name": "B0020 there are exactly three fixed modes, each mapped to a verifier mode, and anything else is refused before anything runs"
+        },
+        {
+          "file": "tests/local-provider-evidence.test.cjs",
+          "kind": "test",
+          "name": "B0020 pega: the key is announced as memory-only, read without echo, and appears in no output, file or argument"
+        },
+        {
+          "file": "tests/local-provider-evidence.test.cjs",
+          "kind": "test",
+          "name": "B0020 a failure is explained in plain words with a reason category, not just counts"
+        },
+        {
+          "file": "electron/lib/local-provider-evidence.cjs",
+          "kind": "code",
+          "name": "runLocalEvidence"
+        }
+      ],
+      "note": "Local run evidence for the owner; explicitly not GitHub self-hosted Runner evidence and never writes to the traceability matrix. Real PEGA/OFFICIAL calls still need the owner's key/login."
+    },
+    {
+      "id": "W0020-C",
+      "source": {
+        "file": ".ai/WORK_ORDERS/0020.md",
+        "section": "## 3. 項目 C"
+      },
+      "text": "A DEGRADED Worker card whose reason is missing network approval gets a plain-language note that this is normal while idle; the status colour and word are unchanged, and other DEGRADED reasons get no such note.",
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/harness-worker-health-text.test.cjs",
+          "kind": "test",
+          "name": "B0020 a DEGRADED worker waiting only for network approval gets a plain explanation, and the status is never turned green"
+        },
+        {
+          "file": "tests/harness-worker-health-text.test.cjs",
+          "kind": "test",
+          "name": "B0020 a worker degraded for a different reason gets no network hint, and other states are unaffected"
+        },
+        {
+          "file": "ui/harness-console.js",
+          "kind": "code",
+          "name": "healthHint"
+        }
+      ],
+      "note": "Purely additive text; no status classification changed (tests/ui-theme-contrast.test.cjs still passes with no new hard-coded colours)."
+    },
+    {
+      "id": "W0021",
+      "source": {
+        "file": ".ai/WORK_ORDERS/0021.md",
+        "section": "## 1. 要做的事"
+      },
+      "text": "The Claude Code model field is a dropdown of the officially maintained aliases (sonnet/opus/fable) plus an explicit Custom choice that reveals a free-text field so an existing exact model name already saved is never lost; the alias travels through --model unchanged, exactly as any other value did. PEGA, Codex OFFICIAL, Ollama and other agents are untouched.",
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/claude-model-alias-dropdown.test.cjs",
+          "kind": "test",
+          "name": "B0021 CLAUDE_MODEL_ALIASES is a fixed named constant, and it drives the --model flag exactly as any other value would"
+        },
+        {
+          "file": "tests/claude-model-alias-dropdown.test.cjs",
+          "kind": "test",
+          "name": "B0021 the Claude Code model field is a dropdown of the four fixed choices, not free text"
+        },
+        {
+          "file": "tests/claude-model-alias-dropdown.test.cjs",
+          "kind": "test",
+          "name": "B0021 an existing full model name that is not one of the aliases is shown as Custom, with the value kept in a text box"
+        },
+        {
+          "file": "tests/claude-model-alias-dropdown.test.cjs",
+          "kind": "test",
+          "name": "B0021 Ollama, PEGA and Codex OFFICIAL keep their own existing model fields, untouched by this change"
+        },
+        {
+          "file": "electron/lib/agent-settings.cjs",
+          "kind": "code",
+          "name": "CLAUDE_MODEL_ALIASES"
+        }
+      ],
+      "note": "PEGA and Codex OFFICIAL are explicitly out of scope: PEGA /v1/models does not list Codex-usable model names, and there is no published Codex model catalog to query; both keep the existing free-text field with the real provider-reported error shown as-is."
+    },
+    {
+      "id": "W0022",
+      "source": {
+        "file": ".ai/WORK_ORDERS/0022.md",
+        "section": "## 1. OpenCode"
+      },
+      "text": "OpenCode's model field lists real installed models from a fixed, argument-free, timed-out, output-bounded `opencode models` call, in the exact provider/model shape its own --model flag takes; a failed or unparsable call falls back to the existing free-text field instead of breaking the card. Gemini CLI was checked against its real --help: it has neither a maintained alias nor a read-only list-models command, so it honestly keeps the free-text field with its own explanatory note rather than a fabricated list. Codex CLI and ChatGPT Web are untouched.",
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/opencode-known-models.test.cjs",
+          "kind": "test",
+          "name": "B0022 parseOpenCodeModels keeps only valid provider/model lines from real `opencode models` output, in provider/model form"
+        },
+        {
+          "file": "tests/opencode-known-models.test.cjs",
+          "kind": "test",
+          "name": "B0022 the settings view lists real opencode models via a fixed, argument-free call, timed out and output-bounded"
+        },
+        {
+          "file": "tests/opencode-known-models.test.cjs",
+          "kind": "test",
+          "name": "B0022 opencode not being installed, erroring, timing out, or printing nothing usable all fall back gracefully, not throw"
+        },
+        {
+          "file": "tests/opencode-known-models.test.cjs",
+          "kind": "test",
+          "name": "B0022 Gemini CLI: no alias/list command exists on real `gemini --help`, so it honestly keeps the free-text field with its own note"
+        },
+        {
+          "file": "electron/lib/agent-settings.cjs",
+          "kind": "code",
+          "name": "parseOpenCodeModels"
+        }
+      ],
+      "note": "Gemini CLI --help was checked directly (via npx @google/gemini-cli) on this machine on 2026-09-26: -m/--model takes a free string with no documented alias and no list-models subcommand exists, so no automatic list was built for it, as instructed."
     }
   ]
 }

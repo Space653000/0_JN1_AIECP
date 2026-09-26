@@ -44,6 +44,41 @@ function parseNodeCmdShim(cmdPath,{read=fs.readFileSync,exists=fs.existsSync,nod
   return {command:node,argsPrefix:[script],source:'npm-cmd-shim'};
 }
 
+// Blueprint 08 decision D12: the official Codex desktop app installs codex.exe under
+// %LOCALAPPDATA%/OpenAI/Codex/bin/<hash>/. Only that fixed base and only its direct child folders are looked at;
+// no shell, no wildcard, no deeper walk. The candidate must be a regular file named exactly codex.exe, neither it nor its
+// folder may be a link, and its real path must still be under the base. The newest one wins.
+function findOfficialCodexExe({env=process.env,readdir=fs.readdirSync,lstat=fs.lstatSync,realpath=fs.realpathSync.native||fs.realpathSync}={}){
+  const local=String(env?.LOCALAPPDATA||'').trim();
+  if(!local||!path.win32.isAbsolute(local))return null;
+  const base=path.win32.join(local,'OpenAI','Codex','bin');
+  const inside=(child,parent)=>{
+    const c=path.win32.normalize(String(child)).toLowerCase();
+    const p=path.win32.normalize(String(parent)).toLowerCase().replace(/[\\/]+$/,'');
+    return c.startsWith(p+'\\');
+  };
+  let baseReal;
+  let folders;
+  try{baseReal=realpath(base);folders=readdir(base,{withFileTypes:true});}catch{return null;}
+  let best=null;
+  for(const folder of folders){
+    try{
+      if(!folder.isDirectory()||folder.isSymbolicLink())continue;
+      const dir=path.win32.join(base,folder.name);
+      const dirStat=lstat(dir);
+      if(!dirStat.isDirectory()||dirStat.isSymbolicLink())continue;
+      const names=readdir(dir,{withFileTypes:true});
+      if(!names.some(entry=>entry.name==='codex.exe'))continue;
+      const exe=path.win32.join(dir,'codex.exe');
+      const info=lstat(exe);
+      if(!info.isFile()||info.isSymbolicLink())continue;
+      if(!inside(realpath(exe),baseReal))continue;
+      if(!best||info.mtimeMs>best.mtimeMs)best={exe,mtimeMs:info.mtimeMs};
+    }catch{/* an unreadable folder is simply not a candidate */}
+  }
+  return best?best.exe:null;
+}
+
 function resolveKnownCommand(command,args=[],options={}){
   const platform=options.platform||process.platform;
   const value=String(command||'');
@@ -75,9 +110,15 @@ function resolveKnownCommand(command,args=[],options={}){
     if(parsed)return{command:parsed.command,args:[...parsed.argsPrefix,...args],source:parsed.source};
   }
 
+  // Last resort for codex only, after PATH lookup and npm shims found nothing launchable (D12).
+  if(base==='codex'){
+    const official=findOfficialCodexExe({env,readdir:options.readdir,lstat:options.lstat,realpath:options.realpath});
+    if(official)return{command:official,args:[...args],source:'openai-codex-install'};
+  }
+
   // Fail closed to the original command. The caller will report UNAVAILABLE/ENOENT
   // rather than widening authority through cmd.exe or shell:true.
   return{command:value,args:[...args],source:'unresolved'};
 }
 
-module.exports={NPM_STYLE_COMMANDS,resolveKnownCommand,resolveNodeExecutable,parseNodeCmdShim};
+module.exports={NPM_STYLE_COMMANDS,findOfficialCodexExe,resolveKnownCommand,resolveNodeExecutable,parseNodeCmdShim};

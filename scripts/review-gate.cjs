@@ -23,7 +23,9 @@ const { sabotage } = require('./sabotage-check.cjs');
 const ROOT = path.resolve(__dirname, '..');
 const NEVER = [/^Blueprint\//, /^\.github\//, /^\.ai\/ACCEPTANCE\.md$/, /^package-lock\.json$/];
 const TESTS_MODE_ALLOWED = [/^tests\//, /^\.ai\//, /^scripts\/(sabotage-check|review-gate|traceability-audit)\.cjs$/, /^package\.json$/];
-const FIX_MODE_ALLOWED = [...TESTS_MODE_ALLOWED, /^electron\//, /^ui\//];
+// docs/ and README.md are user-facing documentation the owner has asked work orders to add or update
+// (e.g. work order 0020's Traditional Chinese user manual); they carry no executable behavior.
+const FIX_MODE_ALLOWED = [...TESTS_MODE_ALLOWED, /^electron\//, /^ui\//, /^docs\//, /^README\.md$/];
 
 function disallowedFiles(files, mode) {
   const allowed = mode === 'fix' ? FIX_MODE_ALLOWED : TESTS_MODE_ALLOWED;
@@ -54,7 +56,9 @@ function run(cmd, args, options = {}) {
   delete env.NODE_TEST_CONTEXT;
   return spawnSync(cmd, args, { cwd: ROOT, encoding: 'utf8', shell: process.platform === 'win32' && cmd === 'npm', env, ...options });
 }
-const git = (...args) => run('git', args);
+// core.quotepath=false: otherwise a non-ASCII path (the Traditional Chinese user manual) comes back octal-escaped
+// and quoted, so scope/file-list matching against it silently fails.
+const git = (...args) => run('git', ['-c', 'core.quotepath=false', ...args]);
 
 function gitShowJson(ref, file) {
   const result = git('show', `${ref}:${file}`);

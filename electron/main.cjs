@@ -281,6 +281,18 @@ async function listOllamaModels() {
   }
 }
 
+// The real, read-only `opencode models` list; no user input in the command. A failure (not installed, timed out,
+// unparsable) yields null so the caller can fall back to the plain free-text field instead of failing the card.
+async function listOpenCodeModels() {
+  try {
+    const result = await execFixed('opencode', ['models'], undefined, 8000);
+    const models = agentSettingsLib.parseOpenCodeModels(result.stdout);
+    return models.length ? models : null;
+  } catch {
+    return null;
+  }
+}
+
 function pegaProviderState(state) {
   return (state.providers || []).find((item) => item.id === PEGA_PROVIDER_ID || normalizedProviderUrl(item.baseUrl) === PEGA_BASE_URL) || null;
 }
@@ -290,6 +302,7 @@ async function getAgentSettingsView() {
   const settings = agentSettingsLib.readSettings(state.agentSettings);
   const pegaState = pegaProviderState(state);
   const secrets = await loadSecrets();
+  const openCodeModels = await listOpenCodeModels();
   const agents = agentSettingsLib.SETTINGS_AGENT_IDS.map((agentId) => {
     const isWorker = agentSettingsLib.WORKER_AGENT_IDS.includes(agentId);
     const route = SAY_HI_ROUTES[agentId] || null;
@@ -299,6 +312,13 @@ async function getAgentSettingsView() {
       name: agentDisplayName(agentId),
       kind: isWorker ? 'codex-worker' : (agentId === 'ollama' ? 'local' : 'cli'),
       ...info,
+      // Officially maintained aliases the person can pick instead of typing an exact, ever-changing model id.
+      ...(agentId === 'claude-code' ? { knownModels: [...agentSettingsLib.CLAUDE_MODEL_ALIASES] } : {}),
+      // `opencode models` gives a real, current list; when it cannot be read, the card falls back to free text.
+      ...(agentId === 'opencode' ? (openCodeModels ? { knownModels: [...openCodeModels] } : { knownModelsUnavailable: true }) : {}),
+      // Checked against the real `gemini --help` (work order 0022): there is no maintained alias and no read-only
+      // list-models command, so this is a permanent, honest "no list" state, not a failed detection attempt.
+      ...(agentId === 'gemini-cli' ? { knownModelsUnavailable: true } : {}),
       sayHi: {
         supported: Boolean(route),
         network: route ? Boolean(agentId !== 'ollama' && (isWorker || PROVIDERS[route.provider]?.network)) : false,
