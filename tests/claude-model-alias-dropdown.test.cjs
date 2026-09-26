@@ -50,19 +50,18 @@ test('B0021 picking "Custom…" reveals an empty text field without losing the p
   await ui.settle();
   const afterSelect = panel(ui.el('#agentList').innerHTML);
   assert.match(afterSelect, /<input data-agent-model="claude-code" type="text" maxlength="120" value=""/, 'the field is empty, ready for typing');
+  assert.deepEqual(saved, [], 'choosing "Custom…" alone saves nothing: there is no model yet');
   await changeWith(ui, '[data-agent-model]', { agentModel: 'claude-code' }, 'claude-3-7-sonnet-20260115', 'INPUT');
-  await clickWith(ui, '[data-agent-save]', { agentSave: 'claude-code' });
   await ui.settle();
-  assert.deepEqual(JSON.parse(JSON.stringify(saved)), [['claude-code', { model: 'claude-3-7-sonnet-20260115', effort: '' }]]);
+  assert.deepEqual(JSON.parse(JSON.stringify(saved)), [['claude-code', { model: 'claude-3-7-sonnet-20260115', effort: '' }]], 'the typed name is saved as soon as the field is left');
 });
 
 test('B0021 picking an alias saves exactly that alias, in the same --model shape as before', async () => {
   const saved = [];
   const ui = await boot(row(), { setAgentSettings: (agentId, patch) => { saved.push([agentId, patch]); return VIEW(row()); } });
   await changeWith(ui, '[data-agent-model]', { agentModel: 'claude-code' }, 'opus', 'SELECT');
-  await clickWith(ui, '[data-agent-save]', { agentSave: 'claude-code' });
   await ui.settle();
-  assert.deepEqual(JSON.parse(JSON.stringify(saved)), [['claude-code', { model: 'opus', effort: '' }]]);
+  assert.deepEqual(JSON.parse(JSON.stringify(saved)), [['claude-code', { model: 'opus', effort: '' }]], 'picking the alias saves it at once');
 });
 
 test('B0021 leaving the model unset (using the default) behaves exactly as before: no model is sent', async () => {

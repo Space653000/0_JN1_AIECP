@@ -10,7 +10,7 @@ const { PassThrough } = require('node:stream');
 
 // Stand-ins for the agent programs. They are installed before main.cjs is loaded, so the real ProviderRouter,
 // Worker Registry, usage store and IPC handlers run unchanged on top of them.
-const fake = { spawns: [], execs: [], installed: new Set(['ollama']), models: ['qwen3:4b-instruct', 'llama3.2:3b'], answer: () => ({ stdout: 'Hello there!', code: 0, stderr: '' }), delayMs: 0 };
+const fake = { spawns: [], execs: [], installed: new Set(['ollama']), models: ['qwen3:4b-instruct', 'llama3.2:3b'], answer: () => ({ stdout: 'Hello there!', code: 0, stderr: '' }), delayMs: 0, show: {} };
 const realSpawn = cp.spawn;
 const realExecFile = cp.execFile;
 const FAKE_COMMANDS = new Set(['ollama', 'claude', 'codex']);
@@ -24,7 +24,8 @@ cp.execFile = function execFile(command, args, options, callback) {
   fake.execs.push({ command, args });
   if (!fake.installed.has(command)) { const error = Object.assign(new Error('not found'), { code: 'ENOENT' }); setImmediate(() => cb(error, '', '')); return {}; }
   const table = ['NAME ID SIZE MODIFIED', ...fake.models.map((name) => `${name}   abc123   2 GB   3 weeks ago`)].join('\n');
-  setImmediate(() => cb(null, args[0] === 'list' ? table : `${command} version 9.9.9`, ''));
+  const shown = args[0] === 'show' ? fake.show[args[1]] : undefined;
+  setImmediate(() => cb(null, args[0] === 'list' ? table : shown !== undefined ? shown : `${command} version 9.9.9`, ''));
   return {};
 };
 cp.spawn = function spawn(command, args, options) {
@@ -208,12 +209,13 @@ test('B0019 PEGA and OFFICIAL: refused without a key or a login, and when they r
   const home = path.join(ctx.userData, 'workers', 'codex-official', 'codex-home');
   fs.mkdirSync(home, { recursive: true });
   fs.writeFileSync(path.join(home, 'auth.json'), '{}');
-  // Without --model, codex exec falls back to an interactive prompt that blocks on stdin; a fixed greeting has
-  // no terminal to answer it, so OFFICIAL must be refused up front instead of spawning a process that hangs.
-  const spawnsBefore = fake.spawns.length;
-  const noModel = await H('agents:say-hi', { agentId: 'codex-official' });
-  assert.equal(noModel.code, 'NEEDS_MODEL');
-  assert.equal(fake.spawns.length, spawnsBefore, 'nothing is spawned without a model');
+  // With no model chosen, OFFICIAL still says hi: Codex picks its own default model and no --model is sent.
+  // ("Reading additional input from stdin..." on stderr is a routine Codex notice, not a request for input.)
+  fake.spawns.length = 0;
+  const defaultModel = await H('agents:say-hi', { agentId: 'codex-official' });
+  assert.equal(defaultModel.ok, true);
+  assert.equal(fake.spawns.length, 1);
+  assert.ok(!fake.spawns[0].args.includes('--model'), 'no model chosen: Codex uses its own default');
   await H('agents:settings:set', { agentId: 'codex-official', model: 'gpt-5.1-codex', effort: 'high' });
   fake.spawns.length = 0;
   const official = await H('agents:say-hi', { agentId: 'codex-official' });
@@ -269,4 +271,57 @@ test('B0020-hotfix3 a structured error in the CLI\'s own JSON output wins over r
   assert.equal(failed.ok, false);
   assert.match(failed.reason, /not supported when using Codex with a ChatGPT account/, 'the real, nested error is surfaced');
   assert.doesNotMatch(failed.reason, /Reading additional input from stdin/, 'routine status noise on stderr is not shown when a real error is available');
+});
+
+// What `ollama show` really prints for these models on the owner's machine (Capabilities section only).
+const SHOW_NO_THINKING = '  Model\n    architecture qwen3moe\n\n  Capabilities\n    completion\n    tools\n\n  Parameters\n    top_k 20\n';
+const SHOW_ON_OFF = '  Capabilities\n    completion\n    tools\n    thinking\n        levels     false, true\n        default    true\n\n';
+
+test('B0020-hotfix2 Ollama gets no --think for a model that cannot think, and plain on for an on/off model, whatever level is saved', async () => {
+  fake.models = ['qwen3-coder:30b', 'qwen3:14b'];
+  fake.show = { 'qwen3-coder:30b': SHOW_NO_THINKING, 'qwen3:14b': SHOW_ON_OFF };
+  await H('agents:settings:set', { agentId: 'ollama', model: 'qwen3-coder:30b', effort: 'high' });
+  assert.equal((await H('agents:say-hi', { agentId: 'ollama' })).ok, true);
+  assert.deepEqual(fake.spawns.at(-1).args, ['run', 'qwen3-coder:30b', SAY_HI_PROMPT], 'a model without thinking gets no --think at all');
+  const view = await H('agents:settings:get');
+  assert.deepEqual(view.ollamaThinking, { 'qwen3-coder:30b': [] }, 'the card is told this model cannot think');
+  await H('agents:settings:set', { agentId: 'ollama', model: 'qwen3:14b', effort: 'high' });
+  await H('agents:say-hi', { agentId: 'ollama' });
+  assert.deepEqual(fake.spawns.at(-1).args, ['run', 'qwen3:14b', SAY_HI_PROMPT, '--think=true'], 'an on/off model is switched on instead of being sent a level it rejects');
+  assert.deepEqual((await H('agents:settings:get')).ollamaThinking, { 'qwen3:14b': ['true'] });
+  fake.models = ['qwen3:4b-instruct', 'llama3.2:3b'];
+  fake.show = {};
+  await H('agents:settings:set', { agentId: 'ollama', model: '', effort: '' });
+});
+
+test('B0020-hotfix2 the Codex OFFICIAL card lists the models Codex fetched for the account, from its own models_cache.json', async () => {
+  const home = path.join(ctx.userData, 'workers', 'codex-official', 'codex-home');
+  fs.mkdirSync(home, { recursive: true });
+  fs.writeFileSync(path.join(home, 'models_cache.json'), JSON.stringify({ models: [
+    { slug: 'gpt-5.5', display_name: 'GPT-5.5', visibility: 'list', priority: 12, default_reasoning_level: 'medium', supported_reasoning_levels: [{ effort: 'low' }, { effort: 'medium' }, { effort: 'high' }, { effort: 'xhigh' }] },
+    { slug: 'gpt-6-astra', display_name: 'GPT-6-Astra', visibility: 'list', priority: 1, default_reasoning_level: 'low', supported_reasoning_levels: [{ effort: 'low' }, { effort: 'max' }, { effort: 'ultra' }] },
+    { slug: 'codex-auto-review', display_name: 'Codex Auto Review', visibility: 'hide', priority: 43, supported_reasoning_levels: [] },
+    { slug: 'bad id; calc', display_name: 'x', visibility: 'list', priority: 2, supported_reasoning_levels: [] }
+  ] }));
+  const view = await H('agents:settings:get');
+  const official = view.agents.find((agent) => agent.id === 'codex-official');
+  assert.deepEqual(official.knownModels, ['gpt-6-astra', 'gpt-5.5'], 'listed models only, in Codex priority order, unsafe ids dropped');
+  assert.deepEqual(official.knownModelLabels, { 'gpt-6-astra': 'GPT-6-Astra', 'gpt-5.5': 'GPT-5.5' });
+  assert.deepEqual(official.modelEfforts['gpt-6-astra'], ['low', 'max', 'ultra']);
+  assert.equal(view.agents.find((agent) => agent.id === 'codex-cli').knownModels, undefined, 'the plain Codex CLI card is left as work order 0022 decided');
+  const saved = await H('agents:settings:set', { agentId: 'codex-official', model: 'gpt-6-astra', effort: 'ultra' });
+  assert.equal(saved.agents.find((agent) => agent.id === 'codex-official').effort, 'ultra', 'the real top levels of a model are accepted');
+  assert.match(fs.readFileSync(path.join(home, 'config.toml'), 'utf8'), /^model_reasoning_effort = "ultra"$/m);
+  fs.rmSync(path.join(home, 'models_cache.json'), { force: true });
+});
+
+test('B0020-hotfix2 greeting with a model other than the saved one uses that model own thinking support', async () => {
+  fake.models = ['qwen3-coder:30b', 'qwen3:14b'];
+  fake.show = { 'qwen3-coder:30b': SHOW_NO_THINKING, 'qwen3:14b': SHOW_ON_OFF };
+  await H('agents:settings:set', { agentId: 'ollama', model: 'qwen3:14b', effort: 'high' });
+  await H('agents:say-hi', { agentId: 'ollama', model: 'qwen3-coder:30b' });
+  assert.deepEqual(fake.spawns.at(-1).args, ['run', 'qwen3-coder:30b', SAY_HI_PROMPT], 'the saved on/off model setting must not leak --think onto a model that cannot think');
+  fake.models = ['qwen3:4b-instruct', 'llama3.2:3b'];
+  fake.show = {};
+  await H('agents:settings:set', { agentId: 'ollama', model: '', effort: '' });
 });

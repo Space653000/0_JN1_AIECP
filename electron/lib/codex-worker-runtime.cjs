@@ -20,7 +20,7 @@ const WINDOWS_SANDBOX_TABLE=Object.freeze(['','[windows]','sandbox = "unelevated
 function tomlString(value){return JSON.stringify(String(value??''));}
 
 // Reasoning effort is only ever one of these words; it is written as a top-level key, so it must precede every [table].
-const REASONING_EFFORTS=Object.freeze(['minimal','low','medium','high','xhigh']);
+const REASONING_EFFORTS=Object.freeze(['minimal','low','medium','high','xhigh','max','ultra']);
 function normalizeEffort(value){
   if(value===undefined||value===null||value==='')return null;
   const effort=String(value);

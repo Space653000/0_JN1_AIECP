@@ -731,6 +731,26 @@ function agentSayHiResultHtml(id) {
 
 const CUSTOM_MODEL_VALUE = '__custom__';
 
+// The name a person recognises for a model id (Codex's own display name), falling back to the id itself.
+function modelLabel(name, row) {
+  return row?.knownModelLabels?.[name] || name;
+}
+
+// Effort levels to offer for the model that is chosen right now.
+function effortChoices(row, id, model) {
+  if (id === 'ollama') {
+    const known = state.agentSettings?.ollamaThinking?.[model];
+    return Array.isArray(known) ? known : row.efforts;
+  }
+  if (row.modelEfforts) {
+    if (model && Array.isArray(row.modelEfforts[model])) return row.modelEfforts[model].filter((level) => row.efforts.includes(level));
+    // No model chosen: Codex picks its own default, so only the levels every listed model shares are safe.
+    const lists = Object.values(row.modelEfforts).filter(Array.isArray);
+    if (lists.length) return row.efforts.filter((level) => lists.every((list) => list.includes(level)));
+  }
+  return row.efforts;
+}
+
 function agentPanelHtml(id, agent) {
   const row = agentSettingsRow(id);
   if (!row) return '';
@@ -750,7 +770,7 @@ function agentPanelHtml(id, agent) {
       + [...new Set([...ollamaModels, ...(model ? [model] : [])])].map((name) => '<option value="' + esc(name) + '"' + (name === model ? ' selected' : '') + '>' + esc(name) + '</option>').join('') + '</select>'
     : knownModels
     ? '<select data-agent-model="' + esc(id) + '"><option value="">Use the default</option>'
-      + knownModels.map((name) => '<option value="' + esc(name) + '"' + (!isCustomModel && name === model ? ' selected' : '') + '>' + esc(name) + '</option>').join('')
+      + knownModels.map((name) => '<option value="' + esc(name) + '"' + (!isCustomModel && name === model ? ' selected' : '') + '>' + esc(modelLabel(name, row)) + '</option>').join('')
       + '<option value="' + CUSTOM_MODEL_VALUE + '"' + (isCustomModel ? ' selected' : '') + '>Custom…</option></select>'
       + (isCustomModel ? '<input data-agent-model="' + esc(id) + '" type="text" maxlength="120" value="' + esc(model) + '" placeholder="Type the exact model name">' : '')
     : '<input data-agent-model="' + esc(id) + '" type="text" maxlength="120" value="' + esc(model) + '" placeholder="Use the default">';
@@ -762,18 +782,25 @@ function agentPanelHtml(id, agent) {
       : 'Could not read the model list; please type it manually.') + '</small>'
     : '';
   const effortLabel = id === 'ollama' ? 'Thinking' : 'Reasoning effort';
-  const effortField = row.effortSupported
-    ? '<select data-agent-effort="' + esc(id) + '"><option value="">' + (id === 'ollama' ? 'Off' : 'Use the default') + '</option>'
-      + row.efforts.map((name) => '<option value="' + esc(name) + '"' + (name === effort ? ' selected' : '') + '>' + esc(name) + '</option>').join('') + '</select>'
-    : '<span class="muted">Not applicable</span>';
+  // The levels the tool itself reports for the chosen model: a Codex model's own list from models_cache.json, and
+  // for Ollama what `ollama show` says the model accepts. Unknown models keep the full list, as before.
+  const efforts = effortChoices(row, id, model);
+  const effortShown = efforts.includes(effort) ? effort : '';
+  const effortField = !row.effortSupported
+    ? '<span class="muted">Not applicable</span>'
+    : !efforts.length
+    ? '<span class="muted">This model cannot think.</span>'
+    : '<select data-agent-effort="' + esc(id) + '"><option value="">' + (id === 'ollama' ? 'Off' : 'Use the default') + '</option>'
+      + efforts.map((name) => '<option value="' + esc(name) + '"' + (name === effortShown ? ' selected' : '') + '>' + esc(name === 'true' ? 'On' : name) + '</option>').join('') + '</select>';
+  // A model id saved earlier that the account's own Codex list does not contain (for example a guessed name).
+  const unlistedCodexModel = id === 'codex-official' && knownModels && model && !knownModels.includes(model)
+    ? '<small class="muted">' + esc('This model is not in the Codex model list of this account.') + '</small>'
+    : '';
   const source = { settings: 'Your setting', env: 'Environment variable', provider: 'Provider entry', default: 'Use the default (chosen by the tool)' }[row.modelSource] || 'Use the default (chosen by the tool)';
-  const needsModelFirst = id === 'codex-official' && !model;
-  const canSayHi = row.sayHi?.supported && agent?.available !== false && row.sayHi.keyConfigured !== false && !needsModelFirst;
+  const canSayHi = row.sayHi?.supported && agent?.available !== false && row.sayHi.keyConfigured !== false;
   const sayHiNote = !row.sayHi?.supported
     ? (id === 'codex-cli' ? 'Use the Codex OFFICIAL or Codex PEGA cards for Codex.' : 'Open this tool in a terminal yourself.')
-    : (row.sayHi.keyConfigured === false ? 'The PEGA key is not set yet.'
-      : needsModelFirst ? 'Choose an OFFICIAL model first.'
-      : (row.sayHi.network ? 'Connects to the network and uses your account quota.' : 'Runs locally.'));
+    : (row.sayHi.keyConfigured === false ? 'The PEGA key is not set yet.' : (row.sayHi.network ? 'Connects to the network and uses your account quota.' : 'Runs locally.'));
   return '<details class="agent-settings" data-agent-settings="' + esc(id) + '"' + (state.agentOpen[id] || state.sayHi[id] ? ' open' : '') + '>'
     + '<summary>Model and effort</summary>'
     + '<div class="agent-settings-body">'
@@ -781,6 +808,7 @@ function agentPanelHtml(id, agent) {
     + '<label>Model' + modelField + '</label>'
     + (knownModels && id === 'claude-code' ? '<small class="muted">' + esc('sonnet/opus/fable are official aliases that always resolve to the latest version; choose "Custom…" to name an exact model.') + '</small>' : '')
     + knownModelsNote
+    + unlistedCodexModel
     + '<label>' + effortLabel + effortField + '</label>'
     + '<div class="button-row"><button class="secondary-button" type="button" data-agent-save="' + esc(id) + '">Save settings</button>'
     + (row.sayHi?.supported ? '<button class="primary-button" type="button" data-agent-sayhi="' + esc(id) + '" ' + (canSayHi && !state.sayHiBusy[id] ? '' : 'disabled') + '>Say hi</button>' : '') + '</div>'
@@ -1302,12 +1330,18 @@ function bindEvents() {
       } else {
         draft.model = value;
         if (modelNode.tagName === 'SELECT') delete draft.modelCustom;
-        // codex-official's Say-hi button is enabled or disabled based on whether a model is chosen; 'change'
-        // only fires once the person leaves the field, so re-rendering here never interrupts their typing.
-        if (id === 'codex-official') renderAgents();
+        // A level the newly chosen model does not have is cleared rather than silently kept.
+        const row = agentSettingsRow(id);
+        const current = draft.effort ?? row?.effort ?? '';
+        if (row?.effortSupported && current && !effortChoices(row, id, value).includes(current) && id !== 'ollama') draft.effort = '';
+        // Switching takes effect at once ('change' fires only after the person leaves a text field).
+        saveAgentSettings(id);
       }
     }
-    if (effortNode) (state.agentDraft[effortNode.dataset.agentEffort] ||= {}).effort = String(effortNode.value || '');
+    if (effortNode) {
+      (state.agentDraft[effortNode.dataset.agentEffort] ||= {}).effort = String(effortNode.value || '');
+      saveAgentSettings(effortNode.dataset.agentEffort);
+    }
   });
   document.addEventListener('toggle', (event) => {
     const node = event.target?.closest?.('[data-agent-settings]');

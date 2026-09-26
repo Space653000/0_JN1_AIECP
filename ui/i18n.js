@@ -844,6 +844,9 @@ const PHRASES=Object.freeze({
   'Could not read the model list; please type it manually.': '無法取得清單，請手動輸入。',
   'This tool has no auto-detectable model list; please type it manually.': '此工具沒有可自動偵測的模型清單，請手動輸入。',
   'Choose an OFFICIAL model first.': '請先選擇 OFFICIAL 模型。',
+  'This model cannot think.': '這個模型不支援思考模式（會直接回答）。',
+  'On': '開',
+  'This model is not in the Codex model list of this account.': '這個模型不在此帳號的 Codex 模型清單中，請從下拉選單選一個。',
 
 });
 
@@ -899,6 +902,10 @@ const PATTERNS=[
   [/^codex-worker · (.+)$/, (v) => 'codex-worker · ' + translatePhrase(v)],
   [/^(.+) is not installed or not on PATH\.$/, (name) => name + ' 尚未安裝，或不在 PATH 中。'],
   [/^· (.+)$/, (v) => '· ' + translatePhrase(v)],
+  [/^Error: upgrade in progress\.*$/, () => 'Ollama 正在自我更新，請等它完成（通常一兩分鐘）再按一次打招呼。（Error: upgrade in progress）'],
+  [/^You['\u2019]ve hit your session limit · resets (.+)$/, (when) => 'Claude 帳號的使用額度已用完（不是 AIECP 的問題），' + when + ' 會重置。'],
+  [/^You['\u2019]ve hit your usage limit\..*try again at (.+?)\.?$/, (when) => 'Codex 帳號的使用額度已用完（不是 AIECP 的問題），可在 ' + when + ' 之後再試。'],
+  [/^The '(.+)' model is not supported when using Codex with a ChatGPT account\.$/, (name) => '這個 ChatGPT 帳號不能用「' + name + '」這個模型，請從下拉選單選一個。'],
 
 ];
 

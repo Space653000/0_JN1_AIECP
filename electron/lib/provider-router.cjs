@@ -13,7 +13,7 @@ const PROVIDERS = Object.freeze({
 
 // Effort flags exist only where the tool has one: `claude --effort` and `ollama run --think`. Anything else is refused, never guessed.
 const CLAUDE_EFFORTS = Object.freeze(['low', 'medium', 'high', 'xhigh', 'max']);
-const OLLAMA_THINK_LEVELS = Object.freeze(['low', 'medium', 'high']);
+const OLLAMA_THINK_LEVELS = Object.freeze(['low', 'medium', 'high', 'true']);
 
 function run(command, args, { cwd, timeoutMs = 180000, signal, env = {}, maxOutputBytes = 4 * 1024 * 1024, onSpawn = null, spawnImpl = spawn } = {}) {
   return new Promise((resolve, reject) => {
@@ -361,7 +361,8 @@ class ProviderRouter {
   commandSpec(providerId, role, prompt, { model, cwd, providerVersion = '', skipGitRepoCheck = false, effort } = {}) {
     const provider = this.resolve(role, providerId);
     if (!provider) throw new Error(`No provider for role: ${role}`);
-    const selectedEffort = effort || provider.defaultEffort || null;
+    // effort === false means "send no effort flag", even when a default effort is stored for this provider.
+    const selectedEffort = effort === false ? null : (effort || provider.defaultEffort || null);
     const selectedModel = model || provider.defaultModel || process.env[`AECP_${provider.id.toUpperCase()}_MODEL`] || '';
     if (provider.mode === 'openai-compatible') throw new Error('Network provider does not expose a local process command.');
     if (provider.mode === 'ollama') {
