@@ -4,6 +4,7 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { spawn } = require('node:child_process');
+const { canonicalForCompare } = require('./path-safety.cjs');
 const { runHarness, safeJson, DEFAULT_ROLE_PROVIDERS, invokeRole, prepareWorktree } = require('./harness.cjs');
 const { SecurityPolicy } = require('./security-policy.cjs');
 const { compileWorkspacePolicy } = require('./workspace-policy.cjs');
@@ -97,6 +98,7 @@ class ControlPlane {
       await this.persist();
     }
     await this.recover();
+    await this.reconcileExternalEvents();
     await this.remote.start();
     if(process.env.AECP_GITHUB_WEBHOOK_SECRET) await this.webhook.start();
     return this.snapshot();
@@ -625,8 +627,9 @@ class ControlPlane {
     const id=uid('task');
     const fallbackRoot=path.resolve(run.sourceRoot||this.rootDir);
     const allowedRoots=(Array.isArray(run.repositoryPaths)&&run.repositoryPaths.length?run.repositoryPaths:[fallbackRoot]).filter(Boolean);
-    const allowed=new Set(allowedRoots.map(x=>path.resolve(String(x)).toLowerCase()));
-    const requested=(task.repositories||[]).map(x=>path.resolve(String(x))).filter(x=>allowed.has(x.toLowerCase()));
+    // Compared by real location: git reports canonical paths while a caller may spell the same repository through an alias.
+    const allowed=new Set(allowedRoots.map(x=>canonicalForCompare(x)));
+    const requested=(task.repositories||[]).map(x=>path.resolve(String(x))).filter(x=>allowed.has(canonicalForCompare(x)));
     const repositories=requested.length?requested:[fallbackRoot];
     const t={...task,id,runId:run.id,state:'QUEUED',phase:'QUEUED',createdAt:now(),updatedAt:now(),attempts:0,lease:null,priority:schedulerPriority(task.priority),estimatedRuntimeMs:schedulerEstimate(task.estimatedRuntimeMs,300000,24*60*60*1000),estimatedCostUnits:schedulerEstimate(task.estimatedCostUnits,1,1000000),resources:{repositories}};
     this.state.tasks[id]=t;run.taskIds.push(id);
@@ -888,7 +891,10 @@ class ControlPlane {
   listRemoteDevices(){return this.remote.listDevices()}
   revokeRemoteDevice(deviceId){return this.remote.revokeDeviceId(deviceId)}
   async scanResources(root){return this.resources.scan(root)}
-  async ingestExternalEvent(event){const key=event?.idempotencyKey||event?.externalId;if(!key)throw new Error('External event requires idempotencyKey or externalId.');const r=await this.ledger.append({type:'external.received',...event,idempotencyKey:key});if(r.duplicate)return{duplicate:true};await this.event('external.correlated',{externalId:event.externalId||null,correlationId:event.correlationId||null,idempotencyKey:key+':correlated'});return{duplicate:false};}
+  async ingestExternalEvent(event){const key=event?.idempotencyKey||event?.externalId;if(!key)throw new Error('External event requires idempotencyKey or externalId.');const r=await this.ledger.append({type:'external.received',...event,idempotencyKey:key});await this.correlateExternal(event,key);return{duplicate:Boolean(r.duplicate)};}
+  // received and correlated are two writes: a crash between them must not lose the correlation, so it is written whenever it is missing.
+  async correlateExternal(event,key){if(await this.ledger.has(key+':correlated'))return false;await this.event('external.correlated',{externalId:event.externalId||null,correlationId:event.correlationId||null,idempotencyKey:key+':correlated'});return true;}
+  async reconcileExternalEvents(){for(const record of await this.ledger.receivedRecords()){const key=record.idempotencyKey||record.externalId;if(key)await this.correlateExternal(record,key).catch(()=>{});}}
   async gc(){const removed=await this.contextBus.gc();await this.locks.recover();await this.event('maintenance.gc',{removedCapsules:removed});return{removedCapsules:removed};}
   async replay(runId,limit=500){const events=await this.listEvents(limit);return events.filter(e=>!runId||e.runId===runId);}
   async listEvents(limit=500){

@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { ControlPlane } = require('../electron/lib/control-plane.cjs');
+const { canonicalForCompare } = require('../electron/lib/path-safety.cjs');
 const { git, makeBase, removeDir, makeRepo, waitFor, makeRouter } = require('./support/e2e-fixtures.cjs');
 
 const PROVIDERS = { planner: 'plan', builder: 'build', reviewer: 'review' };
@@ -33,7 +34,8 @@ async function bootWorkspace(t) {
   return { base, workspace, repoA, repoB, outside, heads, calls, cp };
 }
 
-const same = (a, b) => path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase();
+// Git reports canonical locations; a temp folder reached through an alias (8.3 name, junction) is the same place.
+const same = (a, b) => canonicalForCompare(a) === canonicalForCompare(b);
 
 test('R4.1 one Mission discovers the repositories of its approved resources and routes each task to its own repository', async (t) => {
   const fx = await bootWorkspace(t);
@@ -42,7 +44,7 @@ test('R4.1 one Mission discovers the repositories of its approved resources and 
   });
   await waitFor(() => run.state === 'DONE', { timeoutMs: 60000, label: 'the multi-repository mission to finish' });
 
-  assert.deepEqual([...run.repositoryPaths].map((entry) => path.resolve(entry).toLowerCase()).sort(), [fx.repoA, fx.repoB].map((entry) => path.resolve(entry).toLowerCase()).sort(), 'discovery finds exactly the repositories inside the Workspace');
+  assert.deepEqual([...run.repositoryPaths].map((entry) => canonicalForCompare(entry)).sort(), [fx.repoA, fx.repoB].map((entry) => canonicalForCompare(entry)).sort(), 'discovery finds exactly the repositories inside the Workspace');
   const missionPrompt = fx.calls.find((call) => call.kind === 'mission-planner').prompt;
   assert.ok(missionPrompt.includes(fx.repoA) && missionPrompt.includes(fx.repoB), 'the planner is told which repositories are approved');
   assert.ok(!missionPrompt.includes(fx.outside));
