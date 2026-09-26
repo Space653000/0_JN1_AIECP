@@ -73,7 +73,7 @@ test('B0019 saying hi to Ollama sends exactly the fixed prompt with the chosen m
   assert.equal(result.agentName, 'Local Ollama');
   assert.ok(Number.isInteger(result.durationMs) && result.durationMs >= 0);
   assert.equal(fake.spawns.length, 1);
-  assert.deepEqual(fake.spawns[0].args, ['run', '--think', 'low', 'qwen3:4b-instruct', SAY_HI_PROMPT]);
+  assert.deepEqual(fake.spawns[0].args, ['run', 'qwen3:4b-instruct', SAY_HI_PROMPT, '--think=low']);
   assert.equal(SAY_HI_PROMPT, 'Reply with one short greeting sentence.');
   const cwd = fake.spawns[0].cwd;
   assert.equal(path.resolve(cwd), path.resolve(ctx.userData, 'say-hi', 'ollama'), 'the greeting runs in a folder AIECP owns');
@@ -120,6 +120,25 @@ test('B0019 the reply is redacted and cut to 2 KB, and a failure keeps its real 
   assert.equal(failed.code, 'FAILED');
   assert.match(failed.reason, /usage limit reached, try again at 2026-09-29 18:20/, 'the reason is passed on as it came');
   assert.equal(failed.reply, '');
+});
+
+test('B0020-hotfix a failure reason strips terminal control codes (e.g. a spinner Ollama prints while pulling a model)', async () => {
+  fake.answer = () => ({ stdout: '', code: 1, stderr: '\u001b[?2026h\u001b[?25l\u001b[1Gpulling manifest ⠙ \u001b[K\u001b[?25h\u001b[?2026lError: pull model manifest: file does not exist' });
+  const failed = await H('agents:say-hi', { agentId: 'ollama', model: 'qwen3-coder:30b' });
+  assert.equal(failed.ok, false);
+  assert.match(failed.reason, /^pulling manifest.*Error: pull model manifest: file does not exist$/);
+  assert.doesNotMatch(failed.reason, /[\u001b\u009b]/, 'no raw escape byte reaches the UI');
+});
+
+test('B0020-hotfix a spinner that reprints the same phrase many times (each frame separated by its own escape codes, already stripped) collapses to one', async () => {
+  const { collapseRepeatedPhrases } = require('../electron/lib/agent-settings.cjs');
+  const spammy = Array(6).fill('pulling manifest ☘').join(' ') + ' pulling manifest Error: pull model manifest: file does not exist';
+  assert.equal(collapseRepeatedPhrases(spammy), 'pulling manifest Error: pull model manifest: file does not exist');
+  assert.equal(collapseRepeatedPhrases('a single unrelated message'), 'a single unrelated message', 'ordinary text is untouched');
+  fake.answer = () => ({ stdout: '', code: 1, stderr: Array(7).fill('pulling manifest ☙').join('') + 'Error: pull model manifest: file does not exist' });
+  const failed = await H('agents:say-hi', { agentId: 'ollama', model: 'qwen3-coder:30b' });
+  assert.equal((failed.reason.match(/pulling manifest/g) || []).length, 1, 'the spinner phrase appears only once in the reason shown to the person');
+  assert.match(failed.reason, /Error: pull model manifest: file does not exist$/);
 });
 
 test('B0019 only one greeting per agent runs at a time', async () => {
@@ -189,6 +208,12 @@ test('B0019 PEGA and OFFICIAL: refused without a key or a login, and when they r
   const home = path.join(ctx.userData, 'workers', 'codex-official', 'codex-home');
   fs.mkdirSync(home, { recursive: true });
   fs.writeFileSync(path.join(home, 'auth.json'), '{}');
+  // Without --model, codex exec falls back to an interactive prompt that blocks on stdin; a fixed greeting has
+  // no terminal to answer it, so OFFICIAL must be refused up front instead of spawning a process that hangs.
+  const spawnsBefore = fake.spawns.length;
+  const noModel = await H('agents:say-hi', { agentId: 'codex-official' });
+  assert.equal(noModel.code, 'NEEDS_MODEL');
+  assert.equal(fake.spawns.length, spawnsBefore, 'nothing is spawned without a model');
   await H('agents:settings:set', { agentId: 'codex-official', model: 'gpt-5.1-codex', effort: 'high' });
   fake.spawns.length = 0;
   const official = await H('agents:say-hi', { agentId: 'codex-official' });
@@ -229,4 +254,19 @@ test('B0019 the service enforces the limits itself: fixed prompt, 60 second time
   assert.equal(second.code, 'BUSY');
   release();
   assert.equal((await running).ok, true);
+});
+
+test('B0020-hotfix3 a structured error in the CLI\'s own JSON output wins over routine stderr status noise (Codex always writes to stderr once it starts)', async () => {
+  fake.answer = () => ({
+    stdout: [
+      '{"type":"thread.started","thread_id":"t1"}',
+      '{"type":"turn.failed","error":{"message":"{\\"type\\":\\"error\\",\\"status\\":400,\\"error\\":{\\"type\\":\\"invalid_request_error\\",\\"message\\":\\"The \'gpt-5.1-codex\' model is not supported when using Codex with a ChatGPT account.\\"}}"}}'
+    ].join('\n'),
+    code: 1,
+    stderr: 'Reading additional input from stdin...'
+  });
+  const failed = await H('agents:say-hi', { agentId: 'ollama', model: 'llama3.2:3b' });
+  assert.equal(failed.ok, false);
+  assert.match(failed.reason, /not supported when using Codex with a ChatGPT account/, 'the real, nested error is surfaced');
+  assert.doesNotMatch(failed.reason, /Reading additional input from stdin/, 'routine status noise on stderr is not shown when a real error is available');
 });

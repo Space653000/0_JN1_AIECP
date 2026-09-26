@@ -367,7 +367,9 @@ class ProviderRouter {
     if (provider.mode === 'ollama') {
       if (!selectedModel) throw new Error('Ollama provider requires a model (options.model, provider defaultModel, or AECP_OLLAMA_MODEL).');
       if (selectedEffort && !OLLAMA_THINK_LEVELS.includes(selectedEffort)) throw new Error('Ollama thinking level must be one of: ' + OLLAMA_THINK_LEVELS.join(', ') + '.');
-      return { command: provider.command, args: ['run', ...(selectedEffort ? ['--think', selectedEffort] : []), selectedModel, prompt], provider: provider.id, model: selectedModel, cwd: cwd || null };
+      // --think must come after the model/prompt positionals: given first, Ollama's flag parser can consume
+      // the level as the flag's own value and shift the model into the wrong slot (silently "pulling" that word).
+      return { command: provider.command, args: ['run', selectedModel, prompt, ...(selectedEffort ? [`--think=${selectedEffort}`] : [])], provider: provider.id, model: selectedModel, cwd: cwd || null };
     }
     if (provider.mode === 'local-command') {
       if (!provider.command || typeof provider.command !== 'string') throw new Error('Local command provider requires a fixed registered command.');

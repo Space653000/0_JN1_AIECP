@@ -147,7 +147,10 @@ test('B0019 a second press while a greeting is running does not start another on
 test('B0019 the network warning shows where a greeting leaves the computer, and a missing PEGA key blocks the button', async () => {
   const source = html(await boot());
   assert.match(panel(source, 'claude-code'), /Connects to the network and uses your account quota/);
-  assert.match(panel(source, 'codex-official'), /Connects to the network and uses your account quota/);
+  // codex-official has no model in this fixture; B0020-hotfix requires one before Say hi is offered.
+  assert.match(panel(source, 'codex-official'), /Choose an OFFICIAL model first\./);
+  const withModel = html(await boot({ getAgentSettings: { ...VIEW, agents: VIEW.agents.map((a) => a.id === 'codex-official' ? { ...a, model: 'gpt-5.1-codex', modelSource: 'settings' } : a) } }));
+  assert.match(panel(withModel, 'codex-official'), /Connects to the network and uses your account quota/);
   assert.match(panel(source, 'ollama'), /Runs locally/);
   const pega = panel(source, 'codex-pega');
   assert.match(pega, /The PEGA key is not set yet/);
@@ -164,3 +167,13 @@ test('B0019 without the new settings data the agent list is drawn exactly as bef
 });
 
 test.after(() => { setImmediate(() => process.exit(process.exitCode || 0)); });
+
+test('B0020-hotfix Codex OFFICIAL: say-hi is disabled with a clear note until a model is chosen, and enabled once one is', async () => {
+  const noModel = await boot({ getAgentSettings: { ...VIEW, agents: VIEW.agents.map((a) => a.id === 'codex-official' ? { ...a, model: null, modelSource: 'default' } : a) } });
+  const before = panel(html(noModel), 'codex-official');
+  assert.match(before, /data-agent-sayhi="codex-official" disabled/);
+  assert.match(before, /Choose an OFFICIAL model first\./);
+  await changeWith(noModel, '[data-agent-model]', { agentModel: 'codex-official' }, 'gpt-5.1-codex', 'INPUT');
+  const afterPick = panel(html(noModel), 'codex-official');
+  assert.doesNotMatch(afterPick, /data-agent-sayhi="codex-official" disabled/, 'picking a model (even before saving) enables the button');
+});

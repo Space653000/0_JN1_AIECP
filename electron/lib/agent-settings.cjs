@@ -116,9 +116,23 @@ function effective(agentId, { settings = {}, env = process.env, providerModel = 
   return { model, modelSource, effort: own.effort || null, effortSupported: supportsEffort(agentId), efforts: [...effortsFor(agentId)] };
 }
 
+// Strips terminal control sequences a CLI's own progress bar/spinner writes (e.g. Ollama's "pulling manifest"
+// spinner), so a failure reason or reply never carries raw escape codes into the UI.
+const ANSI_PATTERN = /[\u001B\u009B][[\]()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g;
+function stripAnsi(value) {
+  return String(value || '').replace(ANSI_PATTERN, '').replace(/\r/g, '');
+}
+
+// A spinner that reprints the same short phrase (Ollama's "pulling manifest", "verifying sha256 digest", ...)
+// leaves that phrase sitting next to itself many times once the escape codes that repositioned the cursor are
+// gone. Collapsing 3+ back-to-back repeats of the same short phrase to one keeps the message readable.
+function collapseRepeatedPhrases(value) {
+  return String(value || '').replace(/\b(\w[\w .]{1,40}?)\b(?:[^\w]{0,3}\1\b){2,}/gi, '$1');
+}
+
 // The reply text out of whatever a CLI printed: one JSON document, JSON lines, or plain text.
 function extractReply(stdout) {
-  const text = String(stdout || '').trim();
+  const text = stripAnsi(stdout).trim();
   if (!text) return '';
   const pick = (value, depth = 0) => {
     if (typeof value === 'string') return value.trim();
@@ -140,6 +154,23 @@ function extractReply(stdout) {
 }
 
 // Claude Code prints a JSON result with is_error true (and exit code 0) when, for example, the login has expired; its message is the real reason.
+// A JSON string that is itself an encoded error (Codex nests its real message this way) is unwrapped one level.
+function unwrapMessage(value) {
+  if (typeof value !== 'string') return typeof value === 'string' ? value : '';
+  const trimmed = value.trim();
+  if (trimmed.startsWith('{')) {
+    try {
+      const inner = JSON.parse(trimmed);
+      const found = inner?.error?.message || inner?.message;
+      if (typeof found === 'string' && found) return unwrapMessage(found);
+    } catch { /* not nested JSON; use the string as it is */ }
+  }
+  return value;
+}
+
+// Finds a real, structured failure message in a CLI's own JSON/JSONL output, so noise on stderr (Codex always
+// prints "Reading additional input from stdin..." there once it starts, whether or not the run fails) never
+// hides it. Recognizes Claude Code's {"is_error":true,"result":...} and Codex's {"type":"turn.failed"|"error"}.
 function jsonError(stdout) {
   const text = String(stdout || '').trim();
   const candidates = [text, ...text.split(String.fromCharCode(10)).reverse()];
@@ -147,7 +178,13 @@ function jsonError(stdout) {
     if (!candidate.startsWith('{')) continue;
     try {
       const parsed = JSON.parse(candidate);
-      if (parsed && parsed.is_error === true) return String(typeof parsed.result === 'string' && parsed.result ? parsed.result : 'The agent reported an error.');
+      if (!parsed || typeof parsed !== 'object') continue;
+      if (parsed.is_error === true) return String(typeof parsed.result === 'string' && parsed.result ? parsed.result : 'The agent reported an error.');
+      if (parsed.type === 'turn.failed' || parsed.type === 'error') {
+        const raw = parsed.error?.message ?? parsed.message;
+        const found = unwrapMessage(raw);
+        if (found) return found;
+      }
     } catch { /* not JSON */ }
   }
   return '';
@@ -183,7 +220,9 @@ class SayHiService {
       if (outcome?.timedOut) return { ...base, model: usedModel, ok: false, code: 'TIMEOUT', reason: 'No answer within ' + SAY_HI_TIMEOUT_MS / 1000 + ' seconds.', reply: '', durationMs };
       if (outcome?.outputLimitExceeded) return { ...base, model: usedModel, ok: false, code: 'OUTPUT_LIMIT', reason: 'The agent printed more than the allowed amount.', reply: '', durationMs };
       if (outcome?.code !== 0) {
-        const detail = redactText(String(outcome?.stderr || jsonError(outcome?.stdout) || outcome?.stdout || 'The agent failed without a message.')).trim();
+        // A structured error inside the CLI's own JSON output is the real reason; stderr may just be routine
+        // status noise (Codex always writes "Reading additional input from stdin..." there once it starts).
+        const detail = redactText(collapseRepeatedPhrases(stripAnsi(jsonError(outcome?.stdout) || outcome?.stderr || outcome?.stdout || 'The agent failed without a message.'))).trim();
         return { ...base, model: usedModel, ok: false, code: 'FAILED', reason: detail.slice(-REASON_CHARS), reply: '', durationMs };
       }
       const agentError = jsonError(outcome.stdout);
@@ -203,5 +242,5 @@ class SayHiService {
 module.exports = {
   CLI_AGENT_IDS, WORKER_AGENT_IDS, SETTINGS_AGENT_IDS, EFFORTS, MODEL_PATTERN, MODEL_ENV, CLAUDE_MODEL_ALIASES, parseOpenCodeModels,
   SAY_HI_PROMPT, SAY_HI_TIMEOUT_MS, SAY_HI_REPLY_BYTES, SAY_HI_RUN_OUTPUT_BYTES,
-  EFFORT_LEVELS, effortsFor, supportsEffort, validModel, validEffort, cleanPatch, readSettings, applyPatch, effective, extractReply, SayHiService
+  EFFORT_LEVELS, effortsFor, supportsEffort, validModel, validEffort, cleanPatch, readSettings, applyPatch, effective, extractReply, stripAnsi, collapseRepeatedPhrases, SayHiService
 };
