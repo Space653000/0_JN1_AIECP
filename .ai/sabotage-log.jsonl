@@ -318,3 +318,6 @@
 {"ids":["UI-default-zh-TW"],"file":"ui/i18n.js","from":"  'Add Repo': '新增儲存庫',","to":"  'Add Repo': 'Add Repo',","tests":["tests/ui-default-language.test.cjs"]}
 {"ids":["UI-default-zh-TW"],"file":"ui/i18n.js","from":"  [/^Workspace connected: (.+)$/, (name) => '已連線工作區：' + name],","to":"","tests":["tests/ui-default-language.test.cjs"]}
 {"ids":["UI-default-zh-TW"],"file":"ui/i18n.js","from":"const tx=(text)=>locale==='zh-TW'?translatePhrase(text):String(text);","to":"const tx=(text)=>translatePhrase(text);","tests":["tests/ui-default-language.test.cjs"]}
+{"ids":["WIN-sandbox-unelevated"],"file":"electron/lib/codex-worker-runtime.cjs","from":"'[windows]','sandbox = \"unelevated\"'","to":"'[windows]','sandbox = \"elevated\"'","tests":["tests/codex-worker-windows-sandbox.test.cjs"]}
+{"ids":["WIN-sandbox-unelevated"],"file":"electron/lib/codex-worker-runtime.cjs","from":"      'cli_auth_credentials_store = \"file\"',\n      ...WINDOWS_SANDBOX_TABLE,","to":"      'cli_auth_credentials_store = \"file\"',","tests":["tests/codex-worker-windows-sandbox.test.cjs"]}
+{"ids":["WIN-sandbox-unelevated"],"file":"electron/lib/codex-worker-runtime.cjs","from":"      'requires_openai_auth = false',\n      ...WINDOWS_SANDBOX_TABLE,","to":"      'requires_openai_auth = false',","tests":["tests/codex-worker-windows-sandbox.test.cjs"]}

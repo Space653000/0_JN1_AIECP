@@ -13,6 +13,10 @@ function safeWorkerId(value){
   return id;
 }
 
+// The isolated CODEX_HOME has no Windows sandbox setup of its own; without an explicit mode the
+// workspace-write sandbox denies every write in the worktree. This keeps the sandbox (restricted token).
+const WINDOWS_SANDBOX_TABLE=Object.freeze(['','[windows]','sandbox = "unelevated"']);
+
 function tomlString(value){return JSON.stringify(String(value??''));}
 
 function normalizeWireApi(value){
@@ -47,6 +51,7 @@ class CodexWorkerRuntime{
       'approval_policy = "never"',
       'sandbox_mode = "workspace-write"',
       'cli_auth_credentials_store = "file"',
+      ...WINDOWS_SANDBOX_TABLE,
       ''
     ].join('\n');
     await writeAtomic(path.join(codexHome,'config.toml'),config);
@@ -84,6 +89,7 @@ class CodexWorkerRuntime{
       'wire_api = '+tomlString(wire),
       'env_key = '+tomlString(key),
       'requires_openai_auth = false',
+      ...WINDOWS_SANDBOX_TABLE,
       ''
     ].join('\n');
     await writeAtomic(path.join(codexHome,'config.toml'),config);
