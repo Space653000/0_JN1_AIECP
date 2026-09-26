@@ -286,3 +286,11 @@
 {"ids":["B08-L89"],"file":"electron/lib/autonomy.cjs","from":"      external_directory: 'deny',","to":"      external_directory: 'allow',","tests":["tests/unit-d-behavior.test.cjs"]}
 {"ids":["B08-L79"],"file":"electron/lib/autonomy.cjs","from":"if (current.head !== runRecord.baseHead) throw new Error(","to":"if (false) throw new Error(","tests":["tests/unit-d-behavior.test.cjs"]}
 {"ids":["B08-L79"],"file":"electron/lib/autonomy.cjs","from":"const applied = await runProcess('git', ['apply', runRecord.patchFile], {","to":"const applied = await runProcess('git', ['apply', '--check', runRecord.patchFile], {","tests":["tests/unit-d-behavior.test.cjs"]}
+{"ids":["G-backup-race"],"file":"electron/lib/backup-manager.cjs","from":"   if(ATOMIC_TEMP.test(entry.name))continue;","to":"","tests":["tests/backup-atomic-write-race.test.cjs"]}
+{"ids":["G-backup-race"],"file":"electron/lib/backup-manager.cjs","from":"if(e.code==='ENOENT')continue;throw e}","to":"throw e}","tests":["tests/backup-atomic-write-race.test.cjs"]}
+{"ids":["B05-L34"],"file":"electron/lib/github-gateway.cjs","from":"return this.git(['rev-parse','HEAD']);","to":"return this.gh(['rev-parse','HEAD']);","tests":["tests/github-gateway.test.cjs"]}
+{"ids":["B05-L34"],"file":"electron/lib/github-gateway.cjs","from":"return this.git(['push','-u','origin',branch]);","to":"return this.git(['push','--force','-u','origin',branch]);","tests":["tests/github-gateway.test.cjs"]}
+{"ids":["B05-L34"],"file":"electron/lib/github-gateway.cjs","from":"...(draft?['--draft']:[])","to":"","tests":["tests/github-gateway.test.cjs"]}
+{"ids":["B05-L118"],"file":"electron/lib/github-webhook.cjs","from":"p.schema==='aecp.event/v1'&&","to":"","tests":["tests/github-dispatch-payload.test.cjs"]}
+{"ids":["B05-L118"],"file":"electron/lib/github-webhook.cjs","from":"if(type==='repository_dispatch'){","to":"if(true){","tests":["tests/github-dispatch-payload.test.cjs"]}
+{"ids":["B05-L118"],"file":"electron/lib/github-webhook.cjs","from":"{1,128}$/.test(p.correlationId)","to":"{1,128}$/.test('ok')","tests":["tests/github-dispatch-payload.test.cjs"]}

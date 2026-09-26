@@ -9,6 +9,7 @@ const DEFAULT_MAX_BYTES=64*1024*1024;
 const DEFAULT_MAX_FILES=5000;
 const ALLOWED_TOP=new Set(['state.json','runtime','evidence','autonomy','harness']);
 const NEVER_BACKUP=new Set(['credentials.json']);
+const ATOMIC_TEMP=/\.tmp(?:-\d+-[0-9a-f]+)?$/;
 
 function sha256(buffer){return crypto.createHash('sha256').update(buffer).digest('hex')}
 
@@ -34,7 +35,10 @@ async function collectFiles(root,{maxBytes=DEFAULT_MAX_BYTES,maxFiles=DEFAULT_MA
    if(entry.isSymbolicLink())continue;
    if(entry.isDirectory()){await walk(rel);continue}
    if(!entry.isFile())continue;
-   const data=await fs.readFile(path.join(root,...rel.split('/')));
+   // Atomic writes leave a temp file that is renamed away a moment later; it is never committed state.
+   if(ATOMIC_TEMP.test(entry.name))continue;
+   let data;
+   try{data=await fs.readFile(path.join(root,...rel.split('/')))}catch(e){if(e.code==='ENOENT')continue;throw e}
    bytes+=data.length;
    if(bytes>maxBytes)throw new Error('Backup exceeds the configured byte limit.');
    files.push({path:rel,size:data.length,sha256:sha256(data),data:data.toString('base64')});

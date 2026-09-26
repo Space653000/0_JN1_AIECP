@@ -1225,10 +1225,25 @@
           "file": "tests/delivery-and-external-events.test.cjs",
           "kind": "test",
           "name": "B05-L118 external events are journaled with their correlation id but never change task state, and replays are deduplicated"
+        },
+        {
+          "file": "tests/github-dispatch-payload.test.cjs",
+          "kind": "test",
+          "name": "B05-L118 a repository_dispatch carrying a versioned AECP event is correlated by its correlation id"
+        },
+        {
+          "file": "tests/github-dispatch-payload.test.cjs",
+          "kind": "test",
+          "name": "B05-L118 an unversioned, wrong-version or malformed client_payload is accepted but never trusted as a correlation id"
+        },
+        {
+          "file": "tests/github-dispatch-payload.test.cjs",
+          "kind": "test",
+          "name": "B05-L118 a client_payload is only read for repository_dispatch, and a workflow_run id keeps its meaning"
         }
       ],
       "workOrder": "UNASSIGNED",
-      "note": "Proven: external events are journaled with their correlation id, each accepted delivery also persists an external.correlated event (own idempotency key <key>:correlated, present in both the ledger and events.jsonl), replays are deduplicated (also after restart, writing nothing new), and external events never change task/run state. Remaining: repository_dispatch client_payload (versioned AECP event/correlation ids) is not parsed; only workflow_run.id is correlated; workflow_dispatch is not handled."
+      "note": "Proven: external events are journaled with their correlation id, each accepted delivery also persists an external.correlated event, replays are deduplicated, a crash between the two writes is repaired (unit C), external events never change task/run state, and a repository_dispatch client_payload with schema aecp.event/v1 supplies the correlation id (unit E; other payloads are accepted but not trusted). Remaining: workflow_dispatch deliveries are not handled."
     },
     {
       "id": "B05-L132",
@@ -1281,7 +1296,7 @@
         "section": "## 3. GitHub account integration levels"
       },
       "text": "The canonical governed delivery path currently uses authenticated Git/`gh` primitives plus signed webhook/CI correlation. A future direct OAuth/GitHub App adapter is optional rather than required; if added, credentials must remain securely stored and every action capability-limited.",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
           "file": "electron/lib/github-gateway.cjs",
@@ -1307,10 +1322,24 @@
           "file": "tests/delivery-and-external-events.test.cjs",
           "kind": "test",
           "name": "B05-L34 a malformed or wrong-length signature is answered 401 promptly and never hangs or crashes the receiver"
+        },
+        {
+          "file": "tests/github-gateway.test.cjs",
+          "kind": "test",
+          "name": "B05-L34 local repository steps use git and only the GitHub API steps use gh"
+        },
+        {
+          "file": "tests/github-gateway.test.cjs",
+          "kind": "test",
+          "name": "B05-L34 the push never forces and never targets anything but the named branch on origin"
+        },
+        {
+          "file": "tests/github-gateway.test.cjs",
+          "kind": "test",
+          "name": "B05-L34 pull requests are always drafts unless a caller explicitly opts out, and merging is not a capability of the gateway"
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Proven: DeliveryManager issues only fixed git/gh primitives (draft PR only, no force/merge, single-argv inputs, task worktree cwd) and the signed webhook receiver rejects unsigned, wrong-signature and malformed/wrong-length-signature deliveries (401, no hang, no unhandled rejection; verify() fixed in work order 0013 batch 3 follow-up) and correlates workflow_run ids. Remaining: GitHubGateway is unused and calls non-gh subcommands (gh rev-parse/add/commit/push); direct OAuth/GitHub App adapter is optional and absent."
+      "note": "Proven: DeliveryManager issues only fixed git/gh primitives (draft PR only, no force/merge, single-argv inputs, task worktree cwd) and the signed webhook receiver rejects unsigned/wrong-signature/malformed deliveries and correlates workflow_run ids. GitHubGateway (still not wired into the runtime) was repaired in work order 0016 unit E: local steps use git, only API steps use gh, push never forces, PRs are drafts, and its unused merge method was removed. A direct OAuth/GitHub App adapter is optional in the clause and not built."
     },
     {
       "id": "B05-L5",
@@ -11514,7 +11543,7 @@
       "text": "GitHub CI event adapter",
       "status": "PARTIAL",
       "evidence": [],
-      "note": "The GitHub CI event adapter is covered by B05-L34/B05-L118 (still PARTIAL: repository_dispatch/workflow_dispatch handling).",
+      "note": "The GitHub CI event adapter is covered by B05-L34 (IMPLEMENTED after unit E) and B05-L118 (still PARTIAL: workflow_dispatch deliveries are not handled).",
       "workOrder": "UNASSIGNED"
     },
     {
