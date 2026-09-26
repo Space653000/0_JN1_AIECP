@@ -12999,8 +12999,14 @@
       },
       "text": "complete user documentation",
       "status": "MANUAL",
-      "evidence": [],
-      "note": "Complete user documentation is judged by a person reading it against the installed product.",
+      "evidence": [
+        {
+          "file": "tests/user-manual.test.cjs",
+          "kind": "test",
+          "name": "B08-L188 the Traditional Chinese user manual exists and covers every required topic"
+        }
+      ],
+      "note": "A Traditional Chinese user manual (docs/使用手冊.md, linked from README) is provided and its presence/coverage is checked by tests/user-manual.test.cjs; judging whether it is genuinely complete and clear against the installed product is still a person's call.",
       "protocol": {
         "file": ".ai/ACCEPTANCE.md",
         "section": "### 6.4 新手首用與產品感"
