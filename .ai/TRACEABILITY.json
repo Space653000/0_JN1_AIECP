@@ -13153,6 +13153,38 @@
         }
       ],
       "note": "Error messages that come from the main process stay in English."
+    },
+    {
+      "id": "W0020-B",
+      "source": {
+        "file": ".ai/WORK_ORDERS/0020.md",
+        "section": "## 2. 項目 B"
+      },
+      "text": "A one-line command (npm run evidence:local -- <ollama|pega|official>) maps to the existing provider-environment-verify.cjs through a fixed mode table, asks a secret key without echo and keeps it only in the child process environment, writes a summary under artifacts/, and gives a plain-language pass/fail with a classified reason instead of raw counts.",
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/local-provider-evidence.test.cjs",
+          "kind": "test",
+          "name": "B0020 there are exactly three fixed modes, each mapped to a verifier mode, and anything else is refused before anything runs"
+        },
+        {
+          "file": "tests/local-provider-evidence.test.cjs",
+          "kind": "test",
+          "name": "B0020 pega: the key is announced as memory-only, read without echo, and appears in no output, file or argument"
+        },
+        {
+          "file": "tests/local-provider-evidence.test.cjs",
+          "kind": "test",
+          "name": "B0020 a failure is explained in plain words with a reason category, not just counts"
+        },
+        {
+          "file": "electron/lib/local-provider-evidence.cjs",
+          "kind": "code",
+          "name": "runLocalEvidence"
+        }
+      ],
+      "note": "Local run evidence for the owner; explicitly not GitHub self-hosted Runner evidence and never writes to the traceability matrix. Real PEGA/OFFICIAL calls still need the owner's key/login."
     }
   ]
 }

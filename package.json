@@ -21,7 +21,8 @@
     "audit:requirements": "node scripts/requirements-coverage.cjs",
     "audit:blueprints": "node scripts/blueprint-coverage.cjs",
     "audit:traceability": "node scripts/traceability-audit.cjs --strict",
-    "audit:roadmap": "node scripts/roadmap-gate-audit.cjs"
+    "audit:roadmap": "node scripts/roadmap-gate-audit.cjs",
+    "evidence:local": "node electron/lib/local-provider-evidence.cjs"
   },
   "devDependencies": {
     "electron": "44.4.1",

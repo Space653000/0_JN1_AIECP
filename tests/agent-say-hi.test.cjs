@@ -14,9 +14,13 @@ const fake = { spawns: [], execs: [], installed: new Set(['ollama']), models: ['
 const realSpawn = cp.spawn;
 const realExecFile = cp.execFile;
 const FAKE_COMMANDS = new Set(['ollama', 'claude', 'codex']);
+// On a machine that really has the official Codex app installed, command-resolver.cjs (0020 item A) resolves
+// "codex" to that install's real codex.exe path before spawning, so the fake must match on the command's own
+// basename too, not only the literal string "codex".
+const isFake = (command) => FAKE_COMMANDS.has(command) || FAKE_COMMANDS.has(path.basename(String(command || '')).replace(/\.exe$/i, '').toLowerCase());
 cp.execFile = function execFile(command, args, options, callback) {
   const cb = typeof options === 'function' ? options : callback;
-  if (!FAKE_COMMANDS.has(command)) return realExecFile.apply(this, arguments);
+  if (!isFake(command)) return realExecFile.apply(this, arguments);
   fake.execs.push({ command, args });
   if (!fake.installed.has(command)) { const error = Object.assign(new Error('not found'), { code: 'ENOENT' }); setImmediate(() => cb(error, '', '')); return {}; }
   const table = ['NAME ID SIZE MODIFIED', ...fake.models.map((name) => `${name}   abc123   2 GB   3 weeks ago`)].join('\n');
@@ -24,7 +28,7 @@ cp.execFile = function execFile(command, args, options, callback) {
   return {};
 };
 cp.spawn = function spawn(command, args, options) {
-  if (!FAKE_COMMANDS.has(command)) return realSpawn.apply(this, arguments);
+  if (!isFake(command)) return realSpawn.apply(this, arguments);
   const call = { command, args: [...args], cwd: options?.cwd, env: { ...(options?.env || {}) } };
   fake.spawns.push(call);
   const child = new EventEmitter();
@@ -171,7 +175,7 @@ test('B0019 PEGA and OFFICIAL: refused without a key or a login, and when they r
   assert.ok(!JSON.stringify(pega).includes('PEGA-SECRET-VALUE'), 'the key is never in what the renderer receives');
   assert.equal(JSON.stringify(await H('agents:settings:get')).includes('PEGA-SECRET-VALUE'), false, 'nor in the settings view');
   const call = fake.spawns[0];
-  assert.equal(call.command, 'codex');
+  assert.match(path.basename(call.command).toLowerCase(), /^codex(\.exe)?$/);
   assert.ok(call.args.includes('--skip-git-repo-check') && call.args.includes('workspace-write') && !call.args.includes('danger-full-access'));
   assert.equal(call.args.at(-1), SAY_HI_PROMPT);
   assert.equal(path.resolve(call.args[call.args.indexOf('--cd') + 1]), path.resolve(ctx.userData, 'say-hi', 'codex-pega'));
