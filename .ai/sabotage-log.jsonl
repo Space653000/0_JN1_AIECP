@@ -380,3 +380,8 @@
 {"ids":["W0021"],"file":"ui/app.js","from":"const isCustomModel = Boolean(knownModels) && (Boolean(draft.modelCustom) || (Boolean(model) && !knownModels.includes(model)));","to":"const isCustomModel = false;","tests":["tests/claude-model-alias-dropdown.test.cjs"]}
 {"ids":["W0021"],"file":"ui/app.js","from":"      if (modelNode.tagName === 'SELECT' && value === CUSTOM_MODEL_VALUE) {","to":"      if (false) {","tests":["tests/claude-model-alias-dropdown.test.cjs"]}
 {"ids":["W0021"],"file":"electron/main.cjs","from":"      ...(agentId === 'claude-code' ? { knownModels: [...agentSettingsLib.CLAUDE_MODEL_ALIASES] } : {}),","to":"","tests":["tests/claude-model-alias-dropdown.test.cjs"]}
+{"ids":["W0022"],"file":"electron/lib/agent-settings.cjs","from":"    .filter((line) => MODEL_PATTERN.test(line))\n    .slice(0, 200);\n}\n\nconst SAY_HI_PROMPT","to":"    .slice(0, 200);\n}\n\nconst SAY_HI_PROMPT","tests":["tests/opencode-known-models.test.cjs"]}
+{"ids":["W0022"],"file":"electron/main.cjs","from":"    return models.length ? models : null;","to":"    return models;","tests":["tests/opencode-known-models.test.cjs"]}
+{"ids":["W0022"],"file":"electron/main.cjs","from":"      ...(agentId === 'opencode' ? (openCodeModels ? { knownModels: [...openCodeModels] } : { knownModelsUnavailable: true }) : {}),","to":"","tests":["tests/opencode-known-models.test.cjs"]}
+{"ids":["W0022"],"file":"ui/app.js","from":"    + knownModelsNote","to":"","tests":["tests/opencode-known-models.test.cjs"]}
+{"ids":["W0022"],"file":"electron/main.cjs","from":"      ...(agentId === 'gemini-cli' ? { knownModelsUnavailable: true } : {}),","to":"","tests":["tests/opencode-known-models.test.cjs"]}

@@ -841,6 +841,8 @@ const PHRASES=Object.freeze({
   'Custom…': '自訂…',
   'Type the exact model name': '輸入確切的模型名稱',
   'sonnet/opus/fable are official aliases that always resolve to the latest version; choose "Custom…" to name an exact model.': 'sonnet／opus／fable 是官方別名，會自動對應到最新版本；要指定確切型號才選「自訂…」。',
+  'Could not read the model list; please type it manually.': '無法取得清單，請手動輸入。',
+  'This tool has no auto-detectable model list; please type it manually.': '此工具沒有可自動偵測的模型清單，請手動輸入。',
 
 });
 

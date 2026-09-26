@@ -754,6 +754,13 @@ function agentPanelHtml(id, agent) {
       + '<option value="' + CUSTOM_MODEL_VALUE + '"' + (isCustomModel ? ' selected' : '') + '>Custom…</option></select>'
       + (isCustomModel ? '<input data-agent-model="' + esc(id) + '" type="text" maxlength="120" value="' + esc(model) + '" placeholder="Type the exact model name">' : '')
     : '<input data-agent-model="' + esc(id) + '" type="text" maxlength="120" value="' + esc(model) + '" placeholder="Use the default">';
+  // `opencode models` could not be read this time (not installed, timed out, or unparsable): the card still works
+  // as a plain text field instead of breaking, and says why there is no dropdown.
+  const knownModelsNote = row.knownModelsUnavailable
+    ? '<small class="muted">' + esc(id === 'gemini-cli'
+      ? 'This tool has no auto-detectable model list; please type it manually.'
+      : 'Could not read the model list; please type it manually.') + '</small>'
+    : '';
   const effortLabel = id === 'ollama' ? 'Thinking' : 'Reasoning effort';
   const effortField = row.effortSupported
     ? '<select data-agent-effort="' + esc(id) + '"><option value="">' + (id === 'ollama' ? 'Off' : 'Use the default') + '</option>'
@@ -769,7 +776,8 @@ function agentPanelHtml(id, agent) {
     + '<div class="agent-settings-body">'
     + '<small class="agent-effective">Model <code>' + esc(row.model || '—') + '</code> · ' + esc(source) + '</small>'
     + '<label>Model' + modelField + '</label>'
-    + (knownModels ? '<small class="muted">' + esc('sonnet/opus/fable are official aliases that always resolve to the latest version; choose "Custom…" to name an exact model.') + '</small>' : '')
+    + (knownModels && id === 'claude-code' ? '<small class="muted">' + esc('sonnet/opus/fable are official aliases that always resolve to the latest version; choose "Custom…" to name an exact model.') + '</small>' : '')
+    + knownModelsNote
     + '<label>' + effortLabel + effortField + '</label>'
     + '<div class="button-row"><button class="secondary-button" type="button" data-agent-save="' + esc(id) + '">Save settings</button>'
     + (row.sayHi?.supported ? '<button class="primary-button" type="button" data-agent-sayhi="' + esc(id) + '" ' + (canSayHi && !state.sayHiBusy[id] ? '' : 'disabled') + '>Say hi</button>' : '') + '</div>'

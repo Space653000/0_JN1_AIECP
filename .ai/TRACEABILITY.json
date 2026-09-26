@@ -13255,6 +13255,43 @@
         }
       ],
       "note": "PEGA and Codex OFFICIAL are explicitly out of scope: PEGA /v1/models does not list Codex-usable model names, and there is no published Codex model catalog to query; both keep the existing free-text field with the real provider-reported error shown as-is."
+    },
+    {
+      "id": "W0022",
+      "source": {
+        "file": ".ai/WORK_ORDERS/0022.md",
+        "section": "## 1. OpenCode"
+      },
+      "text": "OpenCode's model field lists real installed models from a fixed, argument-free, timed-out, output-bounded `opencode models` call, in the exact provider/model shape its own --model flag takes; a failed or unparsable call falls back to the existing free-text field instead of breaking the card. Gemini CLI was checked against its real --help: it has neither a maintained alias nor a read-only list-models command, so it honestly keeps the free-text field with its own explanatory note rather than a fabricated list. Codex CLI and ChatGPT Web are untouched.",
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/opencode-known-models.test.cjs",
+          "kind": "test",
+          "name": "B0022 parseOpenCodeModels keeps only valid provider/model lines from real `opencode models` output, in provider/model form"
+        },
+        {
+          "file": "tests/opencode-known-models.test.cjs",
+          "kind": "test",
+          "name": "B0022 the settings view lists real opencode models via a fixed, argument-free call, timed out and output-bounded"
+        },
+        {
+          "file": "tests/opencode-known-models.test.cjs",
+          "kind": "test",
+          "name": "B0022 opencode not being installed, erroring, timing out, or printing nothing usable all fall back gracefully, not throw"
+        },
+        {
+          "file": "tests/opencode-known-models.test.cjs",
+          "kind": "test",
+          "name": "B0022 Gemini CLI: no alias/list command exists on real `gemini --help`, so it honestly keeps the free-text field with its own note"
+        },
+        {
+          "file": "electron/lib/agent-settings.cjs",
+          "kind": "code",
+          "name": "parseOpenCodeModels"
+        }
+      ],
+      "note": "Gemini CLI --help was checked directly (via npx @google/gemini-cli) on this machine on 2026-09-26: -m/--model takes a free string with no documented alias and no list-models subcommand exists, so no automatic list was built for it, as instructed."
     }
   ]
 }
