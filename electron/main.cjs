@@ -299,6 +299,8 @@ async function getAgentSettingsView() {
       name: agentDisplayName(agentId),
       kind: isWorker ? 'codex-worker' : (agentId === 'ollama' ? 'local' : 'cli'),
       ...info,
+      // Officially maintained aliases the person can pick instead of typing an exact, ever-changing model id.
+      ...(agentId === 'claude-code' ? { knownModels: [...agentSettingsLib.CLAUDE_MODEL_ALIASES] } : {}),
       sayHi: {
         supported: Boolean(route),
         network: route ? Boolean(agentId !== 'ollama' && (isWorker || PROVIDERS[route.provider]?.network)) : false,

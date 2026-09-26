@@ -729,6 +729,8 @@ function agentSayHiResultHtml(id) {
     + '</div>';
 }
 
+const CUSTOM_MODEL_VALUE = '__custom__';
+
 function agentPanelHtml(id, agent) {
   const row = agentSettingsRow(id);
   if (!row) return '';
@@ -739,9 +741,18 @@ function agentPanelHtml(id, agent) {
   const model = draft.model ?? row.model ?? '';
   const effort = draft.effort ?? row.effort ?? '';
   const ollamaModels = id === 'ollama' ? (state.agentSettings.ollamaModels || []) : null;
+  // Officially maintained known-model lists (Claude Code's aliases; work order 0021): a fixed dropdown plus an
+  // explicit "Custom…" choice that reveals a free-text field, so an existing exact model name is never lost.
+  const knownModels = ollamaModels ? null : (Array.isArray(row.knownModels) ? row.knownModels : null);
+  const isCustomModel = Boolean(knownModels) && (Boolean(draft.modelCustom) || (Boolean(model) && !knownModels.includes(model)));
   const modelField = ollamaModels
     ? '<select data-agent-model="' + esc(id) + '"><option value="">Use the default</option>'
       + [...new Set([...ollamaModels, ...(model ? [model] : [])])].map((name) => '<option value="' + esc(name) + '"' + (name === model ? ' selected' : '') + '>' + esc(name) + '</option>').join('') + '</select>'
+    : knownModels
+    ? '<select data-agent-model="' + esc(id) + '"><option value="">Use the default</option>'
+      + knownModels.map((name) => '<option value="' + esc(name) + '"' + (!isCustomModel && name === model ? ' selected' : '') + '>' + esc(name) + '</option>').join('')
+      + '<option value="' + CUSTOM_MODEL_VALUE + '"' + (isCustomModel ? ' selected' : '') + '>Custom…</option></select>'
+      + (isCustomModel ? '<input data-agent-model="' + esc(id) + '" type="text" maxlength="120" value="' + esc(model) + '" placeholder="Type the exact model name">' : '')
     : '<input data-agent-model="' + esc(id) + '" type="text" maxlength="120" value="' + esc(model) + '" placeholder="Use the default">';
   const effortLabel = id === 'ollama' ? 'Thinking' : 'Reasoning effort';
   const effortField = row.effortSupported
@@ -758,6 +769,7 @@ function agentPanelHtml(id, agent) {
     + '<div class="agent-settings-body">'
     + '<small class="agent-effective">Model <code>' + esc(row.model || '—') + '</code> · ' + esc(source) + '</small>'
     + '<label>Model' + modelField + '</label>'
+    + (knownModels ? '<small class="muted">' + esc('sonnet/opus/fable are official aliases that always resolve to the latest version; choose "Custom…" to name an exact model.') + '</small>' : '')
     + '<label>' + effortLabel + effortField + '</label>'
     + '<div class="button-row"><button class="secondary-button" type="button" data-agent-save="' + esc(id) + '">Save settings</button>'
     + (row.sayHi?.supported ? '<button class="primary-button" type="button" data-agent-sayhi="' + esc(id) + '" ' + (canSayHi && !state.sayHiBusy[id] ? '' : 'disabled') + '>Say hi</button>' : '') + '</div>'
@@ -1268,7 +1280,19 @@ function bindEvents() {
   document.addEventListener('change', (event) => {
     const modelNode = event.target?.closest?.('[data-agent-model]');
     const effortNode = event.target?.closest?.('[data-agent-effort]');
-    if (modelNode) (state.agentDraft[modelNode.dataset.agentModel] ||= {}).model = String(modelNode.value || '').trim();
+    if (modelNode) {
+      const id = modelNode.dataset.agentModel;
+      const value = String(modelNode.value || '').trim();
+      const draft = (state.agentDraft[id] ||= {});
+      if (modelNode.tagName === 'SELECT' && value === CUSTOM_MODEL_VALUE) {
+        draft.modelCustom = true;
+        draft.model = '';
+        renderAgents();
+      } else {
+        draft.model = value;
+        if (modelNode.tagName === 'SELECT') delete draft.modelCustom;
+      }
+    }
     if (effortNode) (state.agentDraft[effortNode.dataset.agentEffort] ||= {}).effort = String(effortNode.value || '');
   });
   document.addEventListener('toggle', (event) => {

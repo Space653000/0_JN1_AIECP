@@ -13218,6 +13218,43 @@
         }
       ],
       "note": "Purely additive text; no status classification changed (tests/ui-theme-contrast.test.cjs still passes with no new hard-coded colours)."
+    },
+    {
+      "id": "W0021",
+      "source": {
+        "file": ".ai/WORK_ORDERS/0021.md",
+        "section": "## 1. 要做的事"
+      },
+      "text": "The Claude Code model field is a dropdown of the officially maintained aliases (sonnet/opus/fable) plus an explicit Custom choice that reveals a free-text field so an existing exact model name already saved is never lost; the alias travels through --model unchanged, exactly as any other value did. PEGA, Codex OFFICIAL, Ollama and other agents are untouched.",
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/claude-model-alias-dropdown.test.cjs",
+          "kind": "test",
+          "name": "B0021 CLAUDE_MODEL_ALIASES is a fixed named constant, and it drives the --model flag exactly as any other value would"
+        },
+        {
+          "file": "tests/claude-model-alias-dropdown.test.cjs",
+          "kind": "test",
+          "name": "B0021 the Claude Code model field is a dropdown of the four fixed choices, not free text"
+        },
+        {
+          "file": "tests/claude-model-alias-dropdown.test.cjs",
+          "kind": "test",
+          "name": "B0021 an existing full model name that is not one of the aliases is shown as Custom, with the value kept in a text box"
+        },
+        {
+          "file": "tests/claude-model-alias-dropdown.test.cjs",
+          "kind": "test",
+          "name": "B0021 Ollama, PEGA and Codex OFFICIAL keep their own existing model fields, untouched by this change"
+        },
+        {
+          "file": "electron/lib/agent-settings.cjs",
+          "kind": "code",
+          "name": "CLAUDE_MODEL_ALIASES"
+        }
+      ],
+      "note": "PEGA and Codex OFFICIAL are explicitly out of scope: PEGA /v1/models does not list Codex-usable model names, and there is no published Codex model catalog to query; both keep the existing free-text field with the real provider-reported error shown as-is."
     }
   ]
 }

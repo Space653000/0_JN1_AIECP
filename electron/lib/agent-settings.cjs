@@ -30,6 +30,10 @@ const MODEL_ENV = Object.freeze({
   ollama: 'AECP_OLLAMA_MODEL'
 });
 
+// Anthropic's own maintained aliases for Claude Code: they always resolve to the current latest generation of that
+// tier, so they never go stale the way a frozen model id would. This is not this project's own frozen model list.
+const CLAUDE_MODEL_ALIASES = Object.freeze(['sonnet', 'opus', 'fable']);
+
 const SAY_HI_PROMPT = 'Reply with one short greeting sentence.';
 const SAY_HI_TIMEOUT_MS = 60 * 1000;
 const SAY_HI_REPLY_BYTES = 2048;
@@ -188,7 +192,7 @@ class SayHiService {
 }
 
 module.exports = {
-  CLI_AGENT_IDS, WORKER_AGENT_IDS, SETTINGS_AGENT_IDS, EFFORTS, MODEL_PATTERN, MODEL_ENV,
+  CLI_AGENT_IDS, WORKER_AGENT_IDS, SETTINGS_AGENT_IDS, EFFORTS, MODEL_PATTERN, MODEL_ENV, CLAUDE_MODEL_ALIASES,
   SAY_HI_PROMPT, SAY_HI_TIMEOUT_MS, SAY_HI_REPLY_BYTES, SAY_HI_RUN_OUTPUT_BYTES,
   EFFORT_LEVELS, effortsFor, supportsEffort, validModel, validEffort, cleanPatch, readSettings, applyPatch, effective, extractReply, SayHiService
 };

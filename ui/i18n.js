@@ -838,6 +838,9 @@ const PHRASES=Object.freeze({
   'max': '最大',
 
   'This is normal while idle: AIECP only asks you to approve network access when it actually dispatches work.': '這是閒置時的正常狀態：真正派工時才會請你核准網路使用。',
+  'Custom…': '自訂…',
+  'Type the exact model name': '輸入確切的模型名稱',
+  'sonnet/opus/fable are official aliases that always resolve to the latest version; choose "Custom…" to name an exact model.': 'sonnet／opus／fable 是官方別名，會自動對應到最新版本；要指定確切型號才選「自訂…」。',
 
 });
 
