@@ -358,6 +358,9 @@ async function executeSayHi({ agentId, model, prompt, timeoutMs, maxOutputBytes 
   if (agentId === 'codex-pega' && !provider.apiKey) return { skipped: true, code: 'NO_KEY', reason: 'The PEGA key is not set yet.' };
   if (agentId === 'codex-pega' && !(chosen || provider.defaultModel)) return { skipped: true, code: 'NEEDS_MODEL', reason: 'Choose a PEGA model first.' };
   if (agentId === 'codex-official' && !provider.authPresent) return { skipped: true, code: 'AUTH_REQUIRED', reason: 'Codex OFFICIAL is not signed in yet.' };
+  // Without an explicit model, codex exec falls back to an interactive model prompt that blocks on stdin
+  // instead of answering; a fixed greeting has no terminal to answer it, so a model must be chosen first.
+  if (agentId === 'codex-official' && !chosen) return { skipped: true, code: 'NEEDS_MODEL', reason: 'Choose an OFFICIAL model first.' };
   // A fresh, empty folder owned by AIECP: no Workspace is ever the working directory of a greeting.
   const cwd = dataPath('say-hi', agentId);
   await fsp.rm(cwd, { recursive: true, force: true });

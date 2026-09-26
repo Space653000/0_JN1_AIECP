@@ -123,6 +123,13 @@ function stripAnsi(value) {
   return String(value || '').replace(ANSI_PATTERN, '').replace(/\r/g, '');
 }
 
+// A spinner that reprints the same short phrase (Ollama's "pulling manifest", "verifying sha256 digest", ...)
+// leaves that phrase sitting next to itself many times once the escape codes that repositioned the cursor are
+// gone. Collapsing 3+ back-to-back repeats of the same short phrase to one keeps the message readable.
+function collapseRepeatedPhrases(value) {
+  return String(value || '').replace(/\b(\w[\w .]{1,40}?)\b(?:[^\w]{0,3}\1\b){2,}/gi, '$1');
+}
+
 // The reply text out of whatever a CLI printed: one JSON document, JSON lines, or plain text.
 function extractReply(stdout) {
   const text = stripAnsi(stdout).trim();
@@ -190,7 +197,7 @@ class SayHiService {
       if (outcome?.timedOut) return { ...base, model: usedModel, ok: false, code: 'TIMEOUT', reason: 'No answer within ' + SAY_HI_TIMEOUT_MS / 1000 + ' seconds.', reply: '', durationMs };
       if (outcome?.outputLimitExceeded) return { ...base, model: usedModel, ok: false, code: 'OUTPUT_LIMIT', reason: 'The agent printed more than the allowed amount.', reply: '', durationMs };
       if (outcome?.code !== 0) {
-        const detail = redactText(stripAnsi(outcome?.stderr || jsonError(outcome?.stdout) || outcome?.stdout || 'The agent failed without a message.')).trim();
+        const detail = redactText(collapseRepeatedPhrases(stripAnsi(outcome?.stderr || jsonError(outcome?.stdout) || outcome?.stdout || 'The agent failed without a message.'))).trim();
         return { ...base, model: usedModel, ok: false, code: 'FAILED', reason: detail.slice(-REASON_CHARS), reply: '', durationMs };
       }
       const agentError = jsonError(outcome.stdout);
@@ -210,5 +217,5 @@ class SayHiService {
 module.exports = {
   CLI_AGENT_IDS, WORKER_AGENT_IDS, SETTINGS_AGENT_IDS, EFFORTS, MODEL_PATTERN, MODEL_ENV, CLAUDE_MODEL_ALIASES, parseOpenCodeModels,
   SAY_HI_PROMPT, SAY_HI_TIMEOUT_MS, SAY_HI_REPLY_BYTES, SAY_HI_RUN_OUTPUT_BYTES,
-  EFFORT_LEVELS, effortsFor, supportsEffort, validModel, validEffort, cleanPatch, readSettings, applyPatch, effective, extractReply, stripAnsi, SayHiService
+  EFFORT_LEVELS, effortsFor, supportsEffort, validModel, validEffort, cleanPatch, readSettings, applyPatch, effective, extractReply, stripAnsi, collapseRepeatedPhrases, SayHiService
 };

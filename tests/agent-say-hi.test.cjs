@@ -130,6 +130,17 @@ test('B0020-hotfix a failure reason strips terminal control codes (e.g. a spinne
   assert.doesNotMatch(failed.reason, /[\u001b\u009b]/, 'no raw escape byte reaches the UI');
 });
 
+test('B0020-hotfix a spinner that reprints the same phrase many times (each frame separated by its own escape codes, already stripped) collapses to one', async () => {
+  const { collapseRepeatedPhrases } = require('../electron/lib/agent-settings.cjs');
+  const spammy = Array(6).fill('pulling manifest ☘').join(' ') + ' pulling manifest Error: pull model manifest: file does not exist';
+  assert.equal(collapseRepeatedPhrases(spammy), 'pulling manifest Error: pull model manifest: file does not exist');
+  assert.equal(collapseRepeatedPhrases('a single unrelated message'), 'a single unrelated message', 'ordinary text is untouched');
+  fake.answer = () => ({ stdout: '', code: 1, stderr: Array(7).fill('pulling manifest ☙').join('') + 'Error: pull model manifest: file does not exist' });
+  const failed = await H('agents:say-hi', { agentId: 'ollama', model: 'qwen3-coder:30b' });
+  assert.equal((failed.reason.match(/pulling manifest/g) || []).length, 1, 'the spinner phrase appears only once in the reason shown to the person');
+  assert.match(failed.reason, /Error: pull model manifest: file does not exist$/);
+});
+
 test('B0019 only one greeting per agent runs at a time', async () => {
   fake.delayMs = 250;
   const first = H('agents:say-hi', { agentId: 'ollama', model: 'llama3.2:3b' });
@@ -197,6 +208,12 @@ test('B0019 PEGA and OFFICIAL: refused without a key or a login, and when they r
   const home = path.join(ctx.userData, 'workers', 'codex-official', 'codex-home');
   fs.mkdirSync(home, { recursive: true });
   fs.writeFileSync(path.join(home, 'auth.json'), '{}');
+  // Without --model, codex exec falls back to an interactive prompt that blocks on stdin; a fixed greeting has
+  // no terminal to answer it, so OFFICIAL must be refused up front instead of spawning a process that hangs.
+  const spawnsBefore = fake.spawns.length;
+  const noModel = await H('agents:say-hi', { agentId: 'codex-official' });
+  assert.equal(noModel.code, 'NEEDS_MODEL');
+  assert.equal(fake.spawns.length, spawnsBefore, 'nothing is spawned without a model');
   await H('agents:settings:set', { agentId: 'codex-official', model: 'gpt-5.1-codex', effort: 'high' });
   fake.spawns.length = 0;
   const official = await H('agents:say-hi', { agentId: 'codex-official' });

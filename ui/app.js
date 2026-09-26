@@ -767,10 +767,13 @@ function agentPanelHtml(id, agent) {
       + row.efforts.map((name) => '<option value="' + esc(name) + '"' + (name === effort ? ' selected' : '') + '>' + esc(name) + '</option>').join('') + '</select>'
     : '<span class="muted">Not applicable</span>';
   const source = { settings: 'Your setting', env: 'Environment variable', provider: 'Provider entry', default: 'Use the default (chosen by the tool)' }[row.modelSource] || 'Use the default (chosen by the tool)';
-  const canSayHi = row.sayHi?.supported && agent?.available !== false && row.sayHi.keyConfigured !== false;
+  const needsModelFirst = id === 'codex-official' && !model;
+  const canSayHi = row.sayHi?.supported && agent?.available !== false && row.sayHi.keyConfigured !== false && !needsModelFirst;
   const sayHiNote = !row.sayHi?.supported
     ? (id === 'codex-cli' ? 'Use the Codex OFFICIAL or Codex PEGA cards for Codex.' : 'Open this tool in a terminal yourself.')
-    : (row.sayHi.keyConfigured === false ? 'The PEGA key is not set yet.' : (row.sayHi.network ? 'Connects to the network and uses your account quota.' : 'Runs locally.'));
+    : (row.sayHi.keyConfigured === false ? 'The PEGA key is not set yet.'
+      : needsModelFirst ? 'Choose an OFFICIAL model first.'
+      : (row.sayHi.network ? 'Connects to the network and uses your account quota.' : 'Runs locally.'));
   return '<details class="agent-settings" data-agent-settings="' + esc(id) + '"' + (state.agentOpen[id] || state.sayHi[id] ? ' open' : '') + '>'
     + '<summary>Model and effort</summary>'
     + '<div class="agent-settings-body">'
@@ -1299,6 +1302,9 @@ function bindEvents() {
       } else {
         draft.model = value;
         if (modelNode.tagName === 'SELECT') delete draft.modelCustom;
+        // codex-official's Say-hi button is enabled or disabled based on whether a model is chosen; 'change'
+        // only fires once the person leaves the field, so re-rendering here never interrupts their typing.
+        if (id === 'codex-official') renderAgents();
       }
     }
     if (effortNode) (state.agentDraft[effortNode.dataset.agentEffort] ||= {}).effort = String(effortNode.value || '');
