@@ -11,7 +11,7 @@
       "text": "- 4.5:1 text contrast target",
       "status": "MANUAL",
       "evidence": [],
-      "note": "Measure text contrast at 4.5:1 in both themes on installed UI.",
+      "note": "Token contrast is verified by tests/ui-theme-contrast.test.cjs, which parses the real ui/styles.css (text, secondary text, coloured text and status colours reach 4.5:1 and control borders 3:1 in both themes); the observation on the installed application remains MANUAL (ACCEPTANCE 6.1).",
       "protocol": {
         "file": ".ai/ACCEPTANCE.md",
         "section": "### 6.1 視覺、對比與縮放"

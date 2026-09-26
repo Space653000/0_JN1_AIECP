@@ -1,39 +1,57 @@
+/* Colour and layout feel follow the ChatGPT / Codex desktop apps (near-black neutral surfaces, soft rounded cards,
+   one green accent, monospace for code and IDs). Only colours and proportions are borrowed: no logo, wordmark, icon
+   or font file of any vendor is used, and the AECP mark stays the most prominent identity in the shell.
+   Every colour below is a token; the two theme blocks are the only place colour values live. */
 :root {
   color-scheme: dark;
-  --bg: #0b0d10;
-  --panel: #101318;
-  --panel-2: #151920;
-  --panel-3: #1b2028;
-  --line: #252b35;
-  --line-strong: #343c48;
-  --text: #eef1f5;
-  --muted: #9da7b5;
-  --faint: #697485;
-  --accent: #f3f5f7;
-  --accent-text: #0b0d10;
-  --good: #4cc38a;
-  --warn: #e2ad55;
-  --bad: #e46e72;
-  --blue: #77a7ff;
-  --shadow: 0 24px 70px rgba(0,0,0,.35);
-  --radius: 14px;
-  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --bg: #212121;
+  --sidebar: #171717;
+  --panel: #212121;
+  --panel-2: #2f2f2f;
+  --panel-3: #3a3a3a;
+  --line: #424242;
+  --line-strong: #808080;
+  --text: #ececec;
+  --muted: #b4b4b4;
+  --faint: #a8a8a8;
+  --accent: #19c37d;
+  --accent-fg: #19c37d;
+  --accent-text: #0d0d0d;
+  --good: #19c37d;
+  --warn: #f5b74f;
+  --bad: #ff6b6b;
+  --bad-text: #0d0d0d;
+  --blue: #19c37d;
+  --shadow: 0 18px 50px rgba(0,0,0,.45);
+  --radius: 16px;
+  --radius-sm: 12px;
+  --pill: 999px;
+  --ring: color-mix(in srgb, var(--accent) 32%, transparent);
+  --mono: ui-monospace, SFMono-Regular, "Cascadia Code", Consolas, monospace;
+  font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
 }
 
 :root[data-theme="light"] {
   color-scheme: light;
-  --bg: #f5f6f8;
+  --bg: #ffffff;
+  --sidebar: #f7f7f8;
   --panel: #ffffff;
-  --panel-2: #f8f9fb;
-  --panel-3: #eef1f5;
-  --line: #e2e6eb;
-  --line-strong: #cbd2db;
-  --text: #171a1f;
-  --muted: #626b78;
-  --faint: #8a94a3;
-  --accent: #171a1f;
-  --accent-text: #ffffff;
-  --shadow: 0 24px 70px rgba(24,31,41,.12);
+  --panel-2: #f7f7f8;
+  --panel-3: #f3f3f6;
+  --line: #e5e5e5;
+  --line-strong: #80808f;
+  --text: #0d0d0d;
+  --muted: #6e6e80;
+  --faint: #6e6e80;
+  --accent: #10a37f;
+  --accent-fg: #0b7a5e;
+  --accent-text: #0d0d0d;
+  --good: #0b7a5e;
+  --warn: #b45309;
+  --bad: #d92d20;
+  --bad-text: #ffffff;
+  --blue: #0b7a5e;
+  --shadow: 0 18px 50px rgba(13,13,13,.12);
 }
 
 * { box-sizing: border-box; }
@@ -243,22 +261,65 @@ textarea:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 .autonomy-card .detail-grid { margin-top: 12px; }
 
 /* Harness Command Center */
-.hc-shell{display:grid;gap:12px}
+.hc-shell{display:grid;grid-template-columns:minmax(0,1fr);gap:12px}
 .hc-toolbar{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;padding:16px;border:1px solid var(--line);border-radius:14px;background:var(--panel)}
 .hc-toolbar h1{font-size:21px;margin:0 0 5px}.hc-toolbar p{margin:0;color:var(--muted);font-size:11px}.hc-toolbar-actions{display:flex;gap:7px}
 .hc-metrics{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}.hc-metrics>div{border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:13px}.hc-metrics strong{display:block;font-size:21px}.hc-metrics span{display:block;color:var(--faint);font-size:9px;letter-spacing:.1em;margin-top:4px}
 .hc-card{border:1px solid var(--line);border-radius:14px;background:var(--panel);padding:14px}.hc-card h2{font-size:13px}.hc-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.hc-form{display:grid;gap:10px}.hc-form label{display:grid;gap:5px;color:var(--muted);font-size:11px}.hc-form textarea,.hc-form input{width:100%;border:1px solid var(--line);background:var(--panel-2);color:var(--text);border-radius:9px;padding:9px;resize:vertical}.hc-inline{display:flex;align-items:end;gap:8px}.hc-inline label{width:130px}.hc-inline .hc-create{margin-left:auto;min-height:38px}
+.hc-form{display:grid;grid-template-columns:minmax(0,1fr);gap:10px}.hc-form label{display:grid;gap:5px;color:var(--muted);font-size:11px}.hc-form textarea,.hc-form input{width:100%;border:1px solid var(--line);background:var(--panel-2);color:var(--text);border-radius:9px;padding:9px;resize:vertical}.hc-inline{display:flex;align-items:end;gap:8px}.hc-inline label{width:130px}.hc-inline .hc-create{margin-left:auto;min-height:38px}
 .hc-table{display:grid;gap:7px}.hc-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:10px;background:var(--panel-2)}.hc-main{min-width:0}.hc-main strong{display:block;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.hc-main small,.hc-task small{display:block;color:var(--faint);font-size:9px;margin-top:4px}.hc-actions{display:flex;gap:5px}.hc-actions button{min-height:29px;font-size:10px}
 .hc-task-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.hc-task{border:1px solid var(--line);border-radius:10px;padding:10px;background:var(--panel-2)}.hc-task-head{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}.hc-task p{font-size:10px;line-height:1.45;color:var(--muted);min-height:30px;margin:8px 0}.hc-task pre{max-height:100px;overflow:auto;font-size:9px;color:var(--bad);white-space:pre-wrap}
-.hc-events{max-height:330px;overflow:auto;display:grid}.hc-event{display:grid;grid-template-columns:145px 170px 180px 1fr;gap:8px;padding:7px 4px;border-bottom:1px solid var(--line);font-size:10px}.hc-event time{color:var(--faint)}.hc-event span{color:var(--muted);overflow:hidden;text-overflow:ellipsis}
+.hc-events{max-height:330px;overflow:auto;display:grid;min-width:0}.hc-event{display:grid;grid-template-columns:145px 170px 180px minmax(0,1fr);gap:8px;padding:7px 4px;border-bottom:1px solid var(--line);font-size:10px}.hc-event time{color:var(--faint)}.hc-event span{color:var(--muted);overflow:hidden;text-overflow:ellipsis}
 .hc-event-button{width:100%;background:transparent;color:var(--text);text-align:left;cursor:pointer;border-left:0;border-right:0;border-top:0}.hc-event-button:hover{background:var(--panel-2)}.hc-event-button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}.hc-event-evidence{display:grid;gap:5px;padding:10px;border:1px solid var(--line);border-radius:8px;margin-top:10px;overflow-wrap:anywhere}
 .hc-detail-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px;overflow-wrap:anywhere}.hc-detail-grid>div{padding:8px;border:1px solid var(--line);border-radius:8px}
-@media(max-width:1200px){.hc-grid,.hc-task-grid{grid-template-columns:1fr}.hc-metrics{grid-template-columns:repeat(3,1fr)}.hc-event{grid-template-columns:120px 1fr}}
+@media(max-width:1200px){.hc-grid,.hc-task-grid{grid-template-columns:1fr}.hc-metrics{grid-template-columns:repeat(3,1fr)}.hc-event{grid-template-columns:120px minmax(0,1fr)}}
 
 
 /* Implementation status / completion gates */
 .hc-status-card{margin-top:16px}.hc-status-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.hc-status-grid>div{display:flex;flex-direction:column;gap:6px;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--panel-2)}.hc-status-grid b{font-size:12px;letter-spacing:.04em}.hc-status-grid small{opacity:.75;line-height:1.4}.hc-pending{margin-top:12px;padding:10px;border-left:3px solid var(--blue);line-height:1.5}@media(max-width:900px){.hc-status-grid{grid-template-columns:1fr 1fr}}@media(max-width:620px){.hc-status-grid{grid-template-columns:1fr}}
+
+
+/* Theme layer: ChatGPT / Codex desktop feel (colours come only from the tokens above) */
+html { scrollbar-color: var(--line-strong) transparent; }
+body { font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+h1, h2, h3 { font-weight: 600; }
+
+/* Left sidebar: dark, no heavy border; content column is narrow and centred */
+.local-pane, .chat-pane { background: var(--sidebar); border-left: 0; border-right: 0; }
+.control-content { width: 100%; max-width: 900px; margin: 0 auto; padding: 24px 20px; }
+.control-header { border-bottom-color: var(--line); }
+
+/* AECP identity: the mark and the product name are the loudest things in the shell */
+.brand strong { font-size: 15px; font-weight: 700; letter-spacing: -.02em; }
+.brand-mark { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--panel-2)); }
+.brand-mark span { background: var(--accent-fg); }
+
+/* Pills for buttons and tags, rounded cards, thin borders */
+.workspace-pill, .health-badge, .ghost-button, .icon-button, .primary-button, .secondary-button { border-radius: var(--pill); }
+.workspace-pill, .ghost-button, .icon-button, .secondary-button { border-color: var(--line-strong); }
+.primary-button:hover:not(:disabled) { filter: brightness(1.08); }
+.secondary-button:hover:not(:disabled), .ghost-button:hover:not(:disabled), .icon-button:hover:not(:disabled), .workspace-pill:hover { background: var(--panel-3); color: var(--text); }
+.segmented { border-radius: var(--pill); border-color: var(--line); }
+.view-tab { border-radius: var(--pill); }
+.view-tab.active { background: var(--panel-3); box-shadow: none; color: var(--text); }
+.card, .chat-provider-card, .handoff-card, .privacy-note, .autonomy-card, .execution-mode-card, .hc-card, .hc-toolbar, .task-detail { border-radius: var(--radius); }
+.task-card, .repo-item, .tool-item, .provider-item, .agent-item, .detail-cell, .step-body, .board-column, .hc-task, .hc-row, .welcome-points > div { border-radius: var(--radius-sm); }
+.modal { border-radius: 20px; border-color: var(--line); }
+.status { border-radius: var(--pill); }
+.task-card.selected, .execution-mode-card.recommended { border-color: var(--accent-fg); }
+
+/* Inputs: rounded with a soft focus ring */
+.form-grid input, .form-grid select, .hc-form input, .hc-form textarea, textarea { border-color: var(--line-strong); border-radius: var(--radius-sm); }
+input:focus-visible, select:focus-visible, textarea:focus-visible { border-color: var(--accent-fg); box-shadow: 0 0 0 4px var(--ring); }
+
+/* The emergency stop must not look like the friendly green call to action */
+#hcEmergency { background: var(--bad); color: var(--bad-text); }
+
+/* Grid children may shrink below their content so wide text or fields never push the pane wider than the window */
+.hc-shell > *, .hc-card, .hc-grid > *, .hc-form > *, .hc-metrics > *, .hc-task-grid > * { min-width: 0; }
+
+/* Monospace for code, paths and IDs */
+code, kbd, samp, .path-text, .repo-meta, .task-meta, .detail-cell code, .hc-event time { font-family: var(--mono); }
 
 /* Accessibility */
 .skip-link{

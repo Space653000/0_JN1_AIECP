@@ -307,3 +307,9 @@
 {"ids":["B02-L207"],"file":"electron/lib/control-plane.cjs","from":"verifierProfile:VERIFIER_PROFILES.includes(task.verifierProfile)?task.verifierProfile:'npm-verify',","to":"verifierProfile:'npm-verify',","tests":["tests/task-role-verifier.test.cjs"]}
 {"ids":["B02-L207"],"file":"electron/lib/control-plane.cjs","from":"if(typeof command!=='string')throw new Error('Task verifier must be a command string.');","to":"","tests":["tests/task-role-verifier.test.cjs"]}
 {"ids":["B11-L61"],"file":"electron/lib/protocol.cjs","from":"verification: { type: meta.verifier, expected: true }","to":"verification: { type: 'operation-success', expected: true }","tests":["tests/action-metadata-table.test.cjs"]}
+{"ids":["B01-A11Y-L172"],"file":"ui/styles.css","from":"  --text: #ececec;","to":"  --text: #555555;","tests":["tests/ui-theme-contrast.test.cjs"]}
+{"ids":["B01-A11Y-L172"],"file":"ui/styles.css","from":"  --muted: #6e6e80;","to":"  --muted: #9a9ab0;","tests":["tests/ui-theme-contrast.test.cjs"]}
+{"ids":["B01-A11Y-L172"],"file":"ui/styles.css","from":"  --accent-fg: #0b7a5e;","to":"  --accent-fg: #10a37f;","tests":["tests/ui-theme-contrast.test.cjs"]}
+{"ids":["B01-A11Y-L172"],"file":"ui/styles.css","from":"  --warn: #b45309;","to":"  --warn: #e0a030;","tests":["tests/ui-theme-contrast.test.cjs"]}
+{"ids":["B01-A11Y-L172"],"file":"ui/styles.css","from":"  --line-strong: #808080;","to":"  --line-strong: #424242;","tests":["tests/ui-theme-contrast.test.cjs"]}
+{"ids":["B01-A11Y-L172"],"file":"ui/styles.css","from":"  --bad-text: #ffffff;","to":"  --bad-text: #ffb0b0;","tests":["tests/ui-theme-contrast.test.cjs"]}
