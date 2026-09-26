@@ -277,3 +277,12 @@
 {"ids":["G17"],"file":"electron/lib/path-safety.cjs","from":"      if(parent===probe)return resolved;\n      rest.push(path.basename(probe));","to":"      if(parent===probe)return resolved;\n      probe=parent;continue;\n      rest.push(path.basename(probe));","tests":["tests/path-canonical-alias.test.cjs"]}
 {"ids":["G11-crash"],"file":"electron/lib/control-plane.cjs","from":"    await this.reconcileExternalEvents();\n","to":"","tests":["tests/external-event-crash-window.test.cjs"]}
 {"ids":["G11-crash"],"file":"electron/lib/control-plane.cjs","from":"await this.correlateExternal(event,key);return{duplicate:Boolean(r.duplicate)};}","to":"if(r.duplicate)return{duplicate:true};await this.correlateExternal(event,key);return{duplicate:false};}","tests":["tests/external-event-crash-window.test.cjs"]}
+{"ids":["B07-L44"],"file":"electron/main.cjs","from":"dirty: Boolean(status.trim()),","to":"dirty: false,","tests":["tests/unit-d-behavior.test.cjs"]}
+{"ids":["B07-L44"],"file":"electron/main.cjs","from":"const branch = (await execFixed('git', ['branch', '--show-current'], top)).stdout || '(detached)';","to":"const branch = 'main';","tests":["tests/unit-d-behavior.test.cjs"]}
+{"ids":["B08-L89"],"file":"electron/lib/autonomy.cjs","from":"clampInteger(input.maxIterations, 1, 12, 4)","to":"clampInteger(input.maxIterations, 1, 1200, 4)","tests":["tests/unit-d-behavior.test.cjs"]}
+{"ids":["B08-L89"],"file":"electron/lib/autonomy.cjs","from":"if (next.length > maxOutputBytes) {","to":"if (false) {","tests":["tests/unit-d-behavior.test.cjs"]}
+{"ids":["B08-L89"],"file":"electron/lib/autonomy.cjs","from":"}, Math.max(1000, timeoutMs));","to":"}, 3600000);","tests":["tests/unit-d-behavior.test.cjs"]}
+{"ids":["B08-L89"],"file":"electron/lib/autonomy.cjs","from":"if (result.outputLimitExceeded) {","to":"if (false) {","tests":["tests/unit-d-behavior.test.cjs"]}
+{"ids":["B08-L89"],"file":"electron/lib/autonomy.cjs","from":"      external_directory: 'deny',","to":"      external_directory: 'allow',","tests":["tests/unit-d-behavior.test.cjs"]}
+{"ids":["B08-L79"],"file":"electron/lib/autonomy.cjs","from":"if (current.head !== runRecord.baseHead) throw new Error(","to":"if (false) throw new Error(","tests":["tests/unit-d-behavior.test.cjs"]}
+{"ids":["B08-L79"],"file":"electron/lib/autonomy.cjs","from":"const applied = await runProcess('git', ['apply', runRecord.patchFile], {","to":"const applied = await runProcess('git', ['apply', '--check', runRecord.patchFile], {","tests":["tests/unit-d-behavior.test.cjs"]}

@@ -318,21 +318,16 @@
         "section": "## 12. Harness Engineering expansion"
       },
       "text": "Tasks are durable objects with dependencies, priority, role, Workspace/repository bindings, limits, verifier profile and risk policy. Scheduler decisions must remain explainable after restart.",
-      "status": "PARTIAL",
+      "status": "CONFIRMED_GAP",
       "evidence": [
         {
           "file": "electron/lib/control-plane.cjs",
-          "kind": "code",
-          "name": "createMission"
-        },
-        {
-          "file": "tests/scheduler-parallelism.test.cjs",
-          "kind": "test",
-          "name": "B02-L207 durable task fields, run limits and explainable scheduler decisions survive a restart"
+          "symbol": "createMission",
+          "description": "Tasks are created without a task-level role or verifier-profile field; only run-level providers and contract carry them."
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Proven across a real ControlPlane restart: task dependencies, priority, risk, estimates, repository bindings, mission limits/Workspace id/role providers and the explainable aecp.scheduler-decision/v1 (reasons, worker, provider states, locks) plus the journaled scheduler.selected event. Remaining: tasks carry no task-level role or verifier-profile field (only run-level providers/contract), so the clause is not fully evidenced."
+      "workOrder": "0016",
+      "note": "Repair: add role and verifierProfile to the durable Task record and to the scheduler decision. The rest of the clause (dependencies, priority, bindings, limits, explainable decisions after restart) is proven by B02-L207 in tests/scheduler-parallelism.test.cjs."
     },
     {
       "id": "B02-L95",
@@ -1742,21 +1737,16 @@
         "section": "## 3. Future capability evolution"
       },
       "text": "Each action must have an implementation-specific schema, bounded inputs, risk classification and verifier. A generic free-form shell string is not the preferred public contract.",
-      "status": "PARTIAL",
+      "status": "CONFIRMED_GAP",
       "evidence": [
         {
-          "file": "tests/task-bridge-main.test.cjs",
-          "kind": "test",
-          "name": "B11-L61 a free-form shell string cannot ride in a Command Card: extra fields are dropped and the verifier is fixed"
-        },
-        {
           "file": "electron/lib/protocol.cjs",
-          "kind": "code",
-          "name": "ACTION_TYPES"
+          "symbol": "ACTION_TYPES",
+          "description": "There is no per-action metadata table (schema, risk class, verifier); task:import gives every accepted action GREEN."
         }
       ],
-      "workOrder": "UNASSIGNED",
-      "note": "Enforcement half proven with the real task:import: a free-form shell string, extra action fields and a self-chosen verifier are dropped (action is only {type}, verification is fixed to operation-success), inputs are bounded and only the two fixed read-only actions exist. Remains PARTIAL: there is no explicit per-action metadata (schema/risk/verifier table) - task:import assigns GREEN to every accepted action, so a future action added to ACTION_TYPES would inherit GREEN unless someone remembers to classify it."
+      "workOrder": "0016",
+      "note": "Repair: turn ACTION_TYPES into a table with schema, risk class and verifier per action and make task:import read it. Today only two fixed read-only actions exist and a free-form shell string is dropped (proven in tests/task-bridge-main.test.cjs)."
     },
     {
       "id": "B12-L134",
@@ -7913,10 +7903,20 @@
         "section": "## 3. Automatic detection policy"
       },
       "text": "branch / dirty-clean status",
-      "status": "PARTIAL",
-      "evidence": [],
-      "note": "Branch and dirty/clean status are collected by inspectGit and displayed, and a Workspace scan test proves which repositories are found, but no test asserts the branch/dirty values themselves.",
-      "workOrder": "UNASSIGNED"
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/unit-d-behavior.test.cjs",
+          "kind": "test",
+          "name": "B07-L44 the detected repositories report their real branch and their real dirty/clean state"
+        },
+        {
+          "file": "electron/main.cjs",
+          "kind": "code",
+          "name": "inspectGit"
+        }
+      ],
+      "note": "Real workspace:select / workspace:refresh over two real git repositories: the reported branch is the checked-out branch (also after a switch) and dirty flips with an untracked file, a tracked edit and their removal."
     },
     {
       "id": "B07-L45",
@@ -9286,10 +9286,16 @@
         "section": "## P1 — Safe Bridge MVP"
       },
       "text": "explicit run/cancel",
-      "status": "PARTIAL",
-      "evidence": [],
-      "note": "Explicit run is proven (nothing runs without a click, B14-L15); the read-only Safe Bridge task has no cancel control (cancel exists for Missions and Harness runs, proven by R2.1/R3.10).",
-      "workOrder": "UNASSIGNED"
+      "status": "CONFIRMED_GAP",
+      "evidence": [
+        {
+          "file": "electron/main.cjs",
+          "symbol": "executeReadOnlyTask",
+          "description": "The read-only Safe Bridge task runner has no cancel path; only Missions and Harness runs can be cancelled."
+        }
+      ],
+      "note": "Repair: give the Safe Bridge task an abort signal and a cancel control. Explicit run is proven by B14-L15.",
+      "workOrder": "0016"
     },
     {
       "id": "B08-L27",
@@ -9609,10 +9615,16 @@
         "section": "## P2 — Local engineering execution"
       },
       "text": "PowerShell execution inside bound Workspace",
-      "status": "PARTIAL",
-      "evidence": [],
-      "note": "AECP runs fixed commands (git, verifier) inside the worktree and opens a terminal in the Workspace, but it has no general PowerShell command execution feature by design in this build.",
-      "workOrder": "UNASSIGNED"
+      "status": "CONFIRMED_GAP",
+      "evidence": [
+        {
+          "file": "electron/main.cjs",
+          "symbol": "execFixed",
+          "description": "Only fixed argv commands (git, verifier) run in the Workspace; there is no PowerShell execution feature."
+        }
+      ],
+      "note": "The clause as written (PowerShell execution inside the bound Workspace) is not built. If it is intended, it needs its own risk-classed, approval-gated action; if not, it needs a decision record so it can become DELIBERATE_NON_GOAL.",
+      "workOrder": "0016"
     },
     {
       "id": "B08-L38",
@@ -10512,10 +10524,20 @@
         "section": "## P4.5 — Execution-mode resolution"
       },
       "text": "Local Autonomous Loop adapter contract",
-      "status": "PARTIAL",
-      "evidence": [],
-      "note": "The Local Autonomous Loop adapter contract is exercised by tests/autonomy.test.cjs (B18-13-*), covered clause by clause there; no phase-level behavior test was added.",
-      "workOrder": "UNASSIGNED"
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/unit-d-behavior.test.cjs",
+          "kind": "test",
+          "name": "B08-L79 the Local Autonomous Loop adapter edits an isolated worktree, and only an explicit apply on an unchanged HEAD touches the repository"
+        },
+        {
+          "file": "electron/lib/autonomy.cjs",
+          "kind": "code",
+          "name": "runBoundedAutonomy"
+        }
+      ],
+      "note": "Real runBoundedAutonomy and applyVerifiedPatch: the worker writes in an isolated worktree, a verified run leaves the repository untouched, an explicit apply changes it, and a patch made before HEAD moved is refused. Resume and the other limits are proven by tests/autonomy.test.cjs."
     },
     {
       "id": "B08-L80",
@@ -10524,10 +10546,14 @@
         "section": "## P4.5 — Execution-mode resolution"
       },
       "text": "Official Full MCP adapter contract",
-      "status": "PARTIAL",
+      "status": "ENVIRONMENT",
       "evidence": [],
-      "note": "The Official Full MCP adapter contract is deliberately not ready (E3): the UI never marks it ready (B16-L286); no real connector exists to verify.",
-      "workOrder": "UNASSIGNED"
+      "note": "The Official Full MCP adapter is deliberately never reported ready (E3, B16-L286); verifying it needs a real connector, which only an ENVIRONMENT run can supply.",
+      "workOrder": "UNASSIGNED",
+      "acceptanceRef": {
+        "file": ".ai/ACCEPTANCE.md",
+        "section": "## 5. ENVIRONMENT / OWNER 項目的驗收協定"
+      }
     },
     {
       "id": "B08-L81",
@@ -10708,10 +10734,30 @@
         "section": "## P4.5 — Execution-mode resolution"
       },
       "text": "Local Autonomous mode must enforce iteration/turn/output/patch/file-count/time/permission limits outside the model",
-      "status": "PARTIAL",
-      "evidence": [],
-      "note": "Iteration limits are enforced outside the model and proven (B18-13-08), and the Goal Loop bounds by B14-L193/B20-27-13; a single test covering every listed limit (turn/output/patch/file-count/time/permission) for Local Autonomous mode was not written.",
-      "workOrder": "UNASSIGNED"
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/unit-d-behavior.test.cjs",
+          "kind": "test",
+          "name": "B08-L89 the numeric limits of Local Autonomous mode are clamped by AECP, not chosen by the model or the caller"
+        },
+        {
+          "file": "tests/unit-d-behavior.test.cjs",
+          "kind": "test",
+          "name": "B08-L89 a worker process that runs too long or prints too much is killed by the runner"
+        },
+        {
+          "file": "tests/unit-d-behavior.test.cjs",
+          "kind": "test",
+          "name": "B08-L89 a patch larger than the patch budget ends the run as BUDGET_EXHAUSTED and nothing is applied"
+        },
+        {
+          "file": "tests/unit-d-behavior.test.cjs",
+          "kind": "test",
+          "name": "B08-L89 the permission limit is a deny-first policy handed to the worker, not a request in the prompt"
+        }
+      ],
+      "note": "Every listed limit is enforced by AECP code outside the model: iteration/turn (clamped spec + BUDGET_EXHAUSTED), output bytes (runProcess kills the process), time (runProcess timeout), patch bytes and changed-file count (createPatch) and permission (deny-first OpenCode policy, Codex workspace-write sandbox without network)."
     },
     {
       "id": "B08-L94",
@@ -11743,7 +11789,7 @@
       "text": "external GitHub events are correlated before state mutation.",
       "status": "PARTIAL",
       "evidence": [],
-      "note": "External GitHub events are correlated before state mutation (B05-L118) but that clause is still PARTIAL (repository_dispatch payload versioning).",
+      "note": "Correlation before state mutation is proven by B05-L118 for workflow_run deliveries; it stays PARTIAL together with B05-L118 (repository_dispatch client_payload is not parsed yet).",
       "workOrder": "UNASSIGNED"
     },
     {
