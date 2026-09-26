@@ -98,7 +98,8 @@ const DICTIONARIES=Object.freeze({
     'dashboard.progress.implementation':'Implementation',
     'dashboard.progress.testing':'Testing',
     'dashboard.progress.review':'Review',
-    'dashboard.progress.acceptance':'Acceptance'
+    'dashboard.progress.acceptance':'Acceptance',
+    'worker.networkHint':'This is normal while idle: AIECP only asks you to approve network access when it actually dispatches work.'
   }),
   'zh-TW':Object.freeze({
     'workspace.choose':'選擇工作區',
@@ -197,7 +198,8 @@ const DICTIONARIES=Object.freeze({
     'dashboard.progress.implementation':'實作',
     'dashboard.progress.testing':'測試',
     'dashboard.progress.review':'審查',
-    'dashboard.progress.acceptance':'驗收'
+    'dashboard.progress.acceptance':'驗收',
+    'worker.networkHint':'這是閒置時的正常狀態：真正派工時才會請你核准網路使用。'
   })
 });
 
@@ -834,6 +836,8 @@ const PHRASES=Object.freeze({
   'high': '高',
   'xhigh': '超高',
   'max': '最大',
+
+  'This is normal while idle: AIECP only asks you to approve network access when it actually dispatches work.': '這是閒置時的正常狀態：真正派工時才會請你核准網路使用。',
 
 });
 

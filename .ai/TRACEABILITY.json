@@ -13185,6 +13185,33 @@
         }
       ],
       "note": "Local run evidence for the owner; explicitly not GitHub self-hosted Runner evidence and never writes to the traceability matrix. Real PEGA/OFFICIAL calls still need the owner's key/login."
+    },
+    {
+      "id": "W0020-C",
+      "source": {
+        "file": ".ai/WORK_ORDERS/0020.md",
+        "section": "## 3. 項目 C"
+      },
+      "text": "A DEGRADED Worker card whose reason is missing network approval gets a plain-language note that this is normal while idle; the status colour and word are unchanged, and other DEGRADED reasons get no such note.",
+      "status": "IMPLEMENTED",
+      "evidence": [
+        {
+          "file": "tests/harness-worker-health-text.test.cjs",
+          "kind": "test",
+          "name": "B0020 a DEGRADED worker waiting only for network approval gets a plain explanation, and the status is never turned green"
+        },
+        {
+          "file": "tests/harness-worker-health-text.test.cjs",
+          "kind": "test",
+          "name": "B0020 a worker degraded for a different reason gets no network hint, and other states are unaffected"
+        },
+        {
+          "file": "ui/harness-console.js",
+          "kind": "code",
+          "name": "healthHint"
+        }
+      ],
+      "note": "Purely additive text; no status classification changed (tests/ui-theme-contrast.test.cjs still passes with no new hard-coded colours)."
     }
   ]
 }
