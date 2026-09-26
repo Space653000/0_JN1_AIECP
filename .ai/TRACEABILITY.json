@@ -318,16 +318,35 @@
         "section": "## 12. Harness Engineering expansion"
       },
       "text": "Tasks are durable objects with dependencies, priority, role, Workspace/repository bindings, limits, verifier profile and risk policy. Scheduler decisions must remain explainable after restart.",
-      "status": "CONFIRMED_GAP",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
+          "file": "tests/scheduler-parallelism.test.cjs",
+          "kind": "test",
+          "name": "B02-L207 durable task fields, run limits and explainable scheduler decisions survive a restart"
+        },
+        {
+          "file": "tests/task-role-verifier.test.cjs",
+          "kind": "test",
+          "name": "B02-L207 the role is one of planner, builder or reviewer and anything else is refused"
+        },
+        {
+          "file": "tests/task-role-verifier.test.cjs",
+          "kind": "test",
+          "name": "B02-L207 the verifier profile is derived from the verifier command, or given explicitly, and unknown values are refused"
+        },
+        {
+          "file": "tests/task-role-verifier.test.cjs",
+          "kind": "test",
+          "name": "B02-L207 role and verifier profile are part of the explainable scheduler decision and survive a restart"
+        },
+        {
           "file": "electron/lib/control-plane.cjs",
-          "symbol": "createMission",
-          "description": "Tasks are created without a task-level role or verifier-profile field; only run-level providers and contract carry them."
+          "kind": "code",
+          "name": "enqueueTask"
         }
       ],
-      "workOrder": "0017",
-      "note": "Repair: add role and verifierProfile to the durable Task record and to the scheduler decision. The rest of the clause (dependencies, priority, bindings, limits, explainable decisions after restart) is proven by B02-L207 in tests/scheduler-parallelism.test.cjs."
+      "note": "Real ControlPlane: every task now carries a role (planner|builder|reviewer, default builder) and a verifier profile (npm-verify|npm-test|custom, derived from the verifier command or given explicitly); unknown values are refused, both are part of the aecp.scheduler-decision/v1 record and survive a restart, and tasks saved earlier are explained with the defaults. Dependencies, priority, risk, estimates, repository bindings and limits were already proven (work order 0017)."
     },
     {
       "id": "B02-L95",
@@ -1766,16 +1785,35 @@
         "section": "## 3. Future capability evolution"
       },
       "text": "Each action must have an implementation-specific schema, bounded inputs, risk classification and verifier. A generic free-form shell string is not the preferred public contract.",
-      "status": "CONFIRMED_GAP",
+      "status": "IMPLEMENTED",
       "evidence": [
         {
+          "file": "tests/action-metadata-table.test.cjs",
+          "kind": "test",
+          "name": "B11-L61 every action in the table has its own schema, a risk class, a verifier and a bounded input size"
+        },
+        {
+          "file": "tests/action-metadata-table.test.cjs",
+          "kind": "test",
+          "name": "B11-L61 card validation is driven by the table: an action added to the table is understood, one that is not in it is refused"
+        },
+        {
+          "file": "tests/action-metadata-table.test.cjs",
+          "kind": "test",
+          "name": "B11-L61 task:import takes the risk and the verifier from the table and ignores what the card claims about itself"
+        },
+        {
+          "file": "tests/task-bridge-main.test.cjs",
+          "kind": "test",
+          "name": "B11-L61 a free-form shell string cannot ride in a Command Card: extra fields are dropped and the verifier is fixed"
+        },
+        {
           "file": "electron/lib/protocol.cjs",
-          "symbol": "ACTION_TYPES",
-          "description": "There is no per-action metadata table (schema, risk class, verifier); task:import gives every accepted action GREEN."
+          "kind": "code",
+          "name": "ACTION_TABLE"
         }
       ],
-      "workOrder": "0017",
-      "note": "Repair: turn ACTION_TYPES into a table with schema, risk class and verifier per action and make task:import read it. Today only two fixed read-only actions exist and a free-form shell string is dropped (proven in tests/task-bridge-main.test.cjs)."
+      "note": "protocol.ACTION_TABLE has one row per action (schema, risk, verifier, maxInputBytes); parseCommandCard and task:import read it, so an action absent from the table is refused, extra or wrongly typed fields are dropped or refused, oversized input is refused, and the risk and verifier come from the table, not from the card (work order 0017)."
     },
     {
       "id": "B12-L134",

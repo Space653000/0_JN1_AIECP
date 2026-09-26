@@ -40,6 +40,28 @@ function clamp(n,min,max,d){const x=Number(n);return Number.isFinite(x)?Math.max
 function budgetOrDefault(n,min,max,d){return n==null?d:clamp(n,min,max,d);}
 
 function schedulerPriority(value){return clamp(value,0,100,50);}
+const TASK_ROLES=Object.freeze(['planner','builder','reviewer']);
+const VERIFIER_PROFILES=Object.freeze(['npm-verify','npm-test','custom']);
+// A task's role defaults to builder; anything outside the whitelist is refused instead of guessed.
+function taskRole(value){
+  if(value===undefined||value===null)return 'builder';
+  if(typeof value!=='string'||!TASK_ROLES.includes(value))throw new Error('Task role must be one of: '+TASK_ROLES.join(', ')+'.');
+  return value;
+}
+// The profile is named explicitly, or derived from the verifier command the planner gave; no command means the default harness verifier.
+function taskVerifierProfile(task){
+  if(task?.verifierProfile!==undefined&&task?.verifierProfile!==null){
+    if(typeof task.verifierProfile!=='string'||!VERIFIER_PROFILES.includes(task.verifierProfile))throw new Error('Task verifier profile must be one of: '+VERIFIER_PROFILES.join(', ')+'.');
+    return task.verifierProfile;
+  }
+  const command=task?.verifier;
+  if(command===undefined||command===null||command==='')return 'npm-verify';
+  if(typeof command!=='string')throw new Error('Task verifier must be a command string.');
+  const normalized=command.trim().split(/\s+/).join(' ');
+  if(normalized==='npm run verify')return 'npm-verify';
+  if(normalized==='npm test')return 'npm-test';
+  return 'custom';
+}
 function schedulerRisk(value){return RISK[String(value||'YELLOW').toUpperCase()] ?? RISK.YELLOW;}
 function schedulerEstimate(value,fallback,max){return clamp(value,0,max,fallback);}
 function compareSchedulerCandidates(a,b){
@@ -292,7 +314,7 @@ class ControlPlane {
     const plan=safeJson(execution.stdout);
     const tasks=Array.isArray(plan?.tasks)?plan.tasks.slice(0,run.maxTasks):[];
     if(!tasks.length) throw new Error('Planner returned no tasks.');
-    for(const item of tasks) await this.enqueueTask(run,{title:String(item.title||'Task'),objective:String(item.objective||''),acceptance:String(item.acceptance||run.done),dependencies:Array.isArray(item.dependencies)?item.dependencies:[],risk:['GREEN','YELLOW','RED'].includes(item.risk)?item.risk:'YELLOW',priority:schedulerPriority(item.priority),estimatedRuntimeMs:schedulerEstimate(item.estimatedRuntimeMs,300000,24*60*60*1000),estimatedCostUnits:schedulerEstimate(item.estimatedCostUnits,1,1000000),repositories:Array.isArray(item.repositories)?item.repositories:[]});
+    for(const item of tasks) await this.enqueueTask(run,{title:String(item.title||'Task'),objective:String(item.objective||''),acceptance:String(item.acceptance||run.done),dependencies:Array.isArray(item.dependencies)?item.dependencies:[],risk:['GREEN','YELLOW','RED'].includes(item.risk)?item.risk:'YELLOW',verifier:typeof item.verifier==='string'?item.verifier.slice(0,200):undefined,priority:schedulerPriority(item.priority),estimatedRuntimeMs:schedulerEstimate(item.estimatedRuntimeMs,300000,24*60*60*1000),estimatedCostUnits:schedulerEstimate(item.estimatedCostUnits,1,1000000),repositories:Array.isArray(item.repositories)?item.repositories:[]});
     run.executionContract=updateExecutionContract(run.executionContract,{taskIds:[...(run.taskIds||[])]});
     run.plannedAt=now();run.plan=plan;await this.persist();await this.event('mission.planned',{runId:run.id,taskCount:tasks.length});
     return tasks;
@@ -568,6 +590,8 @@ class ControlPlane {
       selectedWorkerId:selectedWorker?.id||null,
       selectedBuilderProvider:selectedWorker?.providerId||run.providers?.builder||null,
       selectedBuilderModel:selectedWorker?.model||run.models?.builder||null,
+      role:TASK_ROLES.includes(task.role)?task.role:'builder',
+      verifierProfile:VERIFIER_PROFILES.includes(task.verifierProfile)?task.verifierProfile:'npm-verify',
       priority:schedulerPriority(task.priority),
       risk:schedulerRisk(task.risk),
       estimatedCostUnits:schedulerEstimate(task.estimatedCostUnits,1,1000000),
@@ -624,6 +648,8 @@ class ControlPlane {
   }
 
   async enqueueTask(run,task){
+    const role=taskRole(task.role);
+    const verifierProfile=taskVerifierProfile(task);
     const id=uid('task');
     const fallbackRoot=path.resolve(run.sourceRoot||this.rootDir);
     const allowedRoots=(Array.isArray(run.repositoryPaths)&&run.repositoryPaths.length?run.repositoryPaths:[fallbackRoot]).filter(Boolean);
@@ -631,7 +657,7 @@ class ControlPlane {
     const allowed=new Set(allowedRoots.map(x=>canonicalForCompare(x)));
     const requested=(task.repositories||[]).map(x=>path.resolve(String(x))).filter(x=>allowed.has(canonicalForCompare(x)));
     const repositories=requested.length?requested:[fallbackRoot];
-    const t={...task,id,runId:run.id,state:'QUEUED',phase:'QUEUED',createdAt:now(),updatedAt:now(),attempts:0,lease:null,priority:schedulerPriority(task.priority),estimatedRuntimeMs:schedulerEstimate(task.estimatedRuntimeMs,300000,24*60*60*1000),estimatedCostUnits:schedulerEstimate(task.estimatedCostUnits,1,1000000),resources:{repositories}};
+    const t={...task,role,verifierProfile,id,runId:run.id,state:'QUEUED',phase:'QUEUED',createdAt:now(),updatedAt:now(),attempts:0,lease:null,priority:schedulerPriority(task.priority),estimatedRuntimeMs:schedulerEstimate(task.estimatedRuntimeMs,300000,24*60*60*1000),estimatedCostUnits:schedulerEstimate(task.estimatedCostUnits,1,1000000),resources:{repositories}};
     this.state.tasks[id]=t;run.taskIds.push(id);
     await this.persist();await this.event('task.queued',{runId:run.id,taskId:id,title:t.title});
     return t;

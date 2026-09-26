@@ -294,3 +294,16 @@
 {"ids":["B05-L118"],"file":"electron/lib/github-webhook.cjs","from":"p.schema==='aecp.event/v1'&&","to":"","tests":["tests/github-dispatch-payload.test.cjs"]}
 {"ids":["B05-L118"],"file":"electron/lib/github-webhook.cjs","from":"if(type==='repository_dispatch'){","to":"if(true){","tests":["tests/github-dispatch-payload.test.cjs"]}
 {"ids":["B05-L118"],"file":"electron/lib/github-webhook.cjs","from":"{1,128}$/.test(p.correlationId)","to":"{1,128}$/.test('ok')","tests":["tests/github-dispatch-payload.test.cjs"]}
+{"ids":["B11-L61"],"file":"electron/lib/protocol.cjs","from":"if (!meta) throw new Error(`Preview build supports:","to":"if (false) throw new Error(`Preview build supports:","tests":["tests/action-metadata-table.test.cjs"]}
+{"ids":["B11-L61"],"file":"electron/lib/protocol.cjs","from":"if (typeof action[field] !== kind) throw new Error(","to":"if (false) throw new Error(","tests":["tests/action-metadata-table.test.cjs"]}
+{"ids":["B11-L61"],"file":"electron/lib/protocol.cjs","from":"if (size > meta.maxInputBytes) throw new Error(","to":"if (false) throw new Error(","tests":["tests/action-metadata-table.test.cjs"]}
+{"ids":["B11-L61"],"file":"electron/lib/protocol.cjs","from":"Object.prototype.hasOwnProperty.call(ACTION_TABLE, type)","to":"type in ACTION_TABLE","tests":["tests/action-metadata-table.test.cjs"]}
+{"ids":["B11-L61"],"file":"electron/main.cjs","from":"      risk: meta.risk,","to":"      risk: 'GREEN',","tests":["tests/action-metadata-table.test.cjs"]}
+{"ids":["B02-L207"],"file":"electron/lib/control-plane.cjs","from":"if(typeof value!=='string'||!TASK_ROLES.includes(value))throw new Error(","to":"if(false)throw new Error(","tests":["tests/task-role-verifier.test.cjs"]}
+{"ids":["B02-L207"],"file":"electron/lib/control-plane.cjs","from":"if(typeof task.verifierProfile!=='string'||!VERIFIER_PROFILES.includes(task.verifierProfile))throw new Error(","to":"if(false)throw new Error(","tests":["tests/task-role-verifier.test.cjs"]}
+{"ids":["B02-L207"],"file":"electron/lib/control-plane.cjs","from":"if(normalized==='npm test')return 'npm-test';","to":"","tests":["tests/task-role-verifier.test.cjs"]}
+{"ids":["B02-L207"],"file":"electron/lib/control-plane.cjs","from":"const t={...task,role,verifierProfile,id,","to":"const t={...task,id,","tests":["tests/task-role-verifier.test.cjs"]}
+{"ids":["B02-L207"],"file":"electron/lib/control-plane.cjs","from":"role:TASK_ROLES.includes(task.role)?task.role:'builder',","to":"role:'builder',","tests":["tests/task-role-verifier.test.cjs"]}
+{"ids":["B02-L207"],"file":"electron/lib/control-plane.cjs","from":"verifierProfile:VERIFIER_PROFILES.includes(task.verifierProfile)?task.verifierProfile:'npm-verify',","to":"verifierProfile:'npm-verify',","tests":["tests/task-role-verifier.test.cjs"]}
+{"ids":["B02-L207"],"file":"electron/lib/control-plane.cjs","from":"if(typeof command!=='string')throw new Error('Task verifier must be a command string.');","to":"","tests":["tests/task-role-verifier.test.cjs"]}
+{"ids":["B11-L61"],"file":"electron/lib/protocol.cjs","from":"verification: { type: meta.verifier, expected: true }","to":"verification: { type: 'operation-success', expected: true }","tests":["tests/action-metadata-table.test.cjs"]}

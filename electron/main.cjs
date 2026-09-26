@@ -27,7 +27,7 @@ const { writeBackup, stageRestore, applyPendingRestore } = require('./lib/backup
 const { WindowsUiAdapter } = require('./lib/windows-ui-adapter.cjs');
 const { PythonWorker } = require('./lib/python-worker.cjs');
 
-const { parseCommandCard, makeTaskId, makeResultCapsule, hashJson, withinClipboardWriteLimit } = require('./lib/protocol.cjs');
+const { parseCommandCard, actionMeta, makeTaskId, makeResultCapsule, hashJson, withinClipboardWriteLimit } = require('./lib/protocol.cjs');
 const { isAllowedNavigation } = require('./lib/navigation-policy.cjs');
 const { createValidatedIpc, IPC_SCHEMAS } = require('./lib/ipc-validation.cjs');
 const { compareVersions, versionFromTag, selectHighestRelease, selectInstallerAsset } = require('./lib/version.cjs');
@@ -1848,13 +1848,14 @@ function registerIpc() {
     const workspace = getCurrentWorkspace(state);
     if (!workspace) throw new Error('Choose a Workspace before importing a task.');
     const taskId = makeTaskId();
+    const meta = actionMeta(card.action.type);
     const task = {
       id: taskId,
       workspaceId: workspace.id,
       title: card.title,
       goal: card.goal,
       state: 'READY',
-      risk: 'GREEN',
+      risk: meta.risk,
       riskReason: 'Preview Command Cards expose read-only local capabilities only.',
       card,
       executionContract: makeExecutionContract({
@@ -1882,7 +1883,7 @@ function registerIpc() {
     state.tasks = state.tasks.slice(0, 200);
     await saveState(state);
     await persistTask(task);
-    await appendTrace(task.id, 'task.imported', { cardHash: hashJson(card), workspaceId: workspace.id, risk: 'GREEN' });
+    await appendTrace(task.id, 'task.imported', { cardHash: hashJson(card), workspaceId: workspace.id, risk: task.risk });
     return task;
   });
 
