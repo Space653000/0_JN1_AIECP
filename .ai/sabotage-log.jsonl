@@ -355,3 +355,10 @@
 {"ids":["W0019-B"],"file":"ui/app.js","from":"  if (state.sayHiBusy[agentId]) return;","to":"","tests":["tests/agent-settings-ui.test.cjs"]}
 {"ids":["W0019-B"],"file":"electron/lib/agent-settings.cjs","from":"      if (parsed && parsed.is_error === true) return","to":"      if (false) return","tests":["tests/agent-say-hi.test.cjs"]}
 {"ids":["W0019-B"],"file":"electron/lib/agent-settings.cjs","from":"        const detail = redactText(String(outcome?.stderr || jsonError(outcome?.stdout) || outcome?.stdout","to":"        const detail = redactText(String(outcome?.stderr || outcome?.stdout","tests":["tests/agent-say-hi.test.cjs"]}
+{"ids":["W0020-A"],"file":"electron/lib/command-resolver.cjs","from":"      if(!info.isFile()||info.isSymbolicLink())continue;","to":"      if(false)continue;","tests":["tests/codex-install-resolution.test.cjs"]}
+{"ids":["W0020-A"],"file":"electron/lib/command-resolver.cjs","from":"      if(!inside(realpath(exe),baseReal))continue;","to":"","tests":["tests/codex-install-resolution.test.cjs"]}
+{"ids":["W0020-A"],"file":"electron/lib/command-resolver.cjs","from":"      if(!best||info.mtimeMs>best.mtimeMs)best=","to":"      if(!best)best=","tests":["tests/codex-install-resolution.test.cjs"]}
+{"ids":["W0020-A"],"file":"electron/lib/command-resolver.cjs","from":"  if(base==='codex'){","to":"  if(true){","tests":["tests/codex-install-resolution.test.cjs"]}
+{"ids":["W0020-A"],"file":"electron/lib/command-resolver.cjs","from":"    return c.startsWith(p+'\\\\');","to":"    return c.startsWith(p);","tests":["tests/codex-install-resolution.test.cjs"]}
+{"ids":["W0020-A"],"file":"electron/lib/command-resolver.cjs","from":"      if(!dirStat.isDirectory()||dirStat.isSymbolicLink())continue;","to":"      if(false)continue;","tests":["tests/codex-install-resolution.test.cjs"]}
+{"ids":["W0020-A"],"file":"electron/lib/command-resolver.cjs","from":"  if(!local||!path.win32.isAbsolute(local))return null;","to":"  if(!local)return null;","tests":["tests/codex-install-resolution.test.cjs"]}
