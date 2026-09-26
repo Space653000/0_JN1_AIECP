@@ -326,7 +326,7 @@
           "description": "Tasks are created without a task-level role or verifier-profile field; only run-level providers and contract carry them."
         }
       ],
-      "workOrder": "0016",
+      "workOrder": "0017",
       "note": "Repair: add role and verifierProfile to the durable Task record and to the scheduler decision. The rest of the clause (dependencies, priority, bindings, limits, explainable decisions after restart) is proven by B02-L207 in tests/scheduler-parallelism.test.cjs."
     },
     {
@@ -1774,7 +1774,7 @@
           "description": "There is no per-action metadata table (schema, risk class, verifier); task:import gives every accepted action GREEN."
         }
       ],
-      "workOrder": "0016",
+      "workOrder": "0017",
       "note": "Repair: turn ACTION_TYPES into a table with schema, risk class and verifier per action and make task:import read it. Today only two fixed read-only actions exist and a free-form shell string is dropped (proven in tests/task-bridge-main.test.cjs)."
     },
     {

@@ -31,3 +31,7 @@
 - 想知道「怎樣算做完」→ `.ai/ACCEPTANCE.md`
 - 想知道「現在做到哪、卡在哪」→ `.ai/STATUS.md`
 - 想知道「我（Claude Code）該怎麼做事」→ `.ai/CLAUDE_REVIEWER.md`
+
+## 介面風格（擁有者偏好）
+
+所有網頁、看板與應用程式介面，顏色與版面盡量仿照 ChatGPT／Codex 桌面版：深色近黑中性底、圓角卡片、單一綠色強調、等寬字體用於程式碼與 ID、並提供淺色主題；文字對比須 ≥ 4.5:1。**只仿風格，不使用 OpenAI／ChatGPT／Codex 的標誌、字標、圖示或字型檔**，且 AECP 自己的識別要比任何供應商更醒目。範例：`artifacts/dashboard/index.html` 的 `<style>`；施工細節見 `.ai/WORK_ORDERS/0018.md`。
